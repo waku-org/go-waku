@@ -39,7 +39,7 @@ type MessagePair struct {
 // NOTE based on Eth2Node in NBC eth2_network.nim
 type WakuNode struct {
 	peerManager *PeerManager
-	sw          host.Host
+	Host        host.Host
 	// wakuRelay *WakuRelay
 	// wakuStore *WakuStore
 	// wakuFilter *WakuFilter
@@ -52,14 +52,12 @@ type WakuNode struct {
 	//filters *Filters
 	subscriptions protocol.MessageNotificationSubscriptions
 	// rng *BrHmacDrbgContext // ???
-
-	cancel context.CancelFunc
 }
 
 // Public API
 //
 
-func New(nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode, error) {
+func New(ctx context.Context, nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode, error) {
 	// Creates a Waku Node.
 	if hostAddr == nil {
 		return nil, errors.New("Host address cannot be null")
@@ -89,20 +87,14 @@ func New(nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode
 		libp2p.EnableNATService(), // TODO: what is this?
 	}
 
-	// The context governs the lifetime of the libp2p node.
-	// Cancelling it will stop the the host.
-	ctx, cancel := context.WithCancel(context.Background())
-
 	host, err := libp2p.New(ctx, opts...)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
 	w := new(WakuNode)
 	w.peerManager = NewPeerManager(host)
-	w.sw = host
-	w.cancel = cancel
+	w.Host = host
 	// w.filters = new(Filters)
 
 	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
@@ -114,10 +106,10 @@ func New(nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode
 	return w, nil
 }
 
-func (node *WakuNode) Stop() {
+func (node *WakuNode) Stop() error {
 	// TODO:
 	//if not node.wakuRelay.isNil:
 	//  await node.wakuRelay.stop()
 
-	node.cancel()
+	return node.Host.Close()
 }
