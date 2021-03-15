@@ -2,40 +2,35 @@
 //
 // See https://github.com/vacp2p/specs/blob/master/specs/waku/v2/waku-relay.md
 // for spec.
-
 package protocol
 
 import (
 	"context"
 
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/protocol"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
 const WakuRelayCodec = libp2pProtocol.ID("/vac/waku/relay/2.0.0-beta2")
 
-type WakuRelaySubRouter struct {
-	*pubsub.GossipSubRouter
+type WakuRelay struct {
 	p *pubsub.PubSub
 }
 
 func NewWakuRelay(ctx context.Context, h host.Host, opts ...pubsub.Option) (*pubsub.PubSub, error) {
+	// Once https://github.com/status-im/nim-waku/issues/420 is fixed, implement a custom messageIdFn
+	//opts = append(opts, pubsub.WithNoAuthor())
+	//opts = append(opts, pubsub.WithMessageIdFn(messageIdFn))
 	opts = append(opts, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	opts = append(opts, pubsub.WithNoAuthor())
 
-	gossipSub, err := pubsub.NewGossipSub(ctx, h, opts...)
+	gossipSub, err := pubsub.NewGossipSub(ctx, h, []libp2pProtocol.ID{WakuRelayCodec}, opts...)
 
 	if err != nil {
 		return nil, err
 	}
 
-	w := new(WakuRelaySubRouter)
+	w := new(WakuRelay)
 	w.p = gossipSub
 	return gossipSub, nil
-}
-
-func (ws *WakuRelaySubRouter) Protocols() []protocol.ID {
-	return []libp2pProtocol.ID{WakuRelayCodec, pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID}
 }

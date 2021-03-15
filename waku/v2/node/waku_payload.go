@@ -23,9 +23,9 @@ const (
 )
 
 type KeyInfo struct {
-	kind    KeyKind
-	symKey  []byte
-	privKey ecdsa.PrivateKey
+	Kind    KeyKind
+	SymKey  []byte
+	PrivKey ecdsa.PrivateKey
 }
 
 // NOTICE: Extracted from status-go
@@ -68,21 +68,21 @@ func decryptAsymmetric(payload []byte, key *ecdsa.PrivateKey) ([]byte, error) {
 	return decrypted, err
 }
 
-func decodePayload(message *protocol.WakuMessage, keyInfo *KeyInfo) ([]byte, error) {
+func DecodePayload(message *protocol.WakuMessage, keyInfo *KeyInfo) ([]byte, error) {
 	switch *message.Version {
 	case uint32(0):
 		return message.Payload, nil
 	case uint32(1):
-		switch keyInfo.kind {
+		switch keyInfo.Kind {
 		case Symmetric:
-			decoded, err := decryptSymmetric(message.Payload, keyInfo.symKey)
+			decoded, err := decryptSymmetric(message.Payload, keyInfo.SymKey)
 			if err != nil {
 				return nil, errors.New("Couldn't decrypt using symmetric key")
 			} else {
 				return decoded, nil
 			}
 		case Asymmetric:
-			decoded, err := decryptAsymmetric(message.Payload, &keyInfo.privKey)
+			decoded, err := decryptAsymmetric(message.Payload, &keyInfo.PrivKey)
 			if err != nil {
 				return nil, errors.New("Couldn't decrypt using asymmetric key")
 			} else {
@@ -187,21 +187,21 @@ func generateSecureRandomData(length int) ([]byte, error) {
 	return res, nil
 }
 
-func encode(rawPayload []byte, keyInfo *KeyInfo, version uint32) ([]byte, error) {
+func Encode(rawPayload []byte, keyInfo *KeyInfo, version uint32) ([]byte, error) {
 	switch version {
 	case 0:
 		return rawPayload, nil
 	case 1:
-		switch keyInfo.kind {
+		switch keyInfo.Kind {
 		case Symmetric:
-			encoded, err := encryptSymmetric(rawPayload, keyInfo.symKey)
+			encoded, err := encryptSymmetric(rawPayload, keyInfo.SymKey)
 			if err != nil {
 				return nil, errors.New("Couldn't encrypt using symmetric key")
 			} else {
 				return encoded, nil
 			}
 		case Asymmetric:
-			encoded, err := encryptAsymmetric(rawPayload, &keyInfo.privKey.PublicKey)
+			encoded, err := encryptAsymmetric(rawPayload, &keyInfo.PrivKey.PublicKey)
 			if err != nil {
 				return nil, errors.New("Couldn't encrypt using asymmetric key")
 			} else {

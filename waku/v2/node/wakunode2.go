@@ -40,6 +40,13 @@ type MessagePair struct {
 	b *protocol.WakuMessage
 }
 
+type Subscription struct {
+	C      chan *protocol.WakuMessage
+	closed bool
+	mutex  sync.Mutex
+	quit   chan struct{}
+}
+
 type WakuNode struct {
 	// peerManager *PeerManager
 	host   host.Host
@@ -84,10 +91,10 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extA
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(multiAddresses...),
 		libp2p.Identity(nodeKey),
-		libp2p.DefaultTransports,  //
-		libp2p.NATPortMap(),       // Attempt to open ports using uPNP for NATed hosts.
-		libp2p.DisableRelay(),     // TODO: what is this?
-		libp2p.EnableNATService(), // TODO: what is this?
+		libp2p.DefaultTransports, //
+		libp2p.NATPortMap(),      // Attempt to open ports using uPNP for NATed hosts.
+		//libp2p.DisableRelay(),     // TODO: is this needed?
+		//libp2p.EnableNATService(), // TODO: is this needed?
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -147,7 +154,7 @@ func (w *WakuNode) MountRelay() error {
 	return nil
 }
 
-func (node *WakuNode) Subscribe(topic *Topic) (chan *protocol.WakuMessage, error) {
+func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 	// Subscribes to a PubSub topic. Triggers handler when receiving messages on
 	// this topic. TopicHandler is a method that takes a topic and some data.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
@@ -166,38 +173,46 @@ func (node *WakuNode) Subscribe(topic *Topic) (chan *protocol.WakuMessage, error
 		return nil, err
 	}
 
-	ch := make(chan *protocol.WakuMessage)
+	subscription := new(Subscription)
+	subscription.closed = false
+	subscription.C = make(chan *protocol.WakuMessage)
+	subscription.quit = make(chan struct{})
 
 	go func(ctx context.Context, sub *pubsub.Subscription) {
 		for {
-			msg, err := sub.Next(ctx)
-			if err != nil {
-				fmt.Println("ERROR RECEIVING: ", err) // TODO: use log lib
-				return                                // Should close channel?
-			}
-
-			fmt.Println("Received a message!")
-
-			wakuMessage := &protocol.WakuMessage{}
-			if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
-				fmt.Println("ERROR DECODING: ", err) // TODO: use log lib
+			select {
+			case <-subscription.quit:
+				close(subscription.C)
+				subscription.closed = true
 				return
+			default:
+				msg, err := sub.Next(ctx)
+
+				if err != nil {
+					return // Should close channel?
+				}
+
+				wakuMessage := &protocol.WakuMessage{}
+				if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
+					fmt.Println("Error decoding WakuMessage: ", err) // TODO: use log lib
+					return
+				}
+
+				subscription.C <- wakuMessage
 			}
-
-			fmt.Println("Decoded a message", wakuMessage.Payload)
-
-			ch <- wakuMessage
-			fmt.Println("Sent to channel")
 		}
-		// TODO: how to quit channel?  perhaps using select?
 	}(node.ctx, sub)
 
-	return ch, nil
+	return subscription, nil
 }
 
-func (node *WakuNode) Unsubscribe() {
+func (subs *Subscription) Unsubscribe() {
 	// Unsubscribes a handler from a PubSub topic.
-	// TODO:
+	subs.mutex.Lock()
+	defer subs.mutex.Unlock()
+	if !subs.closed {
+		close(subs.quit)
+	}
 }
 
 func (node *WakuNode) upsertTopic(topic *Topic) (*pubsub.Topic, error) {

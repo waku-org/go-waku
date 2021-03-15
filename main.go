@@ -15,33 +15,13 @@ import (
 	ethNodeCrypto "github.com/status-im/status-go/eth-node/crypto"
 )
 
-/*
-func readLoop(sub *pubsub.Subscription, ctx context.Context) {
-	for {
-		msg, err := sub.Next(ctx)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		cm := new(Test)
-		err = json.Unmarshal(msg.Data, cm)
-		if err != nil {
-			return
-		}
-
-		fmt.Println("Received: " + cm.Message)
-	}
-}
-*/
-
 func main() {
 	golog.SetAllLoggers(golog.LevelInfo) // Change to INFO for extra info
 
-	hostAddr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:5555")
-	extAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:5555")
+	hostAddr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:60001")
+	extAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60001")
 
-	key := "9ceff459635becbab13190132172fc9612357696c176a9e2b6e22f28a73a54ce"
+	key := "9ceff459635becbab13190132172fc9612357696c176a9e2b6e22f28a73a54de"
 	prvKey, err := ethNodeCrypto.HexToECDSA(key)
 
 	ctx := context.Background()
@@ -58,35 +38,45 @@ func main() {
 		fmt.Println("Could not subscribe:", err)
 	}
 
-	go func(sub chan *protocol.WakuMessage) {
+	// Read loop
+	go func() {
 		for {
-			fmt.Println("Waiting for a message...")
-			x := <-sub
-			fmt.Println("Received a message: ", string(x.Payload))
+			for value := range sub.C {
+				payload, err := node.DecodePayload(value, &node.KeyInfo{Kind: node.None})
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				fmt.Println("Received message:", string(payload))
+				//sub.Unsubscribe()
+			}
 		}
-	}(sub)
+	}()
 
-	for {
-		time.Sleep(4 * time.Second)
-		fmt.Println("Sending 'Hello World'...")
+	// Write loop
+	go func() {
+		for {
+			time.Sleep(2 * time.Second)
+			var contentTopic uint32 = 1
+			var version uint32 = 0
 
-		var contentTopic uint32 = 1
-		var version uint32 = 0
-
-		msg := &protocol.WakuMessage{Payload: []byte("Hello World"), Version: &version, ContentTopic: &contentTopic}
-		err = wakuNode.Publish(msg, nil)
-		if err != nil {
-			fmt.Println("ERROR SENDING MESSAGE", err)
-		} else {
-			fmt.Println("Sent...")
+			payload, err := node.Encode([]byte("Hello World"), &node.KeyInfo{Kind: node.None}, 0)
+			msg := &protocol.WakuMessage{Payload: payload, Version: &version, ContentTopic: &contentTopic}
+			err = wakuNode.Publish(msg, nil)
+			if err != nil {
+				fmt.Println("Error sending a message", err)
+			} else {
+				fmt.Println("Sent  message...")
+			}
 		}
-	}
+	}()
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
-	fmt.Println("Received signal, shutting down...")
+	fmt.Println("\n\n\nReceived signal, shutting down...")
 
 	// shut the node down
 	if err := wakuNode.Stop(); err != nil {
