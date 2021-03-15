@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p"
@@ -181,6 +182,9 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 	subscription.quit = make(chan struct{})
 
 	go func(ctx context.Context, sub *pubsub.Subscription) {
+		nextMsgTicker := time.NewTicker(time.Millisecond * 10)
+		defer nextMsgTicker.Stop()
+
 		for {
 			select {
 			case <-subscription.quit:
@@ -189,10 +193,11 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 				close(subscription.C)
 				subscription.closed = true
 				return
-			default:
+			case <-nextMsgTicker.C:
 				msg, err := sub.Next(ctx)
 
 				if err != nil {
+					fmt.Println("Error receiving message", err)
 					return // Should close channel?
 				}
 

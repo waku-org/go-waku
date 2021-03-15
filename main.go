@@ -49,7 +49,7 @@ func main() {
 				}
 
 				fmt.Println("Received message:", string(payload))
-				//sub.Unsubscribe()
+				// sub.Unsubscribe()
 			}
 		}
 	}()
@@ -57,7 +57,8 @@ func main() {
 	// Write loop
 	go func() {
 		for {
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
+
 			var contentTopic uint32 = 1
 			var version uint32 = 0
 
