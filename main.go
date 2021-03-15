@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -13,60 +10,12 @@ import (
 	"time"
 
 	golog "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
-	//node "waku/v2/node"
+	ethNodeCrypto "github.com/status-im/status-go/eth-node/crypto"
 )
 
-func topicName(name string) string {
-	return "topic:" + name
-}
-func JoinSomeTopic(ctx context.Context, ps *pubsub.PubSub, selfID peer.ID, t string) error {
-	// join the pubsub topic
-	topic, err := ps.Join(topicName(t))
-	if err != nil {
-		return err
-	}
-
-	// and subscribe to it
-	sub, err := topic.Subscribe()
-	if err != nil {
-		return err
-	}
-
-	// start reading messages from the subscription in a loop
-	go readLoop(sub, ctx)
-
-	go writeLoop(topic, ctx)
-
-	return nil
-}
-
-type Test struct {
-	Message string
-}
-
-func writeLoop(topic *pubsub.Topic, ctx context.Context) {
-	m := Test{
-		Message: "Hello",
-	}
-	msgBytes, err := json.Marshal(m)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for {
-		time.Sleep(2 * time.Second)
-		fmt.Println("Send 'Hello'...")
-		topic.Publish(ctx, msgBytes)
-	}
-
-}
-
+/*
 func readLoop(sub *pubsub.Subscription, ctx context.Context) {
 	for {
 		msg, err := sub.Next(ctx)
@@ -84,6 +33,7 @@ func readLoop(sub *pubsub.Subscription, ctx context.Context) {
 		fmt.Println("Received: " + cm.Message)
 	}
 }
+*/
 
 func main() {
 	golog.SetAllLoggers(golog.LevelInfo) // Change to INFO for extra info
@@ -91,32 +41,48 @@ func main() {
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:5555")
 	extAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:5555")
 
-	var r io.Reader
-	r = rand.Reader
-	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.ECDSA, -1, r)
-	if err != nil {
-		panic(err)
-	}
+	key := "9ceff459635becbab13190132172fc9612357696c176a9e2b6e22f28a73a54ce"
+	prvKey, err := ethNodeCrypto.HexToECDSA(key)
 
 	ctx := context.Background()
 
 	wakuNode, err := node.New(ctx, prvKey, hostAddr, extAddr)
-
 	if err != nil {
 		fmt.Print(err)
 	}
 
-	ps, err := protocol.NewWakuRelaySub(ctx, wakuNode.Host)
+	wakuNode.MountRelay()
+
+	sub, err := wakuNode.Subscribe(nil)
 	if err != nil {
-		panic(err)
+		fmt.Println("Could not subscribe:", err)
 	}
 
-	err = JoinSomeTopic(ctx, ps, wakuNode.Host.ID(), "test")
-	if err != nil {
-		panic(err)
+	go func(sub chan *protocol.WakuMessage) {
+		for {
+			fmt.Println("Waiting for a message...")
+			x := <-sub
+			fmt.Println("Received a message: ", string(x.Payload))
+		}
+	}(sub)
+
+	for {
+		time.Sleep(4 * time.Second)
+		fmt.Println("Sending 'Hello World'...")
+
+		var contentTopic uint32 = 1
+		var version uint32 = 0
+
+		msg := &protocol.WakuMessage{Payload: []byte("Hello World"), Version: &version, ContentTopic: &contentTopic}
+		err = wakuNode.Publish(msg, nil)
+		if err != nil {
+			fmt.Println("ERROR SENDING MESSAGE", err)
+		} else {
+			fmt.Println("Sent...")
+		}
 	}
 
-	// wait for a SIGINT or SIGTERM signal
+	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch

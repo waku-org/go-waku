@@ -21,10 +21,10 @@ type WakuRelaySubRouter struct {
 	p *pubsub.PubSub
 }
 
-func NewWakuRelaySub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
-	opts := []pubsub.Option{
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
-	}
+func NewWakuRelay(ctx context.Context, h host.Host, opts ...pubsub.Option) (*pubsub.PubSub, error) {
+	opts = append(opts, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	opts = append(opts, pubsub.WithNoAuthor())
+
 	gossipSub, err := pubsub.NewGossipSub(ctx, h, opts...)
 
 	if err != nil {

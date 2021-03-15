@@ -2,15 +2,18 @@ package node
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
+	proto "github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 
@@ -20,8 +23,9 @@ import (
 // Default clientId
 const clientId string = "Go Waku v2 node"
 
-// XXX: Weird type, should probably be using pubsub Topic object name?
 type Topic string
+
+const DefaultWakuTopic Topic = "/waku/2/default-waku/proto"
 
 type Message []byte
 
@@ -36,28 +40,25 @@ type MessagePair struct {
 	b *protocol.WakuMessage
 }
 
-// NOTE based on Eth2Node in NBC eth2_network.nim
 type WakuNode struct {
-	peerManager *PeerManager
-	Host        host.Host
-	// wakuRelay *WakuRelay
-	// wakuStore *WakuStore
-	// wakuFilter *WakuFilter
-	//wakuSwap *WakuSwap
-	//wakuRlnRelay *WakuRLNRelay
-	peerInfo peer.AddrInfo
-	// libp2pTransportLoops []Future[void] ??
+	// peerManager *PeerManager
+	host   host.Host
+	pubsub *pubsub.PubSub
+
+	topics     map[Topic]*pubsub.Topic
+	topicsLock sync.Mutex
+
+	// peerInfo peer.AddrInfo
 	// TODO Revisit messages field indexing as well as if this should be Message or WakuMessage
-	messages []MessagePair
-	//filters *Filters
+	// messages []MessagePair
+
 	subscriptions protocol.MessageNotificationSubscriptions
-	// rng *BrHmacDrbgContext // ???
+	ctx           context.Context
+	cancel        context.CancelFunc
+	privKey       crypto.PrivKey
 }
 
-// Public API
-//
-
-func New(ctx context.Context, nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode, error) {
+func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode, error) {
 	// Creates a Waku Node.
 	if hostAddr == nil {
 		return nil, errors.New("Host address cannot be null")
@@ -78,6 +79,8 @@ func New(ctx context.Context, nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr
 		multiAddresses = append(multiAddresses, extAddrMA)
 	}
 
+	nodeKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(privKey))
+
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(multiAddresses...),
 		libp2p.Identity(nodeKey),
@@ -87,15 +90,22 @@ func New(ctx context.Context, nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr
 		libp2p.EnableNATService(), // TODO: what is this?
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	_ = cancel
+
 	host, err := libp2p.New(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	w := new(WakuNode)
-	w.peerManager = NewPeerManager(host)
-	w.Host = host
-	// w.filters = new(Filters)
+	//w.peerManager = NewPeerManager(host)
+	w.pubsub = nil
+	w.host = host
+	w.cancel = cancel
+	w.privKey = nodeKey
+	w.ctx = ctx
+	w.topics = make(map[Topic]*pubsub.Topic)
 
 	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
 	for _, addr := range host.Addrs() {
@@ -106,10 +116,138 @@ func New(ctx context.Context, nodeKey crypto.PrivKey, hostAddr net.Addr, extAddr
 	return w, nil
 }
 
-func (node *WakuNode) Stop() error {
-	// TODO:
-	//if not node.wakuRelay.isNil:
-	//  await node.wakuRelay.stop()
+func (w *WakuNode) Stop() error {
+	defer w.cancel()
+	// TODO: Is it necessary to stop WakuRelaySubRouter?
+	return nil
+}
 
-	return node.Host.Close()
+func (w *WakuNode) Host() host.Host {
+	return w.host
+}
+
+func (w *WakuNode) PubSub() *pubsub.PubSub {
+	return w.pubsub
+}
+
+func (w *WakuNode) SetPubSub(pubSub *pubsub.PubSub) {
+	w.pubsub = pubSub
+}
+
+func (w *WakuNode) MountRelay() error {
+	ps, err := protocol.NewWakuRelay(w.ctx, w.host)
+	if err != nil {
+		return err
+	}
+	w.pubsub = ps
+
+	// TODO: filters
+	// TODO: rlnRelay
+
+	return nil
+}
+
+func (node *WakuNode) Subscribe(topic *Topic) (chan *protocol.WakuMessage, error) {
+	// Subscribes to a PubSub topic. Triggers handler when receiving messages on
+	// this topic. TopicHandler is a method that takes a topic and some data.
+	// NOTE The data field SHOULD be decoded as a WakuMessage.
+
+	if node.pubsub == nil {
+		return nil, errors.New("PubSub hasn't been set. Execute mountWakuRelay() or setPubSub() first")
+	}
+
+	pubSubTopic, err := node.upsertTopic(topic)
+	if err != nil {
+		return nil, err
+	}
+
+	sub, err := pubSubTopic.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan *protocol.WakuMessage)
+
+	go func(ctx context.Context, sub *pubsub.Subscription) {
+		for {
+			msg, err := sub.Next(ctx)
+			if err != nil {
+				fmt.Println("ERROR RECEIVING: ", err) // TODO: use log lib
+				return                                // Should close channel?
+			}
+
+			fmt.Println("Received a message!")
+
+			wakuMessage := &protocol.WakuMessage{}
+			if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
+				fmt.Println("ERROR DECODING: ", err) // TODO: use log lib
+				return
+			}
+
+			fmt.Println("Decoded a message", wakuMessage.Payload)
+
+			ch <- wakuMessage
+			fmt.Println("Sent to channel")
+		}
+		// TODO: how to quit channel?  perhaps using select?
+	}(node.ctx, sub)
+
+	return ch, nil
+}
+
+func (node *WakuNode) Unsubscribe() {
+	// Unsubscribes a handler from a PubSub topic.
+	// TODO:
+}
+
+func (node *WakuNode) upsertTopic(topic *Topic) (*pubsub.Topic, error) {
+	defer node.topicsLock.Unlock()
+	node.topicsLock.Lock()
+
+	var t Topic = DefaultWakuTopic
+	if topic != nil {
+		t = *topic
+	}
+
+	pubSubTopic, ok := node.topics[t]
+	if !ok { // Joins topic if node hasn't joined yet
+		newTopic, err := node.pubsub.Join(string(t))
+		if err != nil {
+			return nil, err
+		}
+		node.topics[t] = newTopic
+		pubSubTopic = newTopic
+	}
+	return pubSubTopic, nil
+}
+
+func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) error {
+	// Publish a `WakuMessage` to a PubSub topic. `WakuMessage` should contain a
+	// `contentTopic` field for light node functionality. This field may be also
+	// be omitted.
+
+	if node.pubsub == nil {
+		return errors.New("PubSub hasn't been set. Execute mountWakuRelay() or setPubSub() first")
+	}
+
+	if message == nil {
+		return errors.New("Message can't be null")
+	}
+
+	pubSubTopic, err := node.upsertTopic(topic)
+	if err != nil {
+		return err
+	}
+
+	out, err := proto.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	err = pubSubTopic.Publish(node.ctx, out)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
