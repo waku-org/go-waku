@@ -170,16 +170,17 @@ func NewWakuStore(ctx context.Context, h host.Host, msg chan *protocol.WakuMessa
 	wakuStore.h = h
 	wakuStore.ctx = ctx
 
-	h.SetStreamHandler(WakuStoreProtocolId, wakuStore.onRequest)
+	return wakuStore
+}
 
-	go wakuStore.processMessages()
+func (store *WakuStore) Start() {
+	store.h.SetStreamHandler(WakuStoreProtocolId, store.onRequest)
+	go store.processMessages()
 
 	// TODO: Load all messages
 	// proc onData(timestamp: uint64, msg: WakuMessage) =
 	//   ws.messages.add(IndexedWakuMessage(msg: msg, index: msg.computeIndex()))
 	// let res = ws.store.getAll(onData)
-
-	return wakuStore
 }
 
 func (store *WakuStore) processMessages() {
@@ -205,7 +206,10 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	defer s.Close()
 
 	historyRPCRequest := &protocol.HistoryRPC{}
-	buf, err := ioutil.ReadAll(s)
+
+	buf := make([]byte, 64*1024)
+	_, err := s.Read(buf)
+
 	if err != nil {
 		s.Reset()
 		log.Println(err)
@@ -223,8 +227,6 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	historyResponseRPC := &protocol.HistoryRPC{}
 	historyResponseRPC.RequestId = historyRPCRequest.RequestId
 	historyResponseRPC.Response = store.FindMessages(historyRPCRequest.Query)
-
-	// TODO: implement waku swap
 
 	message, err := proto.Marshal(historyResponseRPC)
 	if err != nil {
@@ -368,7 +370,7 @@ func GenerateRequestId() string {
 	return hex.EncodeToString(randData)
 }
 
-func (store *WakuStore) query(q *protocol.HistoryQuery) (*protocol.HistoryResponse, error) {
+func (store *WakuStore) Query(q *protocol.HistoryQuery) (*protocol.HistoryResponse, error) {
 	peer := store.selectPeer()
 	if peer == nil {
 		return nil, errors.New("no suitable remote peers")
