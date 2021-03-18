@@ -32,6 +32,7 @@ func main() {
 	}
 
 	wakuNode.MountRelay()
+	wakuNode.MountStore()
 
 	sub, err := wakuNode.Subscribe(nil)
 	if err != nil {
@@ -40,18 +41,17 @@ func main() {
 
 	// Read loop
 	go func() {
-		for {
-			for value := range sub.C {
-				payload, err := node.DecodePayload(value, &node.KeyInfo{Kind: node.None})
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				fmt.Println("Received message:", string(payload))
-				// sub.Unsubscribe()
+		for value := range sub.C {
+			payload, err := node.DecodePayload(value, &node.KeyInfo{Kind: node.None})
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
+
+			fmt.Println("Received message:", string(payload))
+			// sub.Unsubscribe()
 		}
+
 	}()
 
 	// Write loop

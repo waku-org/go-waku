@@ -12,7 +12,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-const WakuRelayCodec = libp2pProtocol.ID("/vac/waku/relay/2.0.0-beta2")
+const WakuRelayProtocol = libp2pProtocol.ID("/vac/waku/relay/2.0.0-beta2")
 
 type WakuRelay struct {
 	p *pubsub.PubSub
@@ -24,7 +24,7 @@ func NewWakuRelay(ctx context.Context, h host.Host, opts ...pubsub.Option) (*pub
 	//opts = append(opts, pubsub.WithMessageIdFn(messageIdFn))
 	opts = append(opts, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 
-	gossipSub, err := pubsub.NewGossipSub(ctx, h, []libp2pProtocol.ID{WakuRelayCodec}, opts...)
+	gossipSub, err := pubsub.NewGossipSub(ctx, h, []libp2pProtocol.ID{WakuRelayProtocol}, opts...)
 
 	if err != nil {
 		return nil, err
