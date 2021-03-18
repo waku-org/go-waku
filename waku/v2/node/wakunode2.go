@@ -14,11 +14,13 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 
 	"github.com/status-im/go-waku/waku/v2/protocol"
+	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
 )
 
 // Default clientId
@@ -53,6 +55,7 @@ type WakuNode struct {
 	// peerManager *PeerManager
 	host   host.Host
 	pubsub *pubsub.PubSub
+	store  *store.WakuStore
 
 	topics     map[Topic]*pubsub.Topic
 	topicsLock sync.Mutex
@@ -156,9 +159,38 @@ func (w *WakuNode) MountRelay() error {
 	return nil
 }
 
+func (w *WakuNode) MountStore() error {
+	sub, err := w.Subscribe(nil)
+	if err != nil {
+		return err
+	}
+
+	// TODO: kill subscription on close
+	w.store = store.NewWakuStore(w.ctx, w.host, sub.C, new(store.MessageProvider)) // TODO: pass store
+	return nil
+}
+
+func (w *WakuNode) AddStorePeer(address string) error {
+	if w.store == nil {
+		return errors.New("WakuStore is not set")
+	}
+
+	storePeer, err := ma.NewMultiaddr(address)
+	if err != nil {
+		return err
+	}
+
+	// Extract the peer ID from the multiaddr.
+	info, err := peer.AddrInfoFromP2pAddr(storePeer)
+	if err != nil {
+		return err
+	}
+
+	return w.store.AddPeer(info.ID, info.Addrs)
+}
+
 func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
-	// Subscribes to a PubSub topic. Triggers handler when receiving messages on
-	// this topic. TopicHandler is a method that takes a topic and some data.
+	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
 
 	if node.pubsub == nil {
@@ -195,10 +227,10 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 				return
 			case <-nextMsgTicker.C:
 				msg, err := sub.Next(ctx)
-
 				if err != nil {
 					fmt.Println("Error receiving message", err)
-					return // Should close channel?
+					close(subscription.quit)
+					return
 				}
 
 				wakuMessage := &protocol.WakuMessage{}
