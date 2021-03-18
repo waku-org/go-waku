@@ -138,6 +138,10 @@ func (w *WakuNode) Host() host.Host {
 	return w.host
 }
 
+func (w *WakuNode) ID() string {
+	return w.host.ID().Pretty()
+}
+
 func (w *WakuNode) PubSub() *pubsub.PubSub {
 	return w.pubsub
 }
@@ -170,6 +174,15 @@ func (w *WakuNode) MountStore() error {
 	return nil
 }
 
+func (w *WakuNode) StartStore() error {
+	if w.store == nil {
+		return errors.New("WakuStore is not set")
+	}
+
+	w.store.Start()
+	return nil
+}
+
 func (w *WakuNode) AddStorePeer(address string) error {
 	if w.store == nil {
 		return errors.New("WakuStore is not set")
@@ -187,6 +200,28 @@ func (w *WakuNode) AddStorePeer(address string) error {
 	}
 
 	return w.store.AddPeer(info.ID, info.Addrs)
+}
+
+func (w *WakuNode) Query(contentTopic uint32, asc bool, pageSize int64) (*protocol.HistoryResponse, error) {
+	if w.store == nil {
+		return nil, errors.New("WakuStore is not set")
+	}
+
+	query := new(protocol.HistoryQuery)
+	query.Topics = append(query.Topics, contentTopic)
+	query.PagingInfo = new(protocol.PagingInfo)
+	if asc {
+		query.PagingInfo.Direction = protocol.PagingInfo_FORWARD
+	} else {
+		query.PagingInfo.Direction = protocol.PagingInfo_BACKWARD
+	}
+	query.PagingInfo.PageSize = pageSize
+
+	result, err := w.store.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
@@ -311,5 +346,22 @@ func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) error
 		return err
 	}
 
+	return nil
+}
+
+func (w *WakuNode) DialPeer(address string) error {
+
+	p, err := ma.NewMultiaddr(address)
+	if err != nil {
+		return err
+	}
+
+	// Extract the peer ID from the multiaddr.
+	info, err := peer.AddrInfoFromP2pAddr(p)
+	if err != nil {
+		return err
+	}
+
+	w.host.Connect(w.ctx, *info)
 	return nil
 }
