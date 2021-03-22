@@ -7,22 +7,26 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/cruxic/go-hmac-drbg/hmacdrbg"
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
+
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"google.golang.org/protobuf/proto"
 )
+
+var log = logging.Logger("wakustore")
 
 const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta2")
 const MaxPageSize = 100 // Maximum number of waku messages in each page
@@ -148,6 +152,7 @@ func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.History
 
 type MessageProvider interface {
 	GetAll() ([]*protocol.WakuMessage, error)
+	Put(message *protocol.WakuMessage) error
 }
 
 type IndexedWakuMessage struct {
@@ -156,14 +161,16 @@ type IndexedWakuMessage struct {
 }
 
 type WakuStore struct {
-	msg         chan *protocol.WakuMessage
-	messages    []IndexedWakuMessage
-	msgProvider *MessageProvider
+	msg           chan *protocol.WakuMessage
+	messages      []IndexedWakuMessage
+	messagesMutex sync.Mutex
+
+	msgProvider MessageProvider
 	h           host.Host
 	ctx         context.Context
 }
 
-func NewWakuStore(ctx context.Context, h host.Host, msg chan *protocol.WakuMessage, p *MessageProvider) *WakuStore {
+func NewWakuStore(ctx context.Context, h host.Host, msg chan *protocol.WakuMessage, p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msg = msg
 	wakuStore.msgProvider = p
@@ -175,30 +182,47 @@ func NewWakuStore(ctx context.Context, h host.Host, msg chan *protocol.WakuMessa
 
 func (store *WakuStore) Start() {
 	store.h.SetStreamHandler(WakuStoreProtocolId, store.onRequest)
-	go store.processMessages()
 
-	// TODO: Load all messages
-	// proc onData(timestamp: uint64, msg: WakuMessage) =
-	//   ws.messages.add(IndexedWakuMessage(msg: msg, index: msg.computeIndex()))
-	// let res = ws.store.getAll(onData)
+	messages, err := store.msgProvider.GetAll()
+	if err != nil {
+		log.Error("could not load DBProvider messages")
+		return
+	}
+
+	for _, msg := range messages {
+		idx, err := computeIndex(msg)
+		if err != nil {
+			log.Error("could not calculate message index", err)
+			continue
+		}
+		store.messages = append(store.messages, IndexedWakuMessage{msg: msg, index: idx})
+	}
+
+	go store.storeIncomingMessages()
 }
 
-func (store *WakuStore) processMessages() {
+func (store *WakuStore) storeIncomingMessages() {
 	for message := range store.msg {
 
 		index, err := computeIndex(message)
 		if err != nil {
-			log.Println(err)
+			log.Error("could not calculate message index", err)
 			continue
 		}
 
+		store.messagesMutex.Lock()
 		store.messages = append(store.messages, IndexedWakuMessage{msg: message, index: index})
+		store.messagesMutex.Unlock()
 
 		if store.msgProvider == nil {
 			continue
 		}
 
-		// let res = store.msgProvider.put(index, msg) // TODO: store in the DB
+		err = store.msgProvider.Put(message) // Should the index be stored?
+		if err != nil {
+			log.Error("could not store message", err)
+			continue
+		}
 	}
 }
 
@@ -212,17 +236,17 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	if err != nil {
 		s.Reset()
-		log.Println(err)
+		log.Error("error reading request", err)
 		return
 	}
 
 	proto.Unmarshal(buf, historyRPCRequest)
 	if err != nil {
-		log.Println(err)
+		log.Error("error decoding request", err)
 		return
 	}
 
-	log.Printf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer())
+	log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
 
 	historyResponseRPC := &protocol.HistoryRPC{}
 	historyResponseRPC.RequestId = historyRPCRequest.RequestId
@@ -230,16 +254,16 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	message, err := proto.Marshal(historyResponseRPC)
 	if err != nil {
-		log.Println(err)
+		log.Error("error encoding response", err)
 		return
 	}
 
 	_, err = s.Write(message)
 	if err != nil {
-		log.Println(err)
+		log.Error("error writing response", err)
 		s.Reset()
 	} else {
-		log.Printf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String())
+		log.Info(fmt.Sprintf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
 	}
 }
 
@@ -319,7 +343,7 @@ func (store *WakuStore) selectPeer() *peer.ID {
 	for _, peer := range store.h.Peerstore().Peers() {
 		protocols, err := store.h.Peerstore().SupportsProtocols(peer, string(WakuStoreProtocolId))
 		if err != nil {
-			log.Println("error obtaining the protocols supported by peers", err)
+			log.Error("error obtaining the protocols supported by peers", err)
 			return nil
 		}
 
@@ -364,7 +388,7 @@ func GenerateRequestId() string {
 		}
 
 		if !rng.Generate(randData) {
-			log.Fatal("could not generate random request id")
+			log.Error("could not generate random request id")
 		}
 	}
 	return hex.EncodeToString(randData)
@@ -381,7 +405,7 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery) (*protocol.HistoryRespon
 
 	connOpt, err := store.h.NewStream(ctx, *peer, WakuStoreProtocolId)
 	if err != nil {
-		log.Println("failed to connect to remote peer", err)
+		log.Info("failed to connect to remote peer", err)
 		return nil, err
 	}
 
@@ -389,7 +413,7 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery) (*protocol.HistoryRespon
 
 	message, err := proto.Marshal(historyRequest)
 	if err != nil {
-		log.Println(err)
+		log.Error("could not encode request", err)
 		return nil, err
 	}
 
@@ -398,20 +422,20 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery) (*protocol.HistoryRespon
 
 	_, err = connOpt.Write(message)
 	if err != nil {
-		log.Println(err)
+		log.Error("could not write request", err)
 		return nil, err
 	}
 
 	buf, err := ioutil.ReadAll(connOpt)
 	if err != nil {
-		log.Println("failed to read response", err)
+		log.Error("could not read response", err)
 		return nil, err
 	}
 
 	historyResponseRPC := &protocol.HistoryRPC{}
 	proto.Unmarshal(buf, historyResponseRPC)
 	if err != nil {
-		log.Println("failed to decode response", err)
+		log.Error("could not decode response", err)
 		return nil, err
 	}
 

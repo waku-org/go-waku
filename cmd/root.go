@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
+	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
 	ethNodeCrypto "github.com/status-im/status-go/eth-node/crypto"
 )
 
@@ -27,7 +28,8 @@ func randomHex(n int) (string, error) {
 }
 
 func write(wakuNode *node.WakuNode, msgContent string) {
-	var contentTopic uint32 = 1
+
+	var contentTopic uint32 = 1735289188
 	var version uint32 = 0
 
 	payload, err := node.Encode([]byte(wakuNode.ID()+" says "+msgContent), &node.KeyInfo{Kind: node.None}, 0)
@@ -43,7 +45,7 @@ func write(wakuNode *node.WakuNode, msgContent string) {
 func writeLoop(wakuNode *node.WakuNode) {
 	for {
 		time.Sleep(2 * time.Second)
-		write(wakuNode, "Hey!")
+		write(wakuNode, fmt.Sprint("Hey - ", time.Now().Unix()))
 	}
 }
 
@@ -62,6 +64,27 @@ func readLoop(wakuNode *node.WakuNode) {
 		}
 		fmt.Println("Received message:", string(payload))
 	}
+}
+
+type DBStore struct {
+	store.MessageProvider
+}
+
+func (dbStore *DBStore) Put(message *protocol.WakuMessage) error {
+	fmt.Println("TODO: Implement MessageProvider.Put")
+	return nil
+}
+
+func (dbStore *DBStore) GetAll() ([]*protocol.WakuMessage, error) {
+	fmt.Println("TODO: Implement MessageProvider.GetAll. Returning a sample message")
+	exampleMessage := new(protocol.WakuMessage)
+	var contentTopic uint32 = 1
+	var version uint32 = 0
+	exampleMessage.ContentTopic = &contentTopic
+	exampleMessage.Payload = []byte("Hello!")
+	exampleMessage.Version = &version
+
+	return []*protocol.WakuMessage{exampleMessage}, nil
 }
 
 var rootCmd = &cobra.Command{
@@ -110,7 +133,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if store {
-			wakuNode.MountStore()
+			wakuNode.MountStore(new(DBStore))
 		}
 
 		if startStore {
@@ -177,9 +200,7 @@ var rootCmd = &cobra.Command{
 		fmt.Println("\n\n\nReceived signal, shutting down...")
 
 		// shut the node down
-		if err := wakuNode.Stop(); err != nil {
-			panic(err)
-		}
+		wakuNode.Stop()
 	},
 }
 

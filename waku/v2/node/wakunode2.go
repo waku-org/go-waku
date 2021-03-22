@@ -5,23 +5,25 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 	"time"
 
 	proto "github.com/golang/protobuf/proto"
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
-
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
 )
+
+var log = logging.Logger("wakunode")
 
 // Default clientId
 const clientId string = "Go Waku v2 node"
@@ -52,28 +54,25 @@ type Subscription struct {
 }
 
 type WakuNode struct {
-	// peerManager *PeerManager
 	host   host.Host
 	pubsub *pubsub.PubSub
 	store  *store.WakuStore
 
-	topics     map[Topic]*pubsub.Topic
-	topicsLock sync.Mutex
+	topics      map[Topic]*pubsub.Topic
+	topicsMutex sync.Mutex
 
-	// peerInfo peer.AddrInfo
-	// TODO Revisit messages field indexing as well as if this should be Message or WakuMessage
-	// messages []MessagePair
+	subscriptions      []*Subscription
+	subscriptionsMutex sync.Mutex
 
-	subscriptions protocol.MessageNotificationSubscriptions
-	ctx           context.Context
-	cancel        context.CancelFunc
-	privKey       crypto.PrivKey
+	ctx     context.Context
+	cancel  context.CancelFunc
+	privKey crypto.PrivKey
 }
 
-func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extAddr net.Addr) (*WakuNode, error) {
+func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extAddr net.Addr, opts ...libp2p.Option) (*WakuNode, error) {
 	// Creates a Waku Node.
 	if hostAddr == nil {
-		return nil, errors.New("Host address cannot be null")
+		return nil, errors.New("host address cannot be null")
 	}
 
 	var multiAddresses []ma.Multiaddr
@@ -93,14 +92,14 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extA
 
 	nodeKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(privKey))
 
-	opts := []libp2p.Option{
+	opts = append(opts,
 		libp2p.ListenAddrs(multiAddresses...),
 		libp2p.Identity(nodeKey),
-		libp2p.DefaultTransports, //
-		libp2p.NATPortMap(),      // Attempt to open ports using uPNP for NATed hosts.
-		//libp2p.DisableRelay(),     // TODO: is this needed?
-		//libp2p.EnableNATService(), // TODO: is this needed?
-	}
+		libp2p.DefaultTransports,
+		libp2p.NATPortMap(),                                           // Attempt to open ports using uPNP for NATed hosts.
+		libp2p.EnableNATService(),                                     // TODO: is this needed?)
+		libp2p.ConnectionManager(connmgr.NewConnManager(200, 300, 0)), // ?
+	)
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel
@@ -111,7 +110,6 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extA
 	}
 
 	w := new(WakuNode)
-	//w.peerManager = NewPeerManager(host)
 	w.pubsub = nil
 	w.host = host
 	w.cancel = cancel
@@ -122,16 +120,22 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extA
 	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
 	for _, addr := range host.Addrs() {
 		fullAddr := addr.Encapsulate(hostInfo)
-		log.Printf("Listening on %s\n", fullAddr)
+		log.Info("Listening on", fullAddr)
 	}
 
 	return w, nil
 }
 
-func (w *WakuNode) Stop() error {
+func (w *WakuNode) Stop() {
+	w.subscriptionsMutex.Lock()
+	defer w.subscriptionsMutex.Unlock()
 	defer w.cancel()
-	// TODO: Is it necessary to stop WakuRelaySubRouter?
-	return nil
+
+	for _, sub := range w.subscriptions {
+		sub.Unsubscribe()
+	}
+
+	w.subscriptions = nil
 }
 
 func (w *WakuNode) Host() host.Host {
@@ -163,14 +167,12 @@ func (w *WakuNode) MountRelay() error {
 	return nil
 }
 
-func (w *WakuNode) MountStore() error {
+func (w *WakuNode) MountStore(s store.MessageProvider) error {
 	sub, err := w.Subscribe(nil)
 	if err != nil {
 		return err
 	}
-
-	// TODO: kill subscription on close
-	w.store = store.NewWakuStore(w.ctx, w.host, sub.C, new(store.MessageProvider)) // TODO: pass store
+	w.store = store.NewWakuStore(w.ctx, w.host, sub.C, s)
 	return nil
 }
 
@@ -263,14 +265,14 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 			case <-nextMsgTicker.C:
 				msg, err := sub.Next(ctx)
 				if err != nil {
-					fmt.Println("Error receiving message", err)
+					log.Error("error receiving message", err)
 					close(subscription.quit)
 					return
 				}
 
 				wakuMessage := &protocol.WakuMessage{}
 				if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
-					fmt.Println("Error decoding WakuMessage: ", err) // TODO: use log lib
+					log.Error("could not decode message", err) // TODO: use log lib
 					return
 				}
 
@@ -278,6 +280,11 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 			}
 		}
 	}(node.ctx, sub)
+
+	node.subscriptionsMutex.Lock()
+	defer node.subscriptionsMutex.Unlock()
+
+	node.subscriptions = append(node.subscriptions, subscription)
 
 	return subscription, nil
 }
@@ -298,8 +305,8 @@ func (subs *Subscription) IsClosed() bool {
 }
 
 func (node *WakuNode) upsertTopic(topic *Topic) (*pubsub.Topic, error) {
-	defer node.topicsLock.Unlock()
-	node.topicsLock.Lock()
+	defer node.topicsMutex.Unlock()
+	node.topicsMutex.Lock()
 
 	var t Topic = DefaultWakuTopic
 	if topic != nil {
@@ -328,10 +335,11 @@ func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) error
 	}
 
 	if message == nil {
-		return errors.New("Message can't be null")
+		return errors.New("message can't be null")
 	}
 
 	pubSubTopic, err := node.upsertTopic(topic)
+
 	if err != nil {
 		return err
 	}
@@ -342,6 +350,7 @@ func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) error
 	}
 
 	err = pubSubTopic.Publish(node.ctx, out)
+
 	if err != nil {
 		return err
 	}
@@ -350,7 +359,6 @@ func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) error
 }
 
 func (w *WakuNode) DialPeer(address string) error {
-
 	p, err := ma.NewMultiaddr(address)
 	if err != nil {
 		return err
