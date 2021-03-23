@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
-	ethNodeCrypto "github.com/status-im/status-go/eth-node/crypto"
 )
 
 func randomHex(n int) (string, error) {
@@ -119,7 +119,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		prvKey, err := ethNodeCrypto.HexToECDSA(key)
+		prvKey, err := crypto.HexToECDSA(key)
 
 		ctx := context.Background()
 		wakuNode, err := node.New(ctx, prvKey, hostAddr, extAddr)

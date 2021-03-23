@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
-	ethNodeCrypto "github.com/status-im/status-go/eth-node/crypto"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	extAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60001")
 
 	key := "9ceff459635becbab13190132172fc9612357696c176a9e2b6e22f28a73a54de"
-	prvKey, err := ethNodeCrypto.HexToECDSA(key)
+	prvKey, err := crypto.HexToECDSA(key)
 
 	ctx := context.Background()
 
