@@ -16,11 +16,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
+	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
 
 var log = logging.Logger("wakunode")
@@ -49,16 +49,16 @@ type Subscription struct {
 	C               chan *protocol.WakuMessage
 	closed          bool
 	mutex           sync.Mutex
-	pubSubscription *pubsub.Subscription
+	pubSubscription *wakurelay.Subscription
 	quit            chan struct{}
 }
 
 type WakuNode struct {
 	host   host.Host
-	pubsub *pubsub.PubSub
+	pubsub *wakurelay.PubSub
 	store  *store.WakuStore
 
-	topics      map[Topic]*pubsub.Topic
+	topics      map[Topic]*wakurelay.Topic
 	topicsMutex sync.Mutex
 
 	subscriptions      []*Subscription
@@ -115,7 +115,7 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extA
 	w.cancel = cancel
 	w.privKey = nodeKey
 	w.ctx = ctx
-	w.topics = make(map[Topic]*pubsub.Topic)
+	w.topics = make(map[Topic]*wakurelay.Topic)
 
 	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
 	for _, addr := range host.Addrs() {
@@ -146,16 +146,16 @@ func (w *WakuNode) ID() string {
 	return w.host.ID().Pretty()
 }
 
-func (w *WakuNode) PubSub() *pubsub.PubSub {
+func (w *WakuNode) PubSub() *wakurelay.PubSub {
 	return w.pubsub
 }
 
-func (w *WakuNode) SetPubSub(pubSub *pubsub.PubSub) {
+func (w *WakuNode) SetPubSub(pubSub *wakurelay.PubSub) {
 	w.pubsub = pubSub
 }
 
 func (w *WakuNode) MountRelay() error {
-	ps, err := protocol.NewWakuRelay(w.ctx, w.host)
+	ps, err := wakurelay.NewWakuRelaySub(w.ctx, w.host)
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 	subscription.C = make(chan *protocol.WakuMessage)
 	subscription.quit = make(chan struct{})
 
-	go func(ctx context.Context, sub *pubsub.Subscription) {
+	go func(ctx context.Context, sub *wakurelay.Subscription) {
 		nextMsgTicker := time.NewTicker(time.Millisecond * 10)
 		defer nextMsgTicker.Stop()
 
@@ -304,7 +304,7 @@ func (subs *Subscription) IsClosed() bool {
 	return subs.closed
 }
 
-func (node *WakuNode) upsertTopic(topic *Topic) (*pubsub.Topic, error) {
+func (node *WakuNode) upsertTopic(topic *Topic) (*wakurelay.Topic, error) {
 	defer node.topicsMutex.Unlock()
 	node.topicsMutex.Lock()
 
