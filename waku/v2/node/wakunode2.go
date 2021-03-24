@@ -272,7 +272,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 
 				wakuMessage := &protocol.WakuMessage{}
 				if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
-					log.Error("could not decode message", err) // TODO: use log lib
+					log.Error("could not decode message", err)
 					return
 				}
 
@@ -372,4 +372,27 @@ func (w *WakuNode) DialPeer(address string) error {
 
 	w.host.Connect(w.ctx, *info)
 	return nil
+}
+
+func (w *WakuNode) ClosePeerByAddress(address string) error {
+	p, err := ma.NewMultiaddr(address)
+	if err != nil {
+		return err
+	}
+
+	// Extract the peer ID from the multiaddr.
+	info, err := peer.AddrInfoFromP2pAddr(p)
+	if err != nil {
+		return err
+	}
+
+	return w.ClosePeerById(info.ID)
+}
+
+func (w *WakuNode) ClosePeerById(id peer.ID) error {
+	return w.host.Network().ClosePeer(id)
+}
+
+func (w *WakuNode) PeerCount() int {
+	return len(w.host.Network().Peers())
 }
