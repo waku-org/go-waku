@@ -22,6 +22,7 @@ import (
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-waku/waku/common"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"google.golang.org/protobuf/proto"
 )
@@ -161,7 +162,7 @@ type IndexedWakuMessage struct {
 }
 
 type WakuStore struct {
-	msg           chan *protocol.WakuMessage
+	msg           chan *common.Envelope
 	messages      []IndexedWakuMessage
 	messagesMutex sync.Mutex
 
@@ -170,7 +171,7 @@ type WakuStore struct {
 	ctx         context.Context
 }
 
-func NewWakuStore(ctx context.Context, h host.Host, msg chan *protocol.WakuMessage, p MessageProvider) *WakuStore {
+func NewWakuStore(ctx context.Context, h host.Host, msg chan *common.Envelope, p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msg = msg
 	wakuStore.msgProvider = p
@@ -202,23 +203,22 @@ func (store *WakuStore) Start() {
 }
 
 func (store *WakuStore) storeIncomingMessages() {
-	for message := range store.msg {
-
-		index, err := computeIndex(message)
+	for envelope := range store.msg {
+		index, err := computeIndex(envelope.Message())
 		if err != nil {
 			log.Error("could not calculate message index", err)
 			continue
 		}
 
 		store.messagesMutex.Lock()
-		store.messages = append(store.messages, IndexedWakuMessage{msg: message, index: index})
+		store.messages = append(store.messages, IndexedWakuMessage{msg: envelope.Message(), index: index})
 		store.messagesMutex.Unlock()
 
 		if store.msgProvider == nil {
 			continue
 		}
 
-		err = store.msgProvider.Put(message) // Should the index be stored?
+		err = store.msgProvider.Put(envelope.Message()) // Should the index be stored?
 		if err != nil {
 			log.Error("could not store message", err)
 			continue

@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
+	common "github.com/status-im/go-waku/waku/common"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
@@ -46,7 +48,7 @@ type MessagePair struct {
 }
 
 type Subscription struct {
-	C               chan *protocol.WakuMessage
+	C               chan *common.Envelope
 	closed          bool
 	mutex           sync.Mutex
 	pubSubscription *wakurelay.Subscription
@@ -69,25 +71,19 @@ type WakuNode struct {
 	privKey crypto.PrivKey
 }
 
-func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr net.Addr, extAddr net.Addr, opts ...libp2p.Option) (*WakuNode, error) {
+func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr []net.Addr, opts ...libp2p.Option) (*WakuNode, error) {
 	// Creates a Waku Node.
 	if hostAddr == nil {
 		return nil, errors.New("host address cannot be null")
 	}
 
 	var multiAddresses []ma.Multiaddr
-	hostAddrMA, err := manet.FromNetAddr(hostAddr)
-	if err != nil {
-		return nil, err
-	}
-	multiAddresses = append(multiAddresses, hostAddrMA)
-
-	if extAddr != nil {
-		extAddrMA, err := manet.FromNetAddr(extAddr)
+	for _, addr := range hostAddr {
+		hostAddrMA, err := manet.FromNetAddr(addr)
 		if err != nil {
 			return nil, err
 		}
-		multiAddresses = append(multiAddresses, extAddrMA)
+		multiAddresses = append(multiAddresses, hostAddrMA)
 	}
 
 	nodeKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(privKey))
@@ -154,8 +150,8 @@ func (w *WakuNode) SetPubSub(pubSub *wakurelay.PubSub) {
 	w.pubsub = pubSub
 }
 
-func (w *WakuNode) MountRelay() error {
-	ps, err := wakurelay.NewWakuRelaySub(w.ctx, w.host)
+func (w *WakuNode) MountRelay(opts ...wakurelay.Option) error {
+	ps, err := wakurelay.NewWakuRelaySub(w.ctx, w.host, opts...)
 	if err != nil {
 		return err
 	}
@@ -247,7 +243,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 	subscription := new(Subscription)
 	subscription.closed = false
 	subscription.pubSubscription = sub
-	subscription.C = make(chan *protocol.WakuMessage)
+	subscription.C = make(chan *common.Envelope)
 	subscription.quit = make(chan struct{})
 
 	go func(ctx context.Context, sub *wakurelay.Subscription) {
@@ -276,7 +272,8 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 					return
 				}
 
-				subscription.C <- wakuMessage
+				envelope := common.NewEnvelope(wakuMessage, len(msg.Data), sha256.Sum256(msg.Data))
+				subscription.C <- envelope
 			}
 		}
 	}(node.ctx, sub)

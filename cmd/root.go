@@ -29,7 +29,7 @@ func randomHex(n int) (string, error) {
 
 func write(wakuNode *node.WakuNode, msgContent string) {
 
-	var contentTopic uint32 = 1735289188
+	var contentTopic uint32 = 1
 	var version uint32 = 0
 
 	payload, err := node.Encode([]byte(wakuNode.ID()+" says "+msgContent), &node.KeyInfo{Kind: node.None}, 0)
@@ -57,7 +57,7 @@ func readLoop(wakuNode *node.WakuNode) {
 	}
 
 	for value := range sub.C {
-		payload, err := node.DecodePayload(value, &node.KeyInfo{Kind: node.None})
+		payload, err := node.DecodePayload(value.Message(), &node.KeyInfo{Kind: node.None})
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -107,8 +107,7 @@ var rootCmd = &cobra.Command{
 		listen, _ := cmd.Flags().GetBool("listen")
 		say, _ := cmd.Flags().GetString("say")
 
-		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("127.0.0.1:", port))
-		extAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
+		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
 		if key == "" {
 			var err error
@@ -122,7 +121,7 @@ var rootCmd = &cobra.Command{
 		prvKey, err := crypto.HexToECDSA(key)
 
 		ctx := context.Background()
-		wakuNode, err := node.New(ctx, prvKey, hostAddr, extAddr)
+		wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr})
 		if err != nil {
 			fmt.Print(err)
 			return
