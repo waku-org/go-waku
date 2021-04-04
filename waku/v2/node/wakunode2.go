@@ -36,17 +36,6 @@ const DefaultWakuTopic Topic = "/waku/2/default-waku/proto"
 
 type Message []byte
 
-type WakuInfo struct {
-	// NOTE One for simplicity, can extend later as needed
-	listenStr        string
-	multiaddrStrings []byte
-}
-
-type MessagePair struct {
-	a *Topic
-	b *protocol.WakuMessage
-}
-
 type Subscription struct {
 	C               chan *common.Envelope
 	closed          bool
@@ -113,10 +102,8 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr []net.Addr, op
 	w.ctx = ctx
 	w.topics = make(map[Topic]*wakurelay.Topic)
 
-	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
-	for _, addr := range host.Addrs() {
-		fullAddr := addr.Encapsulate(hostInfo)
-		log.Info("Listening on", fullAddr)
+	for _, addr := range w.ListenAddresses() {
+		log.Info("Listening on", addr)
 	}
 
 	return w, nil
@@ -140,6 +127,15 @@ func (w *WakuNode) Host() host.Host {
 
 func (w *WakuNode) ID() string {
 	return w.host.ID().Pretty()
+}
+
+func (w *WakuNode) ListenAddresses() []string {
+	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", w.host.ID().Pretty()))
+	var result []string
+	for _, addr := range w.host.Addrs() {
+		result = append(result, addr.Encapsulate(hostInfo).String())
+	}
+	return result
 }
 
 func (w *WakuNode) PubSub() *wakurelay.PubSub {
@@ -261,8 +257,12 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 			case <-nextMsgTicker.C:
 				msg, err := sub.Next(ctx)
 				if err != nil {
-					log.Error("error receiving message", err)
-					close(subscription.quit)
+					subscription.mutex.Lock()
+					defer subscription.mutex.Unlock()
+					if !subscription.closed {
+						subscription.closed = true
+						close(subscription.quit)
+					}
 					return
 				}
 
@@ -291,6 +291,7 @@ func (subs *Subscription) Unsubscribe() {
 	subs.mutex.Lock()
 	defer subs.mutex.Unlock()
 	if !subs.closed {
+		subs.closed = true
 		close(subs.quit)
 	}
 }
