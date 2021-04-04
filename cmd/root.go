@@ -31,9 +31,16 @@ func write(wakuNode *node.WakuNode, msgContent string) {
 
 	var contentTopic uint32 = 1
 	var version uint32 = 0
+	var timestamp float64 = float64(time.Now().Unix()) / 1000000000
 
 	payload, err := node.Encode([]byte(wakuNode.ID()+" says "+msgContent), &node.KeyInfo{Kind: node.None}, 0)
-	msg := &protocol.WakuMessage{Payload: payload, Version: &version, ContentTopic: &contentTopic}
+	msg := &protocol.WakuMessage{
+		Payload:      payload,
+		Version:      &version,
+		ContentTopic: &contentTopic,
+		Timestamp:    &timestamp,
+	}
+
 	err = wakuNode.Publish(msg, nil)
 	if err != nil {
 		fmt.Println("Error sending a message", err)
@@ -105,7 +112,6 @@ var rootCmd = &cobra.Command{
 
 		hey, _ := cmd.Flags().GetBool("hey")
 		listen, _ := cmd.Flags().GetBool("listen")
-		say, _ := cmd.Flags().GetString("say")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -166,10 +172,6 @@ var rootCmd = &cobra.Command{
 			go readLoop(wakuNode)
 		}
 
-		if say != "" {
-			go write(wakuNode, say)
-		}
-
 		if query {
 			if !store {
 				fmt.Println("Store protocol was not started")
@@ -220,7 +222,6 @@ func init() {
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
 	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
 	rootCmd.Flags().Bool("hey", false, "Send \"hey!\" on default topic every 2 seconds")
-	rootCmd.Flags().String("say", "", "Broadcast a message on default topic")
 	rootCmd.Flags().Bool("listen", false, "Listen messages on default topic")
 	rootCmd.Flags().Bool("query", false, "Asks the storenode for stored messages")
 
