@@ -186,8 +186,10 @@ var rootCmd = &cobra.Command{
 
 			fmt.Println(fmt.Sprint("Page Size: ", response.PagingInfo.PageSize))
 			fmt.Println(fmt.Sprint("Direction: ", response.PagingInfo.Direction))
-			fmt.Println(fmt.Sprint("Cursor - ReceivedTime: ", response.PagingInfo.Cursor.ReceivedTime))
-			fmt.Println(fmt.Sprint("Cursor - Digest: ", hex.EncodeToString(response.PagingInfo.Cursor.Digest)))
+			if response.PagingInfo.Cursor != nil {
+				fmt.Println(fmt.Sprint("Cursor - ReceivedTime: ", response.PagingInfo.Cursor.ReceivedTime))
+				fmt.Println(fmt.Sprint("Cursor - Digest: ", hex.EncodeToString(response.PagingInfo.Cursor.Digest)))
+			}
 			fmt.Println("Messages:")
 			for i, msg := range response.Messages {
 				fmt.Println(fmt.Sprint(i, "- ", string(msg.Payload))) // Normaly you'd have to decode these, but i'm using v0

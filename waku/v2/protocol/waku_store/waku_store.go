@@ -78,7 +78,7 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 		}
 	}
 
-	foundIndex := findIndex(&msgList, cursor)
+	foundIndex := findIndex(msgList, cursor)
 	if foundIndex == -1 { // the cursor is not valid
 		return nil, &protocol.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
 	}
@@ -95,6 +95,9 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 		}
 		s = foundIndex + 1 // non inclusive
 		e = foundIndex + retrievedPageSize
+		if e < 0 {
+			e = 0
+		}
 		newCursor = msgList[e].index // the new cursor points to the end of the page
 	case protocol.PagingInfo_BACKWARD: // backward pagination
 		remainingMessages := foundIndex
@@ -104,6 +107,9 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 			foundIndex = foundIndex + 1
 		}
 		s = foundIndex - retrievedPageSize
+		if s >= len(msgList) {
+			s = len(msgList) - 1
+		}
 		e = foundIndex - 1
 		newCursor = msgList[s].index // the new cursor points to the begining of the page
 	}
@@ -308,10 +314,10 @@ func indexedWakuMessageComparison(x, y IndexedWakuMessage) int {
 	return indexComparison(x.index, y.index)
 }
 
-func findIndex(msgList *[]IndexedWakuMessage, index *protocol.Index) int {
+func findIndex(msgList []IndexedWakuMessage, index *protocol.Index) int {
 	// returns the position of an IndexedWakuMessage in msgList whose index value matches the given index
 	// returns -1 if no match is found
-	for i, indexedWakuMessage := range *msgList {
+	for i, indexedWakuMessage := range msgList {
 		if bytes.Compare(indexedWakuMessage.index.Digest, index.Digest) == 0 && indexedWakuMessage.index.ReceivedTime == index.ReceivedTime {
 			return i
 		}
