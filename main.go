@@ -18,15 +18,14 @@ import (
 func main() {
 	golog.SetAllLoggers(golog.LevelInfo) // Change to INFO for extra info
 
-	hostAddr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:60001")
-	extAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60001")
+	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60001")
 
 	key := "9ceff459635becbab13190132172fc9612357696c176a9e2b6e22f28a73a54de"
 	prvKey, err := crypto.HexToECDSA(key)
 
 	ctx := context.Background()
 
-	wakuNode, err := node.New(ctx, prvKey, hostAddr, extAddr)
+	wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr})
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -42,7 +41,7 @@ func main() {
 	// Read loop
 	go func() {
 		for value := range sub.C {
-			payload, err := node.DecodePayload(value, &node.KeyInfo{Kind: node.None})
+			payload, err := node.DecodePayload(value.Message(), &node.KeyInfo{Kind: node.None})
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -61,9 +60,16 @@ func main() {
 
 			var contentTopic uint32 = 1
 			var version uint32 = 0
+			var timestamp float64 = float64(time.Now().Unix()) / 1000000000
 
 			payload, err := node.Encode([]byte("Hello World"), &node.KeyInfo{Kind: node.None}, 0)
-			msg := &protocol.WakuMessage{Payload: payload, Version: &version, ContentTopic: &contentTopic}
+			msg := &protocol.WakuMessage{
+				Payload:      payload,
+				Version:      &version,
+				ContentTopic: &contentTopic,
+				Timestamp:    &timestamp,
+			}
+
 			err = wakuNode.Publish(msg, nil)
 			if err != nil {
 				fmt.Println("Error sending a message", err)
@@ -80,7 +86,5 @@ func main() {
 	fmt.Println("\n\n\nReceived signal, shutting down...")
 
 	// shut the node down
-	if err := wakuNode.Stop(); err != nil {
-		panic(err)
-	}
+	wakuNode.Stop()
 }
