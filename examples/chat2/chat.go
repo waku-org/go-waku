@@ -68,7 +68,7 @@ func (cr *Chat) Publish(message string) error {
 	}
 
 	var version uint32 = 0
-	var timestamp float64 = float64(time.Now().Unix()) / 1000000000
+	var timestamp float64 = float64(time.Now().UnixNano())
 
 	payload, err := node.Encode(msgBytes, &node.KeyInfo{Kind: node.None}, 0)
 	if err != nil {

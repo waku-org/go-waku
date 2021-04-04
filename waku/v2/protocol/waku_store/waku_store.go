@@ -281,7 +281,7 @@ func computeIndex(msg *protocol.WakuMessage) (*protocol.Index, error) {
 	digest := sha256.Sum256(data)
 	return &protocol.Index{
 		Digest:       digest[:],
-		ReceivedTime: float64(time.Now().Unix()) / 1000000000,
+		ReceivedTime: float64(time.Now().UnixNano()),
 	}, nil
 }
 

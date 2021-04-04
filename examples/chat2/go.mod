@@ -2,8 +2,6 @@ module chat2
 
 go 1.15
 
-replace github.com/status-im/go-waku => /home/richard/status/go-waku
-
 require (
 	github.com/ethereum/go-ethereum v1.10.1
 	github.com/gdamore/tcell/v2 v2.2.0

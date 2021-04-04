@@ -103,7 +103,7 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr []net.Addr, op
 	w.topics = make(map[Topic]*wakurelay.Topic)
 
 	for _, addr := range w.ListenAddresses() {
-		log.Info("Listening on", addr)
+		log.Info("Listening on ", addr)
 	}
 
 	return w, nil
