@@ -3,9 +3,9 @@ syntax = "proto3";
 package protocol;
 
 message WakuMessage {
-    bytes payload = 1;
-    uint32 contentTopic = 2;
-    uint32 version = 3;
-    bytes proof = 4;
-    double timestamp = 5;
+    optional bytes payload = 1;
+    optional uint32 contentTopic = 2;
+    optional uint32 version = 3;
+    optional bytes proof = 4;
+    optional double timestamp = 5;
 }

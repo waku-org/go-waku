@@ -97,7 +97,6 @@ func DecodePayload(message *protocol.WakuMessage, keyInfo *KeyInfo) (*DecodedPay
 			if keyInfo.SymKey == nil {
 				return nil, errors.New("Symmetric key is required")
 			}
-			fmt.Println("AAA")
 
 			decodedData, err := decryptSymmetric(message.Payload, keyInfo.SymKey)
 			if err != nil {

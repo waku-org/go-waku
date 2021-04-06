@@ -148,7 +148,7 @@ func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.History
 	// data holds IndexedWakuMessage whose topics match the query
 	var data []IndexedWakuMessage
 	for _, indexedMsg := range w.messages {
-		if contains(query.Topics, indexedMsg.msg.ContentTopic) {
+		if contains(query.Topics, *indexedMsg.msg.ContentTopic) {
 			data = append(data, indexedMsg)
 		}
 	}
