@@ -3,7 +3,6 @@ package main
 import (
 	"chat2/pb"
 	"context"
-	"encoding/binary"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -11,8 +10,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 )
-
-var contentTopic uint32 = binary.LittleEndian.Uint32([]byte("dingpu"))
 
 // Chat represents a subscription to a single PubSub topic. Messages
 // can be published to the topic with Chat.Publish, and received
@@ -69,8 +66,13 @@ func (cr *Chat) Publish(message string) error {
 
 	var version uint32 = 0
 	var timestamp float64 = float64(time.Now().UnixNano())
+	var keyInfo *node.KeyInfo = &node.KeyInfo{Kind: node.None}
 
-	payload, err := node.Encode(msgBytes, &node.KeyInfo{Kind: node.None}, 0)
+	p := new(node.Payload)
+	p.Data = msgBytes
+	p.Key = keyInfo
+
+	payload, err := p.Encode(0)
 	if err != nil {
 		return err
 	}
@@ -78,7 +80,7 @@ func (cr *Chat) Publish(message string) error {
 	wakuMsg := &protocol.WakuMessage{
 		Payload:      payload,
 		Version:      &version,
-		ContentTopic: &contentTopic,
+		ContentTopic: &DefaultContentTopic,
 		Timestamp:    &timestamp,
 	}
 
@@ -94,7 +96,7 @@ func (cr *Chat) readLoop() {
 		}
 
 		msg := &pb.Chat2Message{}
-		if err := proto.Unmarshal(payload, msg); err != nil {
+		if err := proto.Unmarshal(payload.Data, msg); err != nil {
 			continue
 		}
 

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
@@ -25,52 +24,6 @@ func randomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
-}
-
-func write(wakuNode *node.WakuNode, msgContent string) {
-
-	var contentTopic uint32 = 1
-	var version uint32 = 0
-	var timestamp float64 = float64(time.Now().Unix()) / 1000000000
-
-	payload, err := node.Encode([]byte(wakuNode.ID()+" says "+msgContent), &node.KeyInfo{Kind: node.None}, 0)
-	msg := &protocol.WakuMessage{
-		Payload:      payload,
-		Version:      &version,
-		ContentTopic: &contentTopic,
-		Timestamp:    &timestamp,
-	}
-
-	err = wakuNode.Publish(msg, nil)
-	if err != nil {
-		fmt.Println("Error sending a message", err)
-	} else {
-		fmt.Println("Message sent...")
-	}
-}
-
-func writeLoop(wakuNode *node.WakuNode) {
-	for {
-		time.Sleep(2 * time.Second)
-		write(wakuNode, fmt.Sprint("Hey - ", time.Now().Unix()))
-	}
-}
-
-func readLoop(wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(nil)
-	if err != nil {
-		fmt.Println("Could not subscribe:", err)
-		return
-	}
-
-	for value := range sub.C {
-		payload, err := node.DecodePayload(value.Message(), &node.KeyInfo{Kind: node.None})
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Println("Received message:", string(payload))
-	}
 }
 
 type DBStore struct {
@@ -105,13 +58,9 @@ var rootCmd = &cobra.Command{
 		relay, _ := cmd.Flags().GetBool("relay")
 		key, _ := cmd.Flags().GetString("nodekey")
 		store, _ := cmd.Flags().GetBool("store")
-		startStore, _ := cmd.Flags().GetBool("start-store")
 		storenode, _ := cmd.Flags().GetString("storenode")
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
 		query, _ := cmd.Flags().GetBool("query")
-
-		hey, _ := cmd.Flags().GetBool("hey")
-		listen, _ := cmd.Flags().GetBool("listen")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -139,13 +88,6 @@ var rootCmd = &cobra.Command{
 
 		if store {
 			wakuNode.MountStore(new(DBStore))
-		}
-
-		if startStore {
-			if !store {
-				fmt.Println("Store protocol was not started")
-				return
-			}
 			wakuNode.StartStore()
 		}
 
@@ -162,14 +104,6 @@ var rootCmd = &cobra.Command{
 			for _, n := range staticnodes {
 				go wakuNode.DialPeer(n)
 			}
-		}
-
-		if hey {
-			go writeLoop(wakuNode)
-		}
-
-		if listen {
-			go readLoop(wakuNode)
 		}
 
 		if query {
@@ -220,11 +154,8 @@ func init() {
 	rootCmd.Flags().String("nodekey", "", "P2P node private key as hex (default random)")
 	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
-	rootCmd.Flags().Bool("start-store", false, "Store messages")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
 	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
-	rootCmd.Flags().Bool("hey", false, "Send \"hey!\" on default topic every 2 seconds")
-	rootCmd.Flags().Bool("listen", false, "Listen messages on default topic")
 	rootCmd.Flags().Bool("query", false, "Asks the storenode for stored messages")
 
 }

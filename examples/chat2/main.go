@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -13,6 +14,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,12 +23,15 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 )
 
+var DefaultContentTopic uint32 = binary.LittleEndian.Uint32([]byte("dingpu"))
+
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())
 
 	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
 	nodeKeyFlag := flag.String("nodekey", "", "private key for this node. will be generated if empty")
 	staticNodeFlag := flag.String("staticnode", "", "connects to a node. will get a random node from fleets.status.im if empty")
+	storeNodeFlag := flag.String("storenode", "", "connects to a store node to retrieve messages. will get a random node from fleets.status.im if empty")
 	port := flag.Int("port", 0, "port. Will be random if 0")
 
 	flag.Parse()
@@ -52,6 +58,7 @@ func main() {
 	}
 
 	wakuNode.MountRelay()
+	wakuNode.MountStore(nil)
 
 	// use the nickname from the cli flag, or a default if blank
 	nick := *nickFlag
@@ -72,9 +79,17 @@ func main() {
 		time.Sleep(200 * time.Millisecond)
 
 		staticnode := *staticNodeFlag
+		storenode := *storeNodeFlag
+		//storenode = "/ip4/104.154.239.128/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS"
+		storenode = "/ip4/127.0.0.1/tcp/60000/p2p/16Uiu2HAmULUvzjx7r5jcD8mtw6eGynjtAaDYUHFFbkbgcc3GNetZ"
+		var fleetData []byte
+		if len(staticnode) == 0 || len(storenode) == 0 {
+			fleetData = getFleetData()
+		}
+
 		if len(staticnode) == 0 {
 			ui.displayMessage("No static peers configured. Choosing one at random from test fleet...")
-			staticnode = getRandomFleetNode()
+			staticnode = getRandomFleetNode(fleetData)
 		}
 
 		err = wakuNode.DialPeer(staticnode)
@@ -85,12 +100,41 @@ func main() {
 			ui.displayMessage("Connected to peer: " + staticnode)
 
 		}
+
+		if len(storenode) == 0 {
+			ui.displayMessage("No store node configured. Choosing one at random from test fleet...")
+			storenode = getRandomFleetNode(fleetData)
+		}
+
+		err := wakuNode.AddStorePeer(storenode)
+		if err != nil {
+			ui.displayMessage("Could not connect to storenode: " + err.Error())
+			return
+		} else {
+			ui.displayMessage("Connected to storenode: " + storenode)
+		}
+
+		// TODO: query historic messages
+		/*time.Sleep(300 * time.Millisecond)
+		ui.displayMessage("Querying historic messages")
+		response, err := wakuNode.Query(DefaultContentTopic, true, 0)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}*/
+
 	}()
 
-	// draw the UI
+	//draw the UI
 	if err = ui.Run(); err != nil {
 		printErr("error running text UI: %s", err)
 	}
+
+	// Wait for a SIGINT or SIGTERM signal
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	<-ch
+	fmt.Println("\n\n\nReceived signal, shutting down...")
 }
 
 // Generates a random hex string with a length of n
@@ -119,7 +163,7 @@ func shortID(p peer.ID) string {
 	return pretty[len(pretty)-8:]
 }
 
-func getRandomFleetNode() string {
+func getFleetData() []byte {
 	url := "https://fleets.status.im"
 	httpClient := http.Client{
 		Timeout: time.Second * 2,
@@ -144,8 +188,12 @@ func getRandomFleetNode() string {
 		log.Fatal(readErr)
 	}
 
+	return body
+}
+
+func getRandomFleetNode(data []byte) string {
 	var result map[string]interface{}
-	json.Unmarshal(body, &result)
+	json.Unmarshal(data, &result)
 
 	fleets := result["fleets"].(map[string]interface{})
 	wakuv2Test := fleets["wakuv2.test"].(map[string]interface{})

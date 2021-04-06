@@ -6,7 +6,6 @@ import (
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"encoding/binary"
-	"fmt"
 	mrand "math/rand"
 
 	"errors"
@@ -107,7 +106,6 @@ func DecodePayload(message *protocol.WakuMessage, keyInfo *KeyInfo) (*DecodedPay
 			if err != nil {
 				return nil, err
 			}
-			fmt.Println("AAA")
 
 			return decodedPayload, nil
 		case Asymmetric:
