@@ -20,13 +20,13 @@ message PagingInfo {
 }
 
 message HistoryQuery {
-  repeated uint32 topics = 2;
-  optional PagingInfo pagingInfo = 3; // used for pagination
+  repeated uint32 topics = 1;
+  optional PagingInfo pagingInfo = 2; // used for pagination
 }
 
 message HistoryResponse {
-  repeated WakuMessage messages = 2;
-  optional PagingInfo pagingInfo = 3; // used for pagination
+  repeated WakuMessage messages = 1;
+  optional PagingInfo pagingInfo = 2; // used for pagination
 }
 
 message HistoryRPC {

@@ -29,7 +29,7 @@ import (
 
 var log = logging.Logger("wakustore")
 
-const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta2")
+const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta1")
 const MaxPageSize = 100 // Maximum number of waku messages in each page
 const ConnectionTimeout = 10 * time.Second
 
