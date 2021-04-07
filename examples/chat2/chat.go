@@ -79,9 +79,9 @@ func (cr *Chat) Publish(message string) error {
 
 	wakuMsg := &protocol.WakuMessage{
 		Payload:      payload,
-		Version:      &version,
-		ContentTopic: &DefaultContentTopic,
-		Timestamp:    &timestamp,
+		Version:      version,
+		ContentTopic: DefaultContentTopic,
+		Timestamp:    timestamp,
 	}
 
 	return cr.node.Publish(wakuMsg, nil)

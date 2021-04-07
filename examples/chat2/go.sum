@@ -768,6 +768,8 @@ github.com/status-im/go-waku v0.0.0-20210406231317-be168ebe3f2a h1:LYnUhbSs+F75r
 github.com/status-im/go-waku v0.0.0-20210406231317-be168ebe3f2a/go.mod h1:949jqEGfl0gWv8NMWJU5xhW0hSRJicDxYWQAZkJMsqQ=
 github.com/status-im/go-waku v0.0.0-20210406231752-e8f7a4d38c82 h1:80JU8pHRKQt0yBZDca5BXzwK0zsYmjjlLIwiJFfZm/s=
 github.com/status-im/go-waku v0.0.0-20210406231752-e8f7a4d38c82/go.mod h1:949jqEGfl0gWv8NMWJU5xhW0hSRJicDxYWQAZkJMsqQ=
+github.com/status-im/go-waku v0.0.0-20210407211629-9c224c1849b7 h1:I7SKeIuqUum7yLrGfD6A1dcKgLRWbG+lQjNdCbkePcs=
+github.com/status-im/go-waku v0.0.0-20210407211629-9c224c1849b7/go.mod h1:2fHIqaNF8M8W/DQL5J3R9dXbrTLpOefvD5tbKSvoxBg=
 github.com/status-im/go-wakurelay-pubsub v0.4.2 h1:F4UGcP80H0PGaeJ0mRMzA1Ux3DKYiyv/qu3bOR/efTg=
 github.com/status-im/go-wakurelay-pubsub v0.4.2/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=
