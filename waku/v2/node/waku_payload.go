@@ -87,7 +87,7 @@ func (payload Payload) Encode(version uint32) ([]byte, error) {
 }
 
 func DecodePayload(message *protocol.WakuMessage, keyInfo *KeyInfo) (*DecodedPayload, error) {
-	switch *message.Version {
+	switch message.Version {
 	case uint32(0):
 		return &DecodedPayload{Data: message.Payload}, nil
 	case uint32(1):

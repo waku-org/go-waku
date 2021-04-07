@@ -10,23 +10,25 @@ message Index {
 }
 
 message PagingInfo {
-  int64 pageSize = 1;
+  uint64 pageSize = 1;
   Index cursor = 2;
   enum Direction {
-    FORWARD = 0;
-    BACKWARD = 1;
+    BACKWARD = 0;
+    FORWARD = 1;
   }
   Direction direction = 3;
 }
 
 message HistoryQuery {
   repeated uint32 topics = 1;
-  optional PagingInfo pagingInfo = 2; // used for pagination
+  PagingInfo pagingInfo = 2; // used for pagination
+  double startTime = 3;
+  double endTime = 4;
 }
 
 message HistoryResponse {
   repeated WakuMessage messages = 1;
-  optional PagingInfo pagingInfo = 2; // used for pagination
+  PagingInfo pagingInfo = 2; // used for pagination
 }
 
 message HistoryRPC {

@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"sort"
 	"sync"
 	"time"
@@ -20,11 +19,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-msgio/protoio"
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/common"
 	"github.com/status-im/go-waku/waku/v2/protocol"
-	"google.golang.org/protobuf/proto"
 )
 
 var log = logging.Logger("wakustore")
@@ -118,7 +117,7 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 	for i := s; i <= e; i++ {
 		resMessages = append(resMessages, msgList[i])
 	}
-	resPagingInfo = &protocol.PagingInfo{PageSize: int64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
+	resPagingInfo = &protocol.PagingInfo{PageSize: uint64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
 
 	return
 }
@@ -148,7 +147,7 @@ func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.History
 	// data holds IndexedWakuMessage whose topics match the query
 	var data []IndexedWakuMessage
 	for _, indexedMsg := range w.messages {
-		if contains(query.Topics, *indexedMsg.msg.ContentTopic) {
+		if contains(query.Topics, indexedMsg.msg.ContentTopic) {
 			data = append(data, indexedMsg)
 		}
 	}
@@ -188,6 +187,10 @@ func NewWakuStore(ctx context.Context, h host.Host, msg chan *common.Envelope, p
 }
 
 func (store *WakuStore) Start() {
+	if store.msgProvider == nil {
+		return
+	}
+
 	store.h.SetStreamHandler(WakuStoreProtocolId, store.onRequest)
 
 	messages, err := store.msgProvider.GetAll()
@@ -237,18 +240,12 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	historyRPCRequest := &protocol.HistoryRPC{}
 
-	buf := make([]byte, 64*1024)
-	_, err := s.Read(buf)
+	writer := protoio.NewDelimitedWriter(s)
+	reader := protoio.NewDelimitedReader(s, 64*1024)
 
+	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
-		s.Reset()
 		log.Error("error reading request", err)
-		return
-	}
-
-	proto.Unmarshal(buf, historyRPCRequest)
-	if err != nil {
-		log.Error("error decoding request", err)
 		return
 	}
 
@@ -258,13 +255,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	historyResponseRPC.RequestId = historyRPCRequest.RequestId
 	historyResponseRPC.Response = store.FindMessages(historyRPCRequest.Query)
 
-	message, err := proto.Marshal(historyResponseRPC)
-	if err != nil {
-		log.Error("error encoding response", err)
-		return
-	}
-
-	_, err = s.Write(message)
+	err = writer.WriteMsg(historyResponseRPC)
 	if err != nil {
 		log.Error("error writing response", err)
 		s.Reset()
@@ -274,7 +265,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 }
 
 func computeIndex(msg *protocol.WakuMessage) (*protocol.Index, error) {
-	data, err := proto.Marshal(msg)
+	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -415,33 +406,24 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery) (*protocol.HistoryRespon
 		return nil, err
 	}
 
-	historyRequest := &protocol.HistoryRPC{Query: q, RequestId: GenerateRequestId()}
-
-	message, err := proto.Marshal(historyRequest)
-	if err != nil {
-		log.Error("could not encode request", err)
-		return nil, err
-	}
-
 	defer connOpt.Close()
 	defer connOpt.Reset()
 
-	_, err = connOpt.Write(message)
+	historyRequest := &protocol.HistoryRPC{Query: q, RequestId: GenerateRequestId()}
+
+	writer := protoio.NewDelimitedWriter(connOpt)
+	reader := protoio.NewDelimitedReader(connOpt, 64*1024)
+
+	err = writer.WriteMsg(historyRequest)
 	if err != nil {
 		log.Error("could not write request", err)
 		return nil, err
 	}
 
-	buf, err := ioutil.ReadAll(connOpt)
+	historyResponseRPC := &protocol.HistoryRPC{}
+	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
 		log.Error("could not read response", err)
-		return nil, err
-	}
-
-	historyResponseRPC := &protocol.HistoryRPC{}
-	proto.Unmarshal(buf, historyResponseRPC)
-	if err != nil {
-		log.Error("could not decode response", err)
 		return nil, err
 	}
 
