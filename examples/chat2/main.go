@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -23,7 +22,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 )
 
-var DefaultContentTopic uint32 = binary.LittleEndian.Uint32([]byte("dingpu"))
+var DefaultContentTopic string = "dingpu"
 
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())
