@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -39,7 +38,7 @@ func (dbStore *DBStore) Put(message *protocol.WakuMessage) error {
 func (dbStore *DBStore) GetAll() ([]*protocol.WakuMessage, error) {
 	fmt.Println("TODO: Implement MessageProvider.GetAll. Returning a sample message")
 	exampleMessage := new(protocol.WakuMessage)
-	exampleMessage.ContentTopic = 1
+	exampleMessage.ContentTopic = "dingpu"
 	exampleMessage.Payload = []byte("Hello!")
 	exampleMessage.Version = 0
 
@@ -115,7 +114,7 @@ var rootCmd = &cobra.Command{
 				return
 			}
 
-			var DefaultContentTopic uint32 = binary.LittleEndian.Uint32([]byte("dingpu"))
+			var DefaultContentTopic string = "dingpu"
 
 			response, err := wakuNode.Query(DefaultContentTopic, true, 10)
 			if err != nil {

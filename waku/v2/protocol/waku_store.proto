@@ -20,7 +20,7 @@ message PagingInfo {
 }
 
 message HistoryQuery {
-  repeated uint32 topics = 1;
+  repeated string topics = 1;
   PagingInfo pagingInfo = 2; // used for pagination
   double startTime = 3;
   double endTime = 4;

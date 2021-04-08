@@ -196,7 +196,7 @@ func (w *WakuNode) AddStorePeer(address string) error {
 	return w.store.AddPeer(info.ID, info.Addrs)
 }
 
-func (w *WakuNode) Query(contentTopic uint32, asc bool, pageSize uint64) (*protocol.HistoryResponse, error) {
+func (w *WakuNode) Query(contentTopic string, asc bool, pageSize uint64) (*protocol.HistoryResponse, error) {
 	if w.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}

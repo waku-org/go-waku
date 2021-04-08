@@ -31,6 +31,7 @@ var log = logging.Logger("wakustore")
 const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta1")
 const MaxPageSize = 100 // Maximum number of waku messages in each page
 const ConnectionTimeout = 10 * time.Second
+const DefaultContentTopic = "/waku/2/default-content/proto"
 
 func minOf(vars ...int) int {
 	min := vars[0]
@@ -133,7 +134,7 @@ func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo)
 	return
 }
 
-func contains(s []uint32, e uint32) bool {
+func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
 			return true
