@@ -77,7 +77,7 @@ var rootCmd = &cobra.Command{
 		ctx := context.Background()
 		wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr})
 		if err != nil {
-			fmt.Print(err)
+			fmt.Println(err)
 			return
 		}
 
@@ -86,7 +86,11 @@ var rootCmd = &cobra.Command{
 		}
 
 		if store {
-			wakuNode.MountStore(new(DBStore))
+			err := wakuNode.MountStore(new(DBStore))
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 			wakuNode.StartStore()
 		}
 

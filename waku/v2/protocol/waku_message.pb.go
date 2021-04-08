@@ -27,8 +27,8 @@ type WakuMessage struct {
 	Payload              []byte   `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
 	ContentTopic         uint32   `protobuf:"varint,2,opt,name=contentTopic,proto3" json:"contentTopic,omitempty"`
 	Version              uint32   `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
-	Proof                []byte   `protobuf:"bytes,4,opt,name=proof,proto3" json:"proof,omitempty"`
-	Timestamp            float64  `protobuf:"fixed64,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp            float64  `protobuf:"fixed64,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Proof                []byte   `protobuf:"bytes,21,opt,name=proof,proto3" json:"proof,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -88,18 +88,18 @@ func (m *WakuMessage) GetVersion() uint32 {
 	return 0
 }
 
-func (m *WakuMessage) GetProof() []byte {
-	if m != nil {
-		return m.Proof
-	}
-	return nil
-}
-
 func (m *WakuMessage) GetTimestamp() float64 {
 	if m != nil {
 		return m.Timestamp
 	}
 	return 0
+}
+
+func (m *WakuMessage) GetProof() []byte {
+	if m != nil {
+		return m.Proof
+	}
+	return nil
 }
 
 func init() {
@@ -116,12 +116,12 @@ var fileDescriptor_6f0a20862b3bf714 = []byte{
 	0xf2, 0x42, 0x12, 0x5c, 0xec, 0x05, 0x89, 0x95, 0x39, 0xf9, 0x89, 0x29, 0x12, 0x8c, 0x0a, 0x8c,
 	0x1a, 0x3c, 0x41, 0x30, 0xae, 0x90, 0x12, 0x17, 0x4f, 0x72, 0x7e, 0x5e, 0x49, 0x6a, 0x5e, 0x49,
 	0x48, 0x7e, 0x41, 0x66, 0xb2, 0x04, 0x93, 0x02, 0xa3, 0x06, 0x6f, 0x10, 0x8a, 0x18, 0x48, 0x77,
-	0x59, 0x6a, 0x51, 0x71, 0x66, 0x7e, 0x9e, 0x04, 0x33, 0x58, 0x1a, 0xc6, 0x15, 0x12, 0xe1, 0x62,
-	0x2d, 0x28, 0xca, 0xcf, 0x4f, 0x93, 0x60, 0x01, 0x9b, 0x0a, 0xe1, 0x08, 0xc9, 0x70, 0x71, 0x96,
-	0x64, 0xe6, 0xa6, 0x16, 0x97, 0x24, 0xe6, 0x16, 0x48, 0xb0, 0x2a, 0x30, 0x6a, 0x30, 0x06, 0x21,
-	0x04, 0x9c, 0x04, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6,
-	0x19, 0x8f, 0xe5, 0x18, 0x92, 0xd8, 0xc0, 0xee, 0x36, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0x54,
-	0xc5, 0x11, 0x54, 0xd4, 0x00, 0x00, 0x00,
+	0x59, 0x6a, 0x51, 0x71, 0x66, 0x7e, 0x9e, 0x04, 0x33, 0x58, 0x1a, 0xc6, 0x15, 0x92, 0xe1, 0xe2,
+	0x2c, 0xc9, 0xcc, 0x4d, 0x2d, 0x2e, 0x49, 0xcc, 0x2d, 0x90, 0x60, 0x51, 0x60, 0xd4, 0x60, 0x0c,
+	0x42, 0x08, 0x08, 0x89, 0x70, 0xb1, 0x16, 0x14, 0xe5, 0xe7, 0xa7, 0x49, 0x88, 0x82, 0xed, 0x84,
+	0x70, 0x9c, 0x04, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6,
+	0x19, 0x8f, 0xe5, 0x18, 0x92, 0xd8, 0xc0, 0xee, 0x36, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0xc9,
+	0xff, 0x08, 0x77, 0xd4, 0x00, 0x00, 0x00,
 }
 
 func (m *WakuMessage) Marshal() (dAtA []byte, err error) {
@@ -148,18 +148,20 @@ func (m *WakuMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Timestamp != 0 {
-		i -= 8
-		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Timestamp))))
-		i--
-		dAtA[i] = 0x29
-	}
 	if len(m.Proof) > 0 {
 		i -= len(m.Proof)
 		copy(dAtA[i:], m.Proof)
 		i = encodeVarintWakuMessage(dAtA, i, uint64(len(m.Proof)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xaa
+	}
+	if m.Timestamp != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Timestamp))))
+		i--
+		dAtA[i] = 0x21
 	}
 	if m.Version != 0 {
 		i = encodeVarintWakuMessage(dAtA, i, uint64(m.Version))
@@ -208,12 +210,12 @@ func (m *WakuMessage) Size() (n int) {
 	if m.Version != 0 {
 		n += 1 + sovWakuMessage(uint64(m.Version))
 	}
-	l = len(m.Proof)
-	if l > 0 {
-		n += 1 + l + sovWakuMessage(uint64(l))
-	}
 	if m.Timestamp != 0 {
 		n += 9
+	}
+	l = len(m.Proof)
+	if l > 0 {
+		n += 2 + l + sovWakuMessage(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -329,6 +331,17 @@ func (m *WakuMessage) Unmarshal(dAtA []byte) error {
 				}
 			}
 		case 4:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Timestamp", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.Timestamp = float64(math.Float64frombits(v))
+		case 21:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Proof", wireType)
 			}
@@ -362,17 +375,6 @@ func (m *WakuMessage) Unmarshal(dAtA []byte) error {
 				m.Proof = []byte{}
 			}
 			iNdEx = postIndex
-		case 5:
-			if wireType != 1 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Timestamp", wireType)
-			}
-			var v uint64
-			if (iNdEx + 8) > l {
-				return io.ErrUnexpectedEOF
-			}
-			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
-			iNdEx += 8
-			m.Timestamp = float64(math.Float64frombits(v))
 		default:
 			iNdEx = preIndex
 			skippy, err := skipWakuMessage(dAtA[iNdEx:])
