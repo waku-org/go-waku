@@ -67,19 +67,24 @@ func randomHex(n int) (string, error) {
 }
 
 func write(wakuNode *node.WakuNode, msgContent string) {
-	var contentTopic uint32 = 1
+	var contentTopic string = "test"
 	var version uint32 = 0
 	var timestamp float64 = float64(time.Now().UnixNano())
 
-	payload, err := node.Encode([]byte(wakuNode.ID()+": "+msgContent), &node.KeyInfo{Kind: node.None}, 0)
+	p := new(node.Payload)
+	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
+	p.Key = &node.KeyInfo{Kind: node.None}
+
+	payload, err := p.Encode(version)
+
 	msg := &protocol.WakuMessage{
 		Payload:      payload,
-		Version:      &version,
-		ContentTopic: &contentTopic,
-		Timestamp:    &timestamp,
+		Version:      version,
+		ContentTopic: contentTopic,
+		Timestamp:    timestamp,
 	}
 
-	err = wakuNode.Publish(msg, nil)
+	_, err = wakuNode.Publish(msg, nil)
 	if err != nil {
 		log.Error("Error sending a message: ", err)
 	}
@@ -106,6 +111,6 @@ func readLoop(wakuNode *node.WakuNode) {
 			return
 		}
 
-		log.Info("Received msg, ", string(payload))
+		log.Info("Received msg, ", string(payload.Data))
 	}
 }

@@ -84,7 +84,9 @@ func (cr *Chat) Publish(message string) error {
 		Timestamp:    timestamp,
 	}
 
-	return cr.node.Publish(wakuMsg, nil)
+	_, err = cr.node.Publish(wakuMsg, nil)
+
+	return err
 }
 
 // readLoop pulls messages from the pubsub topic and pushes them onto the Messages channel.
