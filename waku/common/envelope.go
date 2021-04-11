@@ -5,10 +5,10 @@ import "github.com/status-im/go-waku/waku/v2/protocol"
 type Envelope struct {
 	msg  *protocol.WakuMessage
 	size int
-	hash [32]byte
+	hash []byte
 }
 
-func NewEnvelope(msg *protocol.WakuMessage, size int, hash [32]byte) *Envelope {
+func NewEnvelope(msg *protocol.WakuMessage, size int, hash []byte) *Envelope {
 	return &Envelope{
 		msg:  msg,
 		size: size,
@@ -20,7 +20,7 @@ func (e *Envelope) Message() *protocol.WakuMessage {
 	return e.msg
 }
 
-func (e *Envelope) Hash() [32]byte {
+func (e *Envelope) Hash() []byte {
 	return e.hash
 }
 

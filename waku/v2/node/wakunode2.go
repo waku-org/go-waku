@@ -3,13 +3,13 @@ package node
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	proto "github.com/golang/protobuf/proto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
@@ -272,7 +272,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 					return
 				}
 
-				envelope := common.NewEnvelope(wakuMessage, len(msg.Data), sha256.Sum256(msg.Data))
+				envelope := common.NewEnvelope(wakuMessage, len(msg.Data), gcrypto.Keccak256(msg.Data))
 				subscription.C <- envelope
 			}
 		}
@@ -323,37 +323,39 @@ func (node *WakuNode) upsertTopic(topic *Topic) (*wakurelay.Topic, error) {
 	return pubSubTopic, nil
 }
 
-func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) error {
+func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic. `WakuMessage` should contain a
 	// `contentTopic` field for light node functionality. This field may be also
 	// be omitted.
 
 	if node.pubsub == nil {
-		return errors.New("PubSub hasn't been set. Execute mountWakuRelay() or setPubSub() first")
+		return nil, errors.New("PubSub hasn't been set. Execute mountWakuRelay() or setPubSub() first")
 	}
 
 	if message == nil {
-		return errors.New("message can't be null")
+		return nil, errors.New("message can't be null")
 	}
 
 	pubSubTopic, err := node.upsertTopic(topic)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	out, err := proto.Marshal(message)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = pubSubTopic.Publish(node.ctx, out)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	hash := gcrypto.Keccak256(out)
+
+	return hash, nil
 }
 
 func (w *WakuNode) DialPeer(address string) error {
