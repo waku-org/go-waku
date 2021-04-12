@@ -119,6 +119,10 @@ func (w *WakuNode) Stop() {
 	}
 
 	w.subscriptions = nil
+
+	if w.store != nil {
+		w.store.Stop()
+	}
 }
 
 func (w *WakuNode) Host() host.Host {

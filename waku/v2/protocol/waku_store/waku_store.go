@@ -88,28 +88,24 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 	switch dir {
 	case protocol.PagingInfo_FORWARD: // forward pagination
 		remainingMessages := len(msgList) - foundIndex - 1
-		// the number of queried messages cannot exceed the MaxPageSize and the total remaining messages i.e., msgList.len-foundIndex
-		retrievedPageSize = minOf(int(pageSize), MaxPageSize, remainingMessages)
 		if initQuery {
+			remainingMessages = remainingMessages + 1
 			foundIndex = foundIndex - 1
 		}
+		// the number of queried messages cannot exceed the MaxPageSize and the total remaining messages i.e., msgList.len-foundIndex
+		retrievedPageSize = minOf(int(pageSize), MaxPageSize, remainingMessages)
 		s = foundIndex + 1 // non inclusive
 		e = foundIndex + retrievedPageSize
-		if e < 0 {
-			e = 0
-		}
 		newCursor = msgList[e].index // the new cursor points to the end of the page
 	case protocol.PagingInfo_BACKWARD: // backward pagination
 		remainingMessages := foundIndex
-		// the number of queried messages cannot exceed the MaxPageSize and the total remaining messages i.e., foundIndex-0
-		retrievedPageSize = minOf(int(pageSize), MaxPageSize, remainingMessages)
 		if initQuery {
+			remainingMessages = remainingMessages + 1
 			foundIndex = foundIndex + 1
 		}
+		// the number of queried messages cannot exceed the MaxPageSize and the total remaining messages i.e., foundIndex-0
+		retrievedPageSize = minOf(int(pageSize), MaxPageSize, remainingMessages)
 		s = foundIndex - retrievedPageSize
-		if s >= len(msgList) {
-			s = len(msgList) - 1
-		}
 		e = foundIndex - 1
 		newCursor = msgList[s].index // the new cursor points to the begining of the page
 	}
@@ -159,7 +155,8 @@ func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.History
 
 type MessageProvider interface {
 	GetAll() ([]*protocol.WakuMessage, error)
-	Put(message *protocol.WakuMessage) error
+	Put(cursor *protocol.Index, message *protocol.WakuMessage) error
+	Stop()
 }
 
 type IndexedWakuMessage struct {
@@ -212,6 +209,10 @@ func (store *WakuStore) Start() {
 	go store.storeIncomingMessages()
 }
 
+func (store *WakuStore) Stop() {
+	store.msgProvider.Stop()
+}
+
 func (store *WakuStore) storeIncomingMessages() {
 	for envelope := range store.msg {
 		index, err := computeIndex(envelope.Message())
@@ -228,7 +229,7 @@ func (store *WakuStore) storeIncomingMessages() {
 			continue
 		}
 
-		err = store.msgProvider.Put(envelope.Message()) // Should the index be stored?
+		err = store.msgProvider.Put(index, envelope.Message()) // Should the index be stored?
 		if err != nil {
 			log.Error("could not store message", err)
 			continue
