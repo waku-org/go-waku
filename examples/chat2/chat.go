@@ -89,20 +89,30 @@ func (cr *Chat) Publish(message string) error {
 	return err
 }
 
+func (cr *Chat) decodeMessage(wakumsg *protocol.WakuMessage) {
+	payload, err := node.DecodePayload(wakumsg, &node.KeyInfo{Kind: node.None})
+	if err != nil {
+		return
+	}
+
+	msg := &pb.Chat2Message{}
+	if err := proto.Unmarshal(payload.Data, msg); err != nil {
+		return
+	}
+
+	// send valid messages onto the Messages channel
+	cr.Messages <- msg
+}
+
 // readLoop pulls messages from the pubsub topic and pushes them onto the Messages channel.
 func (cr *Chat) readLoop() {
 	for value := range cr.sub.C {
-		payload, err := node.DecodePayload(value.Message(), &node.KeyInfo{Kind: node.None})
-		if err != nil {
-			continue
-		}
+		cr.decodeMessage(value.Message())
+	}
+}
 
-		msg := &pb.Chat2Message{}
-		if err := proto.Unmarshal(payload.Data, msg); err != nil {
-			continue
-		}
-
-		// send valid messages onto the Messages channel
-		cr.Messages <- msg
+func (cr *Chat) displayMessages(messages []*protocol.WakuMessage) {
+	for _, msg := range messages {
+		cr.decodeMessage(msg)
 	}
 }

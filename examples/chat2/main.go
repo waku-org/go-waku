@@ -13,8 +13,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -113,27 +111,20 @@ func main() {
 			ui.displayMessage("Connected to storenode: " + storenode)
 		}
 
-		// TODO: query historic messages
-		/*time.Sleep(300 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 		ui.displayMessage("Querying historic messages")
 		response, err := wakuNode.Query(DefaultContentTopic, true, 0)
 		if err != nil {
-			fmt.Println(err)
-			return
-		}*/
-
+			ui.displayMessage("Could not query storenode: " + err.Error())
+		} else {
+			chat.displayMessages(response.Messages)
+		}
 	}()
 
 	//draw the UI
 	if err = ui.Run(); err != nil {
 		printErr("error running text UI: %s", err)
 	}
-
-	// Wait for a SIGINT or SIGTERM signal
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	<-ch
-	fmt.Println("\n\n\nReceived signal, shutting down...")
 }
 
 // Generates a random hex string with a length of n
