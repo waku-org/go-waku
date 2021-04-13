@@ -2,7 +2,7 @@ package main
 
 import (
 	logging "github.com/ipfs/go-log"
-	"github.com/status-im/go-waku/cmd"
+	"github.com/status-im/go-waku/waku"
 )
 
 func main() {
@@ -12,5 +12,5 @@ func main() {
 	}
 	logging.SetAllLoggers(lvl)
 
-	cmd.Execute()
+	waku.Execute()
 }

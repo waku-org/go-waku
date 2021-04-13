@@ -1,9 +1,10 @@
-package cmd
+package waku
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -11,10 +12,19 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	dssql "github.com/ipfs/go-ds-sql"
+	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/status-im/go-waku/waku/persistence"
+	"github.com/status-im/go-waku/waku/persistence/sqlite"
+
 	"github.com/status-im/go-waku/waku/v2/node"
 )
+
+var log = logging.Logger("wakunode")
 
 func randomHex(n int) (string, error) {
 	bytes := make([]byte, n)
@@ -22,6 +32,15 @@ func randomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func checkError(err error, msg string) {
+	if err != nil {
+		if msg != "" {
+			msg = msg + ": "
+		}
+		log.Fatal(msg, err)
+	}
 }
 
 var rootCmd = &cobra.Command{
@@ -41,46 +60,52 @@ var rootCmd = &cobra.Command{
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
+		var err error
+
 		if key == "" {
-			var err error
 			key, err = randomHex(32)
-			if err != nil {
-				fmt.Println("Could not generate random key")
-				return
-			}
+			checkError(err, "Could not generate random key")
 		}
 
 		prvKey, err := crypto.HexToECDSA(key)
 
-		ctx := context.Background()
-		wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr})
-		if err != nil {
-			fmt.Println(err)
-			return
+		if dbPath == "" {
+			checkError(errors.New("dbpath can't be null"), "")
 		}
+
+		db, err := sqlite.NewDB(dbPath)
+		checkError(err, "Could not connect to DB")
+
+		ctx := context.Background()
+
+		// Create persistent peerstore
+		queries, err := sqlite.NewQueries("peerstore", db)
+		checkError(err, "Peerstore")
+
+		datastore := dssql.NewDatastore(db, queries)
+		opts := pstoreds.DefaultOpts()
+		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
+		checkError(err, "Peerstore")
+
+		wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr}, libp2p.Peerstore(peerStore))
+		checkError(err, "Wakunode")
 
 		if relay {
 			wakuNode.MountRelay()
 		}
 
-		if store && dbPath != "" {
-			db, err := NewDBStore(dbPath)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+		if store {
+			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
+			checkError(err, "DBStore")
 
-			err = wakuNode.MountStore(db)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+			err = wakuNode.MountStore(dbStore)
+			checkError(err, "Error mounting store")
+
 			wakuNode.StartStore()
 		}
 
 		if storenode != "" && !store {
-			fmt.Println("Store protocol was not started")
-			return
+			checkError(errors.New("Store protocol was not started"), "")
 		} else {
 			if storenode != "" {
 				wakuNode.AddStorePeer(storenode)
@@ -101,6 +126,8 @@ var rootCmd = &cobra.Command{
 
 		// shut the node down
 		wakuNode.Stop()
+		err = db.Close()
+		checkError(err, "DBClose")
 	},
 }
 
