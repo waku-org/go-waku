@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/node"
 )
@@ -68,6 +69,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Display panic level to reduce log noise
+	lvl, err := logging.LevelFromString("panic")
+	if err != nil {
+		panic(err)
+	}
+	logging.SetAllLoggers(lvl)
 
 	ui := NewChatUI(chat)
 
