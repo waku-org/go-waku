@@ -6,10 +6,12 @@ require (
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.9.5
 	github.com/golang/protobuf v1.4.1
+	github.com/ipfs/go-ds-sql v0.2.0
 	github.com/ipfs/go-log v1.0.4
 	github.com/libp2p/go-libp2p v0.13.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.8.5
+	github.com/libp2p/go-libp2p-peerstore v0.2.6
 	github.com/libp2p/go-msgio v0.0.6
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6

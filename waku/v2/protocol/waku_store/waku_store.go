@@ -209,10 +209,6 @@ func (store *WakuStore) Start() {
 	go store.storeIncomingMessages()
 }
 
-func (store *WakuStore) Stop() {
-	store.msgProvider.Stop()
-}
-
 func (store *WakuStore) storeIncomingMessages() {
 	for envelope := range store.msg {
 		index, err := computeIndex(envelope.Message())

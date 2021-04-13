@@ -1,10 +1,9 @@
-package cmd
+package persistence
 
 import (
 	"database/sql"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
 )
@@ -14,13 +13,33 @@ type DBStore struct {
 	db *sql.DB
 }
 
-func NewDBStore(path string) (*DBStore, error) {
-	db, err := sql.Open("sqlite3", path)
+type DBOption func(*DBStore) error
+
+func WithDB(db *sql.DB) DBOption {
+	return func(d *DBStore) error {
+		d.db = db
+		return nil
+	}
+}
+
+func WithDriver(driverName string, datasourceName string) DBOption {
+	return func(d *DBStore) error {
+		db, err := sql.Open(driverName, datasourceName)
+		if err != nil {
+			return err
+		}
+		d.db = db
+		return nil
+	}
+}
+
+func NewDBStore(opt DBOption) (*DBStore, error) {
+	result := new(DBStore)
+
+	err := opt(result)
 	if err != nil {
 		return nil, err
 	}
-
-	result := &DBStore{db: db}
 
 	err = result.createTable()
 	if err != nil {
