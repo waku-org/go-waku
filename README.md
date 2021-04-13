@@ -1,26 +1,63 @@
 # go-waku
-
-### Examples
-
-1. Start a node that will continously send a "Hey" message to the default waku topic
-```
-go run waku.go --port 33331 --hey --nodekey 112233445566778899001122334455667788990011223344556677889900AAAA
-```
+A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v2/waku-v2).
 
 
-2. Node that will connect to the "Hey" node and store messages
+## Waku Protocol Support
+
+- ✔: Supported
+- 🚧: Implementation in progress
+- ⛔: Support is not planned
+
+| Spec | Implementation Status |
+| ---- | -------------- |
+|[7/WAKU-DATA](https://rfc.vac.dev/spec/7)|✔|
+|[10/WAKU2](https://rfc.vac.dev/spec/10)|🚧|
+|[11/WAKU2-RELAY](https://rfc.vac.dev/spec/11)|✔|
+|[12/WAKU2-FILTER](https://rfc.vac.dev/spec/12)||
+|[13/WAKU2-STORE](https://rfc.vac.dev/spec/13)|🚧|
+|[14/WAKU2-MESSAGE](https://rfc.vac.dev/spec/14)|✔|
+|[15/WAKU2-BRIDGE](https://rfc.vac.dev/spec/15)|⛔|
+|[16/WAKU2-RPC](https://rfc.vac.dev/spec/16)||
+|[17/WAKU2-RLNRELAY](https://rfc.vac.dev/spec/17)||
+|[18/WAKU2-SWAP](https://rfc.vac.dev/spec/18)||
+
+
+## Install
 ```
-go run waku.go --port 44441 --store --start-store --nodekey 112233445566778899001122334455667788990011223344556677889900BBBB --staticnodes /ip4/127.0.0.1/tcp/33331/p2p/16Uiu2HAmK4LBcnRWJctkhkbSFYBbNApYYbSeo8fkC496weKU1R5B
+git clone https://github.com/status-im/go-waku
+cd go-waku
+make
+```
+
+## Wakunode
+See the available command line options with
+```
+./build/waku --help
 ```
 
 
-3. Node that will connect to the Store node and use it to retrieve messages retrieve messages
-```
-go run waku.go --port 0 --store --nodekey 112233445566778899001122334455667788990011223344556677889900CCCC --staticnodes /ip4/127.0.0.1/tcp/44441/p2p/16Uiu2HAmVGaeLcyYoGjEKe8uPg5WVMVXyLDegbfyABKn95tH7jsU --storenode /ip4/127.0.0.1/tcp/44441/p2p/16Uiu2HAmVGaeLcyYoGjEKe8uPg5WVMVXyLDegbfyABKn95tH7jsU --query
+## Examples
+Examples of usage of go-waku as a library can be found in the examples folder. There is a fully featured chat example.
 
-```
 
-4. Node that will listen to the default topic by connecting to a node
-```
-go run waku.go --port 0 --store --nodekey 112233445566778899001122334455667788990011223344556677889900DDDD --staticnodes /ip4/127.0.0.1/tcp/44441/p2p/16Uiu2HAmVGaeLcyYoGjEKe8uPg5WVMVXyLDegbfyABKn95tH7jsU --listen
-```
+## Contribution
+Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
+
+If you'd like to contribute to go-waku, please fork, fix, commit and send a pull request. If you wish to submit more complex changes though, please check up with the core devs first to ensure those changes are in line with the general philosophy of the project and/or get some early feedback which can make both your efforts much lighter as well as our review and merge procedures quick and simple.
+
+To build and test this repository, you need:
+  - [Go](https://golang.org/)
+  - [protoc](https://grpc.io/docs/protoc-installation/) 
+  - [Protocol Buffers for Go with Gadgets](https://github.com/gogo/protobuf)
+]
+
+## License
+Licensed and distributed under either of
+
+* MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
+
+or
+
+* Apache License, Version 2.0, ([LICENSE-APACHEv2](LICENSE-APACHEv2) or http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option. These files may not be copied, modified, or distributed except according to those terms.
