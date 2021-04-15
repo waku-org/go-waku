@@ -381,7 +381,7 @@ func GenerateRequestId() []byte {
 	rng := brHmacDrbgPool.Get().(*hmacdrbg.HmacDrbg)
 	defer brHmacDrbgPool.Put(rng)
 
-	randData := make([]byte, 10)
+	randData := make([]byte, 32)
 	if !rng.Generate(randData) {
 		//Reseed is required every 10,000 calls
 		seed := make([]byte, 48)
@@ -403,7 +403,7 @@ func GenerateRequestId() []byte {
 }
 
 type HistoryRequestParameters struct {
-	selectedPeer *peer.ID
+	selectedPeer peer.ID
 	requestId    []byte
 	timeout      *time.Duration
 	ctx          context.Context
@@ -418,16 +418,16 @@ type HistoryRequestParameters struct {
 
 type HistoryRequestOption func(*HistoryRequestParameters)
 
-func WithPeer(p string) HistoryRequestOption {
+func WithPeer(p peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		pid := peer.ID(p)
-		params.selectedPeer = &pid
+		params.selectedPeer = p
 	}
 }
 
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		params.selectedPeer = params.s.selectPeer()
+		p := params.s.selectPeer()
+		params.selectedPeer = *p
 	}
 }
 
@@ -479,7 +479,7 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery, opts ...HistoryRequestOp
 		opt(params)
 	}
 
-	if params.selectedPeer == nil {
+	if params.selectedPeer == "" {
 		return nil, ErrNoPeersAvailable
 	}
 
@@ -511,7 +511,7 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery, opts ...HistoryRequestOp
 
 	q.PagingInfo.PageSize = params.pageSize
 
-	connOpt, err := store.h.NewStream(params.ctx, *params.selectedPeer, WakuStoreProtocolId)
+	connOpt, err := store.h.NewStream(params.ctx, params.selectedPeer, WakuStoreProtocolId)
 	if err != nil {
 		log.Info("failed to connect to remote peer", err)
 		return nil, err
