@@ -124,7 +124,7 @@ func main() {
 
 		response, err := wakuNode.Query([]string{DefaultContentTopic}, 0, 0,
 			store.WithAutomaticRequestId(),
-			store.WithPeer(string(*storeNodeId)),
+			store.WithPeer(*storeNodeId),
 			store.WithPaging(true, 0))
 
 		if err != nil {
