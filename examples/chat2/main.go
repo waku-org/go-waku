@@ -19,6 +19,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/node"
+	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
 )
 
 var DefaultContentTopic string = "dingpu"
@@ -56,7 +57,7 @@ func main() {
 	}
 
 	wakuNode.MountRelay()
-	wakuNode.MountStore(nil)
+	wakuNode.MountStore(false, nil)
 
 	// use the nickname from the cli flag, or a default if blank
 	nick := *nickFlag
@@ -85,8 +86,7 @@ func main() {
 
 		staticnode := *staticNodeFlag
 		storenode := *storeNodeFlag
-		//storenode = "/ip4/104.154.239.128/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS"
-		storenode = "/ip4/127.0.0.1/tcp/60000/p2p/16Uiu2HAmULUvzjx7r5jcD8mtw6eGynjtAaDYUHFFbkbgcc3GNetZ"
+
 		var fleetData []byte
 		if len(staticnode) == 0 || len(storenode) == 0 {
 			fleetData = getFleetData()
@@ -111,7 +111,7 @@ func main() {
 			storenode = getRandomFleetNode(fleetData)
 		}
 
-		err := wakuNode.AddStorePeer(storenode)
+		storeNodeId, err := wakuNode.AddStorePeer(storenode)
 		if err != nil {
 			ui.displayMessage("Could not connect to storenode: " + err.Error())
 			return
@@ -121,7 +121,12 @@ func main() {
 
 		time.Sleep(300 * time.Millisecond)
 		ui.displayMessage("Querying historic messages")
-		response, err := wakuNode.Query(DefaultContentTopic, true, 0)
+
+		response, err := wakuNode.Query([]string{DefaultContentTopic}, 0, 0,
+			store.WithAutomaticRequestId(),
+			store.WithPeer(string(*storeNodeId)),
+			store.WithPaging(true, 0))
+
 		if err != nil {
 			ui.displayMessage("Could not query storenode: " + err.Error())
 		} else {
