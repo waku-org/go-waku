@@ -323,10 +323,11 @@ func (node *WakuNode) upsertSubscription(topic Topic) (*wakurelay.Subscription, 
 			return nil, err
 		}
 		node.relaySubs[topic] = sub
-	}
 
-	if node.store != nil && node.isStore {
-		node.bcaster.Register(node.store.MsgC)
+		if node.store != nil && node.isStore {
+			log.Info("Subscribing store to ", topic)
+			node.bcaster.Register(node.store.MsgC)
+		}
 	}
 
 	return sub, nil

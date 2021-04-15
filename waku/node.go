@@ -57,6 +57,7 @@ var rootCmd = &cobra.Command{
 		dbPath, _ := cmd.Flags().GetString("dbpath")
 		storenode, _ := cmd.Flags().GetString("storenode")
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
+		topics, _ := cmd.Flags().GetStringSlice("topics")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -104,6 +105,12 @@ var rootCmd = &cobra.Command{
 			wakuNode.StartStore()
 		}
 
+		for _, t := range topics {
+			nodeTopic := node.Topic(t)
+			_, err := wakuNode.Subscribe(&nodeTopic)
+			checkError(err, "Error subscring to topic")
+		}
+
 		if storenode != "" && !store {
 			checkError(errors.New("Store protocol was not started"), "")
 		} else {
@@ -142,6 +149,7 @@ func init() {
 
 	rootCmd.Flags().Int("port", 9000, "Libp2p TCP listening port (0 for random)")
 	rootCmd.Flags().String("nodekey", "", "P2P node private key as hex (default random)")
+	rootCmd.Flags().StringSlice("topics", []string{string(node.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", node.DefaultWakuTopic))
 	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
