@@ -98,7 +98,7 @@ var rootCmd = &cobra.Command{
 			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 			checkError(err, "DBStore")
 
-			err = wakuNode.MountStore(dbStore)
+			err = wakuNode.MountStore(true, dbStore)
 			checkError(err, "Error mounting store")
 
 			wakuNode.StartStore()
