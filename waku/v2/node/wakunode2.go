@@ -2,10 +2,8 @@ package node
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -13,12 +11,9 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	manet "github.com/multiformats/go-multiaddr-net"
 	common "github.com/status-im/go-waku/waku/common"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
@@ -38,10 +33,8 @@ type Message []byte
 
 type WakuNode struct {
 	host   host.Host
+	opts   *WakuNodeParameters
 	pubsub *wakurelay.PubSub
-
-	store   *store.WakuStore
-	isStore bool
 
 	topics          map[Topic]bool
 	topicsMutex     sync.Mutex
@@ -53,41 +46,35 @@ type WakuNode struct {
 	bcaster   Broadcaster
 	relaySubs map[Topic]*wakurelay.Subscription
 
-	ctx     context.Context
-	cancel  context.CancelFunc
-	privKey crypto.PrivKey
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr []net.Addr, opts ...libp2p.Option) (*WakuNode, error) {
-	// Creates a Waku Node.
-	if hostAddr == nil {
-		return nil, errors.New("host address cannot be null")
-	}
-
-	var multiAddresses []ma.Multiaddr
-	for _, addr := range hostAddr {
-		hostAddrMA, err := manet.FromNetAddr(addr)
-		if err != nil {
-			return nil, err
-		}
-		multiAddresses = append(multiAddresses, hostAddrMA)
-	}
-
-	nodeKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(privKey))
-
-	opts = append(opts,
-		libp2p.ListenAddrs(multiAddresses...),
-		libp2p.Identity(nodeKey),
-		libp2p.DefaultTransports,
-		libp2p.NATPortMap(),                                           // Attempt to open ports using uPNP for NATed hosts.
-		libp2p.EnableNATService(),                                     // TODO: is this needed?)
-		libp2p.ConnectionManager(connmgr.NewConnManager(200, 300, 0)), // ?
-	)
+func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
+	params := new(WakuNodeParameters)
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel
 
-	host, err := libp2p.New(ctx, opts...)
+	params.ctx = ctx
+	params.libP2POpts = DefaultLibP2POptions
+
+	for _, opt := range opts {
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(params.multiAddr) > 0 {
+		params.libP2POpts = append(params.libP2POpts, libp2p.ListenAddrs(params.multiAddr...))
+	}
+
+	if params.privKey != nil {
+		params.libP2POpts = append(params.libP2POpts, libp2p.Identity(*params.privKey))
+	}
+
+	host, err := libp2p.New(ctx, params.libP2POpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,12 +84,26 @@ func New(ctx context.Context, privKey *ecdsa.PrivateKey, hostAddr []net.Addr, op
 	w.pubsub = nil
 	w.host = host
 	w.cancel = cancel
-	w.privKey = nodeKey
 	w.ctx = ctx
 	w.topics = make(map[Topic]bool)
 	w.wakuRelayTopics = make(map[Topic]*wakurelay.Topic)
 	w.relaySubs = make(map[Topic]*wakurelay.Subscription)
 	w.subscriptions = make(map[Topic][]*Subscription)
+	w.opts = params
+
+	if params.enableRelay {
+		err := w.mountRelay(params.wOpts...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if params.enableStore {
+		err := w.startStore()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	for _, addr := range w.ListenAddresses() {
 		log.Info("Listening on ", addr)
@@ -150,7 +151,7 @@ func (w *WakuNode) SetPubSub(pubSub *wakurelay.PubSub) {
 	w.pubsub = pubSub
 }
 
-func (w *WakuNode) MountRelay(opts ...wakurelay.Option) error {
+func (w *WakuNode) mountRelay(opts ...wakurelay.Option) error {
 	ps, err := wakurelay.NewWakuRelaySub(w.ctx, w.host, opts...)
 	if err != nil {
 		return err
@@ -160,31 +161,23 @@ func (w *WakuNode) MountRelay(opts ...wakurelay.Option) error {
 	// TODO: filters
 	// TODO: rlnRelay
 
+	log.Info("Relay protocol started")
+
 	return nil
 }
 
-func (w *WakuNode) MountStore(isStore bool, s store.MessageProvider) error {
-	w.store = store.NewWakuStore(w.ctx, w.host, s)
-	w.isStore = isStore
-	return nil
-}
-
-func (w *WakuNode) StartStore() error {
-	if w.store == nil {
-		return errors.New("WakuStore is not set")
-	}
-
+func (w *WakuNode) startStore() error {
 	_, err := w.Subscribe(nil)
 	if err != nil {
 		return err
 	}
 
-	w.store.Start()
+	w.opts.store.Start(w.host)
 	return nil
 }
 
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
-	if w.store == nil {
+	if w.opts.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
@@ -199,11 +192,11 @@ func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
 		return nil, err
 	}
 
-	return &info.ID, w.store.AddPeer(info.ID, info.Addrs)
+	return &info.ID, w.opts.store.AddPeer(info.ID, info.Addrs)
 }
 
 func (w *WakuNode) Query(contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*protocol.HistoryResponse, error) {
-	if w.store == nil {
+	if w.opts.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
@@ -212,7 +205,7 @@ func (w *WakuNode) Query(contentTopics []string, startTime float64, endTime floa
 	query.StartTime = startTime
 	query.EndTime = endTime
 	query.PagingInfo = new(protocol.PagingInfo)
-	result, err := w.store.Query(query, opts...)
+	result, err := w.opts.store.Query(query, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -324,9 +317,11 @@ func (node *WakuNode) upsertSubscription(topic Topic) (*wakurelay.Subscription, 
 		}
 		node.relaySubs[topic] = sub
 
-		if node.store != nil && node.isStore {
-			log.Info("Subscribing store to ", topic)
-			node.bcaster.Register(node.store.MsgC)
+		log.Info("Subscribing to topic ", topic)
+
+		if node.opts.store != nil && node.opts.storeMsgs {
+			log.Info("Subscribing store to topic ", topic)
+			node.bcaster.Register(node.opts.store.MsgC)
 		}
 	}
 

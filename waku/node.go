@@ -88,22 +88,26 @@ var rootCmd = &cobra.Command{
 		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
 		checkError(err, "Peerstore")
 
-		wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr}, libp2p.Peerstore(peerStore))
-		checkError(err, "Wakunode")
+		nodeOpts := []node.WakuNodeOption{
+			node.WithPrivateKey(prvKey),
+			node.WithHostAddress([]net.Addr{hostAddr}),
+			node.WithLibP2POptions(append(node.DefaultLibP2POptions, libp2p.Peerstore(peerStore))...),
+		}
 
 		if relay {
-			wakuNode.MountRelay()
+			nodeOpts = append(nodeOpts, node.WithWakuRelay())
 		}
 
 		if store {
 			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 			checkError(err, "DBStore")
-
-			err = wakuNode.MountStore(true, dbStore)
-			checkError(err, "Error mounting store")
-
-			wakuNode.StartStore()
+			nodeOpts = append(nodeOpts, node.WithWakuStore(true))
+			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		}
+
+		wakuNode, err := node.New(ctx, nodeOpts...)
+
+		checkError(err, "Wakunode")
 
 		for _, t := range topics {
 			nodeTopic := node.Topic(t)
@@ -115,7 +119,9 @@ var rootCmd = &cobra.Command{
 			checkError(errors.New("Store protocol was not started"), "")
 		} else {
 			if storenode != "" {
-				wakuNode.AddStorePeer(storenode)
+				_, err = wakuNode.AddStorePeer(storenode)
+				checkError(err, "Error adding store peer")
+
 			}
 		}
 

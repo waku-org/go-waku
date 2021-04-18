@@ -187,17 +187,22 @@ type WakuStore struct {
 	ctx         context.Context
 }
 
-func NewWakuStore(ctx context.Context, h host.Host, p MessageProvider) *WakuStore {
+func NewWakuStore(ctx context.Context, p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.MsgC = make(chan *common.Envelope)
 	wakuStore.msgProvider = p
-	wakuStore.h = h
 	wakuStore.ctx = ctx
 
 	return wakuStore
 }
 
-func (store *WakuStore) Start() {
+func (store *WakuStore) SetMsgProvider(p MessageProvider) {
+	store.msgProvider = p
+}
+
+func (store *WakuStore) Start(h host.Host) {
+	store.h = h
+
 	if store.msgProvider == nil {
 		return
 	}
@@ -218,6 +223,8 @@ func (store *WakuStore) Start() {
 		}
 		store.messages = append(store.messages, IndexedWakuMessage{msg: msg, index: idx})
 	}
+
+	log.Info("Store protocol started")
 
 	go store.storeIncomingMessages()
 }
