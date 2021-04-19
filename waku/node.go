@@ -3,6 +3,7 @@ package waku
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -54,6 +55,7 @@ var rootCmd = &cobra.Command{
 		relay, _ := cmd.Flags().GetBool("relay")
 		key, _ := cmd.Flags().GetString("nodekey")
 		store, _ := cmd.Flags().GetBool("store")
+		useDB, _ := cmd.Flags().GetBool("use-db")
 		dbPath, _ := cmd.Flags().GetString("dbpath")
 		storenode, _ := cmd.Flags().GetString("storenode")
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
@@ -70,39 +72,54 @@ var rootCmd = &cobra.Command{
 
 		prvKey, err := crypto.HexToECDSA(key)
 
-		if dbPath == "" {
+		if dbPath == "" && useDB {
 			checkError(errors.New("dbpath can't be null"), "")
 		}
 
-		db, err := sqlite.NewDB(dbPath)
-		checkError(err, "Could not connect to DB")
+		var db *sql.DB
+
+		if useDB {
+			db, err = sqlite.NewDB(dbPath)
+			checkError(err, "Could not connect to DB")
+		}
 
 		ctx := context.Background()
-
-		// Create persistent peerstore
-		queries, err := sqlite.NewQueries("peerstore", db)
-		checkError(err, "Peerstore")
-
-		datastore := dssql.NewDatastore(db, queries)
-		opts := pstoreds.DefaultOpts()
-		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
-		checkError(err, "Peerstore")
 
 		nodeOpts := []node.WakuNodeOption{
 			node.WithPrivateKey(prvKey),
 			node.WithHostAddress([]net.Addr{hostAddr}),
-			node.WithLibP2POptions(append(node.DefaultLibP2POptions, libp2p.Peerstore(peerStore))...),
 		}
+
+		libp2pOpts := node.DefaultLibP2POptions
+
+		if useDB {
+			// Create persistent peerstore
+			queries, err := sqlite.NewQueries("peerstore", db)
+			checkError(err, "Peerstore")
+
+			datastore := dssql.NewDatastore(db, queries)
+			opts := pstoreds.DefaultOpts()
+			peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
+			checkError(err, "Peerstore")
+
+			libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+		}
+
+		nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 
 		if relay {
 			nodeOpts = append(nodeOpts, node.WithWakuRelay())
 		}
 
 		if store {
-			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
-			checkError(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithWakuStore(true))
-			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+			if useDB {
+				dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
+				checkError(err, "DBStore")
+				nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+			} else {
+				nodeOpts = append(nodeOpts, node.WithMessageProvider(nil))
+			}
 		}
 
 		wakuNode, err := node.New(ctx, nodeOpts...)
@@ -139,8 +156,11 @@ var rootCmd = &cobra.Command{
 
 		// shut the node down
 		wakuNode.Stop()
-		err = db.Close()
-		checkError(err, "DBClose")
+
+		if useDB {
+			err = db.Close()
+			checkError(err, "DBClose")
+		}
 	},
 }
 
@@ -158,6 +178,7 @@ func init() {
 	rootCmd.Flags().StringSlice("topics", []string{string(node.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", node.DefaultWakuTopic))
 	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
+	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
 	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")

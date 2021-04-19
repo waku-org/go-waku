@@ -182,16 +182,18 @@ type WakuStore struct {
 	messages      []IndexedWakuMessage
 	messagesMutex sync.Mutex
 
+	storeMsgs   bool
 	msgProvider MessageProvider
 	h           host.Host
 	ctx         context.Context
 }
 
-func NewWakuStore(ctx context.Context, p MessageProvider) *WakuStore {
+func NewWakuStore(ctx context.Context, shouldStoreMessages bool, p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.MsgC = make(chan *common.Envelope)
 	wakuStore.msgProvider = p
 	wakuStore.ctx = ctx
+	wakuStore.storeMsgs = shouldStoreMessages
 
 	return wakuStore
 }
@@ -203,11 +205,19 @@ func (store *WakuStore) SetMsgProvider(p MessageProvider) {
 func (store *WakuStore) Start(h host.Host) {
 	store.h = h
 
-	if store.msgProvider == nil {
+	if !store.storeMsgs {
+		log.Info("Store protocol started (messages aren't stored)")
 		return
 	}
 
 	store.h.SetStreamHandler(WakuStoreProtocolId, store.onRequest)
+
+	go store.storeIncomingMessages()
+
+	if store.msgProvider == nil {
+		log.Info("Store protocol started (no message provider)")
+		return
+	}
 
 	messages, err := store.msgProvider.GetAll()
 	if err != nil {
@@ -225,8 +235,6 @@ func (store *WakuStore) Start(h host.Host) {
 	}
 
 	log.Info("Store protocol started")
-
-	go store.storeIncomingMessages()
 }
 
 func (store *WakuStore) storeIncomingMessages() {

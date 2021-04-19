@@ -75,7 +75,7 @@ func WithWakuStore(shouldStoreMessages bool) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
 		params.storeMsgs = shouldStoreMessages
-		params.store = store.NewWakuStore(params.ctx, nil)
+		params.store = store.NewWakuStore(params.ctx, shouldStoreMessages, nil)
 		return nil
 	}
 }
@@ -85,7 +85,7 @@ func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 		if params.store != nil {
 			params.store.SetMsgProvider(s)
 		} else {
-			params.store = store.NewWakuStore(params.ctx, s)
+			params.store = store.NewWakuStore(params.ctx, true, s)
 		}
 		return nil
 	}
