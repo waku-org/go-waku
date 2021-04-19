@@ -50,14 +50,16 @@ func main() {
 	prvKey, err := crypto.HexToECDSA(nodekey)
 
 	ctx := context.Background()
-	wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr})
+	wakuNode, err := node.New(ctx,
+		node.WithPrivateKey(prvKey),
+		node.WithHostAddress([]net.Addr{hostAddr}),
+		node.WithWakuRelay(),
+		node.WithWakuStore(false),
+	)
 	if err != nil {
 		fmt.Print(err)
 		return
 	}
-
-	wakuNode.MountRelay()
-	wakuNode.MountStore(false, nil)
 
 	// use the nickname from the cli flag, or a default if blank
 	nick := *nickFlag

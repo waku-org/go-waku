@@ -10,6 +10,6 @@ require (
 	github.com/ipfs/go-log/v2 v2.1.1
 	github.com/libp2p/go-libp2p-core v0.8.5
 	github.com/rivo/tview v0.0.0-20210312174852-ae9464cc3598
-	github.com/status-im/go-waku v0.0.0-20210415175540-7ba8c51bcafe
+	github.com/status-im/go-waku v0.0.0-20210419000316-ef67ff356f7e
 	google.golang.org/protobuf v1.25.0
 )

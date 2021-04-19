@@ -36,13 +36,12 @@ func main() {
 	prvKey, err := crypto.HexToECDSA(key)
 
 	ctx := context.Background()
-	wakuNode, err := node.New(ctx, prvKey, []net.Addr{hostAddr})
-	if err != nil {
-		log.Error(err)
-		return
-	}
 
-	wakuNode.MountRelay()
+	wakuNode, err := node.New(ctx,
+		node.WithPrivateKey(prvKey),
+		node.WithHostAddress([]net.Addr{hostAddr}),
+		node.WithWakuRelay(),
+	)
 
 	go writeLoop(wakuNode)
 	go readLoop(wakuNode)
