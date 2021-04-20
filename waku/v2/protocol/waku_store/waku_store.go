@@ -135,15 +135,6 @@ func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo)
 	return
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.HistoryResponse {
 	result := new(protocol.HistoryResponse)
 	// data holds IndexedWakuMessage whose topics match the query
@@ -157,9 +148,12 @@ func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.History
 			}
 		}
 
-		if contains(query.Topics, indexedMsg.msg.ContentTopic) {
-			data = append(data, indexedMsg)
+		for _, cf := range query.ContentFilters {
+			if cf.ContentTopic == indexedMsg.msg.ContentTopic {
+				data = append(data, indexedMsg)
+			}
 		}
+
 	}
 
 	result.Messages, result.PagingInfo = paginateWithoutIndex(data, query.PagingInfo)

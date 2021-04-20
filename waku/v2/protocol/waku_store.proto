@@ -19,16 +19,20 @@ message PagingInfo {
   Direction direction = 3;
 }
 
+message ContentFilter {
+  string contentTopic = 1;
+}
+
 message HistoryQuery {
-  repeated string topics = 2;
+  repeated ContentFilter contentFilters = 2;
   PagingInfo pagingInfo = 3; // used for pagination
   double startTime = 4;
   double endTime = 5;
 }
 
 message HistoryResponse {
-  repeated WakuMessage messages = 2;
-  PagingInfo pagingInfo = 3; // used for pagination
+  repeated WakuMessage messages = 1;
+  PagingInfo pagingInfo = 2; // used for pagination
 }
 
 message HistoryRPC {

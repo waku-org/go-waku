@@ -201,7 +201,11 @@ func (w *WakuNode) Query(contentTopics []string, startTime float64, endTime floa
 	}
 
 	query := new(protocol.HistoryQuery)
-	query.Topics = contentTopics
+
+	for _, ct := range contentTopics {
+		query.ContentFilters = append(query.ContentFilters, &protocol.ContentFilter{ContentTopic: ct})
+	}
+
 	query.StartTime = startTime
 	query.EndTime = endTime
 	query.PagingInfo = new(protocol.PagingInfo)
