@@ -14,9 +14,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	common "github.com/status-im/go-waku/waku/common"
+
 	"github.com/status-im/go-waku/waku/v2/protocol"
-	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
 
@@ -56,7 +57,6 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel
 
-	params.ctx = ctx
 	params.libP2POpts = DefaultLibP2POptions
 
 	for _, opt := range opts {
@@ -195,21 +195,21 @@ func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
 	return &info.ID, w.opts.store.AddPeer(info.ID, info.Addrs)
 }
 
-func (w *WakuNode) Query(contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*protocol.HistoryResponse, error) {
+func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
 	if w.opts.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
-	query := new(protocol.HistoryQuery)
+	query := new(pb.HistoryQuery)
 
 	for _, ct := range contentTopics {
-		query.ContentFilters = append(query.ContentFilters, &protocol.ContentFilter{ContentTopic: ct})
+		query.ContentFilters = append(query.ContentFilters, &pb.ContentFilter{ContentTopic: ct})
 	}
 
 	query.StartTime = startTime
 	query.EndTime = endTime
-	query.PagingInfo = new(protocol.PagingInfo)
-	result, err := w.opts.store.Query(query, opts...)
+	query.PagingInfo = new(pb.PagingInfo)
+	result, err := w.opts.store.Query(ctx, query, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 	// Create client subscription
 	subscription := new(Subscription)
 	subscription.closed = false
-	subscription.C = make(chan *common.Envelope, 1024) // To avoid blocking
+	subscription.C = make(chan *protocol.Envelope, 1024) // To avoid blocking
 	subscription.quit = make(chan struct{})
 
 	node.subscriptionsMutex.Lock()
@@ -274,13 +274,13 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 					return
 				}
 
-				wakuMessage := &protocol.WakuMessage{}
+				wakuMessage := &pb.WakuMessage{}
 				if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
 					log.Error("could not decode message", err)
 					return
 				}
 
-				envelope := common.NewEnvelope(wakuMessage, len(msg.Data), gcrypto.Keccak256(msg.Data))
+				envelope := protocol.NewEnvelope(wakuMessage, len(msg.Data), gcrypto.Keccak256(msg.Data))
 
 				node.bcaster.Submit(envelope)
 			}
@@ -332,7 +332,7 @@ func (node *WakuNode) upsertSubscription(topic Topic) (*wakurelay.Subscription, 
 	return sub, nil
 }
 
-func (node *WakuNode) Publish(message *protocol.WakuMessage, topic *Topic) ([]byte, error) {
+func (node *WakuNode) Publish(message *pb.WakuMessage, topic *Topic) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic. `WakuMessage` should contain a
 	// `contentTopic` field for light node functionality. This field may be also
 	// be omitted.

@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"net"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
-	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
 
@@ -25,8 +24,6 @@ type WakuNodeParameters struct {
 	enableStore bool
 	storeMsgs   bool
 	store       *store.WakuStore
-
-	ctx context.Context
 }
 
 type WakuNodeOption func(*WakuNodeParameters) error
@@ -75,7 +72,7 @@ func WithWakuStore(shouldStoreMessages bool) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
 		params.storeMsgs = shouldStoreMessages
-		params.store = store.NewWakuStore(params.ctx, shouldStoreMessages, nil)
+		params.store = store.NewWakuStore(shouldStoreMessages, nil)
 		return nil
 	}
 }
@@ -85,7 +82,7 @@ func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 		if params.store != nil {
 			params.store.SetMsgProvider(s)
 		} else {
-			params.store = store.NewWakuStore(params.ctx, true, s)
+			params.store = store.NewWakuStore(true, s)
 		}
 		return nil
 	}

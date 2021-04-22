@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/status-im/go-waku/waku/v2/protocol"
-	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
 type DBStore struct {
@@ -68,7 +68,7 @@ func (d *DBStore) Stop() {
 	d.db.Close()
 }
 
-func (d *DBStore) Put(cursor *protocol.Index, message *protocol.WakuMessage) error {
+func (d *DBStore) Put(cursor *pb.Index, message *pb.WakuMessage) error {
 	stmt, err := d.db.Prepare("INSERT INTO messages (id, timestamp, contentTopic, payload, version) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
@@ -81,13 +81,13 @@ func (d *DBStore) Put(cursor *protocol.Index, message *protocol.WakuMessage) err
 	return nil
 }
 
-func (d *DBStore) GetAll() ([]*protocol.WakuMessage, error) {
+func (d *DBStore) GetAll() ([]*pb.WakuMessage, error) {
 	rows, err := d.db.Query("SELECT timestamp, contentTopic, payload, version FROM messages ORDER BY timestamp ASC")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []*protocol.WakuMessage
+	var result []*pb.WakuMessage
 
 	defer rows.Close()
 
@@ -102,7 +102,7 @@ func (d *DBStore) GetAll() ([]*protocol.WakuMessage, error) {
 			log.Fatal(err)
 		}
 
-		msg := new(protocol.WakuMessage)
+		msg := new(pb.WakuMessage)
 		msg.ContentTopic = contentTopic
 		msg.Payload = payload
 		msg.Timestamp = float64(timestamp)

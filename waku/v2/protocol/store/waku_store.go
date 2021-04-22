@@ -22,8 +22,8 @@ import (
 	"github.com/libp2p/go-msgio/protoio"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/waku/common"
 	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 
 var log = logging.Logger("wakustore")
@@ -50,7 +50,7 @@ func minOf(vars ...int) int {
 	return min
 }
 
-func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *protocol.PagingInfo) {
+func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo) {
 	// takes list, and performs paging based on pinfo
 	// returns the page i.e, a sequence of IndexedWakuMessage and the new paging info to be used for the next paging request
 	cursor := pinfo.Cursor
@@ -62,7 +62,7 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 	}
 
 	if len(list) == 0 { // no pagination is needed for an empty list
-		return list, &protocol.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
 	}
 
 	msgList := make([]IndexedWakuMessage, len(list))
@@ -76,22 +76,22 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 	if cursor == nil {
 		initQuery = true // an empty cursor means it is an initial query
 		switch dir {
-		case protocol.PagingInfo_FORWARD:
+		case pb.PagingInfo_FORWARD:
 			cursor = list[0].index // perform paging from the begining of the list
-		case protocol.PagingInfo_BACKWARD:
+		case pb.PagingInfo_BACKWARD:
 			cursor = list[len(list)-1].index // perform paging from the end of the list
 		}
 	}
 
 	foundIndex := findIndex(msgList, cursor)
 	if foundIndex == -1 { // the cursor is not valid
-		return nil, &protocol.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+		return nil, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
 	}
 
 	var retrievedPageSize, s, e int
-	var newCursor *protocol.Index // to be returned as part of the new paging info
+	var newCursor *pb.Index // to be returned as part of the new paging info
 	switch dir {
-	case protocol.PagingInfo_FORWARD: // forward pagination
+	case pb.PagingInfo_FORWARD: // forward pagination
 		remainingMessages := len(msgList) - foundIndex - 1
 		if initQuery {
 			remainingMessages = remainingMessages + 1
@@ -102,7 +102,7 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 		s = foundIndex + 1 // non inclusive
 		e = foundIndex + retrievedPageSize
 		newCursor = msgList[e].index // the new cursor points to the end of the page
-	case protocol.PagingInfo_BACKWARD: // backward pagination
+	case pb.PagingInfo_BACKWARD: // backward pagination
 		remainingMessages := foundIndex
 		if initQuery {
 			remainingMessages = remainingMessages + 1
@@ -119,12 +119,12 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (r
 	for i := s; i <= e; i++ {
 		resMessages = append(resMessages, msgList[i])
 	}
-	resPagingInfo = &protocol.PagingInfo{PageSize: uint64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
+	resPagingInfo = &pb.PagingInfo{PageSize: uint64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
 
 	return
 }
 
-func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo) (resMessages []*protocol.WakuMessage, resPinfo *protocol.PagingInfo) {
+func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []*pb.WakuMessage, resPinfo *pb.PagingInfo) {
 	// takes list, and performs paging based on pinfo
 	// returns the page i.e, a sequence of WakuMessage and the new paging info to be used for the next paging request
 	indexedData, updatedPagingInfo := paginateWithIndex(list, pinfo)
@@ -135,8 +135,8 @@ func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *protocol.PagingInfo)
 	return
 }
 
-func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.HistoryResponse {
-	result := new(protocol.HistoryResponse)
+func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
+	result := new(pb.HistoryResponse)
 	// data holds IndexedWakuMessage whose topics match the query
 	var data []IndexedWakuMessage
 	for _, indexedMsg := range w.messages {
@@ -161,32 +161,30 @@ func (w *WakuStore) FindMessages(query *protocol.HistoryQuery) *protocol.History
 }
 
 type MessageProvider interface {
-	GetAll() ([]*protocol.WakuMessage, error)
-	Put(cursor *protocol.Index, message *protocol.WakuMessage) error
+	GetAll() ([]*pb.WakuMessage, error)
+	Put(cursor *pb.Index, message *pb.WakuMessage) error
 	Stop()
 }
 
 type IndexedWakuMessage struct {
-	msg   *protocol.WakuMessage
-	index *protocol.Index
+	msg   *pb.WakuMessage
+	index *pb.Index
 }
 
 type WakuStore struct {
-	MsgC          chan *common.Envelope
+	MsgC          chan *protocol.Envelope
 	messages      []IndexedWakuMessage
 	messagesMutex sync.Mutex
 
 	storeMsgs   bool
 	msgProvider MessageProvider
 	h           host.Host
-	ctx         context.Context
 }
 
-func NewWakuStore(ctx context.Context, shouldStoreMessages bool, p MessageProvider) *WakuStore {
+func NewWakuStore(shouldStoreMessages bool, p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
-	wakuStore.MsgC = make(chan *common.Envelope)
+	wakuStore.MsgC = make(chan *protocol.Envelope)
 	wakuStore.msgProvider = p
-	wakuStore.ctx = ctx
 	wakuStore.storeMsgs = shouldStoreMessages
 
 	return wakuStore
@@ -258,7 +256,7 @@ func (store *WakuStore) storeIncomingMessages() {
 func (store *WakuStore) onRequest(s network.Stream) {
 	defer s.Close()
 
-	historyRPCRequest := &protocol.HistoryRPC{}
+	historyRPCRequest := &pb.HistoryRPC{}
 
 	writer := protoio.NewDelimitedWriter(s)
 	reader := protoio.NewDelimitedReader(s, 64*1024)
@@ -271,7 +269,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
 
-	historyResponseRPC := &protocol.HistoryRPC{}
+	historyResponseRPC := &pb.HistoryRPC{}
 	historyResponseRPC.RequestId = historyRPCRequest.RequestId
 	historyResponseRPC.Response = store.FindMessages(historyRPCRequest.Query)
 
@@ -284,19 +282,19 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	}
 }
 
-func computeIndex(msg *protocol.WakuMessage) (*protocol.Index, error) {
+func computeIndex(msg *pb.WakuMessage) (*pb.Index, error) {
 	data, err := msg.Marshal()
 	if err != nil {
 		return nil, err
 	}
 	digest := sha256.Sum256(data)
-	return &protocol.Index{
+	return &pb.Index{
 		Digest:       digest[:],
 		ReceivedTime: float64(time.Now().UnixNano()),
 	}, nil
 }
 
-func indexComparison(x, y *protocol.Index) int {
+func indexComparison(x, y *pb.Index) int {
 	// compares x and y
 	// returns 0 if they are equal
 	// returns -1 if x < y
@@ -325,7 +323,7 @@ func indexedWakuMessageComparison(x, y IndexedWakuMessage) int {
 	return indexComparison(x.index, y.index)
 }
 
-func findIndex(msgList []IndexedWakuMessage, index *protocol.Index) int {
+func findIndex(msgList []IndexedWakuMessage, index *pb.Index) int {
 	// returns the position of an IndexedWakuMessage in msgList whose index value matches the given index
 	// returns -1 if no match is found
 	for i, indexedWakuMessage := range msgList {
@@ -415,12 +413,9 @@ type HistoryRequestParameters struct {
 	selectedPeer peer.ID
 	requestId    []byte
 	timeout      *time.Duration
-	ctx          context.Context
-	cancelFunc   context.CancelFunc
-
-	cursor   *protocol.Index
-	pageSize uint64
-	asc      bool
+	cursor       *pb.Index
+	pageSize     uint64
+	asc          bool
 
 	s *WakuStore
 }
@@ -452,14 +447,7 @@ func WithAutomaticRequestId() HistoryRequestOption {
 	}
 }
 
-func WithTimeout(t time.Duration) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
-		params.timeout = &t
-		params.ctx, params.cancelFunc = context.WithTimeout(params.s.ctx, t)
-	}
-}
-
-func WithCursor(c *protocol.Index) HistoryRequestOption {
+func WithCursor(c *pb.Index) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
 		params.cursor = c
 	}
@@ -476,12 +464,11 @@ func DefaultOptions() []HistoryRequestOption {
 	return []HistoryRequestOption{
 		WithAutomaticRequestId(),
 		WithAutomaticPeerSelection(),
-		WithTimeout(ConnectionTimeout),
 		WithPaging(true, 0),
 	}
 }
 
-func (store *WakuStore) Query(q *protocol.HistoryQuery, opts ...HistoryRequestOption) (*protocol.HistoryResponse, error) {
+func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...HistoryRequestOption) (*pb.HistoryResponse, error) {
 	params := new(HistoryRequestParameters)
 	params.s = store
 	for _, opt := range opts {
@@ -496,31 +483,19 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery, opts ...HistoryRequestOp
 		return nil, ErrInvalidId
 	}
 
-	// Setting default timeout if none is specified
-	if params.timeout == nil {
-		timeoutF := WithTimeout(ConnectionTimeout)
-		timeoutF(params)
-	}
-
-	if *params.timeout == 0 {
-		params.ctx = store.ctx
-	} else {
-		defer params.cancelFunc()
-	}
-
 	if params.cursor != nil {
 		q.PagingInfo.Cursor = params.cursor
 	}
 
 	if params.asc {
-		q.PagingInfo.Direction = protocol.PagingInfo_FORWARD
+		q.PagingInfo.Direction = pb.PagingInfo_FORWARD
 	} else {
-		q.PagingInfo.Direction = protocol.PagingInfo_BACKWARD
+		q.PagingInfo.Direction = pb.PagingInfo_BACKWARD
 	}
 
 	q.PagingInfo.PageSize = params.pageSize
 
-	connOpt, err := store.h.NewStream(params.ctx, params.selectedPeer, WakuStoreProtocolId)
+	connOpt, err := store.h.NewStream(ctx, params.selectedPeer, WakuStoreProtocolId)
 	if err != nil {
 		log.Info("failed to connect to remote peer", err)
 		return nil, err
@@ -529,7 +504,7 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery, opts ...HistoryRequestOp
 	defer connOpt.Close()
 	defer connOpt.Reset()
 
-	historyRequest := &protocol.HistoryRPC{Query: q, RequestId: hex.EncodeToString(params.requestId)}
+	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(params.requestId)}
 
 	writer := protoio.NewDelimitedWriter(connOpt)
 	reader := protoio.NewDelimitedReader(connOpt, 64*1024)
@@ -540,7 +515,7 @@ func (store *WakuStore) Query(q *protocol.HistoryQuery, opts ...HistoryRequestOp
 		return nil, err
 	}
 
-	historyResponseRPC := &protocol.HistoryRPC{}
+	historyResponseRPC := &pb.HistoryRPC{}
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
 		log.Error("could not read response", err)

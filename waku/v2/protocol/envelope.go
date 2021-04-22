@@ -1,14 +1,14 @@
-package common
+package protocol
 
-import "github.com/status-im/go-waku/waku/v2/protocol"
+import "github.com/status-im/go-waku/waku/v2/protocol/pb"
 
 type Envelope struct {
-	msg  *protocol.WakuMessage
+	msg  *pb.WakuMessage
 	size int
 	hash []byte
 }
 
-func NewEnvelope(msg *protocol.WakuMessage, size int, hash []byte) *Envelope {
+func NewEnvelope(msg *pb.WakuMessage, size int, hash []byte) *Envelope {
 	return &Envelope{
 		msg:  msg,
 		size: size,
@@ -16,7 +16,7 @@ func NewEnvelope(msg *protocol.WakuMessage, size int, hash []byte) *Envelope {
 	}
 }
 
-func (e *Envelope) Message() *protocol.WakuMessage {
+func (e *Envelope) Message() *pb.WakuMessage {
 	return e.msg
 }
 

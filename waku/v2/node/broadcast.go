@@ -1,33 +1,33 @@
 package node
 
 import (
-	"github.com/status-im/go-waku/waku/common"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 )
 
 // Adapted from https://github.com/dustin/go-broadcast/commit/f664265f5a662fb4d1df7f3533b1e8d0e0277120 which was released under MIT license
 
 type broadcaster struct {
-	input chan *common.Envelope
-	reg   chan chan<- *common.Envelope
-	unreg chan chan<- *common.Envelope
+	input chan *protocol.Envelope
+	reg   chan chan<- *protocol.Envelope
+	unreg chan chan<- *protocol.Envelope
 
-	outputs map[chan<- *common.Envelope]bool
+	outputs map[chan<- *protocol.Envelope]bool
 }
 
 // The Broadcaster interface describes the main entry points to
 // broadcasters.
 type Broadcaster interface {
 	// Register a new channel to receive broadcasts
-	Register(chan<- *common.Envelope)
+	Register(chan<- *protocol.Envelope)
 	// Unregister a channel so that it no longer receives broadcasts.
-	Unregister(chan<- *common.Envelope)
+	Unregister(chan<- *protocol.Envelope)
 	// Shut this broadcaster down.
 	Close() error
 	// Submit a new object to all subscribers
-	Submit(*common.Envelope)
+	Submit(*protocol.Envelope)
 }
 
-func (b *broadcaster) broadcast(m *common.Envelope) {
+func (b *broadcaster) broadcast(m *protocol.Envelope) {
 	for ch := range b.outputs {
 		ch <- m
 	}
@@ -52,10 +52,10 @@ func (b *broadcaster) run() {
 
 func NewBroadcaster(buflen int) Broadcaster {
 	b := &broadcaster{
-		input:   make(chan *common.Envelope, buflen),
-		reg:     make(chan chan<- *common.Envelope),
-		unreg:   make(chan chan<- *common.Envelope),
-		outputs: make(map[chan<- *common.Envelope]bool),
+		input:   make(chan *protocol.Envelope, buflen),
+		reg:     make(chan chan<- *protocol.Envelope),
+		unreg:   make(chan chan<- *protocol.Envelope),
+		outputs: make(map[chan<- *protocol.Envelope]bool),
 	}
 
 	go b.run()
@@ -63,11 +63,11 @@ func NewBroadcaster(buflen int) Broadcaster {
 	return b
 }
 
-func (b *broadcaster) Register(newch chan<- *common.Envelope) {
+func (b *broadcaster) Register(newch chan<- *protocol.Envelope) {
 	b.reg <- newch
 }
 
-func (b *broadcaster) Unregister(newch chan<- *common.Envelope) {
+func (b *broadcaster) Unregister(newch chan<- *protocol.Envelope) {
 	b.unreg <- newch
 }
 
@@ -76,7 +76,7 @@ func (b *broadcaster) Close() error {
 	return nil
 }
 
-func (b *broadcaster) Submit(m *common.Envelope) {
+func (b *broadcaster) Submit(m *protocol.Envelope) {
 	if b != nil {
 		b.input <- m
 	}

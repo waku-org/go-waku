@@ -13,7 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 
 type KeyKind string
@@ -86,7 +86,7 @@ func (payload Payload) Encode(version uint32) ([]byte, error) {
 	return nil, errors.New("Unsupported WakuMessage version")
 }
 
-func DecodePayload(message *protocol.WakuMessage, keyInfo *KeyInfo) (*DecodedPayload, error) {
+func DecodePayload(message *pb.WakuMessage, keyInfo *KeyInfo) (*DecodedPayload, error) {
 	switch message.Version {
 	case uint32(0):
 		return &DecodedPayload{Data: message.Payload}, nil

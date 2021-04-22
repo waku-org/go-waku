@@ -3,11 +3,11 @@ package node
 import (
 	"sync"
 
-	"github.com/status-im/go-waku/waku/common"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 )
 
 type Subscription struct {
-	C      chan *common.Envelope
+	C      chan *protocol.Envelope
 	closed bool
 	mutex  sync.Mutex
 	quit   chan struct{}
