@@ -17,6 +17,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/status-im/go-waku/waku/persistence"
@@ -52,6 +53,8 @@ var rootCmd = &cobra.Command{
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		port, _ := cmd.Flags().GetInt("port")
+		enableWs, _ := cmd.Flags().GetBool("ws")
+		wsPort, _ := cmd.Flags().GetInt("ws-port")
 		relay, _ := cmd.Flags().GetBool("relay")
 		key, _ := cmd.Flags().GetString("nodekey")
 		store, _ := cmd.Flags().GetBool("store")
@@ -88,6 +91,11 @@ var rootCmd = &cobra.Command{
 		nodeOpts := []node.WakuNodeOption{
 			node.WithPrivateKey(prvKey),
 			node.WithHostAddress([]net.Addr{hostAddr}),
+		}
+
+		if enableWs {
+			wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d/ws", wsPort))
+			nodeOpts = append(nodeOpts, node.WithMultiaddress([]multiaddr.Multiaddr{wsMa}))
 		}
 
 		libp2pOpts := node.DefaultLibP2POptions
@@ -174,14 +182,16 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.Flags().Int("port", 9000, "Libp2p TCP listening port (0 for random)")
+	rootCmd.Flags().Bool("ws", false, "Enable websockets support")
+	rootCmd.Flags().Int("ws-port", 9001, "Libp2p TCP listening port for websocket connection (0 for random)")
 	rootCmd.Flags().String("nodekey", "", "P2P node private key as hex (default random)")
 	rootCmd.Flags().StringSlice("topics", []string{string(node.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", node.DefaultWakuTopic))
 	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
+	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
 	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
-	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
 
 }
 

@@ -39,8 +39,15 @@ func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
 			multiAddresses = append(multiAddresses, hostAddrMA)
 		}
 
-		params.multiAddr = multiAddresses
+		params.multiAddr = append(params.multiAddr, multiAddresses...)
 
+		return nil
+	}
+}
+
+func WithMultiaddress(addresses []ma.Multiaddr) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.multiAddr = append(params.multiAddr, addresses...)
 		return nil
 	}
 }
