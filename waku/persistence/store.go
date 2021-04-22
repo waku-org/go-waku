@@ -8,6 +8,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
+// DBStore is a MessageProvider that has a *sql.DB connection
 type DBStore struct {
 	store.MessageProvider
 	db *sql.DB
@@ -15,6 +16,7 @@ type DBStore struct {
 
 type DBOption func(*DBStore) error
 
+// WithDB is a DBOption that lets you use any custom *sql.DB with a DBStore.
 func WithDB(db *sql.DB) DBOption {
 	return func(d *DBStore) error {
 		d.db = db
@@ -22,6 +24,7 @@ func WithDB(db *sql.DB) DBOption {
 	}
 }
 
+// WithDriver is a DBOption that will open a *sql.DB connection
 func WithDriver(driverName string, datasourceName string) DBOption {
 	return func(d *DBStore) error {
 		db, err := sql.Open(driverName, datasourceName)
@@ -33,6 +36,8 @@ func WithDriver(driverName string, datasourceName string) DBOption {
 	}
 }
 
+// Creates a new DB store using the db specified via options.
+// It will create a messages table if it does not exist
 func NewDBStore(opt DBOption) (*DBStore, error) {
 	result := new(DBStore)
 
@@ -64,10 +69,12 @@ func (d *DBStore) createTable() error {
 	return nil
 }
 
+// Closes a DB connection
 func (d *DBStore) Stop() {
 	d.db.Close()
 }
 
+// Inserts a WakuMessage into the DB
 func (d *DBStore) Put(cursor *pb.Index, message *pb.WakuMessage) error {
 	stmt, err := d.db.Prepare("INSERT INTO messages (id, timestamp, contentTopic, payload, version) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
@@ -81,6 +88,7 @@ func (d *DBStore) Put(cursor *pb.Index, message *pb.WakuMessage) error {
 	return nil
 }
 
+// Returns all the stored WakuMessages
 func (d *DBStore) GetAll() ([]*pb.WakuMessage, error) {
 	rows, err := d.db.Query("SELECT timestamp, contentTopic, payload, version FROM messages ORDER BY timestamp ASC")
 	if err != nil {

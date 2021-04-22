@@ -8,7 +8,7 @@ import (
 	"github.com/status-im/go-waku/waku/persistence"
 )
 
-// Queries are the postgres queries for a given table.
+// Queries are the sqlite queries for a given table.
 type Queries struct {
 	deleteQuery  string
 	existsQuery  string
@@ -85,10 +85,12 @@ func (q Queries) GetSize() string {
 	return q.getSizeQuery
 }
 
+// WithDB is a DBOption that lets you use a sqlite3 DBStore.
 func WithDB(path string) persistence.DBOption {
 	return persistence.WithDriver("sqlite3", path)
 }
 
+// NewDB creates a sqlite3 DB in the specified path
 func NewDB(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
@@ -97,6 +99,7 @@ func NewDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
+// CreateTable creates the table that will persist the peers
 func CreateTable(db *sql.DB, tableName string) error {
 	sqlStmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key TEXT NOT NULL UNIQUE, data BYTEA);", tableName)
 	_, err := db.Exec(sqlStmt)

@@ -192,7 +192,6 @@ func init() {
 	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
-
 }
 
 func initConfig() {

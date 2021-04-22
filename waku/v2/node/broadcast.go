@@ -50,6 +50,9 @@ func (b *broadcaster) run() {
 	}
 }
 
+// NewBroadcaster creates a Broadcaster with an specified length
+// It's used to register subscriptors that will need to receive
+// an Envelope containing a WakuMessage
 func NewBroadcaster(buflen int) Broadcaster {
 	b := &broadcaster{
 		input:   make(chan *protocol.Envelope, buflen),
@@ -63,19 +66,23 @@ func NewBroadcaster(buflen int) Broadcaster {
 	return b
 }
 
+// Register a subscriptor channel
 func (b *broadcaster) Register(newch chan<- *protocol.Envelope) {
 	b.reg <- newch
 }
 
+// Unregister a subscriptor channel
 func (b *broadcaster) Unregister(newch chan<- *protocol.Envelope) {
 	b.unreg <- newch
 }
 
+// Closes the broadcaster. Used to stop receiving new subscribers
 func (b *broadcaster) Close() error {
 	close(b.reg)
 	return nil
 }
 
+// Submits an Envelope to be broadcasted among all registered subscriber channels
 func (b *broadcaster) Submit(m *protocol.Envelope) {
 	if b != nil {
 		b.input <- m
