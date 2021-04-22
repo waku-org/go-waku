@@ -47,6 +47,8 @@ type KeyInfo struct {
 
 }
 
+// Encodes a payload depending on the version parameter.
+// 0 for raw unencrypted data, and 1 for using WakuV1 encoding.
 func (payload Payload) Encode(version uint32) ([]byte, error) {
 	switch version {
 	case 0:
@@ -86,6 +88,8 @@ func (payload Payload) Encode(version uint32) ([]byte, error) {
 	return nil, errors.New("Unsupported WakuMessage version")
 }
 
+// Decodes a WakuMessage depending on the version parameter.
+// 0 for raw unencrypted data, and 1 for using WakuV1 decoding
 func DecodePayload(message *pb.WakuMessage, keyInfo *KeyInfo) (*DecodedPayload, error) {
 	switch message.Version {
 	case uint32(0):

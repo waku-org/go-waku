@@ -28,6 +28,7 @@ type WakuNodeParameters struct {
 
 type WakuNodeOption func(*WakuNodeParameters) error
 
+// WithHostAddress is a WakuNodeOption that configures libp2p to listen on a list of net endpoint addresses
 func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		var multiAddresses []ma.Multiaddr
@@ -45,6 +46,7 @@ func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
 	}
 }
 
+// WithMultiaddress is a WakuNodeOption that configures libp2p to listen on a list of multiaddresses
 func WithMultiaddress(addresses []ma.Multiaddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.multiAddr = append(params.multiAddr, addresses...)
@@ -52,6 +54,7 @@ func WithMultiaddress(addresses []ma.Multiaddr) WakuNodeOption {
 	}
 }
 
+// WithPrivateKey is used to set an ECDSA private key in a libp2p node
 func WithPrivateKey(privKey *ecdsa.PrivateKey) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		privk := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(privKey))
@@ -60,6 +63,9 @@ func WithPrivateKey(privKey *ecdsa.PrivateKey) WakuNodeOption {
 	}
 }
 
+// WithLibP2POptions is a WakuNodeOption used to configure the libp2p node.
+// This can potentially override any libp2p config that was set with other
+// WakuNodeOption
 func WithLibP2POptions(opts ...libp2p.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.libP2POpts = opts
@@ -67,6 +73,8 @@ func WithLibP2POptions(opts ...libp2p.Option) WakuNodeOption {
 	}
 }
 
+// WithWakuRelay enables the Waku V2 Relay protocol. This WakuNodeOption
+// accepts a list of WakuRelay gossipsub option to setup the protocol
 func WithWakuRelay(opts ...wakurelay.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRelay = true
@@ -75,6 +83,8 @@ func WithWakuRelay(opts ...wakurelay.Option) WakuNodeOption {
 	}
 }
 
+// WithWakuStore enables the Waku V2 Store protocol and if the messages should
+// be stored or not in a message provider
 func WithWakuStore(shouldStoreMessages bool) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
@@ -84,6 +94,8 @@ func WithWakuStore(shouldStoreMessages bool) WakuNodeOption {
 	}
 }
 
+// WithMessageProvider is a WakuNodeOption that sets the MessageProvider
+// used to store and retrieve persisted messages
 func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		if params.store != nil {
@@ -95,6 +107,7 @@ func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 	}
 }
 
+// Default options used in the libp2p node
 var DefaultLibP2POptions = []libp2p.Option{
 	libp2p.DefaultTransports,
 	libp2p.NATPortMap(),       // Attempt to open ports using uPNP for NATed hosts.
