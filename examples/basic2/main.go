@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 
 var log = logging.Logger("basic2")
@@ -76,7 +76,7 @@ func write(wakuNode *node.WakuNode, msgContent string) {
 
 	payload, err := p.Encode(version)
 
-	msg := &protocol.WakuMessage{
+	msg := &pb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
 		ContentTopic: contentTopic,

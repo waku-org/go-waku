@@ -19,7 +19,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/node"
-	store "github.com/status-im/go-waku/waku/v2/protocol/waku_store"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
 var DefaultContentTopic string = "dingpu"
@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// join the chat
-	chat, err := NewChat(ctx, wakuNode, wakuNode.Host().ID(), nick)
+	chat, err := NewChat(wakuNode, wakuNode.Host().ID(), nick)
 	if err != nil {
 		panic(err)
 	}
@@ -80,7 +80,7 @@ func main() {
 	}
 	logging.SetAllLoggers(lvl)
 
-	ui := NewChatUI(chat)
+	ui := NewChatUI(ctx, chat)
 
 	// Connect to a static node or use random node from fleets.status.im
 	go func() {
@@ -124,7 +124,8 @@ func main() {
 		time.Sleep(300 * time.Millisecond)
 		ui.displayMessage("Querying historic messages")
 
-		response, err := wakuNode.Query([]string{DefaultContentTopic}, 0, 0,
+		tCtx, _ := context.WithTimeout(ctx, 1*time.Second)
+		response, err := wakuNode.Query(tCtx, []string{DefaultContentTopic}, 0, 0,
 			store.WithAutomaticRequestId(),
 			store.WithPeer(*storeNodeId),
 			store.WithPaging(true, 0))

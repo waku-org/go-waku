@@ -611,6 +611,8 @@ github.com/status-im/go-waku v0.0.0-20210415175540-7ba8c51bcafe h1:yGtEg5EzBpSLe
 github.com/status-im/go-waku v0.0.0-20210415175540-7ba8c51bcafe/go.mod h1:GjrbwNCdtae7sFmvFyXJPSRgnrcmJp3wVSjDZWOG8+s=
 github.com/status-im/go-waku v0.0.0-20210419000316-ef67ff356f7e h1:bb/99wDRvUQpKQQFGa4lxhJY3LRx821rqv0D4txuD1M=
 github.com/status-im/go-waku v0.0.0-20210419000316-ef67ff356f7e/go.mod h1:GjrbwNCdtae7sFmvFyXJPSRgnrcmJp3wVSjDZWOG8+s=
+github.com/status-im/go-waku v0.0.0-20210422000937-997bc4f2d86d h1:hfCilmm5iO2Wd2rix3x9OkEmgIGHnkEkEcyy0D7ng2k=
+github.com/status-im/go-waku v0.0.0-20210422000937-997bc4f2d86d/go.mod h1:GjrbwNCdtae7sFmvFyXJPSRgnrcmJp3wVSjDZWOG8+s=
 github.com/status-im/go-wakurelay-pubsub v0.4.2 h1:F4UGcP80H0PGaeJ0mRMzA1Ux3DKYiyv/qu3bOR/efTg=
 github.com/status-im/go-wakurelay-pubsub v0.4.2/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

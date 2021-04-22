@@ -2,13 +2,12 @@ package main
 
 import (
 	"chat2/pb"
-	"context"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	wpb "github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 
 // Chat represents a subscription to a single PubSub topic. Messages
@@ -18,7 +17,6 @@ type Chat struct {
 	// Messages is a channel of messages received from other peers in the chat room
 	Messages chan *pb.Chat2Message
 
-	ctx  context.Context
 	sub  *node.Subscription
 	node *node.WakuNode
 
@@ -28,7 +26,7 @@ type Chat struct {
 
 // NewChat tries to subscribe to the PubSub topic for the room name, returning
 // a ChatRoom on success.
-func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, nickname string) (*Chat, error) {
+func NewChat(n *node.WakuNode, selfID peer.ID, nickname string) (*Chat, error) {
 	// join the default waku topic and subscribe to it
 	sub, err := n.Subscribe(nil)
 	if err != nil {
@@ -36,7 +34,6 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, nickname str
 	}
 
 	c := &Chat{
-		ctx:      ctx,
 		node:     n,
 		sub:      sub,
 		self:     selfID,
@@ -77,7 +74,7 @@ func (cr *Chat) Publish(message string) error {
 		return err
 	}
 
-	wakuMsg := &protocol.WakuMessage{
+	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
 		ContentTopic: DefaultContentTopic,
@@ -89,7 +86,7 @@ func (cr *Chat) Publish(message string) error {
 	return err
 }
 
-func (cr *Chat) decodeMessage(wakumsg *protocol.WakuMessage) {
+func (cr *Chat) decodeMessage(wakumsg *wpb.WakuMessage) {
 	payload, err := node.DecodePayload(wakumsg, &node.KeyInfo{Kind: node.None})
 	if err != nil {
 		return
@@ -111,7 +108,7 @@ func (cr *Chat) readLoop() {
 	}
 }
 
-func (cr *Chat) displayMessages(messages []*protocol.WakuMessage) {
+func (cr *Chat) displayMessages(messages []*wpb.WakuMessage) {
 	for _, msg := range messages {
 		cr.decodeMessage(msg)
 	}

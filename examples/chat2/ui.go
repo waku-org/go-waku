@@ -2,6 +2,7 @@ package main
 
 import (
 	"chat2/pb"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -23,11 +24,13 @@ type ChatUI struct {
 	msgW    io.Writer
 	inputCh chan string
 	doneCh  chan struct{}
+
+	ctx context.Context
 }
 
 // NewChatUI returns a new ChatUI struct that controls the text UI.
 // It won't actually do anything until you call Run().
-func NewChatUI(chat *Chat) *ChatUI {
+func NewChatUI(ctx context.Context, chat *Chat) *ChatUI {
 	chatUI := new(ChatUI)
 
 	app := tview.NewApplication()
@@ -137,6 +140,7 @@ Available commands:
 	chatUI.app = app
 	chatUI.msgW = msgBox
 	chatUI.chat = chat
+	chatUI.ctx = ctx
 	chatUI.inputCh = inputCh
 	chatUI.doneCh = make(chan struct{}, 1)
 
@@ -193,7 +197,7 @@ func (ui *ChatUI) handleEvents() {
 			// when we receive a message from the chat room, print it to the message window
 			ui.displayChatMessage(m)
 
-		case <-ui.chat.ctx.Done():
+		case <-ui.ctx.Done():
 			return
 
 		case <-ui.doneCh:
