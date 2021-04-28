@@ -43,7 +43,7 @@ func main() {
 		node.WithWakuRelay(),
 	)
 
-	go writeLoop(wakuNode)
+	go writeLoop(ctx, wakuNode)
 	go readLoop(wakuNode)
 
 	// Wait for a SIGINT or SIGTERM signal
@@ -65,7 +65,7 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func write(wakuNode *node.WakuNode, msgContent string) {
+func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	var contentTopic string = "test"
 	var version uint32 = 0
 	var timestamp float64 = float64(time.Now().UnixNano())
@@ -83,16 +83,16 @@ func write(wakuNode *node.WakuNode, msgContent string) {
 		Timestamp:    timestamp,
 	}
 
-	_, err = wakuNode.Publish(msg, nil)
+	_, err = wakuNode.Publish(ctx, msg, nil)
 	if err != nil {
 		log.Error("Error sending a message: ", err)
 	}
 }
 
-func writeLoop(wakuNode *node.WakuNode) {
+func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	for {
 		time.Sleep(2 * time.Second)
-		write(wakuNode, "Hello world!")
+		write(ctx, wakuNode, "Hello world!")
 	}
 }
 

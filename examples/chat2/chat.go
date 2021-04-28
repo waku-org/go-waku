@@ -2,6 +2,7 @@ package main
 
 import (
 	"chat2/pb"
+	"context"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -48,7 +49,7 @@ func NewChat(n *node.WakuNode, selfID peer.ID, nickname string) (*Chat, error) {
 }
 
 // Publish sends a message to the pubsub topic.
-func (cr *Chat) Publish(message string) error {
+func (cr *Chat) Publish(ctx context.Context, message string) error {
 
 	msg := &pb.Chat2Message{
 		Timestamp: uint64(time.Now().Unix()),
@@ -81,7 +82,7 @@ func (cr *Chat) Publish(message string) error {
 		Timestamp:    timestamp,
 	}
 
-	_, err = cr.node.Publish(wakuMsg, nil)
+	_, err = cr.node.Publish(ctx, wakuMsg, nil)
 
 	return err
 }

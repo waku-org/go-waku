@@ -10,7 +10,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 )
 
 // ChatUI is a Text User Interface (TUI) for a ChatRoom.
@@ -93,7 +93,7 @@ func NewChatUI(ctx context.Context, chat *Chat) *ChatUI {
 
 		// list peers
 		if line == "/peers" {
-			peers := chat.node.PubSub().ListPeers(string(node.DefaultWakuTopic))
+			peers := chat.node.Relay().PubSub().ListPeers(string(relay.DefaultWakuTopic))
 			if len(peers) == 0 {
 				chatUI.displayMessage("No peers available")
 			}
@@ -188,7 +188,7 @@ func (ui *ChatUI) handleEvents() {
 	for {
 		select {
 		case input := <-ui.inputCh:
-			err := ui.chat.Publish(input)
+			err := ui.chat.Publish(ui.ctx, input)
 			if err != nil {
 				printErr("publish error: %s", err)
 			}
