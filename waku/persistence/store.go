@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"log"
 
+	gcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
@@ -55,10 +57,11 @@ func NewDBStore(opt DBOption) (*DBStore, error) {
 }
 
 func (d *DBStore) createTable() error {
-	sqlStmt := `CREATE TABLE IF NOT EXISTS messages (
+	sqlStmt := `CREATE TABLE IF NOT EXISTS message (
 		id BLOB PRIMARY KEY,
 		timestamp INTEGER NOT NULL,
 		contentTopic BLOB NOT NULL,
+		pubsubTopic BLOB NOT NULL,
 		payload BLOB,
 		version INTEGER NOT NULL DEFAULT 0
 	) WITHOUT ROWID;`
@@ -75,12 +78,12 @@ func (d *DBStore) Stop() {
 }
 
 // Inserts a WakuMessage into the DB
-func (d *DBStore) Put(cursor *pb.Index, message *pb.WakuMessage) error {
-	stmt, err := d.db.Prepare("INSERT INTO messages (id, timestamp, contentTopic, payload, version) VALUES (?, ?, ?, ?, ?)")
+func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error {
+	stmt, err := d.db.Prepare("INSERT INTO message (id, timestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(cursor.Digest, uint64(message.Timestamp), message.ContentTopic, message.Payload, message.Version)
+	_, err = stmt.Exec(cursor.Digest, uint64(message.Timestamp), message.ContentTopic, pubsubTopic, message.Payload, message.Version)
 	if err != nil {
 		return err
 	}
@@ -89,13 +92,13 @@ func (d *DBStore) Put(cursor *pb.Index, message *pb.WakuMessage) error {
 }
 
 // Returns all the stored WakuMessages
-func (d *DBStore) GetAll() ([]*pb.WakuMessage, error) {
-	rows, err := d.db.Query("SELECT timestamp, contentTopic, payload, version FROM messages ORDER BY timestamp ASC")
+func (d *DBStore) GetAll() ([]*protocol.Envelope, error) {
+	rows, err := d.db.Query("SELECT timestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY timestamp ASC")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []*pb.WakuMessage
+	var result []*protocol.Envelope
 
 	defer rows.Close()
 
@@ -104,8 +107,9 @@ func (d *DBStore) GetAll() ([]*pb.WakuMessage, error) {
 		var contentTopic string
 		var payload []byte
 		var version uint32
+		var pubsubTopic string
 
-		err = rows.Scan(&timestamp, &contentTopic, &payload, &version)
+		err = rows.Scan(&timestamp, &contentTopic, &pubsubTopic, &payload, &version)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -116,7 +120,9 @@ func (d *DBStore) GetAll() ([]*pb.WakuMessage, error) {
 		msg.Timestamp = float64(timestamp)
 		msg.Version = version
 
-		result = append(result, msg)
+		data, _ := msg.Marshal()
+		envelope := protocol.NewEnvelope(msg, pubsubTopic, len(data), gcrypto.Keccak256(data))
+		result = append(result, envelope)
 	}
 
 	err = rows.Err()

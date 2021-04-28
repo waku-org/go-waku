@@ -250,7 +250,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 
 	node.bcaster.Register(subscription.C)
 
-	go func() {
+	go func(t Topic) {
 		nextMsgTicker := time.NewTicker(time.Millisecond * 10)
 		defer nextMsgTicker.Stop()
 
@@ -280,12 +280,12 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 					return
 				}
 
-				envelope := protocol.NewEnvelope(wakuMessage, len(msg.Data), gcrypto.Keccak256(msg.Data))
+				envelope := protocol.NewEnvelope(wakuMessage, string(t), len(msg.Data), gcrypto.Keccak256(msg.Data))
 
 				node.bcaster.Submit(envelope)
 			}
 		}
-	}()
+	}(t)
 
 	return subscription, nil
 }

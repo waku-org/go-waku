@@ -28,7 +28,7 @@ import (
 
 var log = logging.Logger("wakustore")
 
-const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta1")
+const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta3")
 const MaxPageSize = 100 // Maximum number of waku messages in each page
 const ConnectionTimeout = 10 * time.Second
 const DefaultContentTopic = "/waku/2/default-content/proto"
@@ -148,12 +148,31 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 			}
 		}
 
-		for _, cf := range query.ContentFilters {
-			if cf.ContentTopic == indexedMsg.msg.ContentTopic {
-				data = append(data, indexedMsg)
+		// filter based on content filters
+		// an empty list of contentFilters means no content filter is requested
+		if len(query.ContentFilters) != 0 {
+			match := false
+			for _, cf := range query.ContentFilters {
+				if cf.ContentTopic == indexedMsg.msg.ContentTopic {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
 			}
 		}
 
+		// filter based on pubsub topic
+		// an empty pubsub topic means no pubsub topic filter is requested
+		if query.PubsubTopic != "" {
+			if indexedMsg.pubsubTopic != query.PubsubTopic {
+				continue
+			}
+		}
+
+		// Some criteria matched
+		data = append(data, indexedMsg)
 	}
 
 	result.Messages, result.PagingInfo = paginateWithoutIndex(data, query.PagingInfo)
@@ -161,14 +180,15 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 }
 
 type MessageProvider interface {
-	GetAll() ([]*pb.WakuMessage, error)
-	Put(cursor *pb.Index, message *pb.WakuMessage) error
+	GetAll() ([]*protocol.Envelope, error)
+	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
 	Stop()
 }
 
 type IndexedWakuMessage struct {
-	msg   *pb.WakuMessage
-	index *pb.Index
+	msg         *pb.WakuMessage
+	index       *pb.Index
+	pubsubTopic string
 }
 
 type WakuStore struct {
@@ -211,19 +231,19 @@ func (store *WakuStore) Start(h host.Host) {
 		return
 	}
 
-	messages, err := store.msgProvider.GetAll()
+	envelopes, err := store.msgProvider.GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages")
 		return
 	}
 
-	for _, msg := range messages {
-		idx, err := computeIndex(msg)
+	for _, env := range envelopes {
+		idx, err := computeIndex(env.Message())
 		if err != nil {
 			log.Error("could not calculate message index", err)
 			continue
 		}
-		store.messages = append(store.messages, IndexedWakuMessage{msg: msg, index: idx})
+		store.messages = append(store.messages, IndexedWakuMessage{msg: env.Message(), index: idx, pubsubTopic: env.PubsubTopic()})
 	}
 
 	log.Info("Store protocol started")
@@ -238,14 +258,14 @@ func (store *WakuStore) storeIncomingMessages() {
 		}
 
 		store.messagesMutex.Lock()
-		store.messages = append(store.messages, IndexedWakuMessage{msg: envelope.Message(), index: index})
+		store.messages = append(store.messages, IndexedWakuMessage{msg: envelope.Message(), index: index, pubsubTopic: envelope.PubsubTopic()})
 		store.messagesMutex.Unlock()
 
 		if store.msgProvider == nil {
 			continue
 		}
 
-		err = store.msgProvider.Put(index, envelope.Message()) // Should the index be stored?
+		err = store.msgProvider.Put(index, envelope.PubsubTopic(), envelope.Message()) // Should the index be stored?
 		if err != nil {
 			log.Error("could not store message", err)
 			continue
