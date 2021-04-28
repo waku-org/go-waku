@@ -24,6 +24,8 @@ type WakuNodeParameters struct {
 	enableStore bool
 	storeMsgs   bool
 	store       *store.WakuStore
+
+	enableLightPush bool
 }
 
 type WakuNodeOption func(*WakuNodeParameters) error
@@ -103,6 +105,14 @@ func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 		} else {
 			params.store = store.NewWakuStore(true, s)
 		}
+		return nil
+	}
+}
+
+// WithLightPush is a WakuNodeOption that enables the lightpush protocol
+func WithLightPush() WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableLightPush = true
 		return nil
 	}
 }

@@ -36,17 +36,16 @@ type WakuLightPush struct {
 	ctx   context.Context
 }
 
-func NewWakuLightPush(ctx context.Context, relay *relay.WakuRelay) *WakuLightPush {
+func NewWakuLightPush(ctx context.Context, h host.Host, relay *relay.WakuRelay) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay
 	wakuLP.ctx = ctx
-	return wakuLP
-}
-
-func (wakuLP *WakuLightPush) Start(h host.Host) {
 	wakuLP.h = h
+
 	wakuLP.h.SetStreamHandler(WakuLightPushProtocolId, wakuLP.onRequest)
 	log.Info("Light Push protocol started")
+
+	return wakuLP
 }
 
 func (wakuLP *WakuLightPush) onRequest(s network.Stream) {

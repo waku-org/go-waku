@@ -95,6 +95,10 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
+	if params.enableLightPush {
+		w.mountLightPush()
+	}
+
 	for _, addr := range w.ListenAddresses() {
 		log.Info("Listening on ", addr)
 	}
@@ -145,6 +149,10 @@ func (w *WakuNode) mountRelay(opts ...wakurelay.Option) error {
 	// TODO: rlnRelay
 
 	return err
+}
+
+func (w *WakuNode) mountLightPush() {
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
 }
 
 func (w *WakuNode) startStore() error {
