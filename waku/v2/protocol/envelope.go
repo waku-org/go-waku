@@ -9,12 +9,13 @@ type Envelope struct {
 	hash        []byte
 }
 
-func NewEnvelope(msg *pb.WakuMessage, pubSubTopic string, size int, hash []byte) *Envelope {
+func NewEnvelope(msg *pb.WakuMessage, pubSubTopic string) *Envelope {
+	data, _ := msg.Marshal()
 	return &Envelope{
 		msg:         msg,
 		pubsubTopic: pubSubTopic,
-		size:        size,
-		hash:        hash,
+		size:        len(data),
+		hash:        pb.Hash(data),
 	}
 }
 

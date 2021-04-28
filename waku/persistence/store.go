@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 
-	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
@@ -120,8 +119,7 @@ func (d *DBStore) GetAll() ([]*protocol.Envelope, error) {
 		msg.Timestamp = float64(timestamp)
 		msg.Version = version
 
-		data, _ := msg.Marshal()
-		envelope := protocol.NewEnvelope(msg, pubsubTopic, len(data), gcrypto.Keccak256(data))
+		envelope := protocol.NewEnvelope(msg, pubsubTopic)
 		result = append(result, envelope)
 	}
 

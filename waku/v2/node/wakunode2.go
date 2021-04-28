@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	proto "github.com/golang/protobuf/proto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
@@ -16,7 +15,9 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
@@ -26,26 +27,19 @@ var log = logging.Logger("wakunode")
 // Default clientId
 const clientId string = "Go Waku v2 node"
 
-type Topic string
-
-const DefaultWakuTopic Topic = "/waku/2/default-waku/proto"
-
 type Message []byte
 
 type WakuNode struct {
-	host   host.Host
-	opts   *WakuNodeParameters
-	pubsub *wakurelay.PubSub
+	host host.Host
+	opts *WakuNodeParameters
 
-	topics          map[Topic]bool
-	topicsMutex     sync.Mutex
-	wakuRelayTopics map[Topic]*wakurelay.Topic
+	relay     *relay.WakuRelay
+	lightPush *lightpush.WakuLightPush
 
-	subscriptions      map[Topic][]*Subscription
+	subscriptions      map[relay.Topic][]*Subscription
 	subscriptionsMutex sync.Mutex
 
-	bcaster   Broadcaster
-	relaySubs map[Topic]*wakurelay.Subscription
+	bcaster Broadcaster
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -81,14 +75,10 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w := new(WakuNode)
 	w.bcaster = NewBroadcaster(1024)
-	w.pubsub = nil
 	w.host = host
 	w.cancel = cancel
 	w.ctx = ctx
-	w.topics = make(map[Topic]bool)
-	w.wakuRelayTopics = make(map[Topic]*wakurelay.Topic)
-	w.relaySubs = make(map[Topic]*wakurelay.Subscription)
-	w.subscriptions = make(map[Topic][]*Subscription)
+	w.subscriptions = make(map[relay.Topic][]*Subscription)
 	w.opts = params
 
 	if params.enableRelay {
@@ -117,7 +107,7 @@ func (w *WakuNode) Stop() {
 	defer w.subscriptionsMutex.Unlock()
 	defer w.cancel()
 
-	for topic, _ := range w.topics {
+	for _, topic := range w.relay.Topics() {
 		for _, sub := range w.subscriptions[topic] {
 			sub.Unsubscribe()
 		}
@@ -143,27 +133,18 @@ func (w *WakuNode) ListenAddresses() []string {
 	return result
 }
 
-func (w *WakuNode) PubSub() *wakurelay.PubSub {
-	return w.pubsub
-}
-
-func (w *WakuNode) SetPubSub(pubSub *wakurelay.PubSub) {
-	w.pubsub = pubSub
+func (w *WakuNode) Relay() *relay.WakuRelay {
+	return w.relay
 }
 
 func (w *WakuNode) mountRelay(opts ...wakurelay.Option) error {
-	ps, err := wakurelay.NewWakuRelaySub(w.ctx, w.host, opts...)
-	if err != nil {
-		return err
-	}
-	w.pubsub = ps
+	var err error
+	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, opts...)
 
 	// TODO: filters
 	// TODO: rlnRelay
 
-	log.Info("Relay protocol started")
-
-	return nil
+	return err
 }
 
 func (w *WakuNode) startStore() error {
@@ -216,24 +197,22 @@ func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime 
 	return result, nil
 }
 
-func getTopic(topic *Topic) Topic {
-	var t Topic = DefaultWakuTopic
-	if topic != nil {
-		t = *topic
-	}
-	return t
-}
-
-func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
+func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
-	if node.pubsub == nil {
-		return nil, errors.New("PubSub hasn't been set. Execute mountWakuRelay() or setPubSub() first")
+	if node.relay == nil {
+		return nil, errors.New("WakuRelay hasn't been set.")
 	}
 
-	t := getTopic(topic)
+	t := relay.GetTopic(topic)
+	sub, isNew, err := node.relay.Subscribe(t)
 
-	sub, err := node.upsertSubscription(t)
+	// Subscribe store to topic
+	if isNew && node.opts.store != nil && node.opts.storeMsgs {
+		log.Info("Subscribing store to topic ", t)
+		node.bcaster.Register(node.opts.store.MsgC)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -246,11 +225,12 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 
 	node.subscriptionsMutex.Lock()
 	defer node.subscriptionsMutex.Unlock()
+
 	node.subscriptions[t] = append(node.subscriptions[t], subscription)
 
 	node.bcaster.Register(subscription.C)
 
-	go func(t Topic) {
+	go func(t relay.Topic) {
 		nextMsgTicker := time.NewTicker(time.Millisecond * 10)
 		defer nextMsgTicker.Stop()
 
@@ -265,11 +245,9 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 				msg, err := sub.Next(node.ctx)
 				if err != nil {
 					subscription.mutex.Lock()
-					node.topicsMutex.Lock()
 					for _, subscription := range node.subscriptions[t] {
 						subscription.Unsubscribe()
 					}
-					node.topicsMutex.Unlock()
 					subscription.mutex.Unlock()
 					return
 				}
@@ -280,7 +258,7 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 					return
 				}
 
-				envelope := protocol.NewEnvelope(wakuMessage, string(t), len(msg.Data), gcrypto.Keccak256(msg.Data))
+				envelope := protocol.NewEnvelope(wakuMessage, string(t))
 
 				node.bcaster.Submit(envelope)
 			}
@@ -290,81 +268,47 @@ func (node *WakuNode) Subscribe(topic *Topic) (*Subscription, error) {
 	return subscription, nil
 }
 
-func (node *WakuNode) upsertTopic(topic Topic) (*wakurelay.Topic, error) {
-	defer node.topicsMutex.Unlock()
-	node.topicsMutex.Lock()
-
-	node.topics[topic] = true
-	pubSubTopic, ok := node.wakuRelayTopics[topic]
-	if !ok { // Joins topic if node hasn't joined yet
-		newTopic, err := node.pubsub.Join(string(topic))
-		if err != nil {
-			return nil, err
-		}
-		node.wakuRelayTopics[topic] = newTopic
-		pubSubTopic = newTopic
-	}
-	return pubSubTopic, nil
-}
-
-func (node *WakuNode) upsertSubscription(topic Topic) (*wakurelay.Subscription, error) {
-	sub, ok := node.relaySubs[topic]
-	if !ok {
-		pubSubTopic, err := node.upsertTopic(topic)
-		if err != nil {
-			return nil, err
-		}
-
-		sub, err = pubSubTopic.Subscribe()
-		if err != nil {
-			return nil, err
-		}
-		node.relaySubs[topic] = sub
-
-		log.Info("Subscribing to topic ", topic)
-
-		if node.opts.store != nil && node.opts.storeMsgs {
-			log.Info("Subscribing store to topic ", topic)
-			node.bcaster.Register(node.opts.store.MsgC)
-		}
-	}
-
-	return sub, nil
-}
-
-func (node *WakuNode) Publish(message *pb.WakuMessage, topic *Topic) ([]byte, error) {
-	// Publish a `WakuMessage` to a PubSub topic. `WakuMessage` should contain a
-	// `contentTopic` field for light node functionality. This field may be also
-	// be omitted.
-
-	if node.pubsub == nil {
-		return nil, errors.New("PubSub hasn't been set. Execute mountWakuRelay() or setPubSub() first")
+func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic) ([]byte, error) {
+	if node.relay == nil {
+		return nil, errors.New("WakuRelay hasn't been set.")
 	}
 
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}
 
-	pubSubTopic, err := node.upsertTopic(getTopic(topic))
-
+	hash, err := node.relay.Publish(ctx, message, topic)
 	if err != nil {
 		return nil, err
 	}
-
-	out, err := proto.Marshal(message)
-	if err != nil {
-		return nil, err
-	}
-
-	err = pubSubTopic.Publish(node.ctx, out)
-
-	if err != nil {
-		return nil, err
-	}
-
-	hash := gcrypto.Keccak256(out)
 
 	return hash, nil
+}
+
+func (node *WakuNode) LightPush(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic, opts ...lightpush.LightPushOption) ([]byte, error) {
+	if node.lightPush == nil {
+		return nil, errors.New("WakuLightPush hasn't been set.")
+	}
+
+	if message == nil {
+		return nil, errors.New("message can't be null")
+	}
+
+	req := new(pb.PushRequest)
+	req.Message = message
+	req.PubsubTopic = string(relay.GetTopic(topic))
+
+	response, err := node.lightPush.Request(ctx, req, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.IsSuccess {
+		hash, _ := message.Hash()
+		return hash, nil
+	} else {
+		return nil, errors.New(response.Info)
+	}
 }
 
 func (w *WakuNode) DialPeer(address string) error {

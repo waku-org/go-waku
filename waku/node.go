@@ -24,6 +24,7 @@ import (
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
 
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 )
 
 var log = logging.Logger("wakunode")
@@ -55,7 +56,7 @@ var rootCmd = &cobra.Command{
 		port, _ := cmd.Flags().GetInt("port")
 		enableWs, _ := cmd.Flags().GetBool("ws")
 		wsPort, _ := cmd.Flags().GetInt("ws-port")
-		relay, _ := cmd.Flags().GetBool("relay")
+		wakuRelay, _ := cmd.Flags().GetBool("relay")
 		key, _ := cmd.Flags().GetString("nodekey")
 		store, _ := cmd.Flags().GetBool("store")
 		useDB, _ := cmd.Flags().GetBool("use-db")
@@ -115,7 +116,7 @@ var rootCmd = &cobra.Command{
 
 		nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 
-		if relay {
+		if wakuRelay {
 			nodeOpts = append(nodeOpts, node.WithWakuRelay())
 		}
 
@@ -135,7 +136,7 @@ var rootCmd = &cobra.Command{
 		checkError(err, "Wakunode")
 
 		for _, t := range topics {
-			nodeTopic := node.Topic(t)
+			nodeTopic := relay.Topic(t)
 			_, err := wakuNode.Subscribe(&nodeTopic)
 			checkError(err, "Error subscring to topic")
 		}
@@ -185,7 +186,7 @@ func init() {
 	rootCmd.Flags().Bool("ws", false, "Enable websockets support")
 	rootCmd.Flags().Int("ws-port", 9001, "Libp2p TCP listening port for websocket connection (0 for random)")
 	rootCmd.Flags().String("nodekey", "", "P2P node private key as hex (default random)")
-	rootCmd.Flags().StringSlice("topics", []string{string(node.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", node.DefaultWakuTopic))
+	rootCmd.Flags().StringSlice("topics", []string{string(relay.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", relay.DefaultWakuTopic))
 	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
 	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
