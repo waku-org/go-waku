@@ -2,6 +2,8 @@ module github.com/status-im/go-waku
 
 go 1.15
 
+replace github.com/ethereum/go-ethereum v1.9.5 => github.com/status-im/go-ethereum v1.9.5-status.11
+
 require (
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.9.5
