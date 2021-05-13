@@ -57,6 +57,7 @@ var rootCmd = &cobra.Command{
 		enableWs, _ := cmd.Flags().GetBool("ws")
 		wsPort, _ := cmd.Flags().GetInt("ws-port")
 		wakuRelay, _ := cmd.Flags().GetBool("relay")
+		wakuFilter, _ := cmd.Flags().GetBool("filter")
 		key, _ := cmd.Flags().GetString("nodekey")
 		store, _ := cmd.Flags().GetBool("store")
 		useDB, _ := cmd.Flags().GetBool("use-db")
@@ -118,6 +119,10 @@ var rootCmd = &cobra.Command{
 
 		if wakuRelay {
 			nodeOpts = append(nodeOpts, node.WithWakuRelay())
+		}
+
+		if wakuFilter {
+			nodeOpts = append(nodeOpts, node.WithWakuFilter())
 		}
 
 		if store {
@@ -189,6 +194,7 @@ func init() {
 	rootCmd.Flags().StringSlice("topics", []string{string(relay.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", relay.DefaultWakuTopic))
 	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
 	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
+	rootCmd.Flags().Bool("filter", true, "Enable filter protocol")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
 	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
