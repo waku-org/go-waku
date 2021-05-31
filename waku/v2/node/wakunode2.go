@@ -156,12 +156,15 @@ func (w *WakuNode) mountLightPush() {
 }
 
 func (w *WakuNode) startStore() error {
+	w.opts.store.Start(w.host)
+
+	w.opts.store.Resume(w.ctx, string(relay.GetTopic(nil)), nil)
+
 	_, err := w.Subscribe(nil)
 	if err != nil {
 		return err
 	}
 
-	w.opts.store.Start(w.host)
 	return nil
 }
 
@@ -203,6 +206,21 @@ func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime 
 		return nil, err
 	}
 	return result, nil
+}
+
+func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
+	if w.opts.store == nil {
+		return errors.New("WakuStore is not set")
+	}
+
+	result, err := w.opts.store.Resume(ctx, string(relay.DefaultWakuTopic), peerList)
+	if err != nil {
+		return err
+	}
+
+	log.Info("the number of retrieved messages since the last online time: ", result)
+
+	return nil
 }
 
 func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
