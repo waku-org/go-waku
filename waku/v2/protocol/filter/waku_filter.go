@@ -21,11 +21,11 @@ import (
 var log = logging.Logger("wakufilter")
 
 type (
-	ContentFilterHandler func(msg pb.WakuMessage)
+	ContentFilterChan chan *pb.WakuMessage
 
 	Filter struct {
 		ContentFilters []*pb.FilterRequest_ContentFilter
-		Handler        ContentFilterHandler
+		Chan           ContentFilterChan
 	}
 	// @TODO MAYBE MORE INFO?
 	Filters map[string]Filter
@@ -67,7 +67,7 @@ func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
 		// This means we do not need to check the content filter explicitly as all MessagePushs already contain
 		// the requestId of the coresponding filter.
 		if requestId != "" && requestId == key {
-			filter.Handler(*msg)
+			filter.Chan <- msg
 			continue
 		}
 
@@ -75,7 +75,7 @@ func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
 		// or we should not allow such filter to exist in the first place.
 		for _, contentFilter := range filter.ContentFilters {
 			if msg.ContentTopic == contentFilter.ContentTopic {
-				filter.Handler(*msg)
+				filter.Chan <- msg
 				break
 			}
 		}
@@ -164,21 +164,22 @@ func (wf *WakuFilter) FilterListener() {
 
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
-	handle := func(topic string, msg *pb.WakuMessage) error { // async
+	handle := func(envelope *protocol.Envelope) error { // async
 		// trace "handle WakuFilter subscription", topic=topic, msg=msg
 
+		msg := envelope.Message()
+		topic := envelope.PubsubTopic()
 		// Each subscriber is a light node that earlier on invoked
 		// a FilterRequest on this node
 		for _, subscriber := range wf.subscribers {
-			// TODO
-			// if subscriber.filter.pubSubTopic != "" && subscriber.filter.pubSubTopic != topic {
-			// 	log.Info("Subscriber's filter pubsubTopic does not match message topic", subscriber.filter.pubSubTopic, topic)
-			// 	continue
-			// }
+			if subscriber.filter.Topic != "" && subscriber.filter.Topic != topic {
+				log.Info("Subscriber's filter pubsubTopic does not match message topic", subscriber.filter.Topic, topic)
+				continue
+			}
 
 			for _, filter := range subscriber.filter.ContentFilters {
 				if msg.ContentTopic == filter.ContentTopic {
-					log.Info("Found matching contentTopic", filter, msg)
+					log.Info("Found matching contentTopic ", filter, msg)
 					msgArr := []*pb.WakuMessage{msg}
 					// Do a message push to light node
 					pushRPC := &pb.FilterRPC{RequestId: subscriber.requestId, Push: &pb.MessagePush{Messages: msgArr}}
@@ -207,7 +208,7 @@ func (wf *WakuFilter) FilterListener() {
 	}
 
 	for m := range wf.MsgC {
-		handle("", m.Message())
+		handle(m)
 	}
 
 }
@@ -227,11 +228,11 @@ func (wf *WakuFilter) AddPeer(p peer.ID, addrs []ma.Multiaddr) error {
 // Having a FilterRequest struct,
 // select a peer with filter support, dial it,
 // and submit FilterRequest wrapped in FilterRPC
-func (wf *WakuFilter) Subscribe(request pb.FilterRequest) (string, error) { //.async, gcsafe.} {
+func (wf *WakuFilter) Subscribe(ctx context.Context, request pb.FilterRequest) (string, error) { //.async, gcsafe.} {
 	peer := wf.selectPeer()
 
 	if peer != nil {
-		conn, err := wf.h.NewStream(wf.ctx, *peer, WakuFilterProtocolId)
+		conn, err := wf.h.NewStream(ctx, *peer, WakuFilterProtocolId)
 
 		if conn != nil {
 			// This is the only successful path to subscription
@@ -253,12 +254,12 @@ func (wf *WakuFilter) Subscribe(request pb.FilterRequest) (string, error) { //.a
 	return "", nil
 }
 
-func (wf *WakuFilter) Unsubscribe(request pb.FilterRequest) {
+func (wf *WakuFilter) Unsubscribe(ctx context.Context, request pb.FilterRequest) {
 	// @TODO: NO REAL REASON TO GENERATE REQUEST ID FOR UNSUBSCRIBE OTHER THAN CREATING SANE-LOOKING RPC.
 	peer := wf.selectPeer()
 
 	if peer != nil {
-		conn, err := wf.h.NewStream(wf.ctx, *peer, WakuFilterProtocolId)
+		conn, err := wf.h.NewStream(ctx, *peer, WakuFilterProtocolId)
 
 		if conn != nil {
 			// This is the only successful path to subscription
@@ -272,7 +273,6 @@ func (wf *WakuFilter) Unsubscribe(request pb.FilterRequest) {
 			// @TODO more sophisticated error handling here
 			log.Error("failed to connect to remote peer", err)
 			//waku_filter_errors.inc(labelValues = [dialFailure])
-			//return none(string)
 		}
 	}
 }

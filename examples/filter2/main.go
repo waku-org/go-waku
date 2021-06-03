@@ -14,12 +14,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 )
 
 var log = logging.Logger("filter2")
 
-const pubSubTopic = ""
+var pubSubTopic = relay.DefaultWakuTopic
+
 const contentTopic = "test"
 
 func main() {
@@ -73,19 +76,21 @@ func main() {
 	// Send FilterRequest from light node to full node
 	filterRequest := pb.FilterRequest{
 		ContentFilters: []*pb.FilterRequest_ContentFilter{&pb.FilterRequest_ContentFilter{ContentTopic: contentTopic}},
-		Topic:          pubSubTopic,
+		Topic:          string(pubSubTopic),
 		Subscribe:      true,
 	}
-	filterHandler := func(msg pb.WakuMessage) {
-		log.Info("Light node received msg, ", string(msg.Payload))
-	}
-	lightNode.SubscribeFilter(filterRequest, filterHandler)
+
+	filterChan := make(filter.ContentFilterChan)
+
+	go func() {
+		for msg := range filterChan {
+			log.Info("Light node received msg, ", string(msg.Payload))
+		}
+	}()
+	lightNode.SubscribeFilter(ctx, filterRequest, filterChan)
 
 	go writeLoop(ctx, fullNode)
 	go readLoop(fullNode)
-
-	// go writeLoop(ctx, lightNode)
-	// go readLoop(lightNode)
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -138,7 +143,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 }
 
 func readLoop(wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(nil)
+	sub, err := wakuNode.Subscribe(&pubSubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return

@@ -330,9 +330,9 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-func (node *WakuNode) SubscribeFilter(request pb.FilterRequest, handler filter.ContentFilterHandler) { //.async, gcsafe.} =
+func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequest, ch filter.ContentFilterChan) {
 	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
-	// ContentFilterHandler is a method that takes a MessagePush.
+	// ContentFilterChan takes MessagePush structs
 
 	// Status: Implemented.
 
@@ -344,7 +344,7 @@ func (node *WakuNode) SubscribeFilter(request pb.FilterRequest, handler filter.C
 	var id string
 
 	if node.filter != nil {
-		id, err := node.filter.Subscribe(request)
+		id, err := node.filter.Subscribe(ctx, request)
 
 		// TODO
 		if id == "" || err != nil {
@@ -356,7 +356,7 @@ func (node *WakuNode) SubscribeFilter(request pb.FilterRequest, handler filter.C
 	}
 
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[string(id)] = filter.Filter{ContentFilters: request.ContentFilters, Handler: handler}
+	node.filters[string(id)] = filter.Filter{ContentFilters: request.ContentFilters, Chan: ch}
 }
 
 func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic) ([]byte, error) {
