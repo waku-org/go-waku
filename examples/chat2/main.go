@@ -22,7 +22,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
-var DefaultContentTopic string = "/waku/2/huilong/proto"
+var DefaultContentTopic string = "/toy-chat/2/huilong/proto"
 
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())
