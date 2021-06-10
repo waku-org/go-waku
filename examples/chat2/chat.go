@@ -3,12 +3,14 @@ package main
 import (
 	"chat2/pb"
 	"context"
+	"crypto/sha256"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/node"
 	wpb "github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // Chat represents a subscription to a single PubSub topic. Messages
@@ -21,13 +23,15 @@ type Chat struct {
 	sub  *node.Subscription
 	node *node.WakuNode
 
-	self peer.ID
-	nick string
+	self         peer.ID
+	contentTopic string
+	useV1Payload bool
+	nick         string
 }
 
 // NewChat tries to subscribe to the PubSub topic for the room name, returning
 // a ChatRoom on success.
-func NewChat(n *node.WakuNode, selfID peer.ID, nickname string) (*Chat, error) {
+func NewChat(n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload bool, nickname string) (*Chat, error) {
 	// join the default waku topic and subscribe to it
 	sub, err := n.Subscribe(nil)
 	if err != nil {
@@ -35,17 +39,25 @@ func NewChat(n *node.WakuNode, selfID peer.ID, nickname string) (*Chat, error) {
 	}
 
 	c := &Chat{
-		node:     n,
-		sub:      sub,
-		self:     selfID,
-		nick:     nickname,
-		Messages: make(chan *pb.Chat2Message, 1024),
+		node:         n,
+		sub:          sub,
+		self:         selfID,
+		contentTopic: contentTopic,
+		nick:         nickname,
+		useV1Payload: useV1Payload,
+		Messages:     make(chan *pb.Chat2Message, 1024),
 	}
 
 	// start reading messages from the subscription in a loop
 	go c.readLoop()
 
 	return c, nil
+}
+
+func generateSymKey(password string) []byte {
+	// AesKeyLength represents the length (in bytes) of an private key
+	AESKeyLength := 256 / 8
+	return pbkdf2.Key([]byte(password), nil, 65356, AESKeyLength, sha256.New)
 }
 
 // Publish sends a message to the pubsub topic.
@@ -62,15 +74,24 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 		return err
 	}
 
-	var version uint32 = 0
+	var version uint32
 	var timestamp float64 = float64(time.Now().UnixNano())
-	var keyInfo *node.KeyInfo = &node.KeyInfo{Kind: node.None}
+	var keyInfo *node.KeyInfo = &node.KeyInfo{}
+
+	if cr.useV1Payload { // Use WakuV1 encryption
+		keyInfo.Kind = node.Symmetric
+		keyInfo.SymKey = generateSymKey(cr.contentTopic)
+		version = 1
+	} else {
+		keyInfo.Kind = node.None
+		version = 0
+	}
 
 	p := new(node.Payload)
 	p.Data = msgBytes
 	p.Key = keyInfo
 
-	payload, err := p.Encode(0)
+	payload, err := p.Encode(version)
 	if err != nil {
 		return err
 	}
@@ -78,7 +99,7 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
-		ContentTopic: DefaultContentTopic,
+		ContentTopic: cr.contentTopic,
 		Timestamp:    timestamp,
 	}
 
@@ -88,7 +109,15 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 }
 
 func (cr *Chat) decodeMessage(wakumsg *wpb.WakuMessage) {
-	payload, err := node.DecodePayload(wakumsg, &node.KeyInfo{Kind: node.None})
+	var keyInfo *node.KeyInfo = &node.KeyInfo{}
+	if cr.useV1Payload { // Use WakuV1 encryption
+		keyInfo.Kind = node.Symmetric
+		keyInfo.SymKey = generateSymKey(cr.contentTopic)
+	} else {
+		keyInfo.Kind = node.None
+	}
+
+	payload, err := node.DecodePayload(wakumsg, keyInfo)
 	if err != nil {
 		return
 	}

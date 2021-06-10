@@ -22,20 +22,28 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
-var DefaultContentTopic string = "dingpu"
+var DefaultContentTopic string = "/toy-chat/2/huilong/proto"
 
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())
 
 	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
+	fleetFlag := flag.String("fleet", "wakuv2.prod", "Select the fleet to connect to. (wakuv2.prod, wakuv2.test)")
+	contentTopicFlag := flag.String("contenttopic", DefaultContentTopic, "content topic to use for the chat")
 	nodeKeyFlag := flag.String("nodekey", "", "private key for this node. will be generated if empty")
 	staticNodeFlag := flag.String("staticnode", "", "connects to a node. will get a random node from fleets.status.im if empty")
 	storeNodeFlag := flag.String("storenode", "", "connects to a store node to retrieve messages. will get a random node from fleets.status.im if empty")
 	port := flag.Int("port", 0, "port. Will be random if 0")
+	payloadV1Flag := flag.Bool("payloadV1", false, "use Waku v1 payload encoding/encryption. default false")
 
 	flag.Parse()
 
 	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
+
+	if *fleetFlag != "wakuv2.prod" && *fleetFlag != "wakuv2.test" {
+		fmt.Println("Invalid fleet. Valid values are wakuv2.prod and wakuv2.test")
+		return
+	}
 
 	// use the nickname from the cli flag, or a default if blank
 	nodekey := *nodeKeyFlag
@@ -68,7 +76,7 @@ func main() {
 	}
 
 	// join the chat
-	chat, err := NewChat(wakuNode, wakuNode.Host().ID(), nick)
+	chat, err := NewChat(wakuNode, wakuNode.Host().ID(), *contentTopicFlag, *payloadV1Flag, nick)
 	if err != nil {
 		panic(err)
 	}
@@ -95,8 +103,8 @@ func main() {
 		}
 
 		if len(staticnode) == 0 {
-			ui.displayMessage("No static peers configured. Choosing one at random from test fleet...")
-			staticnode = getRandomFleetNode(fleetData)
+			ui.displayMessage(fmt.Sprintf("No static peers configured. Choosing one at random from %s fleet...", *fleetFlag))
+			staticnode = getRandomFleetNode(fleetData, *fleetFlag)
 		}
 
 		err = wakuNode.DialPeer(staticnode)
@@ -109,8 +117,8 @@ func main() {
 		}
 
 		if len(storenode) == 0 {
-			ui.displayMessage("No store node configured. Choosing one at random from test fleet...")
-			storenode = getRandomFleetNode(fleetData)
+			ui.displayMessage(fmt.Sprintf("No store node configured. Choosing one at random from %s fleet...", *fleetFlag))
+			storenode = getRandomFleetNode(fleetData, *fleetFlag)
 		}
 
 		storeNodeId, err := wakuNode.AddStorePeer(storenode)
@@ -124,8 +132,8 @@ func main() {
 		time.Sleep(300 * time.Millisecond)
 		ui.displayMessage("Querying historic messages")
 
-		tCtx, _ := context.WithTimeout(ctx, 1*time.Second)
-		response, err := wakuNode.Query(tCtx, []string{DefaultContentTopic}, 0, 0,
+		tCtx, _ := context.WithTimeout(ctx, 5*time.Second)
+		response, err := wakuNode.Query(tCtx, []string{*contentTopicFlag}, 0, 0,
 			store.WithAutomaticRequestId(),
 			store.WithPeer(*storeNodeId),
 			store.WithPaging(true, 0))
@@ -197,13 +205,12 @@ func getFleetData() []byte {
 	return body
 }
 
-func getRandomFleetNode(data []byte) string {
+func getRandomFleetNode(data []byte, fleetId string) string {
 	var result map[string]interface{}
 	json.Unmarshal(data, &result)
-
 	fleets := result["fleets"].(map[string]interface{})
-	wakuv2Test := fleets["wakuv2.test"].(map[string]interface{})
-	waku := wakuv2Test["waku"].(map[string]interface{})
+	fleet := fleets[fleetId].(map[string]interface{})
+	waku := fleet["waku"].(map[string]interface{})
 
 	var wakunodes []string
 	for v := range waku {
