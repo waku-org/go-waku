@@ -93,23 +93,18 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.opts = params
 	w.quit = make(chan struct{})
 
-	if params.enableRelay {
-		err := w.mountRelay(params.wOpts...)
-		if err != nil {
-			return nil, err
-		}
+	if params.enableStore {
+		w.startStore()
+	}
+
+	err = w.mountRelay(params.enableRelay, params.wOpts...)
+	if err != nil {
+		return nil, err
 	}
 
 	if params.enableFilter {
 		w.filters = make(filter.Filters)
 		err := w.mountFilter()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if params.enableStore {
-		err := w.startStore()
 		if err != nil {
 			return nil, err
 		}
@@ -171,9 +166,16 @@ func (w *WakuNode) Filter() *filter.WakuFilter {
 	return w.filter
 }
 
-func (w *WakuNode) mountRelay(opts ...wakurelay.Option) error {
+func (w *WakuNode) mountRelay(shouldRelayMessages bool, opts ...wakurelay.Option) error {
 	var err error
 	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, opts...)
+
+	if shouldRelayMessages {
+		_, err := w.Subscribe(nil)
+		if err != nil {
+			return err
+		}
+	}
 
 	// TODO: rlnRelay
 
@@ -195,16 +197,9 @@ func (w *WakuNode) mountLightPush() {
 	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
 }
 
-func (w *WakuNode) startStore() error {
-	w.opts.store.Start(w.ctx, w.host)
-	w.opts.store.Resume(string(relay.GetTopic(nil)), nil)
-
-	_, err := w.Subscribe(nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (w *WakuNode) startStore() {
+	w.opts.store.Start(w.host)
+	w.opts.store.Resume(w.ctx, string(relay.GetTopic(nil)), nil)
 }
 
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
@@ -244,6 +239,26 @@ func (w *WakuNode) AddFilterPeer(address string) (*peer.ID, error) {
 	}
 
 	return &info.ID, w.filter.AddPeer(info.ID, info.Addrs)
+}
+
+// TODO Remove code duplication
+func (w *WakuNode) AddLightPushPeer(address string) (*peer.ID, error) {
+	if w.filter == nil {
+		return nil, errors.New("WakuFilter is not set")
+	}
+
+	lightPushPeer, err := ma.NewMultiaddr(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract the peer ID from the multiaddr.
+	info, err := peer.AddrInfoFromP2pAddr(lightPushPeer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &info.ID, w.lightPush.AddPeer(info.ID, info.Addrs)
 }
 
 func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
@@ -444,11 +459,14 @@ func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topi
 		return nil, errors.New("message can't be null")
 	}
 
+	if node.lightPush != nil {
+		return node.LightPush(ctx, message, topic)
+	}
+
 	hash, err := node.relay.Publish(ctx, message, topic)
 	if err != nil {
 		return nil, err
 	}
-
 	return hash, nil
 }
 
