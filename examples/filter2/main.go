@@ -92,6 +92,12 @@ func main() {
 	go writeLoop(ctx, fullNode)
 	go readLoop(fullNode)
 
+	go func() {
+		// Unsubscribe filter after 5 seconds
+		time.Sleep(5 * time.Second)
+		filterRequest.Subscribe = false
+		lightNode.UnsubscribeFilter(ctx, filterRequest)
+	}()
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
