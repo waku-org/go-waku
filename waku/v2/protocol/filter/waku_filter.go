@@ -135,7 +135,45 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 			wf.subscribers = append(wf.subscribers, subscriber)
 			log.Info("Full node, add a filter subscriber ", subscriber)
 		} else {
-			// TODO wf.subscribers.unsubscribeFilters(filterRPCRequest.Request, conn.peerInfo.peerId)
+			peerId := string(s.Conn().RemotePeer())
+			log.Info("Full node, remove a filter subscriber ", peerId)
+			contentFilters := filterRPCRequest.Request.ContentFilters
+			var peerIdsToRemove []string
+			for _, subscriber := range wf.subscribers {
+				if subscriber.peer != peerId {
+					continue
+				}
+
+				// make sure we delete the content filter
+				// if no more topics are left
+				for i, contentFilter := range contentFilters {
+					subCfs := subscriber.filter.ContentFilters
+					for _, cf := range subCfs {
+						if cf.ContentTopic == contentFilter.ContentTopic {
+							l := len(subCfs) - 1
+							subCfs[l], subCfs[i] = subCfs[i], subCfs[l]
+							subscriber.filter.ContentFilters = subCfs[:l]
+						}
+					}
+				}
+
+				if len(subscriber.filter.ContentFilters) == 0 {
+					peerIdsToRemove = append(peerIdsToRemove, subscriber.peer)
+				}
+			}
+
+			// make sure we delete the subscriber
+			// if no more content filters left
+			for _, peerId := range peerIdsToRemove {
+				for i, s := range wf.subscribers {
+					if s.peer == peerId {
+						l := len(wf.subscribers) - 1
+						wf.subscribers[l], wf.subscribers[i] = wf.subscribers[i], wf.subscribers[l]
+						wf.subscribers = wf.subscribers[:l]
+						break
+					}
+				}
+			}
 		}
 	} else if filterRPCRequest.Push != nil {
 		// We're on a light node.

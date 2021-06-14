@@ -357,14 +357,13 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequ
 	// Sanity check for well-formed subscribe FilterRequest
 	//doAssert(request.subscribe, "invalid subscribe request")
 
-	log.Info("subscribe content", request)
+	log.Info("SubscribeFilter, request: ", request)
 
 	var id string
 
 	if node.filter != nil {
 		id, err := node.filter.Subscribe(ctx, request)
 
-		// TODO
 		if id == "" || err != nil {
 			// Failed to subscribe
 			log.Error("remote subscription to filter failed", request)
@@ -374,7 +373,45 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequ
 	}
 
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[string(id)] = filter.Filter{ContentFilters: request.ContentFilters, Chan: ch}
+	node.filters[id] = filter.Filter{ContentFilters: request.ContentFilters, Chan: ch}
+}
+
+func (node *WakuNode) UnsubscribeFilter(ctx context.Context, request pb.FilterRequest) {
+
+	log.Info("UnsubscribeFilter, request: ", request)
+	// Send message to full node in order to unsubscribe
+	node.filter.Unsubscribe(ctx, request)
+
+	// Remove local filter
+	var idsToRemove []string
+	for id, f := range node.filters {
+		// Iterate filter entries to remove matching content topics
+		// make sure we delete the content filter
+		// if no more topics are left
+		for _, cfToDelete := range request.ContentFilters {
+			for i, cf := range f.ContentFilters {
+				if cf.ContentTopic == cfToDelete.ContentTopic {
+					l := len(f.ContentFilters) - 1
+					f.ContentFilters[l], f.ContentFilters[i] = f.ContentFilters[i], f.ContentFilters[l]
+					f.ContentFilters = f.ContentFilters[:l]
+					break
+				}
+
+			}
+			if len(f.ContentFilters) == 0 {
+				idsToRemove = append(idsToRemove, id)
+			}
+		}
+	}
+
+	for _, rId := range idsToRemove {
+		for id, _ := range node.filters {
+			if id == rId {
+				delete(node.filters, id)
+				break
+			}
+		}
+	}
 }
 
 func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic) ([]byte, error) {
