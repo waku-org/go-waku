@@ -13,19 +13,19 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
-	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 var log = logging.Logger("wakustore")
@@ -203,6 +203,8 @@ type WakuStore struct {
 	storeMsgs   bool
 	msgProvider MessageProvider
 	h           host.Host
+
+	peerChan chan *event.EvtPeerConnectednessChanged
 }
 
 func NewWakuStore(shouldStoreMessages bool, p MessageProvider) *WakuStore {
@@ -218,9 +220,18 @@ func (store *WakuStore) SetMsgProvider(p MessageProvider) {
 	store.msgProvider = p
 }
 
-func (store *WakuStore) Start(ctx context.Context, h host.Host) {
+func (store *WakuStore) peerListener() {
+	for e := range store.peerChan {
+		if e.Connectedness == network.NotConnected {
+			log.Info("Notification received ", e.Peer)
+		}
+	}
+}
+
+func (store *WakuStore) Start(ctx context.Context, h host.Host, peerChan chan *event.EvtPeerConnectednessChanged) {
 	store.h = h
 	store.ctx = ctx
+	store.peerChan = peerChan
 
 	if !store.storeMsgs {
 		log.Info("Store protocol started (messages aren't stored)")
@@ -253,6 +264,8 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 
 		stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "stored")}, metrics.StoreMessages.M(int64(len(store.messages))))
 	}
+
+	go store.peerListener()
 
 	log.Info("Store protocol started")
 }
@@ -371,47 +384,6 @@ func findIndex(msgList []IndexedWakuMessage, index *pb.Index) int {
 	return -1
 }
 
-func (store *WakuStore) AddPeer(p peer.ID, addrs []ma.Multiaddr) error {
-	for _, addr := range addrs {
-		store.h.Peerstore().AddAddr(p, addr, peerstore.PermanentAddrTTL)
-	}
-	err := store.h.Peerstore().AddProtocols(p, string(WakuStoreProtocolId))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (store *WakuStore) selectPeer() *peer.ID {
-	// @TODO We need to be more stratigic about which peers we dial. Right now we just set one on the service.
-	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
-	// This will require us to check for various factors such as:
-	//  - which topics they track
-	//  - latency?
-	//  - default store peer?
-
-	// Selects the best peer for a given protocol
-	var peers peer.IDSlice
-	for _, peer := range store.h.Peerstore().Peers() {
-		protocols, err := store.h.Peerstore().SupportsProtocols(peer, string(WakuStoreProtocolId))
-		if err != nil {
-			log.Error("error obtaining the protocols supported by peers", err)
-			return nil
-		}
-
-		if len(protocols) > 0 {
-			peers = append(peers, peer)
-		}
-	}
-
-	if len(peers) >= 1 {
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now the first peer for the given protocol is returned
-		return &peers[0]
-	}
-
-	return nil
-}
-
 type HistoryRequestParameters struct {
 	selectedPeer peer.ID
 	requestId    []byte
@@ -432,8 +404,12 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p := params.s.selectPeer()
-		params.selectedPeer = *p
+		p, err := utils.SelectPeer(params.s.h, string(WakuStoreProtocolId))
+		if err == nil {
+			params.selectedPeer = *p
+		} else {
+			log.Info("Error selecting peer: ", err)
+		}
 	}
 }
 
@@ -597,13 +573,13 @@ func (store *WakuStore) Resume(pubsubTopic string, peerList []peer.ID) (int, err
 			return -1, ErrFailedToResumeHistory
 		}
 	} else {
-		p := store.selectPeer()
+		p, err := utils.SelectPeer(store.h, string(WakuStoreProtocolId))
 
-		if p == nil {
+		if err != nil {
+			log.Info("Error selecting peer: ", err)
 			return -1, ErrNoPeersAvailable
 		}
 
-		var err error
 		response, err = store.queryFrom(store.ctx, rpc, *p, protocol.GenerateRequestId())
 		if err != nil {
 			log.Error("failed to resume history", err)

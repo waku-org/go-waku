@@ -10,15 +10,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
-
-	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
-
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	utils "github.com/status-im/go-waku/waku/v2/utils"
 )
 
 var log = logging.Logger("waku_lightpush")
@@ -109,41 +106,6 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 	}
 }
 
-// TODO: AddPeer and selectPeer are duplicated in wakustore too. Refactor this code
-
-func (wakuLP *WakuLightPush) AddPeer(p peer.ID, addrs []ma.Multiaddr) error {
-	for _, addr := range addrs {
-		wakuLP.h.Peerstore().AddAddr(p, addr, peerstore.PermanentAddrTTL)
-	}
-	err := wakuLP.h.Peerstore().AddProtocols(p, string(WakuLightPushProtocolId))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (wakuLP *WakuLightPush) selectPeer() *peer.ID {
-	var peers peer.IDSlice
-	for _, peer := range wakuLP.h.Peerstore().Peers() {
-		protocols, err := wakuLP.h.Peerstore().SupportsProtocols(peer, string(WakuLightPushProtocolId))
-		if err != nil {
-			log.Error("error obtaining the protocols supported by peers", err)
-			return nil
-		}
-
-		if len(protocols) > 0 {
-			peers = append(peers, peer)
-		}
-	}
-
-	if len(peers) >= 1 {
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now the first peer for the given protocol is returned
-		return &peers[0]
-	}
-
-	return nil
-}
-
 type LightPushParameters struct {
 	selectedPeer peer.ID
 	requestId    []byte
@@ -161,8 +123,12 @@ func WithPeer(p peer.ID) LightPushOption {
 
 func WithAutomaticPeerSelection() LightPushOption {
 	return func(params *LightPushParameters) {
-		p := params.lp.selectPeer()
-		params.selectedPeer = *p
+		p, err := utils.SelectPeer(params.lp.h, string(WakuLightPushProtocolId))
+		if err == nil {
+			params.selectedPeer = *p
+		} else {
+			log.Info("Error selecting peer: ", err)
+		}
 	}
 }
 

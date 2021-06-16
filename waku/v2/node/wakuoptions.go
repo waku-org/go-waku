@@ -35,6 +35,8 @@ type WakuNodeParameters struct {
 	keepAliveInterval time.Duration
 
 	enableLightPush bool
+
+	connStatusChan chan ConnStatus
 }
 
 type WakuNodeOption func(*WakuNodeParameters) error
@@ -139,6 +141,13 @@ func WithLightPush() WakuNodeOption {
 func WithKeepAlive(t time.Duration) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.keepAliveInterval = t
+		return nil
+	}
+}
+
+func WithConnStatusChan(connStatusChan chan ConnStatus) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.connStatusChan = connStatusChan
 		return nil
 	}
 }
