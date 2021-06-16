@@ -6,19 +6,18 @@ import (
 	"fmt"
 
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-msgio/protoio"
-	ma "github.com/multiformats/go-multiaddr"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
-
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 )
 
 var log = logging.Logger("wakufilter")
@@ -48,6 +47,7 @@ type (
 		subscribers []Subscriber
 		pushHandler MessagePushHandler
 		MsgC        chan *protocol.Envelope
+		peerChan    chan *event.EvtPeerConnectednessChanged
 	}
 )
 
@@ -88,36 +88,6 @@ func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
 	}
 }
 
-func (wf *WakuFilter) selectPeer() *peer.ID {
-	// @TODO We need to be more stratigic about which peers we dial. Right now we just set one on the service.
-	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
-	// This will require us to check for various factors such as:
-	//  - which topics they track
-	//  - latency?
-	//  - default store peer?
-
-	// Selects the best peer for a given protocol
-	var peers peer.IDSlice
-	for _, peer := range wf.h.Peerstore().Peers() {
-		protocols, err := wf.h.Peerstore().SupportsProtocols(peer, string(WakuFilterProtocolId))
-		if err != nil {
-			log.Error("error obtaining the protocols supported by peers", err)
-			return nil
-		}
-
-		if len(protocols) > 0 {
-			peers = append(peers, peer)
-		}
-	}
-
-	if len(peers) >= 1 {
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now the first peer for the given protocol is returned
-		return &peers[0]
-	}
-
-	return nil
-}
-
 func (wf *WakuFilter) onRequest(s network.Stream) {
 	defer s.Close()
 
@@ -144,7 +114,6 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 			log.Info("Full node, add a filter subscriber ", subscriber)
 
 			stats.Record(wf.ctx, metrics.FilterSubscriptions.M(int64(len(wf.subscribers))))
-
 		} else {
 			peerId := string(s.Conn().RemotePeer())
 			log.Info("Full node, remove a filter subscriber ", peerId)
@@ -198,7 +167,26 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 
 }
 
-func NewWakuFilter(ctx context.Context, host host.Host, handler MessagePushHandler) *WakuFilter {
+func (wf *WakuFilter) peerListener() {
+	for e := range wf.peerChan {
+		if e.Connectedness == network.NotConnected {
+			log.Info("Filter Notification received ", e.Peer)
+			i := 0
+			// Delete subscribers matching deleted peer
+			for _, s := range wf.subscribers {
+				if s.peer != string(e.Peer) {
+					wf.subscribers[i] = s
+					i++
+				}
+			}
+
+			log.Info("Filter, deleted subscribers: ", len(wf.subscribers)-i)
+			wf.subscribers = wf.subscribers[:i]
+		}
+	}
+}
+
+func NewWakuFilter(ctx context.Context, host host.Host, handler MessagePushHandler, peerChan chan *event.EvtPeerConnectednessChanged) *WakuFilter {
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
 	if err != nil {
 		log.Error(err)
@@ -209,9 +197,11 @@ func NewWakuFilter(ctx context.Context, host host.Host, handler MessagePushHandl
 	wf.MsgC = make(chan *protocol.Envelope)
 	wf.h = host
 	wf.pushHandler = handler
+	wf.peerChan = peerChan
 
 	wf.h.SetStreamHandler(WakuFilterProtocolId, wf.onRequest)
 	go wf.FilterListener()
+	go wf.peerListener()
 
 	return wf
 }
@@ -221,8 +211,6 @@ func (wf *WakuFilter) FilterListener() {
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
 	handle := func(envelope *protocol.Envelope) error { // async
-		// trace "handle WakuFilter subscription", topic=topic, msg=msg
-
 		msg := envelope.Message()
 		topic := envelope.PubsubTopic()
 		// Each subscriber is a light node that earlier on invoked
@@ -269,25 +257,12 @@ func (wf *WakuFilter) FilterListener() {
 
 }
 
-// TODO Remove code duplication
-func (wf *WakuFilter) AddPeer(p peer.ID, addrs []ma.Multiaddr) error {
-	for _, addr := range addrs {
-		wf.h.Peerstore().AddAddr(p, addr, peerstore.PermanentAddrTTL)
-	}
-	err := wf.h.Peerstore().AddProtocols(p, string(WakuFilterProtocolId))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // Having a FilterRequest struct,
 // select a peer with filter support, dial it,
 // and submit FilterRequest wrapped in FilterRPC
 func (wf *WakuFilter) Subscribe(ctx context.Context, request pb.FilterRequest) (string, error) { //.async, gcsafe.} {
-	peer := wf.selectPeer()
-
-	if peer != nil {
+	peer, err := utils.SelectPeer(wf.h, string(WakuFilterProtocolId))
+	if err == nil {
 		conn, err := wf.h.NewStream(ctx, *peer, WakuFilterProtocolId)
 
 		if conn != nil {
@@ -305,6 +280,8 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, request pb.FilterRequest) (
 			//waku_filter_errors.inc(labelValues = [dialFailure])
 			return "", err
 		}
+	} else {
+		log.Info("Error selecting peer: ", err)
 	}
 
 	return "", nil
@@ -312,9 +289,8 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, request pb.FilterRequest) (
 
 func (wf *WakuFilter) Unsubscribe(ctx context.Context, request pb.FilterRequest) {
 	// @TODO: NO REAL REASON TO GENERATE REQUEST ID FOR UNSUBSCRIBE OTHER THAN CREATING SANE-LOOKING RPC.
-	peer := wf.selectPeer()
-
-	if peer != nil {
+	peer, err := utils.SelectPeer(wf.h, string(WakuFilterProtocolId))
+	if err == nil {
 		conn, err := wf.h.NewStream(ctx, *peer, WakuFilterProtocolId)
 
 		if conn != nil {
@@ -330,5 +306,7 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, request pb.FilterRequest)
 			log.Error("failed to connect to remote peer", err)
 			//waku_filter_errors.inc(labelValues = [dialFailure])
 		}
+	} else {
+		log.Info("Error selecting peer: ", err)
 	}
 }

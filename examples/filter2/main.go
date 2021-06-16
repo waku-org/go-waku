@@ -32,8 +32,8 @@ func main() {
 	}
 	logging.SetAllLoggers(lvl)
 
-	hostAddr1, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:0"))
-	hostAddr2, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:0"))
+	hostAddr1, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:60000"))
+	hostAddr2, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:60001"))
 
 	key1, err := randomHex(32)
 	if err != nil {
@@ -61,7 +61,6 @@ func main() {
 	lightNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey2),
 		node.WithHostAddress([]net.Addr{hostAddr2}),
-		node.WithWakuRelay(),
 		node.WithWakuFilter(),
 	)
 
