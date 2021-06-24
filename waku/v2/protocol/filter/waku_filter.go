@@ -13,7 +13,10 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-msgio/protoio"
 	ma "github.com/multiformats/go-multiaddr"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
+	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
@@ -127,6 +130,8 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 
 	log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
 
+	stats.Record(wf.ctx, metrics.Messages.M(1))
+
 	if filterRPCRequest.Request != nil {
 		// We're on a full node.
 		// This is a filter request coming from a light node.
@@ -134,6 +139,9 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 			subscriber := Subscriber{peer: string(s.Conn().RemotePeer()), requestId: filterRPCRequest.RequestId, filter: *filterRPCRequest.Request}
 			wf.subscribers = append(wf.subscribers, subscriber)
 			log.Info("Full node, add a filter subscriber ", subscriber)
+
+			stats.Record(wf.ctx, metrics.FilterSubscriptions.M(int64(len(wf.subscribers))))
+
 		} else {
 			peerId := string(s.Conn().RemotePeer())
 			log.Info("Full node, remove a filter subscriber ", peerId)
@@ -174,6 +182,8 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 					}
 				}
 			}
+
+			stats.Record(wf.ctx, metrics.FilterSubscriptions.M(int64(len(wf.subscribers))))
 		}
 	} else if filterRPCRequest.Push != nil {
 		// We're on a light node.
@@ -186,6 +196,11 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 }
 
 func NewWakuFilter(ctx context.Context, host host.Host, handler MessagePushHandler) *WakuFilter {
+	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
+	if err != nil {
+		log.Error(err)
+	}
+
 	wf := new(WakuFilter)
 	wf.ctx = ctx
 	wf.MsgC = make(chan *protocol.Envelope)

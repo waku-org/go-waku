@@ -14,7 +14,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	ma "github.com/multiformats/go-multiaddr"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
+	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
@@ -193,9 +196,8 @@ func (w *WakuNode) mountLightPush() {
 }
 
 func (w *WakuNode) startStore() error {
-	w.opts.store.Start(w.host)
-
-	w.opts.store.Resume(w.ctx, string(relay.GetTopic(nil)), nil)
+	w.opts.store.Start(w.ctx, w.host)
+	w.opts.store.Resume(string(relay.GetTopic(nil)), nil)
 
 	_, err := w.Subscribe(nil)
 	if err != nil {
@@ -270,7 +272,7 @@ func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
 		return errors.New("WakuStore is not set")
 	}
 
-	result, err := w.opts.store.Resume(ctx, string(relay.DefaultWakuTopic), peerList)
+	result, err := w.opts.store.Resume(string(relay.DefaultWakuTopic), peerList)
 	if err != nil {
 		return err
 	}
@@ -323,6 +325,12 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 		nextMsgTicker := time.NewTicker(time.Millisecond * 10)
 		defer nextMsgTicker.Stop()
 
+		ctx, err := tag.New(node.ctx, tag.Insert(metrics.KeyType, "relay"))
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
 		for {
 			select {
 			case <-subscription.quit:
@@ -340,6 +348,8 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 					subscription.mutex.Unlock()
 					return
 				}
+
+				stats.Record(ctx, metrics.Messages.M(1))
 
 				wakuMessage := &pb.WakuMessage{}
 				if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
@@ -427,7 +437,7 @@ func (node *WakuNode) UnsubscribeFilter(ctx context.Context, request pb.FilterRe
 
 func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic) ([]byte, error) {
 	if node.relay == nil {
-		return nil, errors.New("WakuRelay hasn't been set.")
+		return nil, errors.New("WakuRelay hasn't been set")
 	}
 
 	if message == nil {
@@ -444,7 +454,7 @@ func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topi
 
 func (node *WakuNode) LightPush(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic, opts ...lightpush.LightPushOption) ([]byte, error) {
 	if node.lightPush == nil {
-		return nil, errors.New("WakuLightPush hasn't been set.")
+		return nil, errors.New("WakuLightPush hasn't been set")
 	}
 
 	if message == nil {

@@ -63,7 +63,7 @@ func main() {
 		node.WithHostAddress([]net.Addr{hostAddr}),
 		node.WithWakuRelay(),
 		node.WithWakuStore(false),
-		node.WithKeepAlive((*keepAliveFlag)*time.Second),
+		node.WithKeepAlive(time.Duration(*keepAliveFlag)*time.Second),
 	)
 	if err != nil {
 		fmt.Print(err)
