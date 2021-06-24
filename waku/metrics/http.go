@@ -21,7 +21,6 @@ type Server struct {
 }
 
 func NewMetricsServer(address string, port int) *Server {
-
 	_ = runmetrics.Enable(runmetrics.RunMetricOptions{
 		EnableCPU:    true,
 		EnableMemory: true,
