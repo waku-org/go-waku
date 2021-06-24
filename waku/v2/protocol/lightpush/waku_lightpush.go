@@ -187,6 +187,7 @@ func DefaultOptions() []LightPushOption {
 
 func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, opts ...LightPushOption) (*pb.PushResponse, error) {
 	params := new(LightPushParameters)
+	params.lp = wakuLP
 
 	optList := DefaultOptions()
 	optList = append(optList, opts...)

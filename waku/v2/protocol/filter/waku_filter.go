@@ -24,9 +24,10 @@ import (
 var log = logging.Logger("wakufilter")
 
 type (
-	ContentFilterChan chan *pb.WakuMessage
+	ContentFilterChan chan *protocol.Envelope
 
 	Filter struct {
+		Topic          string
 		ContentFilters []*pb.FilterRequest_ContentFilter
 		Chan           ContentFilterChan
 	}
@@ -65,12 +66,14 @@ const (
 )
 
 func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
+	envelope := protocol.NewEnvelope(msg, filter.Topic)
 	for key, filter := range *filters {
+		evn
 		// We do this because the key for the filter is set to the requestId received from the filter protocol.
 		// This means we do not need to check the content filter explicitly as all MessagePushs already contain
 		// the requestId of the coresponding filter.
 		if requestId != "" && requestId == key {
-			filter.Chan <- msg
+			filter.Chan <- envelope
 			continue
 		}
 
@@ -78,7 +81,7 @@ func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
 		// or we should not allow such filter to exist in the first place.
 		for _, contentFilter := range filter.ContentFilters {
 			if msg.ContentTopic == contentFilter.ContentTopic {
-				filter.Chan <- msg
+				filter.Chan <- envelope
 				break
 			}
 		}

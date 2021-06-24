@@ -9,7 +9,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	wpb "github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -21,6 +24,7 @@ type Chat struct {
 	Messages chan *pb.Chat2Message
 
 	sub  *node.Subscription
+	C    chan *protocol.Envelope
 	node *node.WakuNode
 
 	self         peer.ID
@@ -31,16 +35,11 @@ type Chat struct {
 
 // NewChat tries to subscribe to the PubSub topic for the room name, returning
 // a ChatRoom on success.
-func NewChat(n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload bool, nickname string) (*Chat, error) {
+func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload bool, useLightPush bool, nickname string) (*Chat, error) {
 	// join the default waku topic and subscribe to it
-	sub, err := n.Subscribe(nil)
-	if err != nil {
-		return nil, err
-	}
 
-	c := &Chat{
+	chat := &Chat{
 		node:         n,
-		sub:          sub,
 		self:         selfID,
 		contentTopic: contentTopic,
 		nick:         nickname,
@@ -48,10 +47,29 @@ func NewChat(n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload
 		Messages:     make(chan *pb.Chat2Message, 1024),
 	}
 
-	// start reading messages from the subscription in a loop
-	go c.readLoop()
+	if useLightPush {
+		chat.C = make(filter.ContentFilterChan)
 
-	return c, nil
+		filterRequest := wpb.FilterRequest{
+			ContentFilters: []*wpb.FilterRequest_ContentFilter{&wpb.FilterRequest_ContentFilter{ContentTopic: contentTopic}},
+			Topic:          string(relay.GetTopic(nil)),
+			Subscribe:      true,
+		}
+
+		n.SubscribeFilter(ctx, filterRequest, chat.C)
+	} else {
+		sub, err := n.Subscribe(nil)
+		if err != nil {
+			return nil, err
+		}
+
+		chat.C = sub.C
+	}
+
+	// start reading messages from the subscription in a loop
+	go chat.readLoop()
+
+	return chat, nil
 }
 
 func generateSymKey(password string) []byte {
@@ -133,7 +151,7 @@ func (cr *Chat) decodeMessage(wakumsg *wpb.WakuMessage) {
 
 // readLoop pulls messages from the pubsub topic and pushes them onto the Messages channel.
 func (cr *Chat) readLoop() {
-	for value := range cr.sub.C {
+	for value := range cr.C {
 		cr.decodeMessage(value.Message())
 	}
 }

@@ -69,8 +69,7 @@ func main() {
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress([]net.Addr{hostAddr}),
 		node.WithWakuStore(false),
-		node.WithKeepAlive(time.Duration(*keepAliveFlag)*time.Second),
-	)
+		node.WithKeepAlive(time.Duration(*keepAliveFlag) * time.Second),
 	}
 
 	if *relayFlag {
@@ -81,7 +80,8 @@ func main() {
 		opts = append(opts, node.WithWakuFilter())
 	}
 
-	if *lightPushFlag {
+	if *lightPushFlag || *lightPushNodeFlag != "" {
+		*lightPushFlag = true // If a lightpushnode was set and lightpush flag was false
 		opts = append(opts, node.WithLightPush())
 	}
 
@@ -106,7 +106,7 @@ func main() {
 	}
 
 	// join the chat
-	chat, err := NewChat(wakuNode, wakuNode.Host().ID(), *contentTopicFlag, *payloadV1Flag, nick)
+	chat, err := NewChat(ctx, wakuNode, wakuNode.Host().ID(), *contentTopicFlag, *payloadV1Flag, *lightPushFlag, nick)
 	if err != nil {
 		panic(err)
 	}
@@ -180,8 +180,8 @@ func main() {
 		printErr("error running text UI: %s", err)
 	}
 
-	// TODO:
-	// Stop node, unsubscribe filter, etc
+	wakuNode.Stop()
+	// TODO: filter unsubscribeAll
 
 }
 

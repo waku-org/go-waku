@@ -29,9 +29,6 @@ import (
 
 var log = logging.Logger("wakunode")
 
-// Default clientId
-const clientId string = "Go Waku v2 node"
-
 type Message []byte
 
 type WakuNode struct {
@@ -198,8 +195,8 @@ func (w *WakuNode) mountLightPush() {
 }
 
 func (w *WakuNode) startStore() {
-	w.opts.store.Start(w.host)
-	w.opts.store.Resume(w.ctx, string(relay.GetTopic(nil)), nil)
+	w.opts.store.Start(w.ctx, w.host)
+	w.opts.store.Resume(string(relay.GetTopic(nil)), nil)
 }
 
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
@@ -301,7 +298,7 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
 	if node.relay == nil {
-		return nil, errors.New("WakuRelay hasn't been set.")
+		return nil, errors.New("WakuRelay hasn't been set")
 	}
 
 	t := relay.GetTopic(topic)
@@ -384,7 +381,7 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequest, ch filter.ContentFilterChan) {
+func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequest, ch filter.ContentFilterChan) error {
 	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
 	// ContentFilterChan takes MessagePush structs
 
@@ -396,20 +393,28 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequ
 	log.Info("SubscribeFilter, request: ", request)
 
 	var id string
+	var err error
 
-	if node.filter != nil {
-		id, err := node.filter.Subscribe(ctx, request)
+	if node.filter == nil {
+		return errors.New("WakuFilter is not set")
+	}
 
-		if id == "" || err != nil {
-			// Failed to subscribe
-			log.Error("remote subscription to filter failed", request)
-			//waku_node_errors.inc(labelValues = ["subscribe_filter_failure"])
-			id = string(protocol.GenerateRequestId())
-		}
+	id, err = node.filter.Subscribe(ctx, request)
+	if id == "" || err != nil {
+		// Failed to subscribe
+		log.Error("remote subscription to filter failed", request)
+		//waku_node_errors.inc(labelValues = ["subscribe_filter_failure"])
+		return err
 	}
 
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[id] = filter.Filter{ContentFilters: request.ContentFilters, Chan: ch}
+	node.filters[id] = filter.Filter{
+		Topic:          request.Topic,
+		ContentFilters: request.ContentFilters,
+		Chan:           ch,
+	}
+
+	return nil
 }
 
 func (node *WakuNode) UnsubscribeFilter(ctx context.Context, request pb.FilterRequest) {

@@ -15,6 +15,9 @@ import (
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
 
+// Default clientId
+const clientId string = "Go Waku v2 node"
+
 type WakuNodeParameters struct {
 	multiAddr  []ma.Multiaddr
 	privKey    *crypto.PrivKey
@@ -143,6 +146,7 @@ func WithKeepAlive(t time.Duration) WakuNodeOption {
 // Default options used in the libp2p node
 var DefaultLibP2POptions = []libp2p.Option{
 	libp2p.DefaultTransports,
+	libp2p.UserAgent(clientId),
 	libp2p.NATPortMap(),       // Attempt to open ports using uPNP for NATed hosts.
 	libp2p.EnableNATService(), // TODO: is this needed?)
 	libp2p.ConnectionManager(connmgr.NewConnManager(200, 300, 0)),
