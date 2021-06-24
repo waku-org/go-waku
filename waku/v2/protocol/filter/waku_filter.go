@@ -66,9 +66,9 @@ const (
 )
 
 func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
-	envelope := protocol.NewEnvelope(msg, filter.Topic)
 	for key, filter := range *filters {
-		evn
+		envelope := protocol.NewEnvelope(msg, filter.Topic)
+
 		// We do this because the key for the filter is set to the requestId received from the filter protocol.
 		// This means we do not need to check the content filter explicitly as all MessagePushs already contain
 		// the requestId of the coresponding filter.
