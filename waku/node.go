@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	dssql "github.com/ipfs/go-ds-sql"
@@ -65,6 +66,7 @@ var rootCmd = &cobra.Command{
 		storenode, _ := cmd.Flags().GetString("storenode")
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
 		topics, _ := cmd.Flags().GetStringSlice("topics")
+		keepAlive, _ := cmd.Flags().GetInt("keep-alive")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -72,10 +74,11 @@ var rootCmd = &cobra.Command{
 
 		if key == "" {
 			key, err = randomHex(32)
-			checkError(err, "Could not generate random key")
+			checkError(err, "could not generate random key")
 		}
 
 		prvKey, err := crypto.HexToECDSA(key)
+		checkError(err, "error converting key into valid ecdsa key")
 
 		if dbPath == "" && useDB {
 			checkError(errors.New("dbpath can't be null"), "")
@@ -93,6 +96,7 @@ var rootCmd = &cobra.Command{
 		nodeOpts := []node.WakuNodeOption{
 			node.WithPrivateKey(prvKey),
 			node.WithHostAddress([]net.Addr{hostAddr}),
+			node.WithKeepAlive(time.Duration(keepAlive) * time.Second),
 		}
 
 		if enableWs {
@@ -199,6 +203,7 @@ func init() {
 	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
+	rootCmd.Flags().Int("keep-alive", 300, "interval in seconds for pinging peers to keep the connection alive.")
 }
 
 func initConfig() {

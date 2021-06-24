@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/status-im/go-waku/waku/v2/protocol"
@@ -38,6 +39,8 @@ type WakuNode struct {
 	filter    *filter.WakuFilter
 	lightPush *lightpush.WakuLightPush
 
+	ping *ping.PingService
+
 	subscriptions      map[relay.Topic][]*Subscription
 	subscriptionsMutex sync.Mutex
 
@@ -47,6 +50,7 @@ type WakuNode struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	quit   chan struct{}
 }
 
 func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
@@ -84,6 +88,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.ctx = ctx
 	w.subscriptions = make(map[relay.Topic][]*Subscription)
 	w.opts = params
+	w.quit = make(chan struct{})
 
 	if params.enableRelay {
 		err := w.mountRelay(params.wOpts...)
@@ -111,6 +116,10 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		w.mountLightPush()
 	}
 
+	if params.keepAliveInterval > time.Duration(0) {
+		w.startKeepAlive(params.keepAliveInterval)
+	}
+
 	for _, addr := range w.ListenAddresses() {
 		log.Info("Listening on ", addr)
 	}
@@ -122,6 +131,8 @@ func (w *WakuNode) Stop() {
 	w.subscriptionsMutex.Lock()
 	defer w.subscriptionsMutex.Unlock()
 	defer w.cancel()
+
+	close(w.quit)
 
 	for _, topic := range w.relay.Topics() {
 		for _, sub := range w.subscriptions[topic] {
@@ -494,4 +505,26 @@ func (w *WakuNode) ClosePeerById(id peer.ID) error {
 
 func (w *WakuNode) PeerCount() int {
 	return len(w.host.Network().Peers())
+}
+
+func (w *WakuNode) startKeepAlive(t time.Duration) {
+	log.Info("Setting up ping protocol with duration of", t)
+
+	w.ping = ping.NewPingService(w.host)
+	ticker := time.NewTicker(t)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				for _, peer := range w.host.Network().Peers() {
+					log.Info("Pinging", peer)
+					w.ping.Ping(w.ctx, peer)
+				}
+			case <-w.quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
 }

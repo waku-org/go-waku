@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"net"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
@@ -27,6 +28,8 @@ type WakuNodeParameters struct {
 	storeMsgs   bool
 	store       *store.WakuStore
 	filter      *filter.WakuFilter
+
+	keepAliveInterval time.Duration
 
 	enableLightPush bool
 }
@@ -126,6 +129,13 @@ func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 func WithLightPush() WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableLightPush = true
+		return nil
+	}
+}
+
+func WithKeepAlive(t time.Duration) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.keepAliveInterval = t
 		return nil
 	}
 }

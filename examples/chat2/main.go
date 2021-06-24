@@ -30,12 +30,12 @@ func main() {
 	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
 	fleetFlag := flag.String("fleet", "wakuv2.prod", "Select the fleet to connect to. (wakuv2.prod, wakuv2.test)")
 	contentTopicFlag := flag.String("contenttopic", DefaultContentTopic, "content topic to use for the chat")
-	nodeKeyFlag := flag.String("nodekey", "", "private key for this node. will be generated if empty")
-	staticNodeFlag := flag.String("staticnode", "", "connects to a node. will get a random node from fleets.status.im if empty")
-	storeNodeFlag := flag.String("storenode", "", "connects to a store node to retrieve messages. will get a random node from fleets.status.im if empty")
+	nodeKeyFlag := flag.String("nodekey", "", "private key for this node. Will be generated if empty")
+	staticNodeFlag := flag.String("staticnode", "", "connects to a node. Will get a random node from fleets.status.im if empty")
+	storeNodeFlag := flag.String("storenode", "", "connects to a store node to retrieve messages. Will get a random node from fleets.status.im if empty")
 	port := flag.Int("port", 0, "port. Will be random if 0")
 	payloadV1Flag := flag.Bool("payloadV1", false, "use Waku v1 payload encoding/encryption. default false")
-
+	keepAliveFlag := flag.Int64("keep-alive", 300, "interval in seconds for pinging peers to keep the connection alive.")
 	flag.Parse()
 
 	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
@@ -63,6 +63,7 @@ func main() {
 		node.WithHostAddress([]net.Addr{hostAddr}),
 		node.WithWakuRelay(),
 		node.WithWakuStore(false),
+		node.WithKeepAlive((*keepAliveFlag)*time.Second),
 	)
 	if err != nil {
 		fmt.Print(err)
