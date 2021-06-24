@@ -9,6 +9,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/runmetrics"
 	"go.opencensus.io/stats/view"
 )
 
@@ -20,6 +21,12 @@ type Server struct {
 }
 
 func NewMetricsServer(address string, port int) *Server {
+
+	_ = runmetrics.Enable(runmetrics.RunMetricOptions{
+		EnableCPU:    true,
+		EnableMemory: true,
+	})
+
 	pe, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "wakunode",
 	})

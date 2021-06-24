@@ -6,10 +6,8 @@ replace github.com/ethereum/go-ethereum v1.9.5 => github.com/status-im/go-ethere
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.3.0
-	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.9.5
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-ds-sql v0.2.0
 	github.com/ipfs/go-log v1.0.4
@@ -24,10 +22,8 @@ require (
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/multiformats/go-multiaddr-net v0.2.0
 	github.com/pelletier/go-toml v1.8.1 // indirect
-	github.com/prometheus/client_golang v1.11.0
-	github.com/prometheus/common v0.29.0
+	github.com/prometheus/common v0.29.0 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/afero v1.5.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
