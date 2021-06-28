@@ -29,9 +29,6 @@ import (
 
 var log = logging.Logger("wakunode")
 
-// Default clientId
-const clientId string = "Go Waku v2 node"
-
 type Message []byte
 
 type WakuNode struct {
@@ -93,23 +90,18 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.opts = params
 	w.quit = make(chan struct{})
 
-	if params.enableRelay {
-		err := w.mountRelay(params.wOpts...)
-		if err != nil {
-			return nil, err
-		}
+	if params.enableStore {
+		w.startStore()
+	}
+
+	err = w.mountRelay(params.enableRelay, params.wOpts...)
+	if err != nil {
+		return nil, err
 	}
 
 	if params.enableFilter {
 		w.filters = make(filter.Filters)
 		err := w.mountFilter()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if params.enableStore {
-		err := w.startStore()
 		if err != nil {
 			return nil, err
 		}
@@ -171,9 +163,16 @@ func (w *WakuNode) Filter() *filter.WakuFilter {
 	return w.filter
 }
 
-func (w *WakuNode) mountRelay(opts ...wakurelay.Option) error {
+func (w *WakuNode) mountRelay(shouldRelayMessages bool, opts ...wakurelay.Option) error {
 	var err error
 	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, opts...)
+
+	if shouldRelayMessages {
+		_, err := w.Subscribe(nil)
+		if err != nil {
+			return err
+		}
+	}
 
 	// TODO: rlnRelay
 
@@ -195,16 +194,9 @@ func (w *WakuNode) mountLightPush() {
 	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
 }
 
-func (w *WakuNode) startStore() error {
+func (w *WakuNode) startStore() {
 	w.opts.store.Start(w.ctx, w.host)
 	w.opts.store.Resume(string(relay.GetTopic(nil)), nil)
-
-	_, err := w.Subscribe(nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
@@ -244,6 +236,26 @@ func (w *WakuNode) AddFilterPeer(address string) (*peer.ID, error) {
 	}
 
 	return &info.ID, w.filter.AddPeer(info.ID, info.Addrs)
+}
+
+// TODO Remove code duplication
+func (w *WakuNode) AddLightPushPeer(address string) (*peer.ID, error) {
+	if w.filter == nil {
+		return nil, errors.New("WakuFilter is not set")
+	}
+
+	lightPushPeer, err := ma.NewMultiaddr(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract the peer ID from the multiaddr.
+	info, err := peer.AddrInfoFromP2pAddr(lightPushPeer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &info.ID, w.lightPush.AddPeer(info.ID, info.Addrs)
 }
 
 func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
@@ -286,7 +298,7 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
 	if node.relay == nil {
-		return nil, errors.New("WakuRelay hasn't been set.")
+		return nil, errors.New("WakuRelay hasn't been set")
 	}
 
 	t := relay.GetTopic(topic)
@@ -369,7 +381,7 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequest, ch filter.ContentFilterChan) {
+func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequest, ch filter.ContentFilterChan) error {
 	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
 	// ContentFilterChan takes MessagePush structs
 
@@ -381,20 +393,28 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequ
 	log.Info("SubscribeFilter, request: ", request)
 
 	var id string
+	var err error
 
-	if node.filter != nil {
-		id, err := node.filter.Subscribe(ctx, request)
+	if node.filter == nil {
+		return errors.New("WakuFilter is not set")
+	}
 
-		if id == "" || err != nil {
-			// Failed to subscribe
-			log.Error("remote subscription to filter failed", request)
-			//waku_node_errors.inc(labelValues = ["subscribe_filter_failure"])
-			id = string(protocol.GenerateRequestId())
-		}
+	id, err = node.filter.Subscribe(ctx, request)
+	if id == "" || err != nil {
+		// Failed to subscribe
+		log.Error("remote subscription to filter failed", request)
+		//waku_node_errors.inc(labelValues = ["subscribe_filter_failure"])
+		return err
 	}
 
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[id] = filter.Filter{ContentFilters: request.ContentFilters, Chan: ch}
+	node.filters[id] = filter.Filter{
+		Topic:          request.Topic,
+		ContentFilters: request.ContentFilters,
+		Chan:           ch,
+	}
+
+	return nil
 }
 
 func (node *WakuNode) UnsubscribeFilter(ctx context.Context, request pb.FilterRequest) {
@@ -444,11 +464,14 @@ func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topi
 		return nil, errors.New("message can't be null")
 	}
 
+	if node.lightPush != nil {
+		return node.LightPush(ctx, message, topic)
+	}
+
 	hash, err := node.relay.Publish(ctx, message, topic)
 	if err != nil {
 		return nil, err
 	}
-
 	return hash, nil
 }
 

@@ -66,6 +66,9 @@ var rootCmd = &cobra.Command{
 		dbPath, _ := cmd.Flags().GetString("dbpath")
 		storenode, _ := cmd.Flags().GetString("storenode")
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
+		filternodes, _ := cmd.Flags().GetStringSlice("filternodes")
+		lightpush, _ := cmd.Flags().GetBool("lightpush")
+		lightpushnodes, _ := cmd.Flags().GetStringSlice("lightpushnodes")
 		topics, _ := cmd.Flags().GetStringSlice("topics")
 		keepAlive, _ := cmd.Flags().GetInt("keep-alive")
 		enableMetrics, _ := cmd.Flags().GetBool("metrics")
@@ -150,6 +153,10 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
+		if lightpush {
+			nodeOpts = append(nodeOpts, node.WithLightPush())
+		}
+
 		wakuNode, err := node.New(ctx, nodeOpts...)
 
 		checkError(err, "Wakunode")
@@ -173,6 +180,26 @@ var rootCmd = &cobra.Command{
 		if len(staticnodes) > 0 {
 			for _, n := range staticnodes {
 				go wakuNode.DialPeer(n)
+			}
+		}
+
+		if len(lightpushnodes) > 0 && !lightpush {
+			checkError(errors.New("LightPush protocol was not started"), "")
+		} else {
+			if len(lightpushnodes) > 0 {
+				for _, n := range lightpushnodes {
+					go wakuNode.AddLightPushPeer(n)
+				}
+			}
+		}
+
+		if len(filternodes) > 0 && !wakuFilter {
+			checkError(errors.New("WakuFilter protocol was not started"), "")
+		} else {
+			if len(filternodes) > 0 {
+				for _, n := range filternodes {
+					go wakuNode.AddFilterPeer(n)
+				}
 			}
 		}
 
@@ -214,6 +241,7 @@ func init() {
 	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
 	rootCmd.Flags().Bool("filter", true, "Enable filter protocol")
 	rootCmd.Flags().Bool("store", false, "Enable store protocol")
+	rootCmd.Flags().Bool("lightpush", false, "Enable lightpush protocol")
 	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
@@ -223,7 +251,8 @@ func init() {
 	rootCmd.Flags().Bool("metrics", false, "Enable the metrics server")
 	rootCmd.Flags().String("metrics-address", "127.0.0.1", "Listening address of the metrics server")
 	rootCmd.Flags().Int("metrics-port", 8008, "Listening HTTP port of the metrics server")
-
+	rootCmd.Flags().StringSlice("filternodes", []string{}, "Multiaddr of peers to to request content filtering of messages. Argument may be repeated")
+	rootCmd.Flags().StringSlice("lightpushnodes", []string{}, "Multiaddr of peers to to request lightpush of published messages. Argument may be repeated")
 }
 
 func initConfig() {

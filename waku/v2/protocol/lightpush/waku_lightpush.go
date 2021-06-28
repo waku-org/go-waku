@@ -23,7 +23,7 @@ import (
 
 var log = logging.Logger("waku_lightpush")
 
-const WakuLightPushProtocolId = libp2pProtocol.ID("/vac/waku/lightpush/2.0.0-alpha1")
+const WakuLightPushProtocolId = libp2pProtocol.ID("/vac/waku/lightpush/2.0.0-beta1")
 
 var (
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
@@ -62,7 +62,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 		return
 	}
 
-	log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
+	log.Info(fmt.Sprintf("%s: lightpush message received from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
 
 	if requestPushRPC.Query != nil {
 		log.Info("lightpush push request")
@@ -79,10 +79,10 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 				response.Info = "Could not publish message"
 			} else {
 				response.IsSuccess = true
-				response.Info = "Totally"
+				response.Info = "Totally" // TODO: ask about this
 			}
 		} else {
-			log.Debug("No relay protocol present, unsuccessful push")
+			log.Debug("no relay protocol present, unsuccessful push")
 			response.IsSuccess = false
 			response.Info = "No relay protocol"
 		}
@@ -96,7 +96,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 			log.Error("error writing response", err)
 			s.Reset()
 		} else {
-			log.Info(fmt.Sprintf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
+			log.Info(fmt.Sprintf("%s: response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
 		}
 	}
 
@@ -187,6 +187,7 @@ func DefaultOptions() []LightPushOption {
 
 func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, opts ...LightPushOption) (*pb.PushResponse, error) {
 	params := new(LightPushParameters)
+	params.lp = wakuLP
 
 	optList := DefaultOptions()
 	optList = append(optList, opts...)

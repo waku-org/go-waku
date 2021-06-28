@@ -32,8 +32,8 @@ func main() {
 	}
 	logging.SetAllLoggers(lvl)
 
-	hostAddr1, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:60000"))
-	hostAddr2, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:60002"))
+	hostAddr1, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:0"))
+	hostAddr2, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:0"))
 
 	key1, err := randomHex(32)
 	if err != nil {
@@ -83,8 +83,8 @@ func main() {
 	filterChan := make(filter.ContentFilterChan)
 
 	go func() {
-		for msg := range filterChan {
-			log.Info("Light node received msg, ", string(msg.Payload))
+		for env := range filterChan {
+			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
 	}()
 	lightNode.SubscribeFilter(ctx, filterRequest, filterChan)
