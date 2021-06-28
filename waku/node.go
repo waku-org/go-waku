@@ -21,6 +21,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
 
@@ -67,6 +68,9 @@ var rootCmd = &cobra.Command{
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
 		topics, _ := cmd.Flags().GetStringSlice("topics")
 		keepAlive, _ := cmd.Flags().GetInt("keep-alive")
+		enableMetrics, _ := cmd.Flags().GetBool("metrics")
+		metricsAddress, _ := cmd.Flags().GetString("metrics-address")
+		metricsPort, _ := cmd.Flags().GetInt("metrics-port")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -92,6 +96,12 @@ var rootCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
+
+		var metricsServer *metrics.Server
+		if enableMetrics {
+			metricsServer = metrics.NewMetricsServer(metricsAddress, metricsPort)
+			go metricsServer.Start()
+		}
 
 		nodeOpts := []node.WakuNodeOption{
 			node.WithPrivateKey(prvKey),
@@ -175,6 +185,10 @@ var rootCmd = &cobra.Command{
 		// shut the node down
 		wakuNode.Stop()
 
+		if enableMetrics {
+			metricsServer.Stop(ctx)
+		}
+
 		if useDB {
 			err = db.Close()
 			checkError(err, "DBClose")
@@ -204,6 +218,12 @@ func init() {
 	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
 	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
 	rootCmd.Flags().Int("keep-alive", 300, "interval in seconds for pinging peers to keep the connection alive.")
+	rootCmd.Flags().StringSlice("filternodes", []string{}, "Multiaddr of peers to to request content filtering of messages. Argument may be repeated")
+	rootCmd.Flags().StringSlice("lightpushnodes", []string{}, "Multiaddr of peers to to request lightpush of published messages. Argument may be repeated")
+	rootCmd.Flags().Bool("metrics", false, "Enable the metrics server")
+	rootCmd.Flags().String("metrics-address", "127.0.0.1", "Listening address of the metrics server")
+	rootCmd.Flags().Int("metrics-port", 8008, "Listening HTTP port of the metrics server")
+
 }
 
 func initConfig() {

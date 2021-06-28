@@ -19,8 +19,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
@@ -29,7 +32,6 @@ var log = logging.Logger("wakustore")
 
 const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta3")
 const MaxPageSize = 100 // Maximum number of waku messages in each page
-const ConnectionTimeout = 10 * time.Second
 const DefaultContentTopic = "/waku/2/default-content/proto"
 
 var (
@@ -193,6 +195,7 @@ type IndexedWakuMessage struct {
 }
 
 type WakuStore struct {
+	ctx           context.Context
 	MsgC          chan *protocol.Envelope
 	messages      []IndexedWakuMessage
 	messagesMutex sync.Mutex
@@ -215,8 +218,9 @@ func (store *WakuStore) SetMsgProvider(p MessageProvider) {
 	store.msgProvider = p
 }
 
-func (store *WakuStore) Start(h host.Host) {
+func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 	store.h = h
+	store.ctx = ctx
 
 	if !store.storeMsgs {
 		log.Info("Store protocol started (messages aren't stored)")
@@ -225,7 +229,7 @@ func (store *WakuStore) Start(h host.Host) {
 
 	store.h.SetStreamHandler(WakuStoreProtocolId, store.onRequest)
 
-	go store.storeIncomingMessages()
+	go store.storeIncomingMessages(ctx)
 
 	if store.msgProvider == nil {
 		log.Info("Store protocol started (no message provider)")
@@ -235,6 +239,7 @@ func (store *WakuStore) Start(h host.Host) {
 	envelopes, err := store.msgProvider.GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages")
+		stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "store_load_failure")}, metrics.Errors.M(1))
 		return
 	}
 
@@ -245,6 +250,8 @@ func (store *WakuStore) Start(h host.Host) {
 			continue
 		}
 		store.messages = append(store.messages, IndexedWakuMessage{msg: env.Message(), index: idx, pubsubTopic: env.PubsubTopic()})
+
+		stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "stored")}, metrics.StoreMessages.M(int64(len(store.messages))))
 	}
 
 	log.Info("Store protocol started")
@@ -266,13 +273,17 @@ func (store *WakuStore) storeMessage(pubSubTopic string, msg *pb.WakuMessage) {
 	}
 
 	err = store.msgProvider.Put(index, pubSubTopic, msg) // Should the index be stored?
+
 	if err != nil {
 		log.Error("could not store message", err)
+		stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "store_failure")}, metrics.Errors.M(1))
 		return
 	}
+
+	stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "stored")}, metrics.StoreMessages.M(int64(len(store.messages))))
 }
 
-func (store *WakuStore) storeIncomingMessages() {
+func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
 	for envelope := range store.MsgC {
 		store.storeMessage(envelope.PubsubTopic(), envelope.Message())
 	}
@@ -289,6 +300,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
 		log.Error("error reading request", err)
+		stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "decodeRPCFailure")}, metrics.Errors.M(1))
 		return
 	}
 
@@ -352,7 +364,7 @@ func findIndex(msgList []IndexedWakuMessage, index *pb.Index) int {
 	// returns the position of an IndexedWakuMessage in msgList whose index value matches the given index
 	// returns -1 if no match is found
 	for i, indexedWakuMessage := range msgList {
-		if bytes.Compare(indexedWakuMessage.index.Digest, index.Digest) == 0 && indexedWakuMessage.index.ReceivedTime == index.ReceivedTime {
+		if bytes.Equal(indexedWakuMessage.index.Digest, index.Digest) && indexedWakuMessage.index.ReceivedTime == index.ReceivedTime {
 			return i
 		}
 	}
@@ -403,7 +415,6 @@ func (store *WakuStore) selectPeer() *peer.ID {
 type HistoryRequestParameters struct {
 	selectedPeer peer.ID
 	requestId    []byte
-	timeout      *time.Duration
 	cursor       *pb.Index
 	pageSize     uint64
 	asc          bool
@@ -484,8 +495,11 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
 		log.Error("could not read response", err)
+		stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "decodeRPCFailure")}, metrics.Errors.M(1))
 		return nil, err
 	}
+
+	stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "retrieved")}, metrics.StoreMessages.M(int64(len(store.messages))))
 
 	return historyResponseRPC.Response, nil
 }
@@ -555,7 +569,7 @@ func (store *WakuStore) findLastSeen() float64 {
 // if no peerList is passed, one of the peers in the underlying peer manager unit of the store protocol is picked randomly to fetch the history from. The history gets fetched successfully if the dialed peer has been online during the queried time window.
 // the resume proc returns the number of retrieved messages if no error occurs, otherwise returns the error string
 
-func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList []peer.ID) (int, error) {
+func (store *WakuStore) Resume(pubsubTopic string, peerList []peer.ID) (int, error) {
 	currentTime := float64(time.Now().UnixNano())
 	lastSeenTime := store.findLastSeen()
 
@@ -577,7 +591,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	var response *pb.HistoryResponse
 	if len(peerList) > 0 {
 		var err error
-		response, err = store.queryLoop(ctx, rpc, peerList)
+		response, err = store.queryLoop(store.ctx, rpc, peerList)
 		if err != nil {
 			log.Error("failed to resume history", err)
 			return -1, ErrFailedToResumeHistory
@@ -590,7 +604,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 		}
 
 		var err error
-		response, err = store.queryFrom(ctx, rpc, *p, protocol.GenerateRequestId())
+		response, err = store.queryFrom(store.ctx, rpc, *p, protocol.GenerateRequestId())
 		if err != nil {
 			log.Error("failed to resume history", err)
 			return -1, ErrFailedToResumeHistory
