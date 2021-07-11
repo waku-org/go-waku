@@ -29,7 +29,7 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
-	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210629085338-e9c89c8f00f5
+	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210711180556-9afd35dadd3f
 	go.opencensus.io v0.23.0
 	gopkg.in/ini.v1 v1.62.0 // indirect
 )

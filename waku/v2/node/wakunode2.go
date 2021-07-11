@@ -275,7 +275,7 @@ func (w *WakuNode) IsOnline() bool {
 	hasFilter := false
 	for _, v := range w.peers {
 		for _, protocol := range v {
-			if !hasRelay && protocol == string(wakurelay.WakuRelayID_v200b2) {
+			if !hasRelay && protocol == string(wakurelay.WakuRelayID_v200) {
 				hasRelay = true
 			}
 			if !hasLightPush && protocol == string(lightpush.WakuLightPushProtocolId) {

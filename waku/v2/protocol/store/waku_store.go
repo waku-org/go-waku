@@ -182,8 +182,15 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 	return result
 }
 
+type StoredMessage struct {
+	ID           []byte
+	PubsubTopic  string
+	ReceiverTime int64
+	Message      *pb.WakuMessage
+}
+
 type MessageProvider interface {
-	GetAll() ([]*protocol.Envelope, error)
+	GetAll() ([]StoredMessage, error)
 	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
 	Stop()
 }
@@ -195,9 +202,11 @@ type IndexedWakuMessage struct {
 }
 
 type WakuStore struct {
-	ctx           context.Context
-	MsgC          chan *protocol.Envelope
-	messages      []IndexedWakuMessage
+	ctx        context.Context
+	MsgC       chan *protocol.Envelope
+	messages   []IndexedWakuMessage
+	messageSet map[[32]byte]struct{}
+
 	messagesMutex sync.Mutex
 
 	storeMsgs   bool
@@ -247,20 +256,20 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host, peerChan chan *e
 		return
 	}
 
-	envelopes, err := store.msgProvider.GetAll()
+	storedMessages, err := store.msgProvider.GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages")
 		stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "store_load_failure")}, metrics.Errors.M(1))
 		return
 	}
 
-	for _, env := range envelopes {
-		idx, err := computeIndex(env.Message())
-		if err != nil {
-			log.Error("could not calculate message index", err)
-			continue
+	for _, storedMessage := range storedMessages {
+		idx := &pb.Index{
+			Digest:       storedMessage.ID,
+			ReceiverTime: float64(storedMessage.ReceiverTime),
 		}
-		store.messages = append(store.messages, IndexedWakuMessage{msg: env.Message(), index: idx, pubsubTopic: env.PubsubTopic()})
+
+		store.storeMessageWithIndex(storedMessage.PubsubTopic, idx, storedMessage.Message)
 
 		stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "stored")}, metrics.StoreMessages.M(int64(len(store.messages))))
 	}
@@ -268,6 +277,18 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host, peerChan chan *e
 	go store.peerListener()
 
 	log.Info("Store protocol started")
+}
+
+func (store *WakuStore) storeMessageWithIndex(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) {
+	var k [32]byte
+	copy(k[:], idx.Digest)
+
+	if _, ok := store.messageSet[k]; ok {
+		return
+	}
+
+	store.messageSet[k] = struct{}{}
+	store.messages = append(store.messages, IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
 }
 
 func (store *WakuStore) storeMessage(pubSubTopic string, msg *pb.WakuMessage) {
@@ -278,8 +299,9 @@ func (store *WakuStore) storeMessage(pubSubTopic string, msg *pb.WakuMessage) {
 	}
 
 	store.messagesMutex.Lock()
-	store.messages = append(store.messages, IndexedWakuMessage{msg: msg, index: index, pubsubTopic: pubSubTopic})
-	store.messagesMutex.Unlock()
+	defer store.messagesMutex.Unlock()
+
+	store.storeMessageWithIndex(pubSubTopic, index, msg)
 
 	if store.msgProvider == nil {
 		return
@@ -340,7 +362,8 @@ func computeIndex(msg *pb.WakuMessage) (*pb.Index, error) {
 	digest := sha256.Sum256(data)
 	return &pb.Index{
 		Digest:       digest[:],
-		ReceivedTime: float64(time.Now().UnixNano()),
+		ReceiverTime: float64(time.Now().UnixNano()),
+		SenderTime:   msg.Timestamp,
 	}, nil
 }
 
@@ -350,10 +373,10 @@ func indexComparison(x, y *pb.Index) int {
 	// returns -1 if x < y
 	// returns 1 if x > y
 
-	var timecmp int = 0 // TODO: ask waku team why Index ReceivedTime is is float?
-	if x.ReceivedTime > y.ReceivedTime {
+	var timecmp int = 0
+	if x.SenderTime > y.SenderTime {
 		timecmp = 1
-	} else if x.ReceivedTime < y.ReceivedTime {
+	} else if x.SenderTime < y.SenderTime {
 		timecmp = -1
 	}
 
@@ -377,7 +400,7 @@ func findIndex(msgList []IndexedWakuMessage, index *pb.Index) int {
 	// returns the position of an IndexedWakuMessage in msgList whose index value matches the given index
 	// returns -1 if no match is found
 	for i, indexedWakuMessage := range msgList {
-		if bytes.Equal(indexedWakuMessage.index.Digest, index.Digest) && indexedWakuMessage.index.ReceivedTime == index.ReceivedTime {
+		if bytes.Equal(indexedWakuMessage.index.Digest, index.Digest) && indexedWakuMessage.index.ReceiverTime == index.ReceiverTime {
 			return i
 		}
 	}

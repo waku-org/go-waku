@@ -2,6 +2,8 @@ module basic2
 
 go 1.15
 
+replace github.com/status-im/go-waku => ../..
+
 require (
 	github.com/ethereum/go-ethereum v1.9.5
 	github.com/ipfs/go-log v1.0.5

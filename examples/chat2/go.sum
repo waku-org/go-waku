@@ -946,6 +946,10 @@ github.com/spf13/viper v1.7.1/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5q
 github.com/src-d/envconfig v1.0.0/go.mod h1:Q9YQZ7BKITldTBnoxsE5gOeB5y66RyPXeue/R4aaNBc=
 github.com/status-im/go-wakurelay-pubsub v0.4.2 h1:F4UGcP80H0PGaeJ0mRMzA1Ux3DKYiyv/qu3bOR/efTg=
 github.com/status-im/go-wakurelay-pubsub v0.4.2/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210629085338-e9c89c8f00f5 h1:39QKkm3ksIAarNWCfUnXw/UirVJFCyiLZfj3NRB4HdY=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210629085338-e9c89c8f00f5/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210711180556-9afd35dadd3f h1:/KXMnxtAe0ZrbErvgZPkKilpLCmd7g1CIKQ4x17Al5I=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210711180556-9afd35dadd3f/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=
 github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570/go.mod h1:8OR4w3TdeIHIh1g6EMY5p0gVNOovcWC+1vpc7naMuAw=
 github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3/go.mod h1:hpGUWaI9xL8pRQCTXQgocU38Qw1g0Us7n5PxxTwTCYU=

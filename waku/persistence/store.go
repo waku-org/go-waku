@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
@@ -58,7 +57,8 @@ func NewDBStore(opt DBOption) (*DBStore, error) {
 func (d *DBStore) createTable() error {
 	sqlStmt := `CREATE TABLE IF NOT EXISTS message (
 		id BLOB PRIMARY KEY,
-		timestamp INTEGER NOT NULL,
+		receiverTimestamp INTEGER NOT NULL,
+		senderTimestamp INTEGER NOT NULL,
 		contentTopic BLOB NOT NULL,
 		pubsubTopic BLOB NOT NULL,
 		payload BLOB,
@@ -78,11 +78,11 @@ func (d *DBStore) Stop() {
 
 // Inserts a WakuMessage into the DB
 func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error {
-	stmt, err := d.db.Prepare("INSERT INTO message (id, timestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?)")
+	stmt, err := d.db.Prepare("INSERT INTO message (id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(cursor.Digest, uint64(message.Timestamp), message.ContentTopic, pubsubTopic, message.Payload, message.Version)
+	_, err = stmt.Exec(cursor.Digest, uint64(cursor.ReceiverTime), uint64(message.Timestamp), message.ContentTopic, pubsubTopic, message.Payload, message.Version)
 	if err != nil {
 		return err
 	}
@@ -91,24 +91,26 @@ func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMess
 }
 
 // Returns all the stored WakuMessages
-func (d *DBStore) GetAll() ([]*protocol.Envelope, error) {
-	rows, err := d.db.Query("SELECT timestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY timestamp ASC")
+func (d *DBStore) GetAll() ([]store.StoredMessage, error) {
+	rows, err := d.db.Query("SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY timestamp ASC")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []*protocol.Envelope
+	var result []store.StoredMessage
 
 	defer rows.Close()
 
 	for rows.Next() {
-		var timestamp int64
+		var id []byte
+		var receiverTimestamp int64
+		var senderTimestamp int64
 		var contentTopic string
 		var payload []byte
 		var version uint32
 		var pubsubTopic string
 
-		err = rows.Scan(&timestamp, &contentTopic, &pubsubTopic, &payload, &version)
+		err = rows.Scan(&id, &receiverTimestamp, &senderTimestamp, &contentTopic, &pubsubTopic, &payload, &version)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -116,11 +118,17 @@ func (d *DBStore) GetAll() ([]*protocol.Envelope, error) {
 		msg := new(pb.WakuMessage)
 		msg.ContentTopic = contentTopic
 		msg.Payload = payload
-		msg.Timestamp = float64(timestamp)
+		msg.Timestamp = float64(senderTimestamp)
 		msg.Version = version
 
-		envelope := protocol.NewEnvelope(msg, pubsubTopic)
-		result = append(result, envelope)
+		record := store.StoredMessage{
+			ID:           id,
+			PubsubTopic:  pubsubTopic,
+			ReceiverTime: receiverTimestamp,
+			Message:      msg,
+		}
+
+		result = append(result, record)
 	}
 
 	err = rows.Err()
