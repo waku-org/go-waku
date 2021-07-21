@@ -30,7 +30,8 @@ import (
 
 var log = logging.Logger("wakustore")
 
-const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta3")
+const WakuStoreCodec = "/vac/waku/store/2.0.0-beta3"
+const WakuStoreProtocolId = libp2pProtocol.ID(WakuStoreCodec)
 const MaxPageSize = 100 // Maximum number of waku messages in each page
 const DefaultContentTopic = "/waku/2/default-content/proto"
 
@@ -247,7 +248,7 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host, peerChan chan *e
 		return
 	}
 
-	store.h.SetStreamHandler(WakuStoreProtocolId, store.onRequest)
+	store.h.SetStreamHandlerMatch(WakuStoreProtocolId, protocol.PrefixTextMatch(WakuStoreCodec), store.onRequest)
 
 	go store.storeIncomingMessages(ctx)
 
