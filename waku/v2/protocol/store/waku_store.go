@@ -53,7 +53,7 @@ func minOf(vars ...int) int {
 	return min
 }
 
-func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo) {
+func paginate(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo, resError pb.HistoryResponse_Error) {
 	// takes list, and performs paging based on pinfo
 	// returns the page i.e, a sequence of IndexedWakuMessage and the new paging info to be used for the next paging request
 	cursor := pinfo.Cursor
@@ -61,11 +61,11 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 	dir := pinfo.Direction
 
 	if pageSize == 0 { // pageSize being zero indicates that no pagination is required
-		return list, pinfo
+		return list, pinfo, pb.HistoryResponse_NONE
 	}
 
 	if len(list) == 0 { // no pagination is needed for an empty list
-		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}, pb.HistoryResponse_NONE
 	}
 
 	msgList := make([]IndexedWakuMessage, len(list))
@@ -88,7 +88,7 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 
 	foundIndex := findIndex(msgList, cursor)
 	if foundIndex == -1 { // the cursor is not valid
-		return nil, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+		return nil, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}, pb.HistoryResponse_INVALID_CURSOR
 	}
 
 	var retrievedPageSize, s, e int
@@ -122,19 +122,10 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 	for i := s; i <= e; i++ {
 		resMessages = append(resMessages, msgList[i])
 	}
+
 	resPagingInfo = &pb.PagingInfo{PageSize: uint64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
+	resError = pb.HistoryResponse_NONE
 
-	return
-}
-
-func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []*pb.WakuMessage, resPinfo *pb.PagingInfo) {
-	// takes list, and performs paging based on pinfo
-	// returns the page i.e, a sequence of WakuMessage and the new paging info to be used for the next paging request
-	indexedData, updatedPagingInfo := paginateWithIndex(list, pinfo)
-	for _, indexedMsg := range indexedData {
-		resMessages = append(resMessages, indexedMsg.msg)
-	}
-	resPinfo = updatedPagingInfo
 	return
 }
 
@@ -178,7 +169,13 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 		data = append(data, indexedMsg)
 	}
 
-	result.Messages, result.PagingInfo = paginateWithoutIndex(data, query.PagingInfo)
+	indexedMessages, pagingInfo, responseError := paginate(data, query.PagingInfo)
+	result.Error = responseError
+	result.PagingInfo = pagingInfo
+	for _, indexedMsg := range indexedMessages {
+		result.Messages = append(result.Messages, indexedMsg.msg)
+	}
+
 	return result
 }
 
