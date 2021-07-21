@@ -91,7 +91,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 		err = writer.WriteMsg(responsePushRPC)
 		if err != nil {
 			log.Error("error writing response", err)
-			s.Reset()
+			_ = s.Reset()
 		} else {
 			log.Info(fmt.Sprintf("%s: response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
 		}

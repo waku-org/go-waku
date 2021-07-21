@@ -179,7 +179,10 @@ var rootCmd = &cobra.Command{
 
 		if len(staticnodes) > 0 {
 			for _, n := range staticnodes {
-				go wakuNode.DialPeer(n)
+				go func(node string) {
+					err = wakuNode.DialPeer(node)
+					checkError(err, "Error dialing peer")
+				}(n)
 			}
 		}
 
@@ -188,7 +191,10 @@ var rootCmd = &cobra.Command{
 		} else {
 			if len(lightpushnodes) > 0 {
 				for _, n := range lightpushnodes {
-					go wakuNode.AddLightPushPeer(n)
+					go func(node string) {
+						_, err = wakuNode.AddLightPushPeer(node)
+						checkError(err, "Error adding lightpush peer")
+					}(n)
 				}
 			}
 		}
@@ -198,7 +204,10 @@ var rootCmd = &cobra.Command{
 		} else {
 			if len(filternodes) > 0 {
 				for _, n := range filternodes {
-					go wakuNode.AddFilterPeer(n)
+					go func(node string) {
+						_, err = wakuNode.AddFilterPeer(node)
+						checkError(err, "Error adding filter peer")
+					}(n)
 				}
 			}
 		}

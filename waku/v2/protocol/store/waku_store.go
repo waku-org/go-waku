@@ -348,7 +348,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	err = writer.WriteMsg(historyResponseRPC)
 	if err != nil {
 		log.Error("error writing response", err)
-		s.Reset()
+		_ = s.Reset()
 	} else {
 		log.Info(fmt.Sprintf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
 	}
@@ -477,7 +477,9 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	}
 
 	defer connOpt.Close()
-	defer connOpt.Reset()
+	defer func() {
+		_ = connOpt.Reset()
+	}()
 
 	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(requestId)}
 
