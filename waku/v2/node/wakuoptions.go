@@ -28,7 +28,7 @@ type WakuNodeParameters struct {
 	wOpts        []wakurelay.Option
 
 	enableStore bool
-	storeMsgs   bool
+	isStoreNode bool
 	store       *store.WakuStore
 	filter      *filter.WakuFilter
 
@@ -106,13 +106,13 @@ func WithWakuFilter(opts ...wakurelay.Option) WakuNodeOption {
 	}
 }
 
-// WithWakuStore enables the Waku V2 Store protocol and if the messages should
-// be stored or not in a message provider
-func WithWakuStore(shouldStoreMessages bool) WakuNodeOption {
+// WithWakuStore enables the Waku V2 Store protocol and if we are going
+// to act as a store node (messages will be stored or not in a message provider)
+func WithWakuStore(isStoreNode bool) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
-		params.storeMsgs = shouldStoreMessages
-		params.store = store.NewWakuStore(shouldStoreMessages, nil)
+		params.isStoreNode = isStoreNode
+		params.store = store.NewWakuStore(isStoreNode, nil)
 		return nil
 	}
 }

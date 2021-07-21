@@ -209,18 +209,18 @@ type WakuStore struct {
 
 	messagesMutex sync.Mutex
 
-	storeMsgs   bool
+	isStoreNode bool
 	msgProvider MessageProvider
 	h           host.Host
 
 	peerChan chan *event.EvtPeerConnectednessChanged
 }
 
-func NewWakuStore(shouldStoreMessages bool, p MessageProvider) *WakuStore {
+func NewWakuStore(isStoreNode bool, p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.MsgC = make(chan *protocol.Envelope)
 	wakuStore.msgProvider = p
-	wakuStore.storeMsgs = shouldStoreMessages
+	wakuStore.isStoreNode = isStoreNode
 
 	return wakuStore
 }
@@ -242,7 +242,7 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host, peerChan chan *e
 	store.ctx = ctx
 	store.peerChan = peerChan
 
-	if !store.storeMsgs {
+	if !store.isStoreNode {
 		log.Info("Store protocol started (messages aren't stored)")
 		return
 	}

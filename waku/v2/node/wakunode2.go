@@ -46,6 +46,7 @@ type WakuNode struct {
 	host host.Host
 	opts *WakuNodeParameters
 
+	store     *store.WakuStore
 	relay     *relay.WakuRelay
 	filter    *filter.WakuFilter
 	lightPush *lightpush.WakuLightPush
@@ -189,7 +190,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.peers = make(PeerStats)
 
 	// Subscribe to Connectedness events
-	log.Info("### host.ID(): ", host.ID())
+	log.Info("host.ID(): ", host.ID())
 
 	connectednessEventSub, _ := host.EventBus().Subscribe(new(event.EvtPeerConnectednessChanged))
 	w.connectednessEventSub = connectednessEventSub
@@ -206,6 +207,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	go w.connectednessListener()
 
 	if params.enableStore {
+		w.store = w.opts.store
 		w.startStore()
 	}
 
@@ -358,7 +360,7 @@ func (w *WakuNode) mountLightPush() {
 }
 
 func (w *WakuNode) AddPeer(p peer.ID, addrs []ma.Multiaddr, protocolId string) error {
-	log.Info("AddPeer: ", protocolId)
+	log.Info("AddPeer: ", p, " - ", protocolId)
 
 	for _, addr := range addrs {
 		w.host.Peerstore().AddAddr(p, addr, peerstore.PermanentAddrTTL)
@@ -374,14 +376,14 @@ func (w *WakuNode) AddPeer(p peer.ID, addrs []ma.Multiaddr, protocolId string) e
 
 func (w *WakuNode) startStore() {
 	peerChan := make(chan *event.EvtPeerConnectednessChanged)
-	w.opts.store.Start(w.ctx, w.host, peerChan)
+	w.store.Start(w.ctx, w.host, peerChan)
 	w.peerListeners = append(w.peerListeners, peerChan)
-	w.opts.store.Resume(string(relay.GetTopic(nil)), nil)
+	w.store.Resume(string(relay.GetTopic(nil)), nil)
 
 }
 
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
-	if w.opts.store == nil {
+	if w.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
@@ -440,7 +442,7 @@ func (w *WakuNode) AddLightPushPeer(address string) (*peer.ID, error) {
 }
 
 func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
-	if w.opts.store == nil {
+	if w.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
@@ -453,7 +455,7 @@ func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime 
 	query.StartTime = startTime
 	query.EndTime = endTime
 	query.PagingInfo = new(pb.PagingInfo)
-	result, err := w.opts.store.Query(ctx, query, opts...)
+	result, err := w.store.Query(ctx, query, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -461,11 +463,11 @@ func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime 
 }
 
 func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
-	if w.opts.store == nil {
+	if w.store == nil {
 		return errors.New("WakuStore is not set")
 	}
 
-	result, err := w.opts.store.Resume(string(relay.DefaultWakuTopic), peerList)
+	result, err := w.store.Resume(string(relay.DefaultWakuTopic), peerList)
 	if err != nil {
 		return err
 	}
@@ -486,9 +488,9 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 	sub, isNew, err := node.relay.Subscribe(t)
 
 	// Subscribe store to topic
-	if isNew && node.opts.store != nil && node.opts.storeMsgs {
+	if isNew && node.store != nil {
 		log.Info("Subscribing store to topic ", t)
-		node.bcaster.Register(node.opts.store.MsgC)
+		node.bcaster.Register(node.store.MsgC)
 	}
 
 	// Subscribe filter
