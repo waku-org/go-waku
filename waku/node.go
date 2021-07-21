@@ -251,8 +251,6 @@ func init() {
 	rootCmd.Flags().Bool("metrics", false, "Enable the metrics server")
 	rootCmd.Flags().String("metrics-address", "127.0.0.1", "Listening address of the metrics server")
 	rootCmd.Flags().Int("metrics-port", 8008, "Listening HTTP port of the metrics server")
-	rootCmd.Flags().StringSlice("filternodes", []string{}, "Multiaddr of peers to to request content filtering of messages. Argument may be repeated")
-	rootCmd.Flags().StringSlice("lightpushnodes", []string{}, "Multiaddr of peers to to request lightpush of published messages. Argument may be repeated")
 }
 
 func initConfig() {
