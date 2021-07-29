@@ -32,6 +32,7 @@ var log = logging.Logger("wakustore")
 
 const WakuStoreProtocolId = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta3")
 const MaxPageSize = 100 // Maximum number of waku messages in each page
+const DefaultPageSize = 20
 const DefaultContentTopic = "/waku/2/default-content/proto"
 
 var (
@@ -53,7 +54,7 @@ func minOf(vars ...int) int {
 	return min
 }
 
-func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo) {
+func paginate(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo, resError pb.HistoryResponse_Error) {
 	// takes list, and performs paging based on pinfo
 	// returns the page i.e, a sequence of IndexedWakuMessage and the new paging info to be used for the next paging request
 	cursor := pinfo.Cursor
@@ -61,11 +62,11 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 	dir := pinfo.Direction
 
 	if pageSize == 0 { // pageSize being zero indicates that no pagination is required
-		return list, pinfo
+		return list, pinfo, pb.HistoryResponse_NONE
 	}
 
 	if len(list) == 0 { // no pagination is needed for an empty list
-		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}, pb.HistoryResponse_NONE
 	}
 
 	msgList := make([]IndexedWakuMessage, len(list))
@@ -88,7 +89,7 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 
 	foundIndex := findIndex(msgList, cursor)
 	if foundIndex == -1 { // the cursor is not valid
-		return nil, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+		return nil, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}, pb.HistoryResponse_INVALID_CURSOR
 	}
 
 	var retrievedPageSize, s, e int
@@ -122,19 +123,10 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 	for i := s; i <= e; i++ {
 		resMessages = append(resMessages, msgList[i])
 	}
+
 	resPagingInfo = &pb.PagingInfo{PageSize: uint64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
+	resError = pb.HistoryResponse_NONE
 
-	return
-}
-
-func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []*pb.WakuMessage, resPinfo *pb.PagingInfo) {
-	// takes list, and performs paging based on pinfo
-	// returns the page i.e, a sequence of WakuMessage and the new paging info to be used for the next paging request
-	indexedData, updatedPagingInfo := paginateWithIndex(list, pinfo)
-	for _, indexedMsg := range indexedData {
-		resMessages = append(resMessages, indexedMsg.msg)
-	}
-	resPinfo = updatedPagingInfo
 	return
 }
 
@@ -178,7 +170,13 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 		data = append(data, indexedMsg)
 	}
 
-	result.Messages, result.PagingInfo = paginateWithoutIndex(data, query.PagingInfo)
+	indexedMessages, pagingInfo, responseError := paginate(data, query.PagingInfo)
+	result.Error = responseError
+	result.PagingInfo = pagingInfo
+	for _, indexedMsg := range indexedMessages {
+		result.Messages = append(result.Messages, indexedMsg.msg)
+	}
+
 	return result
 }
 
@@ -503,6 +501,48 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	return historyResponseRPC.Response, nil
 }
 
+func (store *WakuStore) queryFromWithPaging(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestId []byte) (*pb.HistoryResponse, error) {
+	var messageList []*pb.WakuMessage
+
+	// copy of query to not modify og object
+	b, err := q.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	var query *pb.HistoryQuery
+	err = query.Unmarshal(b)
+	if err != nil {
+		return nil, err
+	}
+
+	hasNextPage := true
+
+	var r *pb.HistoryResponse
+	for hasNextPage {
+		r, err = store.queryFrom(ctx, q, selectedPeer, requestId)
+		if err != nil {
+			return nil, err
+		}
+
+		if r.Error == pb.HistoryResponse_INVALID_CURSOR {
+			break
+		}
+
+		messageList = append(messageList, r.Messages...)
+		if r.PagingInfo.PageSize == 0 {
+			hasNextPage = false
+		}
+
+		q.PagingInfo.Cursor = r.PagingInfo.Cursor
+
+	}
+
+	r.PagingInfo.PageSize = uint64(len(messageList))
+	r.Messages = messageList
+
+	return r, nil
+}
+
 func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...HistoryRequestOption) (*pb.HistoryResponse, error) {
 	params := new(HistoryRequestParameters)
 	params.s = store
@@ -540,7 +580,7 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 	// loops through the candidateList in order and sends the query to each until one of the query gets resolved successfully
 	// returns the number of retrieved messages, or error if all the requests fail
 	for _, peer := range candidateList {
-		result, err := store.queryFrom(ctx, query, peer, protocol.GenerateRequestId())
+		result, err := store.queryFromWithPaging(ctx, query, peer, protocol.GenerateRequestId())
 		if err != nil {
 			return result, nil
 		}
@@ -559,6 +599,30 @@ func (store *WakuStore) findLastSeen() float64 {
 	return lastSeenTime
 }
 
+type ResumeParameters struct {
+	pageSize int
+	peerList []peer.ID
+}
+
+type ResumeOption func(*ResumeParameters)
+
+func WithPageSize(pageSize int) ResumeOption {
+	return func(params *ResumeParameters) {
+		params.pageSize = pageSize
+	}
+}
+
+func WithPeerList(peerList []peer.ID) ResumeOption {
+	return func(params *ResumeParameters) {
+		params.peerList = peerList
+	}
+}
+
+// Default options used in the libp2p node
+var DefaultResumeOptions = []ResumeOption{
+	WithPageSize(DefaultPageSize),
+}
+
 // resume proc retrieves the history of waku messages published on the default waku pubsub topic since the last time the waku store node has been online
 // messages are stored in the store node's messages field and in the message db
 // the offline time window is measured as the difference between the current time and the timestamp of the most recent persisted waku message
@@ -567,8 +631,8 @@ func (store *WakuStore) findLastSeen() float64 {
 // peerList indicates the list of peers to query from. The history is fetched from the first available peer in this list. Such candidates should be found through a discovery method (to be developed).
 // if no peerList is passed, one of the peers in the underlying peer manager unit of the store protocol is picked randomly to fetch the history from. The history gets fetched successfully if the dialed peer has been online during the queried time window.
 // the resume proc returns the number of retrieved messages if no error occurs, otherwise returns the error string
+func (store *WakuStore) Resume(pubsubTopic string, opts ...ResumeOption) (int, error) {
 
-func (store *WakuStore) Resume(pubsubTopic string, peerList []peer.ID) (int, error) {
 	currentTime := float64(time.Now().UnixNano())
 	lastSeenTime := store.findLastSeen()
 
@@ -578,19 +642,25 @@ func (store *WakuStore) Resume(pubsubTopic string, peerList []peer.ID) (int, err
 	currentTime = currentTime + offset
 	lastSeenTime = math.Max(lastSeenTime-offset, 0)
 
+	params := new(ResumeParameters)
+	opts = append(DefaultResumeOptions, opts...)
+	for _, opt := range opts {
+		opt(params)
+	}
+
 	rpc := &pb.HistoryQuery{
 		PubsubTopic: pubsubTopic,
 		StartTime:   lastSeenTime,
 		EndTime:     currentTime,
 		PagingInfo: &pb.PagingInfo{
-			PageSize:  0,
+			PageSize:  uint64(params.pageSize),
 			Direction: pb.PagingInfo_BACKWARD,
 		},
 	}
 	var response *pb.HistoryResponse
-	if len(peerList) > 0 {
+	if len(params.peerList) > 0 {
 		var err error
-		response, err = store.queryLoop(store.ctx, rpc, peerList)
+		response, err = store.queryLoop(store.ctx, rpc, params.peerList)
 		if err != nil {
 			log.Error("failed to resume history", err)
 			return -1, ErrFailedToResumeHistory
@@ -603,7 +673,7 @@ func (store *WakuStore) Resume(pubsubTopic string, peerList []peer.ID) (int, err
 			return -1, ErrNoPeersAvailable
 		}
 
-		response, err = store.queryFrom(store.ctx, rpc, *p, protocol.GenerateRequestId())
+		response, err = store.queryFromWithPaging(store.ctx, rpc, *p, protocol.GenerateRequestId())
 		if err != nil {
 			log.Error("failed to resume history", err)
 			return -1, ErrFailedToResumeHistory
