@@ -9,6 +9,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
@@ -36,7 +37,7 @@ func NewWakuRelay(ctx context.Context, h host.Host, opts ...wakurelay.Option) (*
 	w.wakuRelayTopics = make(map[Topic]*wakurelay.Topic)
 	w.relaySubs = make(map[Topic]*wakurelay.Subscription)
 
-	ps, err := wakurelay.NewWakuRelaySub(ctx, h, opts...)
+	ps, err := wakurelay.NewWakuRelaySubWithMatcherFunc(ctx, h, protocol.PrefixTextMatch(string(wakurelay.WakuRelayID_v200)), opts...)
 	if err != nil {
 		return nil, err
 	}
