@@ -37,7 +37,7 @@ func NewWakuRelay(ctx context.Context, h host.Host, opts ...wakurelay.Option) (*
 	w.wakuRelayTopics = make(map[Topic]*wakurelay.Topic)
 	w.relaySubs = make(map[Topic]*wakurelay.Subscription)
 
-	ps, err := wakurelay.NewWakuRelaySubWithMatcherFunc(ctx, h, protocol.PrefixTextMatch(string(wakurelay.WakuRelayID_v200)), opts...)
+	ps, err := wakurelay.NewWakuRelaySubWithMatcherFunc(ctx, h, protocol.PrefixTextMatch, opts...)
 	if err != nil {
 		return nil, err
 	}
