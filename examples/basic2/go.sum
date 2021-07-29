@@ -805,6 +805,8 @@ github.com/status-im/go-wakurelay-pubsub v0.4.2 h1:F4UGcP80H0PGaeJ0mRMzA1Ux3DKYi
 github.com/status-im/go-wakurelay-pubsub v0.4.2/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210711180556-9afd35dadd3f h1:/KXMnxtAe0ZrbErvgZPkKilpLCmd7g1CIKQ4x17Al5I=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210711180556-9afd35dadd3f/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210721191549-83c6a2c077f4 h1:LaoaRVhtEu5kCzcEVn+l3sprDbTqpzWFsVT2lmAcHcA=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210721191549-83c6a2c077f4/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/handy v0.0.0-20190108123426-d5acb3125c2a/go.mod h1:qNTQ5P5JnDBl6z3cMAg/SywNDC5ABu5ApDIw6lUbRmI=

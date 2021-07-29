@@ -842,6 +842,10 @@ github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210721190623-e23032977d88 h1
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210721190623-e23032977d88/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210721191549-83c6a2c077f4 h1:LaoaRVhtEu5kCzcEVn+l3sprDbTqpzWFsVT2lmAcHcA=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210721191549-83c6a2c077f4/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729133637-e321eb74e8b4 h1:LRner8fJfKPX/NCzLlfToqQwNLr6u/EwSAZYFESSHtg=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729133637-e321eb74e8b4/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729143434-184b435d0b0c h1:31bXRinMJMnexs0tohXJ96MmVs0uuuNlcaAWfgItwn0=
+github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729143434-184b435d0b0c/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/status-go/extkeys v1.0.0/go.mod h1:GdqJbrcpkNm5ZsSCpp+PdMxnXx+OcRBdm3PI0rs1FpU=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=

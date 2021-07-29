@@ -57,8 +57,8 @@ func NewDBStore(opt DBOption) (*DBStore, error) {
 func (d *DBStore) createTable() error {
 	sqlStmt := `CREATE TABLE IF NOT EXISTS message (
 		id BLOB PRIMARY KEY,
-		receiverTimestamp INTEGER NOT NULL,
-		senderTimestamp INTEGER NOT NULL,
+		receiverTimestamp REAL NOT NULL,
+		senderTimestamp REAL NOT NULL,
 		contentTopic BLOB NOT NULL,
 		pubsubTopic BLOB NOT NULL,
 		payload BLOB,
@@ -78,11 +78,11 @@ func (d *DBStore) Stop() {
 
 // Inserts a WakuMessage into the DB
 func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error {
-	stmt, err := d.db.Prepare("INSERT INTO message (id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?)")
+	stmt, err := d.db.Prepare("INSERT INTO message (id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(cursor.Digest, uint64(cursor.ReceiverTime), uint64(message.Timestamp), message.ContentTopic, pubsubTopic, message.Payload, message.Version)
+	_, err = stmt.Exec(cursor.Digest, cursor.ReceiverTime, message.Timestamp, message.ContentTopic, pubsubTopic, message.Payload, message.Version)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMess
 
 // Returns all the stored WakuMessages
 func (d *DBStore) GetAll() ([]store.StoredMessage, error) {
-	rows, err := d.db.Query("SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY timestamp ASC")
+	rows, err := d.db.Query("SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY senderTimestamp ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +103,8 @@ func (d *DBStore) GetAll() ([]store.StoredMessage, error) {
 
 	for rows.Next() {
 		var id []byte
-		var receiverTimestamp int64
-		var senderTimestamp int64
+		var receiverTimestamp float64
+		var senderTimestamp float64
 		var contentTopic string
 		var payload []byte
 		var version uint32
@@ -118,7 +118,7 @@ func (d *DBStore) GetAll() ([]store.StoredMessage, error) {
 		msg := new(pb.WakuMessage)
 		msg.ContentTopic = contentTopic
 		msg.Payload = payload
-		msg.Timestamp = float64(senderTimestamp)
+		msg.Timestamp = senderTimestamp
 		msg.Version = version
 
 		record := store.StoredMessage{

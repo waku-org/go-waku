@@ -13,6 +13,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	wpb "github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -93,7 +94,7 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	}
 
 	var version uint32
-	var timestamp float64 = float64(time.Now().UnixNano())
+	var timestamp float64 = utils.GetUnixEpoch()
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 
 	if cr.useV1Payload { // Use WakuV1 encryption
