@@ -378,7 +378,7 @@ func (w *WakuNode) startStore() {
 	peerChan := make(chan *event.EvtPeerConnectednessChanged)
 	w.store.Start(w.ctx, w.host, peerChan)
 	w.peerListeners = append(w.peerListeners, peerChan)
-	w.store.Resume(string(relay.GetTopic(nil)), nil)
+	w.store.Resume(string(relay.GetTopic(nil)))
 
 }
 
@@ -467,7 +467,7 @@ func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
 		return errors.New("WakuStore is not set")
 	}
 
-	result, err := w.store.Resume(string(relay.DefaultWakuTopic), peerList)
+	result, err := w.store.Resume(string(relay.DefaultWakuTopic))
 	if err != nil {
 		return err
 	}
