@@ -56,7 +56,7 @@ func (w *WakuRelay) Topics() []Topic {
 	w.topicsMutex.Lock()
 
 	var result []Topic
-	for topic, _ := range w.topics {
+	for topic := range w.topics {
 		result = append(result, topic)
 	}
 	return result
@@ -109,7 +109,7 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic 
 	// Publish a `WakuMessage` to a PubSub topic.
 
 	if w.pubsub == nil {
-		return nil, errors.New("PubSub hasn't been set.")
+		return nil, errors.New("PubSub hasn't been set")
 	}
 
 	if message == nil {
