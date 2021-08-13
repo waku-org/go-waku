@@ -30,6 +30,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a
+	github.com/stretchr/testify v1.6.1
 	go.opencensus.io v0.23.0
 	gopkg.in/ini.v1 v1.62.0 // indirect
 )

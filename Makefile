@@ -1,4 +1,4 @@
-.PHONY: all build lint
+.PHONY: all build lint test
 
 all: build
 
@@ -8,3 +8,6 @@ build:
 lint:
 	@echo "lint"
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
+test:
+	go test -v -failfast ./...
+
