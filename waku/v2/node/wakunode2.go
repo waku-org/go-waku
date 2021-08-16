@@ -376,7 +376,9 @@ func (w *WakuNode) startStore() {
 	peerChan := make(chan *event.EvtPeerConnectednessChanged)
 	w.opts.store.Start(w.ctx, w.host, peerChan)
 	w.peerListeners = append(w.peerListeners, peerChan)
-	w.opts.store.Resume(string(relay.GetTopic(nil)), nil)
+	if _, err := w.opts.store.Resume(string(relay.GetTopic(nil)), nil); err != nil {
+		log.Error("failed to resume", err)
+	}
 }
 
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
