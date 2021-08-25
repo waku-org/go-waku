@@ -10,16 +10,25 @@ A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v
 
 | Spec | Implementation Status |
 | ---- | -------------- |
-|[7/WAKU-DATA](https://rfc.vac.dev/spec/7)|✔|
+|[7/WAKU2](https://rfc.vac.dev/spec/7)|✔|
 |[10/WAKU2](https://rfc.vac.dev/spec/10)|🚧|
 |[11/WAKU2-RELAY](https://rfc.vac.dev/spec/11)|✔|
-|[12/WAKU2-FILTER](https://rfc.vac.dev/spec/12)||
-|[13/WAKU2-STORE](https://rfc.vac.dev/spec/13)|🚧|
+|[12/WAKU2-FILTER](https://rfc.vac.dev/spec/12)|✔|
+|[13/WAKU2-STORE](https://rfc.vac.dev/spec/13)|✔|
 |[14/WAKU2-MESSAGE](https://rfc.vac.dev/spec/14)|✔|
 |[15/WAKU2-BRIDGE](https://rfc.vac.dev/spec/15)|⛔|
 |[16/WAKU2-RPC](https://rfc.vac.dev/spec/16)||
 |[17/WAKU2-RLNRELAY](https://rfc.vac.dev/spec/17)||
 |[18/WAKU2-SWAP](https://rfc.vac.dev/spec/18)||
+|[21/WAKU2-FTSTORE](https://rfc.vac.dev/spec/21)|✔|
+|[22/TOY-CHAT](https://rfc.vac.dev/spec/22)|✔|
+|[23/TOPICS](https://rfc.vac.dev/spec/22)|(implemented in status-go)|
+|[25/LIBP2P-DNS-DISCOVERY](https://rfc.vac.dev/spec/25)|🚧|
+|[26/WAKU2-PAYLOAD](https://rfc.vac.dev/spec/26)|✔|
+|[27/WAKU2-PEERS](https://rfc.vac.dev/spec/27)|✔|
+|[29/WAKU2-CONFIG](https://rfc.vac.dev/spec/29)|🚧|
+
+
 
 
 ## Install
