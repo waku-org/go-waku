@@ -768,7 +768,7 @@ func (w *WakuNode) ClosePeerById(id peer.ID) error {
 }
 
 func (w *WakuNode) PeerCount() int {
-	return len(w.host.Network().Peers())
+	return len(w.peers)
 }
 
 func (w *WakuNode) startKeepAlive(t time.Duration) {
