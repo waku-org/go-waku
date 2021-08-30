@@ -40,6 +40,7 @@ type PeerStats map[peer.ID][]string
 type ConnStatus struct {
 	IsOnline   bool
 	HasHistory bool
+	Peers      []peer.ID
 }
 
 type WakuNode struct {
@@ -133,13 +134,13 @@ func (w *WakuNode) processHostEvent(e interface{}) {
 	}
 	isOnline := w.IsOnline()
 	hasHistory := w.HasHistory()
-	switch e.(type) {
+	switch e := e.(type) {
 	case event.EvtPeerConnectednessChanged:
-		w.handleConnectednessChanged(e.(event.EvtPeerConnectednessChanged))
+		w.handleConnectednessChanged(e)
 	case event.EvtPeerProtocolsUpdated:
-		w.handleProtocolsUpdated(e.(event.EvtPeerProtocolsUpdated))
+		w.handleProtocolsUpdated(e)
 	case event.EvtPeerIdentificationCompleted:
-		w.handlePeerIdentificationCompleted(e.(event.EvtPeerIdentificationCompleted))
+		w.handlePeerIdentificationCompleted(e)
 	}
 
 	log.Info("###processHostEvent before isOnline()")
@@ -150,8 +151,9 @@ func (w *WakuNode) processHostEvent(e interface{}) {
 		hasHistory, "/", newHasHistory)
 	if w.connStatusChan != nil &&
 		(isOnline != newIsOnline || hasHistory != newHasHistory) {
-		log.Info("New ConnStatus: ", ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory})
-		w.connStatusChan <- ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory}
+		peers := w.host.Network().Peers()
+		log.Info("New ConnStatus: ", ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory, Peers: peers})
+		w.connStatusChan <- ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory, Peers: peers}
 	}
 
 }
