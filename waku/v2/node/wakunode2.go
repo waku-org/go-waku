@@ -163,8 +163,7 @@ func (w *WakuNode) processHostEvent(e interface{}) {
 	newHasHistory := w.HasHistory()
 	log.Info("###ConnStatus isOnline: ", isOnline, "/", newIsOnline, " hasHistory: ",
 		hasHistory, "/", newHasHistory)
-	if w.connStatusChan != nil &&
-		(isOnline != newIsOnline || hasHistory != newHasHistory) {
+	if w.connStatusChan != nil {
 
 		// Creating a copy of the current peers map
 		w.peersMutex.Lock()
@@ -174,8 +173,10 @@ func (w *WakuNode) processHostEvent(e interface{}) {
 		}
 		w.peersMutex.Unlock()
 
-		log.Info("New ConnStatus: ", ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory, Peers: p})
-		w.connStatusChan <- ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory, Peers: p}
+		connStatus := ConnStatus{IsOnline: newIsOnline, HasHistory: newHasHistory, Peers: p}
+
+		log.Info("New ConnStatus: ", connStatus)
+		w.connStatusChan <- connStatus
 	}
 
 }
@@ -728,7 +729,7 @@ func (w *WakuNode) ClosePeerById(id peer.ID) error {
 }
 
 func (w *WakuNode) PeerCount() int {
-	return len(w.host.Network().Peers())
+	return len(w.peers)
 }
 
 func (w *WakuNode) startKeepAlive(t time.Duration) {
