@@ -697,13 +697,17 @@ func (w *WakuNode) DialPeer(address string) error {
 		return err
 	}
 
-	// Extract the peer ID from the multiaddr.
 	info, err := peer.AddrInfoFromP2pAddr(p)
 	if err != nil {
 		return err
 	}
 
 	return w.host.Connect(w.ctx, *info)
+}
+
+func (w *WakuNode) DialPeerByID(peerID peer.ID) error {
+	info := w.host.Peerstore().PeerInfo(peerID)
+	return w.host.Connect(w.ctx, info)
 }
 
 func (w *WakuNode) ClosePeerByAddress(address string) error {
