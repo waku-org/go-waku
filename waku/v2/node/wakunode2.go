@@ -10,11 +10,13 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
+
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	"github.com/libp2p/go-libp2p-core/peerstore"
+	p2pproto "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
@@ -357,19 +359,12 @@ func (w *WakuNode) mountLightPush() {
 	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
 }
 
-func (w *WakuNode) AddPeer(p peer.ID, addrs []ma.Multiaddr, protocolId string) error {
+func (w *WakuNode) AddPeer(info *peer.AddrInfo, protocolId string) error {
 	log.Info("AddPeer: ", protocolId)
 
-	for _, addr := range addrs {
-		w.host.Peerstore().AddAddr(p, addr, peerstore.PermanentAddrTTL)
-	}
-	err := w.host.Peerstore().AddProtocols(p, protocolId)
+	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return w.host.Peerstore().AddProtocols(info.ID, protocolId)
 }
 
 func (w *WakuNode) startStore() {
@@ -381,63 +376,29 @@ func (w *WakuNode) startStore() {
 	}
 }
 
+func (w *WakuNode) addPeerWithProtocol(address string, proto p2pproto.ID) (*peer.ID, error) {
+	info, err := addrInfoFromMultiaddrString(address)
+	if err != nil {
+		return nil, err
+	}
+
+	return &info.ID, w.AddPeer(info, string(proto))
+}
+
 func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
-	if w.opts.store == nil {
-		return nil, errors.New("WakuStore is not set")
-	}
-
-	storePeer, err := ma.NewMultiaddr(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Extract the peer ID from the multiaddr.
-	info, err := peer.AddrInfoFromP2pAddr(storePeer)
-	if err != nil {
-		return nil, err
-	}
-
-	return &info.ID, w.AddPeer(info.ID, info.Addrs, string(store.WakuStoreProtocolId))
+	return w.addPeerWithProtocol(address, store.WakuStoreProtocolId)
 }
 
-// TODO Remove code duplication
+func (w *WakuNode) AddRelayPeer(address string) (*peer.ID, error) {
+	return w.addPeerWithProtocol(address, wakurelay.WakuRelayID_v200)
+}
+
 func (w *WakuNode) AddFilterPeer(address string) (*peer.ID, error) {
-	if w.filter == nil {
-		return nil, errors.New("WakuFilter is not set")
-	}
-
-	filterPeer, err := ma.NewMultiaddr(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Extract the peer ID from the multiaddr.
-	info, err := peer.AddrInfoFromP2pAddr(filterPeer)
-	if err != nil {
-		return nil, err
-	}
-
-	return &info.ID, w.AddPeer(info.ID, info.Addrs, string(filter.WakuFilterProtocolId))
+	return w.addPeerWithProtocol(address, filter.WakuFilterProtocolId)
 }
 
-// TODO Remove code duplication
 func (w *WakuNode) AddLightPushPeer(address string) (*peer.ID, error) {
-	if w.filter == nil {
-		return nil, errors.New("WakuFilter is not set")
-	}
-
-	lightPushPeer, err := ma.NewMultiaddr(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Extract the peer ID from the multiaddr.
-	info, err := peer.AddrInfoFromP2pAddr(lightPushPeer)
-	if err != nil {
-		return nil, err
-	}
-
-	return &info.ID, w.AddPeer(info.ID, info.Addrs, string(lightpush.WakuLightPushProtocolId))
+	return w.addPeerWithProtocol(address, lightpush.WakuLightPushProtocolId)
 }
 
 func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
@@ -740,5 +701,13 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 			}
 		}
 	}()
+}
 
+func addrInfoFromMultiaddrString(address string) (*peer.AddrInfo, error) {
+	ma, err := ma.NewMultiaddr(address)
+	if err != nil {
+		return nil, err
+	}
+
+	return peer.AddrInfoFromP2pAddr(ma)
 }
