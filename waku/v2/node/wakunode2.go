@@ -743,6 +743,8 @@ func (w *WakuNode) ClosePeerById(id peer.ID) error {
 		Peer:          id,
 		Connectedness: network.NotConnected,
 	})
+
+	return nil
 }
 
 func (w *WakuNode) PeerCount() int {
