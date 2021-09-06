@@ -68,7 +68,7 @@ func main() {
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress([]net.Addr{hostAddr}),
-		node.WithWakuStore(false),
+		node.WithWakuStore(false, true),
 		node.WithKeepAlive(time.Duration(*keepAliveFlag) * time.Second),
 	}
 
