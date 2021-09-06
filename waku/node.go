@@ -143,7 +143,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if store {
-			nodeOpts = append(nodeOpts, node.WithWakuStore(true))
+			nodeOpts = append(nodeOpts, node.WithWakuStore(true, true))
 			if useDB {
 				dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 				checkError(err, "DBStore")

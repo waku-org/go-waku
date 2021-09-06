@@ -66,7 +66,7 @@ func main() {
 		node.WithHostAddress([]net.Addr{addrsAndKeys[0].addr}),
 		node.WithWakuRelay(),
 		//node.WithConnStatusChan(connStatusChan),
-		node.WithWakuStore(true),
+		node.WithWakuStore(true, false),
 		node.WithKeepAlive(time.Duration(2)*time.Second),
 	)
 
