@@ -780,7 +780,11 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 		for {
 			select {
 			case <-ticker.C:
-				for _, p := range w.host.Network().Peers() {
+				for _, p := range w.host.Peerstore().Peers() {
+					if p == w.host.ID() {
+						log.Info("###PING skip ", p)
+						continue
+					}
 					mu.Lock()
 					_, ok := peerMap[p]
 					mu.Unlock()
