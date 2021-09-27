@@ -95,9 +95,6 @@ var rootCmd = &cobra.Command{
 		prvKey, err := crypto.HexToECDSA(key)
 		checkError(err, "error converting key into valid ecdsa key")
 
-		// TODO: this ENR record might be necessary later for DNS discovery
-		// enr := enode.NewV4(&prvKey.PublicKey, hostAddr.IP, hostAddr.Port, 0)
-
 		if dbPath == "" && useDB {
 			checkError(errors.New("dbpath can't be null"), "")
 		}
