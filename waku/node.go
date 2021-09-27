@@ -95,6 +95,9 @@ var rootCmd = &cobra.Command{
 		prvKey, err := crypto.HexToECDSA(key)
 		checkError(err, "error converting key into valid ecdsa key")
 
+		// TODO: this ENR record might be necessary later for DNS discovery
+		// enr := enode.NewV4(&prvKey.PublicKey, hostAddr.IP, hostAddr.Port, 0)
+
 		if dbPath == "" && useDB {
 			checkError(errors.New("dbpath can't be null"), "")
 		}
@@ -198,13 +201,14 @@ var rootCmd = &cobra.Command{
 					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
 					defer cancel()
 					err = wakuNode.DialPeer(ctx, node)
-					checkError(err, "error dialing peer")
+					if err != nil {
+						log.Error("error dialing peer ", err)
+					}
 				}(n)
 			}
 		}
 
 		if enableDnsDiscovery {
-
 			for _, addr := range wakuNode.ListenAddresses() {
 				ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
 				enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
