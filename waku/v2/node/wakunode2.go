@@ -352,11 +352,11 @@ func (w *WakuNode) HasHistory() bool {
 	return false
 }
 
-func (w *WakuNode) ListenAddresses() []string {
+func (w *WakuNode) ListenAddresses() []ma.Multiaddr {
 	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", w.host.ID().Pretty()))
-	var result []string
+	var result []ma.Multiaddr
 	for _, addr := range w.host.Addrs() {
-		result = append(result, addr.Encapsulate(hostInfo).String())
+		result = append(result, addr.Encapsulate(hostInfo))
 	}
 	return result
 }

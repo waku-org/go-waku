@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
@@ -90,9 +91,6 @@ var rootCmd = &cobra.Command{
 
 		prvKey, err := crypto.HexToECDSA(key)
 		checkError(err, "error converting key into valid ecdsa key")
-
-		// TODO: this ENR record might be necessary later for DNS discovery
-		// enr := enode.NewV4(&prvKey.PublicKey, hostAddr.IP, hostAddr.Port, 0)
 
 		if dbPath == "" && useDB {
 			checkError(errors.New("dbpath can't be null"), "")
@@ -196,19 +194,30 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		if enableDnsDiscovery && dnsDiscoveryUrl != "" {
-			log.Info("attempting DNS discovery with ", dnsDiscoveryUrl)
-			multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
-			if err != nil {
-				log.Warn("dns discovery error ", err)
-			} else {
-				log.Info("found dns entries ", multiaddresses)
-				for _, m := range multiaddresses {
-					err = wakuNode.DialPeerWithMultiAddress(m)
-					if err != nil {
-						log.Error("error dialing peer ", err)
+		if enableDnsDiscovery {
+
+			for _, addr := range wakuNode.ListenAddresses() {
+				ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
+				enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
+				log.Info("ENR: ", enr)
+			}
+
+			if dnsDiscoveryUrl != "" {
+				log.Info("attempting DNS discovery with ", dnsDiscoveryUrl)
+				multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
+				if err != nil {
+					log.Warn("dns discovery error ", err)
+				} else {
+					log.Info("found dns entries ", multiaddresses)
+					for _, m := range multiaddresses {
+						err = wakuNode.DialPeerWithMultiAddress(m)
+						if err != nil {
+							log.Error("error dialing peer ", err)
+						}
 					}
 				}
+			} else {
+				log.Fatal("DNS discovery URL is required")
 			}
 		}
 
