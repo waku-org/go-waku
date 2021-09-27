@@ -690,6 +690,15 @@ func (node *WakuNode) LightPush(ctx context.Context, message *pb.WakuMessage, to
 	}
 }
 
+func (w *WakuNode) DialPeerWithMultiAddress(address ma.Multiaddr) error {
+	info, err := peer.AddrInfoFromP2pAddr(address)
+	if err != nil {
+		return err
+	}
+
+	return w.connect(*info)
+}
+
 func (w *WakuNode) DialPeer(address string) error {
 	p, err := ma.NewMultiaddr(address)
 	if err != nil {
@@ -813,7 +822,7 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 							}
 							defer w.peersMutex.Unlock()
 							log.Debug("###PING before fetching result")
-							
+
 							pingTicker := time.NewTicker(time.Duration(1) * time.Second)
 							isError := false
 							select {

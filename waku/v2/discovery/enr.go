@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
@@ -10,12 +11,32 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+type DnsDiscoveryParameters struct {
+	nameserver string
+}
+
+type DnsDiscoveryOption func(*DnsDiscoveryParameters)
+
+// WithMultiaddress is a WakuNodeOption that configures libp2p to listen on a list of multiaddresses
+func WithNameserver(nameserver string) DnsDiscoveryOption {
+	return func(params *DnsDiscoveryParameters) {
+		params.nameserver = nameserver
+	}
+}
+
 // RetrieveNodes returns a list of multiaddress given a url to a DNS discoverable
 // ENR tree
-func RetrieveNodes(url string) ([]ma.Multiaddr, error) {
+func RetrieveNodes(ctx context.Context, url string, opts ...DnsDiscoveryOption) ([]ma.Multiaddr, error) {
 	var multiAddrs []ma.Multiaddr
 
-	client := dnsdisc.NewClient(dnsdisc.Config{})
+	params := new(DnsDiscoveryParameters)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	client := dnsdisc.NewClient(dnsdisc.Config{
+		Resolver: GetResolver(ctx, params.nameserver),
+	})
 
 	tree, err := client.SyncTree(url)
 	if err != nil {
@@ -23,19 +44,18 @@ func RetrieveNodes(url string) ([]ma.Multiaddr, error) {
 	}
 
 	for _, node := range tree.Nodes() {
-		m, err := enodeToMultiAddr(node)
+		m, err := EnodeToMultiAddr(node)
 		if err != nil {
 			return nil, err
 		}
 
 		multiAddrs = append(multiAddrs, m)
-
 	}
 
 	return multiAddrs, nil
 }
 
-func enodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
+func EnodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
 	peerID, err := peer.IDFromPublicKey(&ECDSAPublicKey{node.Pubkey()})
 	if err != nil {
 		return nil, err
