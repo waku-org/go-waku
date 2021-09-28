@@ -18,6 +18,7 @@ import (
 	dssql "github.com/ipfs/go-ds-sql"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
@@ -25,12 +26,13 @@ import (
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
+	pubsub "github.com/status-im/go-wakurelay-pubsub"
 
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 
-	pubsub "github.com/status-im/go-wakurelay-pubsub"
+	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
 )
 
 var log = logging.Logger("wakunode")
@@ -82,6 +84,9 @@ var rootCmd = &cobra.Command{
 		dnsDiscoveryUrl, _ := cmd.Flags().GetString("dns-discovery-url")
 		dnsDiscoveryNameServer, _ := cmd.Flags().GetString("dns-discovery-nameserver")
 		peerExchange, _ := cmd.Flags().GetBool("peer-exchange")
+		enableRendezvous, _ := cmd.Flags().GetBool("rendezvous")
+		rendezvousPeerIds, _ := cmd.Flags().GetStringSlice("rendezvous-nodes")
+		enableRendezvousServer, _ := cmd.Flags().GetBool("rendezvous-server")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -150,6 +155,22 @@ var rootCmd = &cobra.Command{
 			}
 
 			nodeOpts = append(nodeOpts, node.WithWakuRelay(wakurelayopts...))
+		}
+
+		if enableRendezvous && len(rendezvousPeerIds) > 0 {
+			var peers []peer.ID
+			for _, r := range rendezvousPeerIds {
+				peerId, err := peer.Decode(r)
+				if err != nil {
+					checkError(err, "Rendezvous")
+				}
+				peers = append(peers, peerId)
+			}
+			nodeOpts = append(nodeOpts, node.WithRendezvous(peers, pubsub.WithDiscoveryOpts(libp2pdisc.TTL(time.Duration(20)*time.Second))))
+		}
+
+		if enableRendezvousServer {
+			nodeOpts = append(nodeOpts, node.WithRendezvousServer())
 		}
 
 		if wakuFilter {
@@ -313,6 +334,9 @@ func init() {
 	rootCmd.Flags().String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
 	rootCmd.Flags().String("dns-discovery-nameserver", "", "DNS nameserver IP to query (empty to use system's default)")
 	rootCmd.Flags().Bool("peer-exchange", true, "Enable GossipSub Peer Exchange")
+	rootCmd.Flags().Bool("rendezvous", false, "Enable rendezvous for peer discovery")
+	rootCmd.Flags().StringSlice("rendezvous-nodes", []string{}, "Peer IDs of waku2 rendezvous nodes. Argument may be repeated")
+	rootCmd.Flags().Bool("rendezvous-server", false, "Node will act as rendezvous server")
 }
 
 func initConfig() {
