@@ -173,6 +173,22 @@ var rootCmd = &cobra.Command{
 			nodeOpts = append(nodeOpts, node.WithRendezvousServer())
 		}
 
+		if enableRendezvous && len(rendezvousPeerIds) > 0 {
+			var peers []peer.ID
+			for _, r := range rendezvousPeerIds {
+				peerId, err := peer.Decode(r)
+				if err != nil {
+					checkError(err, "Rendezvous")
+				}
+				peers = append(peers, peerId)
+			}
+			nodeOpts = append(nodeOpts, node.WithRendezvous(peers, pubsub.WithDiscoveryOpts(libp2pdisc.TTL(time.Duration(20)*time.Second))))
+		}
+
+		if enableRendezvousServer {
+			nodeOpts = append(nodeOpts, node.WithRendezvousServer())
+		}
+
 		if wakuFilter {
 			nodeOpts = append(nodeOpts, node.WithWakuFilter())
 		}
