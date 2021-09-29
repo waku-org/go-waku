@@ -236,7 +236,6 @@ github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7a
 github.com/gogo/protobuf v1.2.0/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gogo/protobuf v1.2.1/go.mod h1:hp+jE20tsWTFYpLwKvXlhS1hjn+gTNwPg2I6zVXpSg4=
 github.com/gogo/protobuf v1.3.0/go.mod h1:SlYgWuQ5SjCEi6WLHjHCa1yvBfUnHcTbrrZtXPKa29o=
-github.com/gogo/protobuf v1.3.1 h1:DqDEcV5aeaTmdFBePNpYsp3FlcVH/2ISVVM9Qf8PSls=
 github.com/gogo/protobuf v1.3.1/go.mod h1:SlYgWuQ5SjCEi6WLHjHCa1yvBfUnHcTbrrZtXPKa29o=
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
@@ -945,12 +944,8 @@ github.com/spf13/viper v1.7.1/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5q
 github.com/src-d/envconfig v1.0.0/go.mod h1:Q9YQZ7BKITldTBnoxsE5gOeB5y66RyPXeue/R4aaNBc=
 github.com/status-im/go-ethereum v1.10.4-status.2 h1:uvcD2U7skYqPQviARFb4w3wZyFSYLs/pfVrJaRSDcCA=
 github.com/status-im/go-ethereum v1.10.4-status.2/go.mod h1:GvIhpdCOgMHI6i5xVPEZOrv/qSMeOFHbZh77AoyZUoE=
-github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928195017-4397dd0f844d h1:cJkS8VzW0jwOne1ipKiUCjMLbMQU7Xa7XPJCMrjZCNU=
-github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928195017-4397dd0f844d/go.mod h1:up+uGvIr4JbhszgZB4fLcFoc0xbihgv1M885ZQrgtIs=
-github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928205005-be9b1a0035bf h1:hhkIKjPCMuDd1T5h0DPc4dS2HUc1tzkMw1ReWj7stnY=
-github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928205005-be9b1a0035bf/go.mod h1:up+uGvIr4JbhszgZB4fLcFoc0xbihgv1M885ZQrgtIs=
-github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928230014-94a02b1432a3 h1:C6Ed5GA9wlvNOZeLi16hMVpEXLb+4AhGSDx/ZljtWbs=
-github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928230014-94a02b1432a3/go.mod h1:up+uGvIr4JbhszgZB4fLcFoc0xbihgv1M885ZQrgtIs=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929193940-d227fbccda4f h1:i9f5vF50k/JvomNFrxZaWUxKq6TOai6OAUOFVGhi7ro=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929193940-d227fbccda4f/go.mod h1:Q/GA4TCj4QLJCO02GN4O1CgkuTkn8oKbQSn1+yratvE=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a h1:eCna/q/PuZVqtmOMBqytw9yzZwMNKpao4au0OJDvesI=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=

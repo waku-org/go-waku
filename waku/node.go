@@ -27,12 +27,15 @@ import (
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
 	pubsub "github.com/status-im/go-wakurelay-pubsub"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 
 	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
+	rendezvous "github.com/status-im/go-libp2p-rendezvous"
 )
 
 var log = logging.Logger("wakunode")
@@ -87,6 +90,7 @@ var rootCmd = &cobra.Command{
 		enableRendezvous, _ := cmd.Flags().GetBool("rendezvous")
 		rendezvousPeerIds, _ := cmd.Flags().GetStringSlice("rendezvous-nodes")
 		enableRendezvousServer, _ := cmd.Flags().GetBool("rendezvous-server")
+		rendezvousData, _ := cmd.Flags().GetString("rendezvous-data")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -186,7 +190,10 @@ var rootCmd = &cobra.Command{
 		}
 
 		if enableRendezvousServer {
-			nodeOpts = append(nodeOpts, node.WithRendezvousServer())
+			db, err := leveldb.OpenFile(rendezvousData, &opt.Options{OpenFilesCacheCapacity: 3})
+			checkError(err, "RendezvousDB")
+			storage := rendezvous.NewStorage(db)
+			nodeOpts = append(nodeOpts, node.WithRendezvousServer(storage))
 		}
 
 		if wakuFilter {
@@ -351,6 +358,7 @@ func init() {
 	rootCmd.Flags().String("dns-discovery-nameserver", "", "DNS nameserver IP to query (empty to use system's default)")
 	rootCmd.Flags().Bool("peer-exchange", true, "Enable GossipSub Peer Exchange")
 	rootCmd.Flags().Bool("rendezvous", false, "Enable rendezvous for peer discovery")
+	rootCmd.Flags().String("rendezvous-data", "/tmp/rendevouz", "path where peer info will be stored.")
 	rootCmd.Flags().StringSlice("rendezvous-nodes", []string{}, "Peer IDs of waku2 rendezvous nodes. Argument may be repeated")
 	rootCmd.Flags().Bool("rendezvous-server", false, "Node will act as rendezvous server")
 }
