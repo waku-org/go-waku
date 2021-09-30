@@ -64,7 +64,7 @@ func main() {
 		node.WithWakuFilter(),
 	)
 
-	_, err = lightNode.AddFilterPeer(fullNode.ListenAddresses()[0].String())
+	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterID_v20beta1)
 	if err != nil {
 		log.Info("Error adding filter peer on light node ", err)
 	}
