@@ -79,7 +79,7 @@ func main() {
 	log.Info("### before DialPeer")
 	//staticNode := "/ip4/8.210.222.231/tcp/30303/p2p/16Uiu2HAm4v86W3bmT1BiH6oSPzcsSr24iDQpSN5Qa992BCjjwgrD"
 	staticNode := "/ip4/188.166.135.145/tcp/30303/p2p/16Uiu2HAmL5okWopX7NqZWBUKVqW8iUxCEmd5GMHLVPwCgzYzQv3e"
-	relayNode1.DialPeer(staticNode)
+	relayNode1.DialPeer(ctx, staticNode)
 	//relayNode2.DialPeer(relayNode1.ListenAddresses()[0])
 
 	//go writeLoop(ctx, relayNode1)

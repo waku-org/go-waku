@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
@@ -142,13 +143,14 @@ func main() {
 			staticnode = getRandomFleetNode(fleetData, *fleetFlag)
 		}
 
-		err = wakuNode.DialPeer(staticnode)
+		ctx, cancel := context.WithTimeout(ctx, time.Duration(5)*time.Second)
+		defer cancel()
+		err = wakuNode.DialPeer(ctx, staticnode)
 		if err != nil {
 			ui.displayMessage("Could not connect to peer: " + err.Error())
 			return
 		} else {
 			ui.displayMessage("Connected to peer: " + staticnode)
-
 		}
 
 		enableDiscovery := *dnsDiscoveryFlag
@@ -162,10 +164,14 @@ func main() {
 				ui.displayMessage("DNS discovery error: " + err.Error())
 			} else {
 				for _, m := range multiaddresses {
-					err = wakuNode.DialPeerWithMultiAddress(m)
-					if err != nil {
-						ui.displayMessage("error dialing peer: " + err.Error())
-					}
+					go func(ctx context.Context, m multiaddr.Multiaddr) {
+						ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+						defer cancel()
+						err = wakuNode.DialPeerWithMultiAddress(ctx, m)
+						if err != nil {
+							ui.displayMessage("error dialing peer: " + err.Error())
+						}
+					}(ctx, m)
 				}
 			}
 		}
