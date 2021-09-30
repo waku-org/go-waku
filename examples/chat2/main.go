@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -18,9 +19,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
+	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
@@ -97,12 +101,12 @@ func main() {
 		return
 	}
 
-	if *lightPushNodeFlag != "" && *lightPushFlag {
-		wakuNode.AddLightPushPeer(*lightPushNodeFlag)
+	if *lightPushFlag {
+		addPeer(wakuNode, *lightPushNodeFlag, lightpush.LightPushID_v20beta1)
 	}
 
-	if *filterNodeFlag != "" && *filterFlag {
-		wakuNode.AddFilterPeer(*filterNodeFlag)
+	if *filterFlag {
+		addPeer(wakuNode, *filterNodeFlag, filter.FilterID_v20beta1)
 	}
 
 	// use the nickname from the cli flag, or a default if blank
@@ -181,7 +185,7 @@ func main() {
 			storenode = getRandomFleetNode(fleetData, *fleetFlag)
 		}
 
-		storeNodeId, err := wakuNode.AddStorePeer(storenode)
+		storeNodeId, err := addPeer(wakuNode, storenode, store.StoreID_v20beta3)
 		if err != nil {
 			ui.displayMessage("Could not connect to storenode: " + err.Error())
 			return
@@ -285,4 +289,17 @@ func getRandomFleetNode(data []byte, fleetId string) string {
 	randKey := wakunodes[mrand.Intn(len(wakunodes))]
 
 	return waku[randKey].(string)
+}
+
+func addPeer(wakuNode *node.WakuNode, addr string, protocol protocol.ID) (*peer.ID, error) {
+	if addr == "" {
+		return nil, errors.New("invalid multiaddress")
+	}
+
+	ma, err := multiaddr.NewMultiaddr(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return wakuNode.AddPeer(ma, protocol)
 }
