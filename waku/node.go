@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
@@ -25,6 +26,7 @@ import (
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
 
+	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 )
@@ -74,6 +76,9 @@ var rootCmd = &cobra.Command{
 		enableMetrics, _ := cmd.Flags().GetBool("metrics")
 		metricsAddress, _ := cmd.Flags().GetString("metrics-address")
 		metricsPort, _ := cmd.Flags().GetInt("metrics-port")
+		enableDnsDiscovery, _ := cmd.Flags().GetBool("dns-discovery")
+		dnsDiscoveryUrl, _ := cmd.Flags().GetString("dns-discovery-url")
+		dnsDiscoveryNameServer, _ := cmd.Flags().GetString("dns-discovery-nameserver")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -172,8 +177,9 @@ var rootCmd = &cobra.Command{
 		} else {
 			if storenode != "" {
 				_, err = wakuNode.AddStorePeer(storenode)
-				checkError(err, "Error adding store peer")
-
+				if err != nil {
+					log.Error("error adding store peer ", err)
+				}
 			}
 		}
 
@@ -181,8 +187,37 @@ var rootCmd = &cobra.Command{
 			for _, n := range staticnodes {
 				go func(node string) {
 					err = wakuNode.DialPeer(node)
-					checkError(err, "Error dialing peer")
+					if err != nil {
+						log.Error("error dialing peer ", err)
+					}
 				}(n)
+			}
+		}
+
+		if enableDnsDiscovery {
+
+			for _, addr := range wakuNode.ListenAddresses() {
+				ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
+				enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
+				log.Info("ENR: ", enr)
+			}
+
+			if dnsDiscoveryUrl != "" {
+				log.Info("attempting DNS discovery with ", dnsDiscoveryUrl)
+				multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
+				if err != nil {
+					log.Warn("dns discovery error ", err)
+				} else {
+					log.Info("found dns entries ", multiaddresses)
+					for _, m := range multiaddresses {
+						err = wakuNode.DialPeerWithMultiAddress(m)
+						if err != nil {
+							log.Error("error dialing peer ", err)
+						}
+					}
+				}
+			} else {
+				log.Fatal("DNS discovery URL is required")
 			}
 		}
 
@@ -260,6 +295,9 @@ func init() {
 	rootCmd.Flags().Bool("metrics", false, "Enable the metrics server")
 	rootCmd.Flags().String("metrics-address", "127.0.0.1", "Listening address of the metrics server")
 	rootCmd.Flags().Int("metrics-port", 8008, "Listening HTTP port of the metrics server")
+	rootCmd.Flags().Bool("dns-discovery", false, "enable dns discovery")
+	rootCmd.Flags().String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
+	rootCmd.Flags().String("dns-discovery-nameserver", "", "DNS nameserver IP to query (empty to use system's default)")
 }
 
 func initConfig() {

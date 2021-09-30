@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
@@ -41,6 +42,10 @@ func main() {
 	lightPushFlag := flag.Bool("lightpush", false, "enable lightpush protocol")
 	lightPushNodeFlag := flag.String("lightpushnode", "", "Multiaddr of peer to to request lightpush of published messages")
 	keepAliveFlag := flag.Int64("keep-alive", 300, "interval in seconds for pinging peers to keep the connection alive.")
+
+	dnsDiscoveryFlag := flag.Bool("dns-discovery", false, "enable dns discovery")
+	dnsDiscoveryUrlFlag := flag.String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
+	dnsDiscoveryNameServerFlag := flag.String("dns-discovery-nameserver", "", "DNS name server IP to query (empty to use system default)")
 
 	flag.Parse()
 
@@ -144,6 +149,25 @@ func main() {
 		} else {
 			ui.displayMessage("Connected to peer: " + staticnode)
 
+		}
+
+		enableDiscovery := *dnsDiscoveryFlag
+		dnsDiscoveryUrl := *dnsDiscoveryUrlFlag
+		dnsDiscoveryNameServer := *dnsDiscoveryNameServerFlag
+
+		if enableDiscovery && dnsDiscoveryUrl != "" {
+			ui.displayMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
+			multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
+			if err != nil {
+				ui.displayMessage("DNS discovery error: " + err.Error())
+			} else {
+				for _, m := range multiaddresses {
+					err = wakuNode.DialPeerWithMultiAddress(m)
+					if err != nil {
+						ui.displayMessage("error dialing peer: " + err.Error())
+					}
+				}
+			}
 		}
 
 		if len(storenode) == 0 {
