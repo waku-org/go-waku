@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 	rendezvous "github.com/status-im/go-libp2p-rendezvous"
@@ -37,7 +36,6 @@ type WakuNodeParameters struct {
 	enableRendezvous       bool
 	enableRendezvousServer bool
 	rendevousStorage       rendezvous.Storage
-	rendezvousPeers        []peer.ID
 	rendezvousOpts         []wakurelay.DiscoverOpt
 
 	keepAliveInterval time.Duration
@@ -104,10 +102,9 @@ func WithWakuRelay(opts ...wakurelay.Option) WakuNodeOption {
 	}
 }
 
-func WithRendezvous(peers []peer.ID, discoverOpts ...wakurelay.DiscoverOpt) WakuNodeOption {
+func WithRendezvous(discoverOpts ...wakurelay.DiscoverOpt) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRendezvous = true
-		params.rendezvousPeers = peers
 		params.rendezvousOpts = discoverOpts
 		return nil
 	}

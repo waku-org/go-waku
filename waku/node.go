@@ -18,7 +18,7 @@ import (
 	dssql "github.com/ipfs/go-ds-sql"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/cobra"
@@ -32,7 +32,10 @@ import (
 
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
+	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 
 	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
 	rendezvous "github.com/status-im/go-libp2p-rendezvous"
@@ -68,15 +71,15 @@ var rootCmd = &cobra.Command{
 		enableWs, _ := cmd.Flags().GetBool("ws")
 		wsPort, _ := cmd.Flags().GetInt("ws-port")
 		wakuRelay, _ := cmd.Flags().GetBool("relay")
-		wakuFilter, _ := cmd.Flags().GetBool("filter")
+		enableFilter, _ := cmd.Flags().GetBool("filter")
 		key, _ := cmd.Flags().GetString("nodekey")
-		store, _ := cmd.Flags().GetBool("store")
+		enableStore, _ := cmd.Flags().GetBool("store")
 		useDB, _ := cmd.Flags().GetBool("use-db")
 		dbPath, _ := cmd.Flags().GetString("dbpath")
 		storenode, _ := cmd.Flags().GetString("storenode")
 		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
 		filternodes, _ := cmd.Flags().GetStringSlice("filternodes")
-		lightpush, _ := cmd.Flags().GetBool("lightpush")
+		enableLightpush, _ := cmd.Flags().GetBool("lightpush")
 		lightpushnodes, _ := cmd.Flags().GetStringSlice("lightpushnodes")
 		topics, _ := cmd.Flags().GetStringSlice("topics")
 		keepAlive, _ := cmd.Flags().GetInt("keep-alive")
@@ -88,7 +91,7 @@ var rootCmd = &cobra.Command{
 		dnsDiscoveryNameServer, _ := cmd.Flags().GetString("dns-discovery-nameserver")
 		peerExchange, _ := cmd.Flags().GetBool("peer-exchange")
 		enableRendezvous, _ := cmd.Flags().GetBool("rendezvous")
-		rendezvousPeerIds, _ := cmd.Flags().GetStringSlice("rendezvous-nodes")
+		rendezvousnodes, _ := cmd.Flags().GetStringSlice("rendezvous-nodes")
 		enableRendezvousServer, _ := cmd.Flags().GetBool("rendezvous-server")
 		rendezvousData, _ := cmd.Flags().GetString("rendezvous-data")
 
@@ -161,18 +164,6 @@ var rootCmd = &cobra.Command{
 			nodeOpts = append(nodeOpts, node.WithWakuRelay(wakurelayopts...))
 		}
 
-		if enableRendezvous && len(rendezvousPeerIds) > 0 {
-			var peers []peer.ID
-			for _, r := range rendezvousPeerIds {
-				peerId, err := peer.Decode(r)
-				if err != nil {
-					checkError(err, "Rendezvous")
-				}
-				peers = append(peers, peerId)
-			}
-			nodeOpts = append(nodeOpts, node.WithRendezvous(peers, pubsub.WithDiscoveryOpts(libp2pdisc.TTL(time.Duration(20)*time.Second))))
-		}
-
 		if enableRendezvousServer {
 			db, err := leveldb.OpenFile(rendezvousData, &opt.Options{OpenFilesCacheCapacity: 3})
 			checkError(err, "RendezvousDB")
@@ -180,11 +171,11 @@ var rootCmd = &cobra.Command{
 			nodeOpts = append(nodeOpts, node.WithRendezvousServer(storage))
 		}
 
-		if wakuFilter {
+		if enableFilter {
 			nodeOpts = append(nodeOpts, node.WithWakuFilter())
 		}
 
-		if store {
+		if enableStore {
 			nodeOpts = append(nodeOpts, node.WithWakuStore(true, true))
 			if useDB {
 				dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
@@ -195,8 +186,12 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		if lightpush {
+		if enableLightpush {
 			nodeOpts = append(nodeOpts, node.WithLightPush())
+		}
+
+		if enableRendezvous {
+			nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(libp2pdisc.Limit(45), libp2pdisc.TTL(time.Duration(20)*time.Second))))
 		}
 
 		wakuNode, err := node.New(ctx, nodeOpts...)
@@ -209,15 +204,28 @@ var rootCmd = &cobra.Command{
 			checkError(err, "Error subscring to topic")
 		}
 
-		if storenode != "" && !store {
-			checkError(errors.New("Store protocol was not started"), "")
+		if !enableRendezvous && len(rendezvousnodes) > 0 {
+			checkError(errors.New("rendezvous protocol was not started"), "")
 		} else {
-			if storenode != "" {
-				_, err = wakuNode.AddStorePeer(storenode)
-				if err != nil {
-					log.Error("error adding store peer ", err)
-				}
-			}
+			addPeers(wakuNode, rendezvousnodes, rendezvous.RendezvousID_v001)
+		}
+
+		if storenode != "" && !enableStore {
+			checkError(errors.New("store protocol was not started"), "")
+		} else {
+			addPeers(wakuNode, []string{storenode}, store.StoreID_v20beta3)
+		}
+
+		if len(lightpushnodes) > 0 && !enableLightpush {
+			checkError(errors.New("lightpush protocol was not started"), "")
+		} else {
+			addPeers(wakuNode, lightpushnodes, lightpush.LightPushID_v20beta1)
+		}
+
+		if len(filternodes) > 0 && !enableFilter {
+			checkError(errors.New("filter protocol was not started"), "")
+		} else {
+			addPeers(wakuNode, filternodes, filter.FilterID_v20beta1)
 		}
 
 		if len(staticnodes) > 0 {
@@ -263,32 +271,6 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		if len(lightpushnodes) > 0 && !lightpush {
-			checkError(errors.New("LightPush protocol was not started"), "")
-		} else {
-			if len(lightpushnodes) > 0 {
-				for _, n := range lightpushnodes {
-					go func(node string) {
-						_, err = wakuNode.AddLightPushPeer(node)
-						checkError(err, "Error adding lightpush peer")
-					}(n)
-				}
-			}
-		}
-
-		if len(filternodes) > 0 && !wakuFilter {
-			checkError(errors.New("WakuFilter protocol was not started"), "")
-		} else {
-			if len(filternodes) > 0 {
-				for _, n := range filternodes {
-					go func(node string) {
-						_, err = wakuNode.AddFilterPeer(node)
-						checkError(err, "Error adding filter peer")
-					}(n)
-				}
-			}
-		}
-
 		// Wait for a SIGINT or SIGTERM signal
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
@@ -313,6 +295,20 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
+}
+
+func addPeers(wakuNode *node.WakuNode, addresses []string, protocol protocol.ID) {
+	for _, addrString := range addresses {
+		if addrString == "" {
+			continue
+		}
+
+		addr, err := multiaddr.NewMultiaddr(addrString)
+		checkError(err, "invalid multiaddress")
+
+		_, err = wakuNode.AddPeer(addr, protocol)
+		checkError(err, "error adding peer")
+	}
 }
 
 func init() {
@@ -343,7 +339,7 @@ func init() {
 	rootCmd.Flags().Bool("peer-exchange", true, "Enable GossipSub Peer Exchange")
 	rootCmd.Flags().Bool("rendezvous", false, "Enable rendezvous for peer discovery")
 	rootCmd.Flags().String("rendezvous-data", "/tmp/rendevouz", "path where peer info will be stored.")
-	rootCmd.Flags().StringSlice("rendezvous-nodes", []string{}, "Peer IDs of waku2 rendezvous nodes. Argument may be repeated")
+	rootCmd.Flags().StringSlice("rendezvous-nodes", []string{}, "Multiaddrs of waku2 rendezvous nodes. Argument may be repeated")
 	rootCmd.Flags().Bool("rendezvous-server", false, "Node will act as rendezvous server")
 }
 

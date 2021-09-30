@@ -30,7 +30,7 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
-	github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929200249-1b6d7e4055e6
+	github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930154620-020ef08b264a
 	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
