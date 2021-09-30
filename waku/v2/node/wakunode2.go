@@ -265,7 +265,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	}
 
 	if params.enableRendezvous {
-		rendezvous := rendezvous.NewRendezvousDiscovery(w.host, params.rendezvousPeers)
+		rendezvous := rendezvous.NewRendezvousDiscovery(w.host)
 		params.wOpts = append(params.wOpts, wakurelay.WithDiscovery(rendezvous, params.rendezvousOpts...))
 	}
 
@@ -343,13 +343,13 @@ func (w *WakuNode) IsOnline() bool {
 			if !hasRelay && protocol == string(wakurelay.WakuRelayID_v200) {
 				hasRelay = true
 			}
-			if !hasLightPush && protocol == string(lightpush.WakuLightPushProtocolId) {
+			if !hasLightPush && protocol == string(lightpush.LightPushID_v20beta1) {
 				hasLightPush = true
 			}
-			if !hasStore && protocol == string(store.WakuStoreProtocolId) {
+			if !hasStore && protocol == string(store.StoreID_v20beta3) {
 				hasStore = true
 			}
-			if !hasFilter && protocol == string(filter.WakuFilterProtocolId) {
+			if !hasFilter && protocol == string(filter.FilterID_v20beta1) {
 				hasFilter = true
 			}
 			if hasRelay || hasLightPush && (hasStore || hasFilter) {
@@ -367,7 +367,7 @@ func (w *WakuNode) HasHistory() bool {
 
 	for _, v := range w.peers {
 		for _, protocol := range v {
-			if protocol == string(store.WakuStoreProtocolId) {
+			if protocol == string(store.StoreID_v20beta3) {
 				return true
 			}
 		}
@@ -436,14 +436,6 @@ func (w *WakuNode) mountRendezvous() error {
 	return nil
 }
 
-func (w *WakuNode) AddPeer(info *peer.AddrInfo, protocolId string) error {
-	log.Info(fmt.Sprintf("adding peer %s with protocol %s", info.ID.Pretty(), protocolId))
-
-	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
-
-	return w.host.Peerstore().AddProtocols(info.ID, protocolId)
-}
-
 func (w *WakuNode) startStore() {
 	peerChan := make(chan *event.EvtPeerConnectednessChanged)
 	w.opts.store.Start(w.ctx, w.host, peerChan)
@@ -456,29 +448,20 @@ func (w *WakuNode) startStore() {
 	}
 }
 
-func (w *WakuNode) addPeerWithProtocol(address string, proto p2pproto.ID) (*peer.ID, error) {
-	info, err := addrInfoFromMultiaddrString(address)
+func (w *WakuNode) addPeer(info *peer.AddrInfo, protocolID p2pproto.ID) error {
+	log.Info(fmt.Sprintf("adding peer %s", info.ID.Pretty()))
+	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
+	return w.host.Peerstore().AddProtocols(info.ID, string(protocolID))
+
+}
+
+func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.ID, error) {
+	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
 		return nil, err
 	}
 
-	return &info.ID, w.AddPeer(info, string(proto))
-}
-
-func (w *WakuNode) AddStorePeer(address string) (*peer.ID, error) {
-	return w.addPeerWithProtocol(address, store.WakuStoreProtocolId)
-}
-
-func (w *WakuNode) AddRelayPeer(address string) (*peer.ID, error) {
-	return w.addPeerWithProtocol(address, wakurelay.WakuRelayID_v200)
-}
-
-func (w *WakuNode) AddFilterPeer(address string) (*peer.ID, error) {
-	return w.addPeerWithProtocol(address, filter.WakuFilterProtocolId)
-}
-
-func (w *WakuNode) AddLightPushPeer(address string) (*peer.ID, error) {
-	return w.addPeerWithProtocol(address, lightpush.WakuLightPushProtocolId)
+	return &info.ID, w.addPeer(info, protocolID)
 }
 
 func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
@@ -907,13 +890,4 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 			}
 		}
 	}()
-}
-
-func addrInfoFromMultiaddrString(address string) (*peer.AddrInfo, error) {
-	ma, err := ma.NewMultiaddr(address)
-	if err != nil {
-		return nil, err
-	}
-
-	return peer.AddrInfoFromP2pAddr(ma)
 }

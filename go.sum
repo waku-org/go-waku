@@ -948,6 +948,12 @@ github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929193940-d227fbccda4f h1:
 github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929193940-d227fbccda4f/go.mod h1:Q/GA4TCj4QLJCO02GN4O1CgkuTkn8oKbQSn1+yratvE=
 github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929200249-1b6d7e4055e6 h1:nC2lWJGdmLyGqGeIm97fFt3M/F80eLQbrDPH7BpLZVM=
 github.com/status-im/go-libp2p-rendezvous v0.0.0-20210929200249-1b6d7e4055e6/go.mod h1:Q/GA4TCj4QLJCO02GN4O1CgkuTkn8oKbQSn1+yratvE=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930143904-ba3a59f2257f h1:S2XA9ZlgSLBioLjTuCiZEg/txJ+C9tv51Q+BSC0dkiA=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930143904-ba3a59f2257f/go.mod h1:Q/GA4TCj4QLJCO02GN4O1CgkuTkn8oKbQSn1+yratvE=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930145448-58fe0c6241ed h1:SGStabA6aT9+dhTTeJQKbuZ5jFZYmaglU0DkL0nxazE=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930145448-58fe0c6241ed/go.mod h1:Q/GA4TCj4QLJCO02GN4O1CgkuTkn8oKbQSn1+yratvE=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930154620-020ef08b264a h1:/37EOjcoN5Lr8/ZQawuhKfNKF723myJUdlOTDVTciu4=
+github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930154620-020ef08b264a/go.mod h1:Q/GA4TCj4QLJCO02GN4O1CgkuTkn8oKbQSn1+yratvE=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a h1:eCna/q/PuZVqtmOMBqytw9yzZwMNKpao4au0OJDvesI=
 github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a/go.mod h1:LSCVYR7mnBBsxVJghrGpQ3yJAAATEe6XeQQqGCZhwrE=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=
