@@ -29,6 +29,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+
+	pubsub "github.com/status-im/go-wakurelay-pubsub"
 )
 
 var log = logging.Logger("wakunode")
@@ -79,6 +81,7 @@ var rootCmd = &cobra.Command{
 		enableDnsDiscovery, _ := cmd.Flags().GetBool("dns-discovery")
 		dnsDiscoveryUrl, _ := cmd.Flags().GetString("dns-discovery-url")
 		dnsDiscoveryNameServer, _ := cmd.Flags().GetString("dns-discovery-nameserver")
+		peerExchange, _ := cmd.Flags().GetBool("peer-exchange")
 
 		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
 
@@ -140,7 +143,13 @@ var rootCmd = &cobra.Command{
 		nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 
 		if wakuRelay {
-			nodeOpts = append(nodeOpts, node.WithWakuRelay())
+			var wakurelayopts []pubsub.Option
+
+			if peerExchange {
+				wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(true))
+			}
+
+			nodeOpts = append(nodeOpts, node.WithWakuRelay(wakurelayopts...))
 		}
 
 		if wakuFilter {
@@ -302,6 +311,7 @@ func init() {
 	rootCmd.Flags().Bool("dns-discovery", false, "enable dns discovery")
 	rootCmd.Flags().String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
 	rootCmd.Flags().String("dns-discovery-nameserver", "", "DNS nameserver IP to query (empty to use system's default)")
+	rootCmd.Flags().Bool("peer-exchange", true, "Enable GossipSub Peer Exchange")
 }
 
 func initConfig() {
