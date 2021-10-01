@@ -35,8 +35,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
-
-	db "github.com/status-im/go-libp2p-rendezvous/db/sqlite"
 )
 
 var log = logging.Logger("wakunode")
@@ -304,9 +302,14 @@ func (w *WakuNode) Stop() {
 	defer w.cancel()
 
 	close(w.quit)
+
 	defer w.connectednessEventSub.Close()
 	defer w.protocolEventSub.Close()
 	defer w.identificationEventSub.Close()
+
+	if w.rendezvous != nil {
+		w.rendezvous.Stop()
+	}
 
 	for _, topic := range w.relay.Topics() {
 		for _, sub := range w.subscriptions[topic] {
@@ -315,6 +318,8 @@ func (w *WakuNode) Stop() {
 	}
 
 	w.subscriptions = nil
+
+	w.host.Close()
 }
 
 func (w *WakuNode) Host() host.Host {
@@ -421,11 +426,12 @@ func (w *WakuNode) mountLightPush() {
 }
 
 func (w *WakuNode) mountRendezvous() error {
-	dbi, err := db.OpenDB(w.ctx, ":memory:") // TODO: replace for levelDB
-	if err != nil {
+	w.rendezvous = rendezvous.NewRendezvousService(w.host, w.opts.rendevousStorage)
+
+	if err := w.rendezvous.Start(); err != nil {
 		return err
 	}
-	w.rendezvous = rendezvous.NewRendezvousService(w.host, dbi)
+
 	log.Info("Rendezvous service started")
 	return nil
 }
