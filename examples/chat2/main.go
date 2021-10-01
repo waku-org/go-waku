@@ -176,25 +176,6 @@ func main() {
 			}
 		}
 
-		enableDiscovery := *dnsDiscoveryFlag
-		dnsDiscoveryUrl := *dnsDiscoveryUrlFlag
-		dnsDiscoveryNameServer := *dnsDiscoveryNameServerFlag
-
-		if enableDiscovery && dnsDiscoveryUrl != "" {
-			ui.displayMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
-			multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
-			if err != nil {
-				ui.displayMessage("DNS discovery error: " + err.Error())
-			} else {
-				for _, m := range multiaddresses {
-					err = wakuNode.DialPeerWithMultiAddress(m)
-					if err != nil {
-						ui.displayMessage("error dialing peer: " + err.Error())
-					}
-				}
-			}
-		}
-
 		if len(storenode) == 0 {
 			ui.displayMessage(fmt.Sprintf("No store node configured. Choosing one at random from %s fleet...", *fleetFlag))
 			storenode = getRandomFleetNode(fleetData, *fleetFlag)
