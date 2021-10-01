@@ -81,7 +81,9 @@ func NewChatUI(ctx context.Context, chat *Chat) *ChatUI {
 			peer := strings.TrimPrefix(line, "/connect ")
 			go func(peer string) {
 				chatUI.displayMessage("Connecting to peer...")
-				err := chat.node.DialPeer(peer)
+				ctx, cancel := context.WithTimeout(ctx, time.Duration(5)*time.Second)
+				defer cancel()
+				err := chat.node.DialPeer(ctx, peer)
 				if err != nil {
 					chatUI.displayMessage(err.Error())
 				} else {

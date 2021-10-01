@@ -186,10 +186,10 @@ var rootCmd = &cobra.Command{
 		if len(staticnodes) > 0 {
 			for _, n := range staticnodes {
 				go func(node string) {
-					err = wakuNode.DialPeer(node)
-					if err != nil {
-						log.Error("error dialing peer ", err)
-					}
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+					defer cancel()
+					err = wakuNode.DialPeer(ctx, node)
+					checkError(err, "error dialing peer")
 				}(n)
 			}
 		}
@@ -210,10 +210,14 @@ var rootCmd = &cobra.Command{
 				} else {
 					log.Info("found dns entries ", multiaddresses)
 					for _, m := range multiaddresses {
-						err = wakuNode.DialPeerWithMultiAddress(m)
-						if err != nil {
-							log.Error("error dialing peer ", err)
-						}
+						go func(ctx context.Context, m multiaddr.Multiaddr) {
+							ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+							defer cancel()
+							err = wakuNode.DialPeerWithMultiAddress(ctx, m)
+							if err != nil {
+								log.Error("error dialing peer ", err)
+							}
+						}(ctx, m)
 					}
 				}
 			} else {
