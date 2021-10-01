@@ -30,6 +30,7 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
+	github.com/status-im/go-libp2p-rendezvous v0.0.0-20210928230014-94a02b1432a3 // indirect
 	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a
 	github.com/stretchr/testify v1.7.0
 	go.opencensus.io v0.23.0

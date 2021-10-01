@@ -26,6 +26,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
+	rendezvous "github.com/status-im/go-libp2p-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
@@ -34,6 +35,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	wakurelay "github.com/status-im/go-wakurelay-pubsub"
+
+	db "github.com/status-im/go-libp2p-rendezvous/db/sqlite"
 )
 
 var log = logging.Logger("wakunode")
@@ -59,6 +62,8 @@ type WakuNode struct {
 	relay     *relay.WakuRelay
 	filter    *filter.WakuFilter
 	lightPush *lightpush.WakuLightPush
+
+	rendezvous *rendezvous.RendezvousService
 
 	ping *ping.PingService
 
@@ -197,13 +202,13 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	params := new(WakuNodeParameters)
 
 	ctx, cancel := context.WithCancel(ctx)
-	_ = cancel
 
 	params.libP2POpts = DefaultLibP2POptions
 
 	for _, opt := range opts {
 		err := opt(params)
 		if err != nil {
+			cancel()
 			return nil, err
 		}
 	}
@@ -218,6 +223,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 	host, err := libp2p.New(ctx, params.libP2POpts...)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -260,6 +266,11 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
+	if params.enableRendezvous {
+		rendezvous := rendezvous.NewRendezvousDiscovery(w.host, params.rendezvousPeers)
+		params.wOpts = append(params.wOpts, wakurelay.WithDiscovery(rendezvous, params.rendezvousOpts...))
+	}
+
 	err = w.mountRelay(params.enableRelay, params.wOpts...)
 	if err != nil {
 		return nil, err
@@ -271,6 +282,13 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 	if params.keepAliveInterval > time.Duration(0) {
 		w.startKeepAlive(params.keepAliveInterval)
+	}
+
+	if params.enableRendezvousServer {
+		err := w.mountRendezvous()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, addr := range w.ListenAddresses() {
@@ -400,6 +418,16 @@ func (w *WakuNode) mountFilter() error {
 }
 func (w *WakuNode) mountLightPush() {
 	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
+}
+
+func (w *WakuNode) mountRendezvous() error {
+	dbi, err := db.OpenDB(w.ctx, ":memory:") // TODO: replace for levelDB
+	if err != nil {
+		return err
+	}
+	w.rendezvous = rendezvous.NewRendezvousService(w.host, dbi)
+	log.Info("Rendezvous service started")
+	return nil
 }
 
 func (w *WakuNode) AddPeer(info *peer.AddrInfo, protocolId string) error {
@@ -785,7 +813,6 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 	w.ping = ping.NewPingService(w.host)
 	ticker := time.NewTicker(t)
 	go func() {
-
 		// This map contains peers that we're
 		// waiting for the ping response from
 		peerMap := make(map[peer.ID]<-chan ping.Result)
