@@ -16,29 +16,26 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
+
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
+	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	rendezvous "github.com/status-im/go-libp2p-rendezvous"
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
-	pubsub "github.com/status-im/go-wakurelay-pubsub"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
-
-	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
-	rendezvous "github.com/status-im/go-libp2p-rendezvous"
+	pubsub "github.com/status-im/go-wakurelay-pubsub"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 var log = logging.Logger("wakunode")
@@ -51,7 +48,7 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func checkError(err error, msg string) {
+func failOnErr(err error, msg string) {
 	if err != nil {
 		if msg != "" {
 			msg = msg + ": "
@@ -60,241 +57,179 @@ func checkError(err error, msg string) {
 	}
 }
 
-var rootCmd = &cobra.Command{
-	Use:   "waku",
-	Short: "Start a waku node",
-	Long:  `Start a waku node...`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	Run: func(cmd *cobra.Command, args []string) {
-		port, _ := cmd.Flags().GetInt("port")
-		enableWs, _ := cmd.Flags().GetBool("ws")
-		wsPort, _ := cmd.Flags().GetInt("ws-port")
-		wakuRelay, _ := cmd.Flags().GetBool("relay")
-		enableFilter, _ := cmd.Flags().GetBool("filter")
-		key, _ := cmd.Flags().GetString("nodekey")
-		enableStore, _ := cmd.Flags().GetBool("store")
-		useDB, _ := cmd.Flags().GetBool("use-db")
-		dbPath, _ := cmd.Flags().GetString("dbpath")
-		storenode, _ := cmd.Flags().GetString("storenode")
-		staticnodes, _ := cmd.Flags().GetStringSlice("staticnodes")
-		filternodes, _ := cmd.Flags().GetStringSlice("filternodes")
-		enableLightpush, _ := cmd.Flags().GetBool("lightpush")
-		lightpushnodes, _ := cmd.Flags().GetStringSlice("lightpushnodes")
-		topics, _ := cmd.Flags().GetStringSlice("topics")
-		keepAlive, _ := cmd.Flags().GetInt("keep-alive")
-		enableMetrics, _ := cmd.Flags().GetBool("metrics")
-		metricsAddress, _ := cmd.Flags().GetString("metrics-address")
-		metricsPort, _ := cmd.Flags().GetInt("metrics-port")
-		enableDnsDiscovery, _ := cmd.Flags().GetBool("dns-discovery")
-		dnsDiscoveryUrl, _ := cmd.Flags().GetString("dns-discovery-url")
-		dnsDiscoveryNameServer, _ := cmd.Flags().GetString("dns-discovery-nameserver")
-		peerExchange, _ := cmd.Flags().GetBool("peer-exchange")
-		enableRendezvous, _ := cmd.Flags().GetBool("rendezvous")
-		rendezvousnodes, _ := cmd.Flags().GetStringSlice("rendezvous-nodes")
-		enableRendezvousServer, _ := cmd.Flags().GetBool("rendezvous-server")
-		rendezvousData, _ := cmd.Flags().GetString("rendezvous-data")
+func Execute(options Options) {
+	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", options.Port))
 
-		hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", port))
+	var err error
 
-		var err error
+	if options.NodeKey == "" {
+		options.NodeKey, err = randomHex(32)
+		failOnErr(err, "could not generate random key")
+	}
 
-		if key == "" {
-			key, err = randomHex(32)
-			checkError(err, "could not generate random key")
+	prvKey, err := crypto.HexToECDSA(options.NodeKey)
+	failOnErr(err, "error converting key into valid ecdsa key")
+
+	if options.DBPath == "" && options.UseDB {
+		failOnErr(errors.New("dbpath can't be null"), "")
+	}
+
+	var db *sql.DB
+
+	if options.UseDB {
+		db, err = sqlite.NewDB(options.DBPath)
+		failOnErr(err, "Could not connect to DB")
+	}
+
+	ctx := context.Background()
+
+	var metricsServer *metrics.Server
+	if options.Metrics.Enable {
+		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port)
+		go metricsServer.Start()
+	}
+
+	nodeOpts := []node.WakuNodeOption{
+		node.WithPrivateKey(prvKey),
+		node.WithHostAddress([]net.Addr{hostAddr}),
+		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
+	}
+
+	if options.EnableWS {
+		wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d/ws", options.WSPort))
+		nodeOpts = append(nodeOpts, node.WithMultiaddress([]multiaddr.Multiaddr{wsMa}))
+	}
+
+	libp2pOpts := node.DefaultLibP2POptions
+
+	if options.UseDB {
+		// Create persistent peerstore
+		queries, err := sqlite.NewQueries("peerstore", db)
+		failOnErr(err, "Peerstore")
+
+		datastore := dssql.NewDatastore(db, queries)
+		opts := pstoreds.DefaultOpts()
+		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
+		failOnErr(err, "Peerstore")
+
+		libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+	}
+
+	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
+
+	if !options.Relay.Disable {
+		var wakurelayopts []pubsub.Option
+		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
+		nodeOpts = append(nodeOpts, node.WithWakuRelay(wakurelayopts...))
+	}
+
+	if options.RendezvousServer.Enable {
+		db, err := leveldb.OpenFile(options.RendezvousServer.DBPath, &opt.Options{OpenFilesCacheCapacity: 3})
+		failOnErr(err, "RendezvousDB")
+		storage := rendezvous.NewStorage(db)
+		nodeOpts = append(nodeOpts, node.WithRendezvousServer(storage))
+	}
+
+	if options.Filter.Enable {
+		nodeOpts = append(nodeOpts, node.WithWakuFilter())
+	}
+
+	if options.Store.Enable {
+		nodeOpts = append(nodeOpts, node.WithWakuStore(true, true))
+		if options.UseDB {
+			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
+			failOnErr(err, "DBStore")
+			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+		} else {
+			nodeOpts = append(nodeOpts, node.WithMessageProvider(nil))
 		}
+	}
 
-		prvKey, err := crypto.HexToECDSA(key)
-		checkError(err, "error converting key into valid ecdsa key")
+	if options.LightPush.Enable {
+		nodeOpts = append(nodeOpts, node.WithLightPush())
+	}
 
-		if dbPath == "" && useDB {
-			checkError(errors.New("dbpath can't be null"), "")
-		}
+	if options.Rendezvous.Enable {
+		nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(libp2pdisc.Limit(45), libp2pdisc.TTL(time.Duration(20)*time.Second))))
+	}
 
-		var db *sql.DB
+	wakuNode, err := node.New(ctx, nodeOpts...)
 
-		if useDB {
-			db, err = sqlite.NewDB(dbPath)
-			checkError(err, "Could not connect to DB")
-		}
+	failOnErr(err, "Wakunode")
 
-		ctx := context.Background()
+	if len(options.Relay.Topics) == 0 {
+		options.Relay.Topics = []string{string(relay.DefaultWakuTopic)}
+	}
 
-		var metricsServer *metrics.Server
-		if enableMetrics {
-			metricsServer = metrics.NewMetricsServer(metricsAddress, metricsPort)
-			go metricsServer.Start()
-		}
+	for _, t := range options.Relay.Topics {
+		nodeTopic := relay.Topic(t)
+		_, err := wakuNode.Subscribe(&nodeTopic)
+		failOnErr(err, "Error subscring to topic")
+	}
 
-		nodeOpts := []node.WakuNodeOption{
-			node.WithPrivateKey(prvKey),
-			node.WithHostAddress([]net.Addr{hostAddr}),
-			node.WithKeepAlive(time.Duration(keepAlive) * time.Second),
-		}
+	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID_v001)
+	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta3)
+	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
+	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 
-		if enableWs {
-			wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d/ws", wsPort))
-			nodeOpts = append(nodeOpts, node.WithMultiaddress([]multiaddr.Multiaddr{wsMa}))
-		}
-
-		libp2pOpts := node.DefaultLibP2POptions
-
-		if useDB {
-			// Create persistent peerstore
-			queries, err := sqlite.NewQueries("peerstore", db)
-			checkError(err, "Peerstore")
-
-			datastore := dssql.NewDatastore(db, queries)
-			opts := pstoreds.DefaultOpts()
-			peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
-			checkError(err, "Peerstore")
-
-			libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
-		}
-
-		nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
-
-		if wakuRelay {
-			var wakurelayopts []pubsub.Option
-
-			if peerExchange {
-				wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(true))
+	for _, n := range options.StaticNodes {
+		go func(node string) {
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+			defer cancel()
+			err = wakuNode.DialPeer(ctx, node)
+			if err != nil {
+				log.Error("error dialing peer ", err)
 			}
+		}(n)
+	}
 
-			nodeOpts = append(nodeOpts, node.WithWakuRelay(wakurelayopts...))
+	if options.DNSDiscovery.Enable {
+		for _, addr := range wakuNode.ListenAddresses() {
+			ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
+			enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
+			log.Info("ENR: ", enr)
 		}
 
-		if enableRendezvousServer {
-			db, err := leveldb.OpenFile(rendezvousData, &opt.Options{OpenFilesCacheCapacity: 3})
-			checkError(err, "RendezvousDB")
-			storage := rendezvous.NewStorage(db)
-			nodeOpts = append(nodeOpts, node.WithRendezvousServer(storage))
-		}
-
-		if enableFilter {
-			nodeOpts = append(nodeOpts, node.WithWakuFilter())
-		}
-
-		if enableStore {
-			nodeOpts = append(nodeOpts, node.WithWakuStore(true, true))
-			if useDB {
-				dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
-				checkError(err, "DBStore")
-				nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+		if options.DNSDiscovery.URL != "" {
+			log.Info("attempting DNS discovery with ", options.DNSDiscovery.URL)
+			multiaddresses, err := discovery.RetrieveNodes(ctx, options.DNSDiscovery.URL, discovery.WithNameserver(options.DNSDiscovery.Nameserver))
+			if err != nil {
+				log.Warn("dns discovery error ", err)
 			} else {
-				nodeOpts = append(nodeOpts, node.WithMessageProvider(nil))
-			}
-		}
-
-		if enableLightpush {
-			nodeOpts = append(nodeOpts, node.WithLightPush())
-		}
-
-		if enableRendezvous {
-			nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(libp2pdisc.Limit(45), libp2pdisc.TTL(time.Duration(20)*time.Second))))
-		}
-
-		wakuNode, err := node.New(ctx, nodeOpts...)
-
-		checkError(err, "Wakunode")
-
-		for _, t := range topics {
-			nodeTopic := relay.Topic(t)
-			_, err := wakuNode.Subscribe(&nodeTopic)
-			checkError(err, "Error subscring to topic")
-		}
-
-		if !enableRendezvous && len(rendezvousnodes) > 0 {
-			checkError(errors.New("rendezvous protocol was not started"), "")
-		} else {
-			addPeers(wakuNode, rendezvousnodes, rendezvous.RendezvousID_v001)
-		}
-
-		if storenode != "" && !enableStore {
-			checkError(errors.New("store protocol was not started"), "")
-		} else {
-			addPeers(wakuNode, []string{storenode}, store.StoreID_v20beta3)
-		}
-
-		if len(lightpushnodes) > 0 && !enableLightpush {
-			checkError(errors.New("lightpush protocol was not started"), "")
-		} else {
-			addPeers(wakuNode, lightpushnodes, lightpush.LightPushID_v20beta1)
-		}
-
-		if len(filternodes) > 0 && !enableFilter {
-			checkError(errors.New("filter protocol was not started"), "")
-		} else {
-			addPeers(wakuNode, filternodes, filter.FilterID_v20beta1)
-		}
-
-		if len(staticnodes) > 0 {
-			for _, n := range staticnodes {
-				go func(node string) {
-					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
-					defer cancel()
-					err = wakuNode.DialPeer(ctx, node)
-					if err != nil {
-						log.Error("error dialing peer ", err)
-					}
-				}(n)
-			}
-		}
-
-		if enableDnsDiscovery {
-			for _, addr := range wakuNode.ListenAddresses() {
-				ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
-				enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
-				log.Info("ENR: ", enr)
-			}
-
-			if dnsDiscoveryUrl != "" {
-				log.Info("attempting DNS discovery with ", dnsDiscoveryUrl)
-				multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
-				if err != nil {
-					log.Warn("dns discovery error ", err)
-				} else {
-					log.Info("found dns entries ", multiaddresses)
-					for _, m := range multiaddresses {
-						go func(ctx context.Context, m multiaddr.Multiaddr) {
-							ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
-							defer cancel()
-							err = wakuNode.DialPeerWithMultiAddress(ctx, m)
-							if err != nil {
-								log.Error("error dialing peer ", err)
-							}
-						}(ctx, m)
-					}
+				log.Info("found dns entries ", multiaddresses)
+				for _, m := range multiaddresses {
+					go func(ctx context.Context, m multiaddr.Multiaddr) {
+						ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+						defer cancel()
+						err = wakuNode.DialPeerWithMultiAddress(ctx, m)
+						if err != nil {
+							log.Error("error dialing peer ", err)
+						}
+					}(ctx, m)
 				}
-			} else {
-				log.Fatal("DNS discovery URL is required")
 			}
+		} else {
+			log.Fatal("DNS discovery URL is required")
 		}
+	}
 
-		// Wait for a SIGINT or SIGTERM signal
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		<-ch
-		fmt.Println("\n\n\nReceived signal, shutting down...")
+	// Wait for a SIGINT or SIGTERM signal
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	<-ch
+	fmt.Println("\n\n\nReceived signal, shutting down...")
 
-		// shut the node down
-		wakuNode.Stop()
+	// shut the node down
+	wakuNode.Stop()
 
-		if enableMetrics {
-			metricsServer.Stop(ctx)
-		}
+	if options.Metrics.Enable {
+		metricsServer.Stop(ctx)
+	}
 
-		if useDB {
-			err = db.Close()
-			checkError(err, "DBClose")
-		}
-	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	if options.UseDB {
+		err = db.Close()
+		failOnErr(err, "DBClose")
+	}
 }
 
 func addPeers(wakuNode *node.WakuNode, addresses []string, protocol protocol.ID) {
@@ -304,45 +239,9 @@ func addPeers(wakuNode *node.WakuNode, addresses []string, protocol protocol.ID)
 		}
 
 		addr, err := multiaddr.NewMultiaddr(addrString)
-		checkError(err, "invalid multiaddress")
+		failOnErr(err, "invalid multiaddress")
 
 		_, err = wakuNode.AddPeer(addr, protocol)
-		checkError(err, "error adding peer")
+		failOnErr(err, "error adding peer")
 	}
-}
-
-func init() {
-	cobra.OnInitialize(initConfig)
-
-	rootCmd.Flags().Int("port", 9000, "Libp2p TCP listening port (0 for random)")
-	rootCmd.Flags().Bool("ws", false, "Enable websockets support")
-	rootCmd.Flags().Int("ws-port", 9001, "Libp2p TCP listening port for websocket connection (0 for random)")
-	rootCmd.Flags().String("nodekey", "", "P2P node private key as hex (default random)")
-	rootCmd.Flags().StringSlice("topics", []string{string(relay.DefaultWakuTopic)}, fmt.Sprintf("List of topics to listen (default %s)", relay.DefaultWakuTopic))
-	rootCmd.Flags().StringSlice("staticnodes", []string{}, "Multiaddr of peer to directly connect with. Argument may be repeated")
-	rootCmd.Flags().Bool("relay", true, "Enable relay protocol")
-	rootCmd.Flags().Bool("filter", true, "Enable filter protocol")
-	rootCmd.Flags().Bool("store", false, "Enable store protocol")
-	rootCmd.Flags().Bool("lightpush", false, "Enable lightpush protocol")
-	rootCmd.Flags().Bool("use-db", true, "Store messages and peers in a DB, (default: true, use false for in-memory only)")
-	rootCmd.Flags().String("dbpath", "./store.db", "Path to DB file")
-	rootCmd.Flags().String("storenode", "", "Multiaddr of peer to connect with for waku store protocol")
-	rootCmd.Flags().Int("keep-alive", 300, "interval in seconds for pinging peers to keep the connection alive.")
-	rootCmd.Flags().StringSlice("filternodes", []string{}, "Multiaddr of peers to to request content filtering of messages. Argument may be repeated")
-	rootCmd.Flags().StringSlice("lightpushnodes", []string{}, "Multiaddr of peers to to request lightpush of published messages. Argument may be repeated")
-	rootCmd.Flags().Bool("metrics", false, "Enable the metrics server")
-	rootCmd.Flags().String("metrics-address", "127.0.0.1", "Listening address of the metrics server")
-	rootCmd.Flags().Int("metrics-port", 8008, "Listening HTTP port of the metrics server")
-	rootCmd.Flags().Bool("dns-discovery", false, "enable dns discovery")
-	rootCmd.Flags().String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
-	rootCmd.Flags().String("dns-discovery-nameserver", "", "DNS nameserver IP to query (empty to use system's default)")
-	rootCmd.Flags().Bool("peer-exchange", true, "Enable GossipSub Peer Exchange")
-	rootCmd.Flags().Bool("rendezvous", false, "Enable rendezvous for peer discovery")
-	rootCmd.Flags().String("rendezvous-data", "/tmp/rendevouz", "path where peer info will be stored.")
-	rootCmd.Flags().StringSlice("rendezvous-nodes", []string{}, "Multiaddrs of waku2 rendezvous nodes. Argument may be repeated")
-	rootCmd.Flags().Bool("rendezvous-server", false, "Node will act as rendezvous server")
-}
-
-func initConfig() {
-	viper.AutomaticEnv() // read in environment variables that match
 }
