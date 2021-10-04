@@ -1,4 +1,5 @@
 *.db
+nodekey
 
 # Binaries for programs and plugins
 *.exe

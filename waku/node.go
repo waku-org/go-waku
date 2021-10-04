@@ -2,11 +2,12 @@ package waku
 
 import (
 	"context"
-	"crypto/rand"
+	"crypto/ecdsa"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -19,7 +20,9 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
+	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
+
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/multiformats/go-multiaddr"
@@ -40,14 +43,6 @@ import (
 
 var log = logging.Logger("wakunode")
 
-func randomHex(n int) (string, error) {
-	bytes := make([]byte, n)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
 func failOnErr(err error, msg string) {
 	if err != nil {
 		if msg != "" {
@@ -58,17 +53,19 @@ func failOnErr(err error, msg string) {
 }
 
 func Execute(options Options) {
+	if options.GenerateKey {
+		if err := writePrivateKeyToFile(options.KeyFile, options.Overwrite); err != nil {
+			failOnErr(err, "nodekey error")
+		}
+		return
+	}
+
 	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", options.Port))
 
 	var err error
 
-	if options.NodeKey == "" {
-		options.NodeKey, err = randomHex(32)
-		failOnErr(err, "could not generate random key")
-	}
-
-	prvKey, err := crypto.HexToECDSA(options.NodeKey)
-	failOnErr(err, "error converting key into valid ecdsa key")
+	prvKey, err := getPrivKey(options)
+	failOnErr(err, "nodekey error")
 
 	if options.DBPath == "" && options.UseDB {
 		failOnErr(errors.New("dbpath can't be null"), "")
@@ -244,4 +241,96 @@ func addPeers(wakuNode *node.WakuNode, addresses []string, protocol protocol.ID)
 		_, err = wakuNode.AddPeer(addr, protocol)
 		failOnErr(err, "error adding peer")
 	}
+}
+
+func loadPrivateKeyFromFile(path string) (*ecdsa.PrivateKey, error) {
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	dst := make([]byte, hex.DecodedLen(len(src)))
+	_, err = hex.Decode(dst, src)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := libp2pcrypto.UnmarshalSecp256k1PrivateKey(dst)
+	if err != nil {
+		return nil, err
+	}
+
+	privKey := (*ecdsa.PrivateKey)(p.(*libp2pcrypto.Secp256k1PrivateKey))
+	privKey.Curve = crypto.S256()
+
+	return privKey, nil
+}
+
+func writePrivateKeyToFile(path string, force bool) error {
+	_, err := os.Stat(path)
+
+	if err == nil && !force {
+		return fmt.Errorf("%s already exists. Use --overwrite to overwrite the file", path)
+	}
+
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		return err
+	}
+
+	privKey := libp2pcrypto.PrivKey((*libp2pcrypto.Secp256k1PrivateKey)(key))
+
+	b, err := privKey.Raw()
+	if err != nil {
+		return err
+	}
+
+	output := make([]byte, hex.EncodedLen(len(b)))
+	hex.Encode(output, b)
+
+	return ioutil.WriteFile(path, output, 0600)
+}
+
+func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
+	var prvKey *ecdsa.PrivateKey
+	var err error
+	if options.KeyFile != "" {
+		prvKey, err = loadPrivateKeyFromFile(options.KeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("could not read keyfile: %w", err)
+		}
+	} else if options.NodeKey != "" {
+		prvKey, err = crypto.HexToECDSA(options.NodeKey)
+		if err != nil {
+			return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
+		}
+	} else {
+		keyString := os.Getenv("GOWAKU-NODEKEY")
+		if keyString != "" {
+			prvKey, err = crypto.HexToECDSA(keyString)
+			if err != nil {
+				return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
+			}
+		} else {
+			if _, err := os.Stat(options.KeyFile); err == nil {
+				prvKey, err = loadPrivateKeyFromFile(options.KeyFile)
+				if err != nil {
+					return nil, fmt.Errorf("could not read keyfile: %w", err)
+				}
+			} else {
+				if os.IsNotExist(err) {
+					prvKey, err = crypto.GenerateKey()
+					if err != nil {
+						return nil, fmt.Errorf("error generating key: %w", err)
+					}
+				} else {
+					return nil, fmt.Errorf("could not read keyfile: %w", err)
+				}
+			}
+		}
+	}
+	return prvKey, nil
 }
