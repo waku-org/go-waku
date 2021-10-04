@@ -47,7 +47,10 @@ type Options struct {
 	Port        int      `short:"p" long:"port" description:"Libp2p TCP listening port (0 for random)" default:"9000"`
 	EnableWS    bool     `long:"ws" description:"Enable websockets support"`
 	WSPort      int      `long:"ws-port" description:"Libp2p TCP listening port for websocket connection (0 for random)" default:"9001"`
-	NodeKey     string   `long:"nodekey" description:"P2P node private key as hex (UNSAFE!, default random)"`
+	NodeKey     string   `long:"nodekey" description:"P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)"`
+	KeyFile     string   `long:"key-file" description:"Path to a file containing the private key for the P2P node" default:"./nodekey"`
+	GenerateKey bool     `long:"generate-key" description:"Generate private key file at path specified in --key-file"`
+	Overwrite   bool     `long:"overwrite" description:"When generating a keyfile, overwrite the nodekey file if it already exists"`
 	StaticNodes []string `long:"staticnodes" description:"Multiaddr of peer to directly connect with. Argument may be repeated"`
 	KeepAlive   int      `long:"keep-alive" default:"300" description:"Interval in seconds for pinging peers to keep the connection alive."`
 	UseDB       bool     `long:"use-db" description:"Use SQLiteDB to persist information"`
