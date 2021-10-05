@@ -23,7 +23,7 @@ require (
 	github.com/multiformats/go-multiaddr-net v0.2.0
 	github.com/prometheus/common v0.29.0 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
-	github.com/status-im/go-libp2p-rendezvous v0.0.0-20210930154620-020ef08b264a
+	github.com/status-im/go-waku-rendezvous v0.0.0-20211005020656-b53661c58574
 	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954

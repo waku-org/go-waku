@@ -43,6 +43,15 @@ func main() {
 		node.WithHostAddress([]net.Addr{hostAddr}),
 		node.WithWakuRelay(),
 	)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	if err := wakuNode.Start(); err != nil {
+		log.Error(err)
+		return
+	}
 
 	go writeLoop(ctx, wakuNode)
 	go readLoop(wakuNode)

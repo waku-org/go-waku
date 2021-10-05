@@ -68,6 +68,12 @@ func main() {
 	if err != nil {
 		log.Info("Error adding filter peer on light node ", err)
 	}
+
+	err = lightNode.Start()
+	if err != nil {
+		panic(err)
+	}
+
 	//
 	// Setup filter
 	//

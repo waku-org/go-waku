@@ -26,7 +26,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/multiformats/go-multiaddr"
-	rendezvous "github.com/status-im/go-libp2p-rendezvous"
+	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
@@ -154,6 +154,13 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
+	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID_v001)
+	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta3)
+	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
+	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
+
+	wakuNode.Start()
+
 	if len(options.Relay.Topics) == 0 {
 		options.Relay.Topics = []string{string(relay.DefaultWakuTopic)}
 	}
@@ -163,11 +170,6 @@ func Execute(options Options) {
 		_, err := wakuNode.Subscribe(&nodeTopic)
 		failOnErr(err, "Error subscring to topic")
 	}
-
-	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID_v001)
-	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta3)
-	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
-	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 
 	for _, n := range options.StaticNodes {
 		go func(node string) {
@@ -297,33 +299,24 @@ func writePrivateKeyToFile(path string, force bool) error {
 func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 	var prvKey *ecdsa.PrivateKey
 	var err error
-	if options.KeyFile != "" {
-		prvKey, err = loadPrivateKeyFromFile(options.KeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("could not read keyfile: %w", err)
-		}
-	} else if options.NodeKey != "" {
-		prvKey, err = crypto.HexToECDSA(options.NodeKey)
-		if err != nil {
+	if options.NodeKey != "" {
+		if prvKey, err = crypto.HexToECDSA(options.NodeKey); err != nil {
 			return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
 		}
 	} else {
 		keyString := os.Getenv("GOWAKU-NODEKEY")
 		if keyString != "" {
-			prvKey, err = crypto.HexToECDSA(keyString)
-			if err != nil {
+			if prvKey, err = crypto.HexToECDSA(keyString); err != nil {
 				return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
 			}
 		} else {
 			if _, err := os.Stat(options.KeyFile); err == nil {
-				prvKey, err = loadPrivateKeyFromFile(options.KeyFile)
-				if err != nil {
+				if prvKey, err = loadPrivateKeyFromFile(options.KeyFile); err != nil {
 					return nil, fmt.Errorf("could not read keyfile: %w", err)
 				}
 			} else {
 				if os.IsNotExist(err) {
-					prvKey, err = crypto.GenerateKey()
-					if err != nil {
+					if prvKey, err = crypto.GenerateKey(); err != nil {
 						return nil, fmt.Errorf("error generating key: %w", err)
 					}
 				} else {
