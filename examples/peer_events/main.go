@@ -70,6 +70,10 @@ func main() {
 		node.WithKeepAlive(time.Duration(2)*time.Second),
 	)
 
+	if err = relayNode1.Start(); err != nil {
+		panic(err)
+	}
+
 	// relayNode2, err := node.New(ctx,
 	// 	node.WithPrivateKey(addrsAndKeys[1].key),
 	// 	node.WithHostAddress([]net.Addr{addrsAndKeys[1].addr}),

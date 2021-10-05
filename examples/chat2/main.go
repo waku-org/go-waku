@@ -109,6 +109,10 @@ func main() {
 		addPeer(wakuNode, *filterNodeFlag, filter.FilterID_v20beta1)
 	}
 
+	if err := wakuNode.Start(); err != nil {
+		panic(err)
+	}
+
 	// use the nickname from the cli flag, or a default if blank
 	nick := *nickFlag
 	if len(nick) == 0 {
