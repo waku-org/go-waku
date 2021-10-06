@@ -46,7 +46,7 @@ func main() {
 	filterNodeFlag := flag.String("filternode", "", "multiaddr of peer to to request content filtering of messages")
 	lightPushFlag := flag.Bool("lightpush", false, "enable lightpush protocol")
 	lightPushNodeFlag := flag.String("lightpushnode", "", "Multiaddr of peer to to request lightpush of published messages")
-	keepAliveFlag := flag.Int64("keep-alive", 300, "interval in seconds for pinging peers to keep the connection alive.")
+	keepAliveFlag := flag.Int64("keep-alive", 20, "interval in seconds for pinging peers to keep the connection alive.")
 
 	dnsDiscoveryFlag := flag.Bool("dns-discovery", false, "enable dns discovery")
 	dnsDiscoveryUrlFlag := flag.String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
