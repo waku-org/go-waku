@@ -35,6 +35,9 @@ func TestBasicSendingReceiving(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, wakuNode)
 
+	err = wakuNode.Start()
+	require.NoError(t, err)
+
 	require.NoError(t, write(ctx, wakuNode, "test"))
 
 	sub, err := wakuNode.Subscribe(nil)

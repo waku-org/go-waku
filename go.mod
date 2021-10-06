@@ -4,8 +4,6 @@ go 1.15
 
 replace github.com/ethereum/go-ethereum v1.10.4 => github.com/status-im/go-ethereum v1.10.4-status.2
 
-replace github.com/status-im/go-waku-rendezvous v0.0.0-20211005020656-b53661c58574 => ../go-libp2p-rendezvous
-
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.3.0
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
