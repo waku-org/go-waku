@@ -2,7 +2,7 @@ package waku
 
 type RendezvousOptions struct {
 	Enable bool     `long:"rendezvous" description:"Enable rendezvous protocol for peer discovery"`
-	Nodes  []string `long:"rendezvous-nodes" description:"Multiaddrs of waku2 rendezvous nodes. Argument may be repeated"`
+	Nodes  []string `long:"rendezvous-node" description:"Multiaddr of a waku2 rendezvous node. Option may be repeated"`
 }
 type RendezvousServerOptions struct {
 	Enable bool   `long:"rendezvous-server" description:"Node will act as rendezvous server"`
@@ -17,17 +17,17 @@ type RelayOptions struct {
 
 type FilterOptions struct {
 	Enable bool     `long:"filter" description:"Enable filter protocol"`
-	Nodes  []string `long:"filter-nodes" description:"Multiaddr of peers to request content filtering of messages. Argument may be repeated"`
+	Nodes  []string `long:"filter-node" description:"Multiaddr of a peer to request content filtering of messages. Option may be repeated"`
 }
 
 type LightpushOptions struct {
 	Enable bool     `long:"lightpush" description:"Enable lightpush protocol"`
-	Nodes  []string `long:"lightpush-nodes" description:"Multiaddr of peers to request lightpush of published messages. Argument may be repeated"`
+	Nodes  []string `long:"lightpush-node" description:"Multiaddr of a peer to request lightpush of published messages. Option may be repeated"`
 }
 
 type StoreOptions struct {
 	Enable bool     `long:"store" description:"Enable store protocol"`
-	Nodes  []string `long:"store-nodes" description:"Multiaddr of peers to request stored messages. Argument may be repeated"`
+	Nodes  []string `long:"store-node" description:"Multiaddr of a peer to request stored messages. Option may be repeated"`
 }
 
 type DNSDiscoveryOptions struct {
@@ -51,7 +51,7 @@ type Options struct {
 	KeyFile     string   `long:"key-file" description:"Path to a file containing the private key for the P2P node" default:"./nodekey"`
 	GenerateKey bool     `long:"generate-key" description:"Generate private key file at path specified in --key-file"`
 	Overwrite   bool     `long:"overwrite" description:"When generating a keyfile, overwrite the nodekey file if it already exists"`
-	StaticNodes []string `long:"staticnodes" description:"Multiaddr of peer to directly connect with. Argument may be repeated"`
+	StaticNodes []string `long:"static-node" description:"Multiaddr of peer to directly connect with. Option may be repeated"`
 	KeepAlive   int      `long:"keep-alive" default:"20" description:"Interval in seconds for pinging peers to keep the connection alive."`
 	UseDB       bool     `long:"use-db" description:"Use SQLiteDB to persist information"`
 	DBPath      string   `long:"dbpath" default:"./store.db" description:"Path to DB file"`
