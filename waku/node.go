@@ -159,7 +159,9 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
 	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 
-	wakuNode.Start()
+	if err = wakuNode.Start(); err != nil {
+		log.Fatal(fmt.Errorf("could not start waku node, %w", err))
+	}
 
 	if len(options.Relay.Topics) == 0 {
 		options.Relay.Topics = []string{string(relay.DefaultWakuTopic)}
