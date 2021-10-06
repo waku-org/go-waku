@@ -4,6 +4,8 @@ go 1.15
 
 replace github.com/ethereum/go-ethereum v1.10.4 => github.com/status-im/go-ethereum v1.10.4-status.2
 
+replace github.com/status-im/go-waku-rendezvous v0.0.0-20211005020656-b53661c58574 => ../go-libp2p-rendezvous
+
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.3.0
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
@@ -24,7 +26,7 @@ require (
 	github.com/prometheus/common v0.29.0 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/status-im/go-waku-rendezvous v0.0.0-20211005020656-b53661c58574
-	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20210729162817-adc68830282a
+	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20211006151908-91851dda6375
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	go.opencensus.io v0.23.0

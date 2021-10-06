@@ -52,7 +52,7 @@ type Options struct {
 	GenerateKey bool     `long:"generate-key" description:"Generate private key file at path specified in --key-file"`
 	Overwrite   bool     `long:"overwrite" description:"When generating a keyfile, overwrite the nodekey file if it already exists"`
 	StaticNodes []string `long:"staticnodes" description:"Multiaddr of peer to directly connect with. Argument may be repeated"`
-	KeepAlive   int      `long:"keep-alive" default:"300" description:"Interval in seconds for pinging peers to keep the connection alive."`
+	KeepAlive   int      `long:"keep-alive" default:"20" description:"Interval in seconds for pinging peers to keep the connection alive."`
 	UseDB       bool     `long:"use-db" description:"Use SQLiteDB to persist information"`
 	DBPath      string   `long:"dbpath" default:"./store.db" description:"Path to DB file"`
 

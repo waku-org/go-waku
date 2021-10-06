@@ -58,6 +58,11 @@ func main() {
 		node.WithWakuFilter(),
 	)
 
+	err = fullNode.Start()
+	if err != nil {
+		panic(err)
+	}
+
 	lightNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey2),
 		node.WithHostAddress([]net.Addr{hostAddr2}),
