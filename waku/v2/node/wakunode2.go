@@ -16,7 +16,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	p2pproto "github.com/libp2p/go-libp2p-core/protocol"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	ma "github.com/multiformats/go-multiaddr"
@@ -147,7 +146,7 @@ func (w *WakuNode) Start() error {
 
 	if w.opts.enableRendezvous {
 		rendezvous := rendezvous.NewRendezvousDiscovery(w.host)
-		w.opts.wOpts = append(w.opts.wOpts, wakurelay.WithDiscovery(rendezvous, w.opts.rendezvousOpts...))
+		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(rendezvous, w.opts.rendezvousOpts...))
 	}
 
 	err := w.mountRelay(w.opts.enableRelay, w.opts.wOpts...)
@@ -201,49 +200,6 @@ func (w *WakuNode) Host() host.Host {
 
 func (w *WakuNode) ID() string {
 	return w.host.ID().Pretty()
-}
-
-func (w *WakuNode) GetPeerStats() PeerStats {
-	return w.peers
-}
-
-func (w *WakuNode) IsOnline() bool {
-	hasRelay := false
-	hasLightPush := false
-	hasStore := false
-	hasFilter := false
-	for _, v := range w.peers {
-		for _, protocol := range v {
-			if !hasRelay && protocol == string(relay.WakuRelayID_v200) {
-				hasRelay = true
-			}
-			if !hasLightPush && protocol == string(lightpush.WakuLightPushProtocolId) {
-				hasLightPush = true
-			}
-			if !hasStore && protocol == string(store.WakuStoreProtocolId) {
-				hasStore = true
-			}
-			if !hasFilter && protocol == string(filter.WakuFilterProtocolId) {
-				hasFilter = true
-			}
-			if hasRelay || hasLightPush && (hasStore || hasFilter) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (w *WakuNode) HasHistory() bool {
-	for _, v := range w.peers {
-		for _, protocol := range v {
-			if protocol == string(store.WakuStoreProtocolId) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (w *WakuNode) ListenAddresses() []ma.Multiaddr {
