@@ -10,7 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
-	manet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
@@ -36,7 +36,7 @@ type WakuNodeParameters struct {
 	enableRendezvous       bool
 	enableRendezvousServer bool
 	rendevousStorage       rendezvous.Storage
-	rendezvousOpts         []wakurelay.DiscoverOpt
+	rendezvousOpts         []pubsub.DiscoverOpt
 
 	keepAliveInterval time.Duration
 

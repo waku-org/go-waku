@@ -54,16 +54,16 @@ func NewWakuRelay(ctx context.Context, h host.Host, opts ...pubsub.Option) (*Wak
 
 	opts = append(opts, pubsub.WithGossipSubProtocols(
 		[]protocol.ID{pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID, WakuRelayID_v200},
-		func (feat GossipSubFeature, proto protocol.ID) bool {
+		func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
 			switch feat {
-			case GossipSubFeatureMesh:
-				return proto == GossipSubID_v11 || proto == GossipSubID_v10
-			case GossipSubFeaturePX:
-				return proto == GossipSubID_v11
+			case pubsub.GossipSubFeatureMesh:
+				return proto == pubsub.GossipSubID_v11 || proto == pubsub.GossipSubID_v10
+			case pubsub.GossipSubFeaturePX:
+				return proto == pubsub.GossipSubID_v11
 			default:
 				return false
 			}
-		}
+		},
 	))
 
 	ps, err := pubsub.NewGossipSub(ctx, h, opts...)

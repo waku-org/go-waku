@@ -10,23 +10,20 @@ require (
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-ds-sql v0.2.0
-	github.com/ipfs/go-log v1.0.4
+	github.com/ipfs/go-log v1.0.5
 	github.com/jessevdk/go-flags v1.4.0
-	github.com/libp2p/go-libp2p v0.13.0
+	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.8.5
-	github.com/libp2p/go-libp2p-peerstore v0.2.6
+	github.com/libp2p/go-libp2p-core v0.9.0
+	github.com/libp2p/go-libp2p-peerstore v0.3.0
+	github.com/libp2p/go-libp2p-pubsub v0.5.5
 	github.com/libp2p/go-msgio v0.0.6
 	github.com/mattn/go-sqlite3 v1.14.6
-	github.com/minio/sha256-simd v0.1.1
-	github.com/multiformats/go-multiaddr v0.3.1
-	github.com/multiformats/go-multiaddr-net v0.2.0
-	github.com/prometheus/common v0.29.0 // indirect
+	github.com/minio/sha256-simd v1.0.0
+	github.com/multiformats/go-multiaddr v0.4.0
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/status-im/go-waku-rendezvous v0.0.0-20211005020656-b53661c58574
-	github.com/status-im/go-wakurelay-pubsub v0.4.3-0.20211006151908-91851dda6375
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	go.opencensus.io v0.23.0
-	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e // indirect
 )

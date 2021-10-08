@@ -9,8 +9,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
-	wakurelay "github.com/status-im/go-wakurelay-pubsub"
 )
 
 // A map of peer IDs to supported protocols
@@ -102,7 +102,7 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 		}
 
 		for _, protocol := range protocols {
-			if !hasRelay && protocol == string(wakurelay.WakuRelayID_v200) {
+			if !hasRelay && protocol == string(relay.WakuRelayID_v200) {
 				hasRelay = true
 			}
 			if !hasLightPush && protocol == string(lightpush.LightPushID_v20beta1) {
