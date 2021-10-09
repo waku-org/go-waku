@@ -85,7 +85,7 @@ func main() {
 
 	// Send FilterRequest from light node to full node
 	filterRequest := pb.FilterRequest{
-		ContentFilters: []*pb.FilterRequest_ContentFilter{&pb.FilterRequest_ContentFilter{ContentTopic: contentTopic}},
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
 		Topic:          string(pubSubTopic),
 		Subscribe:      true,
 	}

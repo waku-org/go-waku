@@ -20,6 +20,7 @@ type Server struct {
 	server *http.Server
 }
 
+// NewMetricsServer creates a prometheus server on a particular interface and port
 func NewMetricsServer(address string, port int) *Server {
 	_ = runmetrics.Enable(runmetrics.RunMetricOptions{
 		EnableCPU:    true,
@@ -60,11 +61,12 @@ func NewMetricsServer(address string, port int) *Server {
 	return &p
 }
 
-// Listen starts the HTTP server in the background.
+// Start executes the HTTP server in the background.
 func (p *Server) Start() {
 	log.Info("Server stopped ", p.server.ListenAndServe())
 }
 
+// Stop shuts down the prometheus server
 func (p *Server) Stop(ctx context.Context) {
 	err := p.server.Shutdown(ctx)
 	if err != nil {

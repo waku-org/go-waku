@@ -1,6 +1,34 @@
 # go-waku
 A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v2/waku-v2).
 
+<p align="left">
+  <a href="https://goreportcard.com/report/github.com/status-im/go-waku"><img src="https://goreportcard.com/badge/github.com/status-im/go-waku" /></a>
+  <a href="https://godoc.org/github.com/status-im/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
+  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.13.0-orange.svg?style=flat-square" /></a>
+  <br>
+</p>
+
+## Install
+```
+git clone https://github.com/status-im/go-waku
+cd go-waku
+make
+```
+
+## Wakunode
+See the available command line options with
+```
+./build/waku --help
+```
+
+## Library
+```
+go get github.com/status-im/go-waku
+```
+
+## Examples
+Examples of usage of go-waku as a library can be found in the examples folder. There is a fully featured chat example.
+
 
 ## Waku Protocol Support
 
@@ -28,27 +56,6 @@ A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v
 |[27/WAKU2-PEERS](https://rfc.vac.dev/spec/27)|✔|
 |[29/WAKU2-CONFIG](https://rfc.vac.dev/spec/29)|🚧|
 
-
-
-
-## Install
-```
-git clone https://github.com/status-im/go-waku
-cd go-waku
-make
-```
-
-## Wakunode
-See the available command line options with
-```
-./build/waku --help
-```
-
-
-## Examples
-Examples of usage of go-waku as a library can be found in the examples folder. There is a fully featured chat example.
-
-
 ## Contribution
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
 
@@ -58,6 +65,7 @@ To build and test this repository, you need:
   - [Go](https://golang.org/) (version 1.13 or later)
   - [protoc](https://grpc.io/docs/protoc-installation/) 
   - [Protocol Buffers for Go with Gadgets](https://github.com/gogo/protobuf)
+
 
 ## License
 Licensed and distributed under either of

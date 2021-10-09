@@ -52,6 +52,7 @@ func failOnErr(err error, msg string) {
 	}
 }
 
+// Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
 	if options.GenerateKey {
 		if err := writePrivateKeyToFile(options.KeyFile, options.Overwrite); err != nil {
@@ -132,7 +133,7 @@ func Execute(options Options) {
 	}
 
 	if options.Store.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuStore(true, true))
+		nodeOpts = append(nodeOpts, node.WithWakuStore(true, options.Store.ShouldResume))
 		if options.UseDB {
 			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 			failOnErr(err, "DBStore")

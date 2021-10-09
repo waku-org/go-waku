@@ -13,7 +13,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	wpb "github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -52,7 +51,7 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 		chat.C = make(filter.ContentFilterChan)
 
 		filterRequest := wpb.FilterRequest{
-			ContentFilters: []*wpb.FilterRequest_ContentFilter{&wpb.FilterRequest_ContentFilter{ContentTopic: contentTopic}},
+			ContentFilters: []*wpb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
 			Topic:          string(relay.GetTopic(nil)),
 			Subscribe:      true,
 		}
@@ -94,7 +93,7 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	}
 
 	var version uint32
-	var timestamp float64 = utils.GetUnixEpoch()
+	var timestamp float64 = float64(time.Now().Unix())
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 
 	if cr.useV1Payload { // Use WakuV1 encryption

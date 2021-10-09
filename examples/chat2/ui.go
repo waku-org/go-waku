@@ -87,7 +87,7 @@ func NewChatUI(ctx context.Context, chat *Chat) *ChatUI {
 				if err != nil {
 					chatUI.displayMessage(err.Error())
 				} else {
-					chatUI.displayMessage("Peer connected succesfully")
+					chatUI.displayMessage("Peer connected successfully")
 				}
 			}(peer)
 			return

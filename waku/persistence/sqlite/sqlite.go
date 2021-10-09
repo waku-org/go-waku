@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/status-im/go-waku/waku/persistence"
 )
 

@@ -6,13 +6,13 @@ import (
 	"encoding/hex"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 func TestBasicSendingReceiving(t *testing.T) {
@@ -61,7 +61,7 @@ func randomHex(n int) (string, error) {
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) error {
 	var contentTopic string = "test"
 	var version uint32 = 0
-	var timestamp float64 = utils.GetUnixEpoch()
+	var timestamp float64 = float64(time.Now().Unix())
 
 	p := new(node.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)

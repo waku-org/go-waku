@@ -20,30 +20,46 @@ type FilterOptions struct {
 	Nodes  []string `long:"filter-node" description:"Multiaddr of a peer to request content filtering of messages. Option may be repeated"`
 }
 
+// LightpushOptions are settings used to enable the lightpush protocol. This is
+// a lightweight protocol used to avoid having to run the relay protocol which
+// is more resource intensive. With this protocol a message is pushed to a peer
+// that supports both the lightpush protocol and relay protocol. That peer will
+// broadcast the message and return a confirmation that the message was
+// broadcasted
 type LightpushOptions struct {
 	Enable bool     `long:"lightpush" description:"Enable lightpush protocol"`
 	Nodes  []string `long:"lightpush-node" description:"Multiaddr of a peer to request lightpush of published messages. Option may be repeated"`
 }
 
+// StoreOptions are settings used for enabling the store protocol, used to
+// retrieve message history from other nodes as well as acting as a store
+// node and provide message history to nodes that ask for it.
 type StoreOptions struct {
-	Enable bool     `long:"store" description:"Enable store protocol"`
-	Nodes  []string `long:"store-node" description:"Multiaddr of a peer to request stored messages. Option may be repeated"`
+	Enable       bool     `long:"store" description:"Enable store protocol"`
+	ShouldResume bool     `long:"resume" description:"fix the gap in message history"`
+	Nodes        []string `long:"store-node" description:"Multiaddr of a peer to request stored messages. Option may be repeated"`
 }
 
+// DNSDiscoveryOptions are settings used for enabling DNS-based discovery
+// protocol that stores merkle trees in DNS records which contain connection
+// information for nodes. It's very useful for bootstrapping a p2p network.
 type DNSDiscoveryOptions struct {
 	Enable     bool   `long:"dns-discovery" description:"Enable DNS discovery"`
 	URL        string `long:"dns-discovery-url" description:"URL for DNS node list in format 'enrtree://<key>@<fqdn>'"`
 	Nameserver string `long:"dns-discovery-nameserver" description:"DNS nameserver IP to query (empty to use system's default)"`
 }
 
+// MetricsOptions are settings used to start a prometheus server for obtaining
+// useful node metrics to monitor the health of behavior of the go-waku node.
 type MetricsOptions struct {
 	Enable  bool   `long:"metrics" description:"Enable the metrics server"`
 	Address string `long:"metrics-address" description:"Listening address of the metrics server" default:"127.0.0.1"`
 	Port    int    `long:"metrics-port" description:"Listening HTTP port of the metrics server" default:"8008"`
 }
 
+// Options contains all the available features and settings that can be
+// configured via flags when executing go-waku as a service.
 type Options struct {
-	// Example of optional value
 	Port        int      `short:"p" long:"port" description:"Libp2p TCP listening port (0 for random)" default:"9000"`
 	EnableWS    bool     `long:"ws" description:"Enable websockets support"`
 	WSPort      int      `long:"ws-port" description:"Libp2p TCP listening port for websocket connection (0 for random)" default:"9001"`
