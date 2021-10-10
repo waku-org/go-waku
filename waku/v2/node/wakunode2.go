@@ -225,7 +225,7 @@ func (w *WakuNode) mountRelay(shouldRelayMessages bool, opts ...pubsub.Option) e
 	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, opts...)
 
 	if shouldRelayMessages {
-		_, err := w.Subscribe(nil)
+		_, err := w.Subscribe(w.ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -350,7 +350,7 @@ func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
 	return nil
 }
 
-func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
+func (node *WakuNode) Subscribe(ctx context.Context, topic *relay.Topic) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
 	if node.relay == nil {
@@ -407,7 +407,7 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 				close(subscription.C)
 				subscription.mutex.Unlock()
 			case <-nextMsgTicker.C:
-				msg, err := sub.Next(node.ctx)
+				msg, err := sub.Next(ctx)
 				if err != nil {
 					subscription.mutex.Lock()
 					for _, subscription := range node.subscriptions[t] {
@@ -437,57 +437,50 @@ func (node *WakuNode) Subscribe(topic *relay.Topic) (*Subscription, error) {
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-func (node *WakuNode) SubscribeFilter(ctx context.Context, request pb.FilterRequest, ch filter.ContentFilterChan) error {
-	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
-	// ContentFilterChan takes MessagePush structs
-
-	// Status: Implemented.
-
-	// Sanity check for well-formed subscribe FilterRequest
-	//doAssert(request.subscribe, "invalid subscribe request")
-
-	log.Info("SubscribeFilter, request: ", request)
-
-	var id string
-	var err error
-
+// TODO: what's up with this channel?.......................... is it closed eventually?
+func (node *WakuNode) SubscribeFilter(ctx context.Context, topic string, contentTopics []string, ch filter.ContentFilterChan) error {
 	if node.filter == nil {
 		return errors.New("WakuFilter is not set")
 	}
 
-	id, err = node.filter.Subscribe(ctx, request)
+	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
+	// ContentFilterChan takes MessagePush structs
+
+	id, peerID, err := node.filter.Subscribe(ctx, topic, contentTopics)
 	if id == "" || err != nil {
 		// Failed to subscribe
-		log.Error("remote subscription to filter failed", request)
-		//waku_node_errors.inc(labelValues = ["subscribe_filter_failure"])
+		log.Error("remote subscription to filter failed")
 		return err
 	}
 
 	// Register handler for filter, whether remote subscription succeeded or not
 	node.filters[id] = filter.Filter{
-		Topic:          request.Topic,
-		ContentFilters: request.ContentFilters,
+		PeerID:         *peerID,
+		Topic:          topic,
+		ContentFilters: contentTopics,
 		Chan:           ch,
 	}
 
 	return nil
 }
 
-func (node *WakuNode) UnsubscribeFilter(ctx context.Context, request pb.FilterRequest) {
-
-	log.Info("UnsubscribeFilter, request: ", request)
-	// Send message to full node in order to unsubscribe
-	node.filter.Unsubscribe(ctx, request)
-
+func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, contentTopics []string) {
 	// Remove local filter
 	var idsToRemove []string
 	for id, f := range node.filters {
+		if f.Topic != topic {
+			continue
+		}
+
+		// Send message to full node in order to unsubscribe
+		node.filter.Unsubscribe(ctx, topic, contentTopics, f.PeerID)
+
 		// Iterate filter entries to remove matching content topics
 		// make sure we delete the content filter
 		// if no more topics are left
-		for _, cfToDelete := range request.ContentFilters {
+		for _, cfToDelete := range contentTopics {
 			for i, cf := range f.ContentFilters {
-				if cf.ContentTopic == cfToDelete.ContentTopic {
+				if cf == cfToDelete {
 					l := len(f.ContentFilters) - 1
 					f.ContentFilters[l], f.ContentFilters[i] = f.ContentFilters[i], f.ContentFilters[l]
 					f.ContentFilters = f.ContentFilters[:l]

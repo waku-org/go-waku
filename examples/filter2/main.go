@@ -84,12 +84,6 @@ func main() {
 	//
 
 	// Send FilterRequest from light node to full node
-	filterRequest := pb.FilterRequest{
-		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
-		Topic:          string(pubSubTopic),
-		Subscribe:      true,
-	}
-
 	filterChan := make(filter.ContentFilterChan)
 
 	go func() {
@@ -97,16 +91,15 @@ func main() {
 			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
 	}()
-	lightNode.SubscribeFilter(ctx, filterRequest, filterChan)
+	lightNode.SubscribeFilter(ctx, string(pubSubTopic), []string{contentTopic}, filterChan)
 
 	go writeLoop(ctx, fullNode)
-	go readLoop(fullNode)
+	go readLoop(ctx, fullNode)
 
 	go func() {
 		// Unsubscribe filter after 5 seconds
 		time.Sleep(5 * time.Second)
-		filterRequest.Subscribe = false
-		lightNode.UnsubscribeFilter(ctx, filterRequest)
+		lightNode.UnsubscribeFilter(ctx, string(pubSubTopic), []string{contentTopic})
 	}()
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -117,7 +110,6 @@ func main() {
 	// shut the nodes down
 	fullNode.Stop()
 	lightNode.Stop()
-
 }
 
 func randomHex(n int) (string, error) {
@@ -136,7 +128,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
 	p.Key = &node.KeyInfo{Kind: node.None}
 
-	payload, err := p.Encode(version)
+	payload, _ := p.Encode(version)
 
 	msg := &pb.WakuMessage{
 		Payload:      payload,
@@ -145,7 +137,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 		Timestamp:    timestamp,
 	}
 
-	_, err = wakuNode.Publish(ctx, msg, nil)
+	_, err := wakuNode.Publish(ctx, msg, nil)
 	if err != nil {
 		log.Error("Error sending a message: ", err)
 	}
@@ -158,8 +150,8 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	}
 }
 
-func readLoop(wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(&pubSubTopic)
+func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
+	sub, err := wakuNode.Subscribe(ctx, &pubSubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return

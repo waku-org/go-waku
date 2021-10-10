@@ -170,7 +170,7 @@ func Execute(options Options) {
 
 	for _, t := range options.Relay.Topics {
 		nodeTopic := relay.Topic(t)
-		_, err := wakuNode.Subscribe(&nodeTopic)
+		_, err := wakuNode.Subscribe(ctx, &nodeTopic)
 		failOnErr(err, "Error subscring to topic")
 	}
 
