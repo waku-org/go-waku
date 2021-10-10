@@ -30,6 +30,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 var log = logging.Logger("wakunode")
@@ -266,14 +267,39 @@ func (w *WakuNode) startStore() {
 	w.opts.store.Start(w.ctx, w.host)
 
 	if w.opts.shouldResume {
-		if _, err := w.opts.store.Resume(string(relay.GetTopic(nil)), nil); err != nil {
-			log.Error("failed to resume", err)
-		}
+		// TODO: extract this to a function and run it when you go offline
+		// TODO: determine if a store is listening to a topic
+		go func() {
+			for {
+				t := time.NewTicker(time.Second)
+			peerVerif:
+				for {
+					select {
+					case <-w.quit:
+						return
+					case <-t.C:
+						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta3))
+						if err == nil {
+							break peerVerif
+						}
+					}
+				}
+
+				ctxWithTimeout, ctxCancel := context.WithTimeout(w.ctx, 20*time.Second)
+				defer ctxCancel()
+				if err := w.Resume(ctxWithTimeout, nil); err != nil {
+					log.Info("Retrying in 10s...")
+					time.Sleep(10 * time.Second)
+				} else {
+					break
+				}
+			}
+		}()
 	}
 }
 
 func (w *WakuNode) addPeer(info *peer.AddrInfo, protocolID p2pproto.ID) error {
-	log.Info(fmt.Sprintf("adding peer %s", info.ID.Pretty()))
+	log.Info(fmt.Sprintf("Adding peer %s to peerstore", info.ID.Pretty()))
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
 	return w.host.Peerstore().AddProtocols(info.ID, string(protocolID))
 
@@ -314,12 +340,12 @@ func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
 		return errors.New("WakuStore is not set")
 	}
 
-	result, err := w.opts.store.Resume(string(relay.DefaultWakuTopic), peerList)
+	result, err := w.opts.store.Resume(ctx, string(relay.DefaultWakuTopic), peerList)
 	if err != nil {
 		return err
 	}
 
-	log.Info("the number of retrieved messages since the last online time: ", result)
+	log.Info("Retrieved messages since the last online time: ", result)
 
 	return nil
 }

@@ -468,9 +468,11 @@ func DefaultOptions() []HistoryRequestOption {
 }
 
 func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestId []byte) (*pb.HistoryResponse, error) {
+	log.Info(fmt.Sprintf("Resuming message history with peer %s", selectedPeer))
+
 	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta3)
 	if err != nil {
-		log.Info("failed to connect to remote peer", err)
+		log.Error("Failed to connect to remote peer", err)
 		return nil, err
 	}
 
@@ -576,8 +578,6 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	currentTime := float64(time.Now().UnixNano())
 	lastSeenTime := store.findLastSeen()
 
-	log.Info("resuming message history")
-
 	var offset float64 = 200000
 	currentTime = currentTime + offset
 	lastSeenTime = math.Max(lastSeenTime-offset, 0)
@@ -613,8 +613,6 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 			return -1, ErrFailedToResumeHistory
 		}
 	}
-
-	log.Info(fmt.Sprintf("obtained %d messages...", len(response.Messages)))
 
 	for _, msg := range response.Messages {
 		store.storeMessage(pubsubTopic, msg)
