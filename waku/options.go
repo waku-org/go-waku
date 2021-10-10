@@ -17,7 +17,7 @@ type RelayOptions struct {
 
 type FilterOptions struct {
 	Enable bool     `long:"filter" description:"Enable filter protocol"`
-	Nodes  []string `long:"filter-node" description:"Multiaddr of a peer to request content filtering of messages. Option may be repeated"`
+	Nodes  []string `long:"filter-node" description:"Multiaddr of a peer that supports filter protocol. Option may be repeated"`
 }
 
 // LightpushOptions are settings used to enable the lightpush protocol. This is
@@ -28,7 +28,7 @@ type FilterOptions struct {
 // broadcasted
 type LightpushOptions struct {
 	Enable bool     `long:"lightpush" description:"Enable lightpush protocol"`
-	Nodes  []string `long:"lightpush-node" description:"Multiaddr of a peer to request lightpush of published messages. Option may be repeated"`
+	Nodes  []string `long:"lightpush-node" description:"Multiaddr of a peer that supports lightpush protocol. Option may be repeated"`
 }
 
 // StoreOptions are settings used for enabling the store protocol, used to
@@ -37,7 +37,7 @@ type LightpushOptions struct {
 type StoreOptions struct {
 	Enable       bool     `long:"store" description:"Enable store protocol"`
 	ShouldResume bool     `long:"resume" description:"fix the gap in message history"`
-	Nodes        []string `long:"store-node" description:"Multiaddr of a peer to request stored messages. Option may be repeated"`
+	Nodes        []string `long:"store-node" description:"Multiaddr of a peer that supports store protocol. Option may be repeated"`
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery

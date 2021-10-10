@@ -211,8 +211,8 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	}
 }
 
-func readLoop(wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(&pubSubTopic)
+func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
+	sub, err := wakuNode.Subscribe(ctx, &pubSubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return

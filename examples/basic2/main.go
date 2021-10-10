@@ -53,7 +53,7 @@ func main() {
 	}
 
 	go writeLoop(ctx, wakuNode)
-	go readLoop(wakuNode)
+	go readLoop(ctx, wakuNode)
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -105,8 +105,8 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	}
 }
 
-func readLoop(wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(nil)
+func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
+	sub, err := wakuNode.Subscribe(ctx, nil)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return

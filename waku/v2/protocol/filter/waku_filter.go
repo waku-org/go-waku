@@ -25,10 +25,12 @@ type (
 	ContentFilterChan chan *protocol.Envelope
 
 	Filter struct {
+		PeerID         peer.ID
 		Topic          string
-		ContentFilters []*pb.FilterRequest_ContentFilter
+		ContentFilters []string
 		Chan           ContentFilterChan
 	}
+
 	// @TODO MAYBE MORE INFO?
 	Filters map[string]Filter
 
@@ -69,8 +71,8 @@ func (filters *Filters) Notify(msg *pb.WakuMessage, requestId string) {
 
 		// TODO: In case of no topics we should either trigger here for all messages,
 		// or we should not allow such filter to exist in the first place.
-		for _, contentFilter := range filter.ContentFilters {
-			if msg.ContentTopic == contentFilter.ContentTopic {
+		for _, contentTopic := range filter.ContentFilters {
+			if msg.ContentTopic == contentTopic {
 				filter.Chan <- envelope
 				break
 			}
@@ -232,7 +234,18 @@ func (wf *WakuFilter) FilterListener() {
 // Having a FilterRequest struct,
 // select a peer with filter support, dial it,
 // and submit FilterRequest wrapped in FilterRPC
-func (wf *WakuFilter) Subscribe(ctx context.Context, request pb.FilterRequest) (string, error) { //.async, gcsafe.} {
+func (wf *WakuFilter) Subscribe(ctx context.Context, topic string, contentTopics []string) (string, *peer.ID, error) {
+	var contentFilters []*pb.FilterRequest_ContentFilter
+	for _, ct := range contentTopics {
+		contentFilters = append(contentFilters, &pb.FilterRequest_ContentFilter{ContentTopic: ct})
+	}
+
+	request := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          topic,
+		ContentFilters: contentFilters,
+	}
+
 	peer, err := utils.SelectPeer(wf.h, string(FilterID_v20beta1))
 	if err == nil {
 		conn, err := wf.h.NewStream(ctx, *peer, FilterID_v20beta1)
@@ -249,46 +262,45 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, request pb.FilterRequest) (
 			err = writer.WriteMsg(filterRPC)
 			if err != nil {
 				log.Error("failed to write message", err)
-				return "", err
+				return "", nil, err
 			}
-			return string(id), nil
+			return string(id), peer, nil
 		} else {
-			// @TODO more sophisticated error handling here
 			log.Error("failed to connect to remote peer")
-			//waku_filter_errors.inc(labelValues = [dialFailure])
-			return "", err
+			return "", nil, err
 		}
-	} else {
-		log.Info("error selecting peer: ", err)
 	}
 
-	return "", nil
+	log.Info("error selecting peer: ", err)
+	return "", nil, err
 }
 
-func (wf *WakuFilter) Unsubscribe(ctx context.Context, request pb.FilterRequest) {
-	// @TODO: NO REAL REASON TO GENERATE REQUEST ID FOR UNSUBSCRIBE OTHER THAN CREATING SANE-LOOKING RPC.
-	peer, err := utils.SelectPeer(wf.h, string(FilterID_v20beta1))
-	if err == nil {
-		conn, err := wf.h.NewStream(ctx, *peer, FilterID_v20beta1)
+func (wf *WakuFilter) Unsubscribe(ctx context.Context, topic string, contentTopics []string, peer peer.ID) {
+	conn, err := wf.h.NewStream(ctx, peer, FilterID_v20beta1)
+	if conn != nil {
+		defer conn.Close()
 
-		if conn != nil {
-			defer conn.Close()
+		// This is the only successful path to subscription
+		id := protocol.GenerateRequestId()
 
-			// This is the only successful path to subscription
-			id := protocol.GenerateRequestId()
+		var contentFilters []*pb.FilterRequest_ContentFilter
+		for _, ct := range contentTopics {
+			contentFilters = append(contentFilters, &pb.FilterRequest_ContentFilter{ContentTopic: ct})
+		}
 
-			writer := protoio.NewDelimitedWriter(conn)
-			filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: &request}
-			err = writer.WriteMsg(filterRPC)
-			if err != nil {
-				log.Error("failed to write message", err)
-			}
-		} else {
-			// @TODO more sophisticated error handling here
-			log.Error("failed to connect to remote peer", err)
-			//waku_filter_errors.inc(labelValues = [dialFailure])
+		request := pb.FilterRequest{
+			Subscribe:      false,
+			Topic:          topic,
+			ContentFilters: contentFilters,
+		}
+
+		writer := protoio.NewDelimitedWriter(conn)
+		filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: &request}
+		err = writer.WriteMsg(filterRPC)
+		if err != nil {
+			log.Error("failed to write message", err)
 		}
 	} else {
-		log.Info("Error selecting peer: ", err)
+		log.Error("failed to connect to remote peer", err)
 	}
 }

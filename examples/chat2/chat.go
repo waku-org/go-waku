@@ -23,7 +23,6 @@ type Chat struct {
 	// Messages is a channel of messages received from other peers in the chat room
 	Messages chan *pb.Chat2Message
 
-	sub  *node.Subscription
 	C    chan *protocol.Envelope
 	node *node.WakuNode
 
@@ -49,20 +48,12 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 
 	if useLightPush {
 		chat.C = make(filter.ContentFilterChan)
-
-		filterRequest := wpb.FilterRequest{
-			ContentFilters: []*wpb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
-			Topic:          string(relay.GetTopic(nil)),
-			Subscribe:      true,
-		}
-
-		n.SubscribeFilter(ctx, filterRequest, chat.C)
+		n.SubscribeFilter(ctx, string(relay.GetTopic(nil)), []string{contentTopic}, chat.C)
 	} else {
-		sub, err := n.Subscribe(nil)
+		sub, err := n.Subscribe(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
-
 		chat.C = sub.C
 	}
 
