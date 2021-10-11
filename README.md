@@ -4,21 +4,27 @@ A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v
 <p align="left">
   <a href="https://goreportcard.com/report/github.com/status-im/go-waku"><img src="https://goreportcard.com/badge/github.com/status-im/go-waku" /></a>
   <a href="https://godoc.org/github.com/status-im/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
-  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.13.0-orange.svg?style=flat-square" /></a>
+  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.15.0-orange.svg?style=flat-square" /></a>
   <br>
 </p>
 
 ## Install
+
+#### Building from source
 ```
 git clone https://github.com/status-im/go-waku
 cd go-waku
 make
+
+# See the available command line options with
+./build/waku --help
 ```
 
-## Wakunode
-See the available command line options with
+#### Docker
 ```
-./build/waku --help
+docker build -t go-waku:latest .
+
+docker run go-waku:latest --help
 ```
 
 ## Library
@@ -62,7 +68,7 @@ Thank you for considering to help out with the source code! We welcome contribut
 If you'd like to contribute to go-waku, please fork, fix, commit and send a pull request. If you wish to submit more complex changes though, please check up with the core devs first to ensure those changes are in line with the general philosophy of the project and/or get some early feedback which can make both your efforts much lighter as well as our review and merge procedures quick and simple.
 
 To build and test this repository, you need:
-  - [Go](https://golang.org/) (version 1.13 or later)
+  - [Go](https://golang.org/) (version 1.15 or later)
   - [protoc](https://grpc.io/docs/protoc-installation/) 
   - [Protocol Buffers for Go with Gadgets](https://github.com/gogo/protobuf)
 
