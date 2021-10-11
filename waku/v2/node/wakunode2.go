@@ -46,6 +46,7 @@ type WakuNode struct {
 	lightPush  *lightpush.WakuLightPush
 	rendezvous *rendezvous.RendezvousService
 	ping       *ping.PingService
+	store      *store.WakuStore
 
 	subscriptions      map[relay.Topic][]*Subscription
 	subscriptionsMutex sync.Mutex
@@ -184,13 +185,30 @@ func (w *WakuNode) Stop() {
 		w.rendezvous.Stop()
 	}
 
-	for _, topic := range w.relay.Topics() {
-		for _, sub := range w.subscriptions[topic] {
-			sub.Unsubscribe()
+	if w.relay != nil {
+		for _, topic := range w.relay.Topics() {
+			for _, sub := range w.subscriptions[topic] {
+				sub.Unsubscribe()
+			}
 		}
+		w.subscriptions = nil
 	}
 
-	w.subscriptions = nil
+	if w.filter != nil {
+		w.filter.Stop()
+		for _, filter := range w.filters {
+			close(filter.Chan)
+		}
+		w.filters = nil
+	}
+
+	if w.lightPush != nil {
+		w.lightPush.Stop()
+	}
+
+	if w.store != nil {
+		w.store.Stop()
+	}
 
 	w.host.Close()
 }
@@ -264,7 +282,8 @@ func (w *WakuNode) mountRendezvous() error {
 }
 
 func (w *WakuNode) startStore() {
-	w.opts.store.Start(w.ctx, w.host)
+	w.store = w.opts.store
+	w.store.Start(w.ctx, w.host)
 
 	if w.opts.shouldResume {
 		// TODO: extract this to a function and run it when you go offline
@@ -315,7 +334,7 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.
 }
 
 func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
-	if w.opts.store == nil {
+	if w.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
@@ -328,7 +347,7 @@ func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime 
 	query.StartTime = startTime
 	query.EndTime = endTime
 	query.PagingInfo = new(pb.PagingInfo)
-	result, err := w.opts.store.Query(ctx, query, opts...)
+	result, err := w.store.Query(ctx, query, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -336,11 +355,11 @@ func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime 
 }
 
 func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
-	if w.opts.store == nil {
+	if w.store == nil {
 		return errors.New("WakuStore is not set")
 	}
 
-	result, err := w.opts.store.Resume(ctx, string(relay.DefaultWakuTopic), peerList)
+	result, err := w.store.Resume(ctx, string(relay.DefaultWakuTopic), peerList)
 	if err != nil {
 		return err
 	}
@@ -439,34 +458,62 @@ func (node *WakuNode) subscribeToTopic(t relay.Topic, subscription *Subscription
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-// TODO: what's up with this channel?.......................... is it closed eventually?
-func (node *WakuNode) SubscribeFilter(ctx context.Context, topic string, contentTopics []string, ch filter.ContentFilterChan) error {
+func (node *WakuNode) SubscribeFilter(ctx context.Context, topic string, contentTopics []string) (filterID string, ch chan *protocol.Envelope, err error) {
 	if node.filter == nil {
-		return errors.New("WakuFilter is not set")
+		err = errors.New("WakuFilter is not set")
+		return
 	}
+
+	// TODO: should be possible to pass the peerID as option or autoselect peer.
+	// TODO: check if there's an existing pubsub topic that uses the same peer. If so, reuse filter, and return same channel and filterID
 
 	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
 	// ContentFilterChan takes MessagePush structs
-
-	id, peerID, err := node.filter.Subscribe(ctx, topic, contentTopics)
-	if id == "" || err != nil {
+	var peerID *peer.ID
+	filterID, peerID, err = node.filter.Subscribe(ctx, topic, contentTopics)
+	if filterID == "" || err != nil {
 		// Failed to subscribe
 		log.Error("remote subscription to filter failed")
-		return err
+		return
 	}
 
+	ch = make(chan *protocol.Envelope, 1024) // To avoid blocking
+
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[id] = filter.Filter{
+	node.filters[filterID] = filter.Filter{
 		PeerID:         *peerID,
 		Topic:          topic,
 		ContentFilters: contentTopics,
 		Chan:           ch,
 	}
 
+	return
+}
+
+// UnsubscribeFilterByID removes a subscription to a filter node completely
+// using the filterID returned when the subscription was created
+func (node *WakuNode) UnsubscribeFilterByID(ctx context.Context, filterID string) error {
+
+	var f filter.Filter
+	var ok bool
+	if f, ok = node.filters[filterID]; !ok {
+		return errors.New("filter not found")
+	}
+
+	err := node.filter.Unsubscribe(ctx, f.Topic, f.ContentFilters, f.PeerID)
+	if err != nil {
+		return err
+	}
+
+	close(f.Chan)
+	delete(node.filters, filterID)
+
 	return nil
 }
 
-func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, contentTopics []string) {
+// Unsubscribe filter removes content topics from a filter subscription. If all
+// the contentTopics are removed the subscription is dropped completely
+func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, contentTopics []string) error {
 	// Remove local filter
 	var idsToRemove []string
 	for id, f := range node.filters {
@@ -499,11 +546,14 @@ func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, conte
 	for _, rId := range idsToRemove {
 		for id := range node.filters {
 			if id == rId {
+				close(node.filters[id].Chan)
 				delete(node.filters, id)
 				break
 			}
 		}
 	}
+
+	return nil
 }
 
 func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic) ([]byte, error) {

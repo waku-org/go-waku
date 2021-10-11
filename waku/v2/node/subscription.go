@@ -18,8 +18,11 @@ type Subscription struct {
 
 // Unsubscribe will close a subscription from a pubsub topic. Will close the message channel
 func (subs *Subscription) Unsubscribe() {
+	subs.mutex.Lock()
+	defer subs.mutex.Unlock()
 	if !subs.closed {
 		close(subs.quit)
+		subs.closed = true
 	}
 }
 

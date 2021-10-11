@@ -175,3 +175,7 @@ func GetTopic(topic *Topic) Topic {
 	}
 	return t
 }
+
+func (w *WakuRelay) Stop() {
+	w.host.RemoveStreamHandler(WakuRelayID_v200)
+}

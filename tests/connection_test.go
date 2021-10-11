@@ -40,7 +40,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 
 	require.NoError(t, write(ctx, wakuNode, "test"))
 
-	sub, err := wakuNode.Subscribe(nil)
+	sub, err := wakuNode.Subscribe(ctx, nil)
 	require.NoError(t, err)
 
 	value := <-sub.C
