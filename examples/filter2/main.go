@@ -84,14 +84,17 @@ func main() {
 	//
 
 	// Send FilterRequest from light node to full node
-	filterChan := make(filter.ContentFilterChan)
+	_, filterChan, err := lightNode.SubscribeFilter(ctx, string(pubSubTopic), []string{contentTopic})
+	if err != nil {
+		panic(err)
+	}
 
 	go func() {
 		for env := range filterChan {
 			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
+		log.Info("Message channel closed!")
 	}()
-	lightNode.SubscribeFilter(ctx, string(pubSubTopic), []string{contentTopic}, filterChan)
 
 	go writeLoop(ctx, fullNode)
 	go readLoop(ctx, fullNode)

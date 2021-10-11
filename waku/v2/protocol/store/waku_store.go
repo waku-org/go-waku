@@ -622,3 +622,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 }
 
 // TODO: queryWithAccounting
+
+func (w *WakuStore) Stop() {
+	w.h.RemoveStreamHandler(StoreID_v20beta3)
+}

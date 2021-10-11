@@ -22,13 +22,11 @@ import (
 var log = logging.Logger("wakufilter")
 
 type (
-	ContentFilterChan chan *protocol.Envelope
-
 	Filter struct {
 		PeerID         peer.ID
 		Topic          string
 		ContentFilters []string
-		Chan           ContentFilterChan
+		Chan           chan *protocol.Envelope
 	}
 
 	// @TODO MAYBE MORE INFO?
@@ -234,7 +232,7 @@ func (wf *WakuFilter) FilterListener() {
 // Having a FilterRequest struct,
 // select a peer with filter support, dial it,
 // and submit FilterRequest wrapped in FilterRPC
-func (wf *WakuFilter) Subscribe(ctx context.Context, topic string, contentTopics []string) (string, *peer.ID, error) {
+func (wf *WakuFilter) Subscribe(ctx context.Context, topic string, contentTopics []string) (requestID string, peer *peer.ID, err error) {
 	var contentFilters []*pb.FilterRequest_ContentFilter
 	for _, ct := range contentTopics {
 		contentFilters = append(contentFilters, &pb.FilterRequest_ContentFilter{ContentTopic: ct})
@@ -246,61 +244,67 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, topic string, contentTopics
 		ContentFilters: contentFilters,
 	}
 
-	peer, err := utils.SelectPeer(wf.h, string(FilterID_v20beta1))
-	if err == nil {
-		conn, err := wf.h.NewStream(ctx, *peer, FilterID_v20beta1)
-
-		if conn != nil {
-			defer conn.Close()
-
-			// This is the only successful path to subscription
-			id := protocol.GenerateRequestId()
-
-			writer := protoio.NewDelimitedWriter(conn)
-			filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: &request}
-			log.Info("sending filterRPC: ", filterRPC)
-			err = writer.WriteMsg(filterRPC)
-			if err != nil {
-				log.Error("failed to write message", err)
-				return "", nil, err
-			}
-			return string(id), peer, nil
-		} else {
-			log.Error("failed to connect to remote peer")
-			return "", nil, err
-		}
+	peer, err = utils.SelectPeer(wf.h, string(FilterID_v20beta1))
+	if err != nil {
+		return
 	}
 
-	log.Info("error selecting peer: ", err)
-	return "", nil, err
+	var conn network.Stream
+	conn, err = wf.h.NewStream(ctx, *peer, FilterID_v20beta1)
+	if err != nil {
+		return
+	}
+
+	defer conn.Close()
+
+	// This is the only successful path to subscription
+	requestID = hex.EncodeToString(protocol.GenerateRequestId())
+
+	writer := protoio.NewDelimitedWriter(conn)
+	filterRPC := &pb.FilterRPC{RequestId: requestID, Request: &request}
+	log.Info("sending filterRPC: ", filterRPC)
+	err = writer.WriteMsg(filterRPC)
+	if err != nil {
+		log.Error("failed to write message", err)
+		return
+	}
+
+	return
 }
 
-func (wf *WakuFilter) Unsubscribe(ctx context.Context, topic string, contentTopics []string, peer peer.ID) {
+func (wf *WakuFilter) Unsubscribe(ctx context.Context, topic string, contentTopics []string, peer peer.ID) error {
 	conn, err := wf.h.NewStream(ctx, peer, FilterID_v20beta1)
-	if conn != nil {
-		defer conn.Close()
 
-		// This is the only successful path to subscription
-		id := protocol.GenerateRequestId()
-
-		var contentFilters []*pb.FilterRequest_ContentFilter
-		for _, ct := range contentTopics {
-			contentFilters = append(contentFilters, &pb.FilterRequest_ContentFilter{ContentTopic: ct})
-		}
-
-		request := pb.FilterRequest{
-			Subscribe:      false,
-			Topic:          topic,
-			ContentFilters: contentFilters,
-		}
-
-		writer := protoio.NewDelimitedWriter(conn)
-		filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: &request}
-		err = writer.WriteMsg(filterRPC)
-		if err != nil {
-			log.Error("failed to write message", err)
-		}
-	} else {
-		log.Error("failed to connect to remote peer", err)
+	if err != nil {
+		return err
 	}
+
+	defer conn.Close()
+
+	// This is the only successful path to subscription
+	id := protocol.GenerateRequestId()
+
+	var contentFilters []*pb.FilterRequest_ContentFilter
+	for _, ct := range contentTopics {
+		contentFilters = append(contentFilters, &pb.FilterRequest_ContentFilter{ContentTopic: ct})
+	}
+
+	request := pb.FilterRequest{
+		Subscribe:      false,
+		Topic:          topic,
+		ContentFilters: contentFilters,
+	}
+
+	writer := protoio.NewDelimitedWriter(conn)
+	filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: &request}
+	err = writer.WriteMsg(filterRPC)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (wf *WakuFilter) Stop() {
+	wf.h.RemoveStreamHandler(FilterID_v20beta1)
 }
