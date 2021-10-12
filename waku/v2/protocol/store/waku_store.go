@@ -10,7 +10,6 @@ import (
 	"math"
 	"sort"
 	"sync"
-	"time"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -360,7 +359,7 @@ func computeIndex(msg *pb.WakuMessage) (*pb.Index, error) {
 	digest := sha256.Sum256(data)
 	return &pb.Index{
 		Digest:       digest[:],
-		ReceiverTime: float64(time.Now().Unix()),
+		ReceiverTime: utils.GetUnixEpoch(),
 		SenderTime:   msg.Timestamp,
 	}, nil
 }
@@ -575,7 +574,7 @@ func (store *WakuStore) findLastSeen() float64 {
 // the resume proc returns the number of retrieved messages if no error occurs, otherwise returns the error string
 
 func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList []peer.ID) (int, error) {
-	currentTime := float64(time.Now().UnixNano())
+	currentTime := utils.GetUnixEpoch()
 	lastSeenTime := store.findLastSeen()
 
 	var offset float64 = 200000
