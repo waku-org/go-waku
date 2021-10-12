@@ -17,6 +17,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	//"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
@@ -182,7 +183,7 @@ func randomHex(n int) (string, error) {
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	var version uint32 = 0
-	var timestamp float64 = float64(time.Now().Unix())
+	var timestamp float64 = utils.GetUnixEpoch()
 
 	p := new(node.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
