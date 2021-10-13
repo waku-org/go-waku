@@ -71,6 +71,7 @@ type Options struct {
 	KeepAlive   int      `long:"keep-alive" default:"20" description:"Interval in seconds for pinging peers to keep the connection alive."`
 	UseDB       bool     `long:"use-db" description:"Use SQLiteDB to persist information"`
 	DBPath      string   `long:"dbpath" default:"./store.db" description:"Path to DB file"`
+	LogLevel    string   `short:"l" long:"log-level" description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
 
 	Relay            RelayOptions            `group:"Relay Options"`
 	Store            StoreOptions            `group:"Store Options"`
