@@ -522,7 +522,10 @@ func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, conte
 		}
 
 		// Send message to full node in order to unsubscribe
-		node.filter.Unsubscribe(ctx, topic, contentTopics, f.PeerID)
+		err := node.filter.Unsubscribe(ctx, topic, contentTopics, f.PeerID)
+		if err != nil {
+			return err
+		}
 
 		// Iterate filter entries to remove matching content topics
 		// make sure we delete the content filter
