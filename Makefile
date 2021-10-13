@@ -17,5 +17,6 @@ lint-install:
 lint:
 	@echo "lint"
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
+
 test:
 	go test -v -failfast ./...
