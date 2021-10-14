@@ -8,6 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.3.0
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.10.4
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-ds-sql v0.2.0
 	github.com/ipfs/go-log v1.0.5

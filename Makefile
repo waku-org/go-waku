@@ -20,3 +20,6 @@ lint:
 
 test:
 	go test -v -failfast ./...
+
+generate:
+	go generate ./waku/v2/protocol/pb/generate.go
