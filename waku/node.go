@@ -39,8 +39,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 var log = logging.Logger("wakunode")
@@ -134,7 +132,7 @@ func Execute(options Options) {
 	}
 
 	if options.RendezvousServer.Enable {
-		db, err := leveldb.OpenFile(options.RendezvousServer.DBPath, &opt.Options{OpenFilesCacheCapacity: 3})
+		db, err := persistence.NewRendezVousLevelDB(options.RendezvousServer.DBPath)
 		failOnErr(err, "RendezvousDB")
 		storage := rendezvous.NewStorage(db)
 		nodeOpts = append(nodeOpts, node.WithRendezvousServer(storage))

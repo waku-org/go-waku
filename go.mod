@@ -22,7 +22,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/minio/sha256-simd v1.0.0
 	github.com/multiformats/go-multiaddr v0.4.0
-	github.com/status-im/go-waku-rendezvous v0.0.0-20211016214658-a0d71f947cee
+	github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	go.opencensus.io v0.23.0
