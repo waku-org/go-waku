@@ -47,6 +47,10 @@ type WakuNodeParameters struct {
 
 type WakuNodeOption func(*WakuNodeParameters) error
 
+func (w WakuNodeParameters) MultiAddresses() []ma.Multiaddr {
+	return w.multiAddr
+}
+
 // WithHostAddress is a WakuNodeOption that configures libp2p to listen on a list of net endpoint addresses
 func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {

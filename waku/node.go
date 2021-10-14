@@ -61,7 +61,7 @@ func Execute(options Options) {
 		return
 	}
 
-	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:", options.Port))
+	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
 
 	var err error
 
@@ -94,8 +94,13 @@ func Execute(options Options) {
 	}
 
 	if options.EnableWS {
-		wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d/ws", options.WSPort))
+		wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", options.WSAddress, options.WSPort))
 		nodeOpts = append(nodeOpts, node.WithMultiaddress([]multiaddr.Multiaddr{wsMa}))
+	}
+
+	if options.ShowAddresses {
+		printListeningAddresses(ctx, nodeOpts)
+		return
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
@@ -329,4 +334,26 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 		}
 	}
 	return prvKey, nil
+}
+
+func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	params := new(node.WakuNodeParameters)
+	for _, opt := range nodeOpts {
+		err := opt(params)
+		if err != nil {
+			panic(err)
+		}
+	}
+	h, err := libp2p.New(ctx, libp2p.ListenAddrs(params.MultiAddresses()...))
+	if err != nil {
+		panic(err)
+	}
+
+	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
+	for _, addr := range h.Addrs() {
+		fmt.Println(addr.Encapsulate(hostInfo))
+	}
+
 }

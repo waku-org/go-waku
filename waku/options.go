@@ -60,18 +60,21 @@ type MetricsOptions struct {
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
-	Port        int      `short:"p" long:"port" description:"Libp2p TCP listening port (0 for random)" default:"9000"`
-	EnableWS    bool     `long:"ws" description:"Enable websockets support"`
-	WSPort      int      `long:"ws-port" description:"Libp2p TCP listening port for websocket connection (0 for random)" default:"9001"`
-	NodeKey     string   `long:"nodekey" description:"P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)"`
-	KeyFile     string   `long:"key-file" description:"Path to a file containing the private key for the P2P node" default:"./nodekey"`
-	GenerateKey bool     `long:"generate-key" description:"Generate private key file at path specified in --key-file"`
-	Overwrite   bool     `long:"overwrite" description:"When generating a keyfile, overwrite the nodekey file if it already exists"`
-	StaticNodes []string `long:"static-node" description:"Multiaddr of peer to directly connect with. Option may be repeated"`
-	KeepAlive   int      `long:"keep-alive" default:"20" description:"Interval in seconds for pinging peers to keep the connection alive."`
-	UseDB       bool     `long:"use-db" description:"Use SQLiteDB to persist information"`
-	DBPath      string   `long:"dbpath" default:"./store.db" description:"Path to DB file"`
-	LogLevel    string   `short:"l" long:"log-level" description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
+	Port          int      `short:"p" long:"port" description:"Libp2p TCP listening port (0 for random)" default:"9000"`
+	Address       string   `long:"address" description:"Listening address" default:"0.0.0.0"`
+	EnableWS      bool     `long:"ws" description:"Enable websockets support"`
+	WSPort        int      `long:"ws-port" description:"Libp2p TCP listening port for websocket connection (0 for random)" default:"9001"`
+	WSAddress     string   `long:"ws-address" description:"Listening address for websocket connections" default:"0.0.0.0"`
+	NodeKey       string   `long:"nodekey" description:"P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)"`
+	KeyFile       string   `long:"key-file" description:"Path to a file containing the private key for the P2P node" default:"./nodekey"`
+	GenerateKey   bool     `long:"generate-key" description:"Generate private key file at path specified in --key-file"`
+	Overwrite     bool     `long:"overwrite" description:"When generating a keyfile, overwrite the nodekey file if it already exists"`
+	StaticNodes   []string `long:"static-node" description:"Multiaddr of peer to directly connect with. Option may be repeated"`
+	KeepAlive     int      `long:"keep-alive" default:"20" description:"Interval in seconds for pinging peers to keep the connection alive."`
+	UseDB         bool     `long:"use-db" description:"Use SQLiteDB to persist information"`
+	DBPath        string   `long:"dbpath" default:"./store.db" description:"Path to DB file"`
+	ShowAddresses bool     `long:"show-addresses" description:"Display listening addresses according to current configuration"`
+	LogLevel      string   `short:"l" long:"log-level" description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
 
 	Relay            RelayOptions            `group:"Relay Options"`
 	Store            StoreOptions            `group:"Store Options"`
