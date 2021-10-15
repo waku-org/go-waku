@@ -1,7 +1,7 @@
-/README.md
-/Dockerfile
-/.*ignore
-/LICENSE*
-/tests
-/examples
-/*.db
+README.md
+Dockerfile
+.*ignore
+LICENSE*
+tests
+examples
+*.db

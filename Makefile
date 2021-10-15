@@ -23,3 +23,10 @@ test:
 
 generate:
 	go generate ./waku/v2/protocol/pb/generate.go
+
+# build a docker image for the fleet
+docker-image: DOCKER_IMAGE_TAG ?= latest
+docker-image: DOCKER_IMAGE_NAME ?= statusteam/go-waku:$(DOCKER_IMAGE_TAG)
+docker-image:
+	docker build --tag $(DOCKER_IMAGE_NAME) \
+		--build-arg="GIT_COMMIT=$(shell git rev-parse HEAD)" .
