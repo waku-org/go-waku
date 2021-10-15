@@ -355,12 +355,14 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 	}
 
 	var libp2pOpts []config.Option
+	libp2pOpts = append(libp2pOpts, params.Identity())
 
 	if options.AdvertiseAddress != "" {
 		advertiseAddress, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
 		if err != nil {
 			panic(err)
 		}
+
 		libp2pOpts = append(libp2pOpts, libp2p.AddrsFactory(func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
 			addr, _ := manet.FromNetAddr(advertiseAddress)
 			var result []multiaddr.Multiaddr
@@ -376,6 +378,7 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 	}
 
 	libp2pOpts = append(libp2pOpts, libp2p.ListenAddrs(params.MultiAddresses()...))
+
 	h, err := libp2p.New(ctx, libp2pOpts...)
 	if err != nil {
 		panic(err)
