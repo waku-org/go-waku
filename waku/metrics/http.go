@@ -40,6 +40,11 @@ func NewMetricsServer(address string, port int) *Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", pe)
 
+	// Healthcheck
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "OK")
+	})
+
 	h := &ochttp.Handler{Handler: mux}
 
 	// Register the views
