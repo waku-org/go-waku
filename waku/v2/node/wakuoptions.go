@@ -10,6 +10,7 @@ import (
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/config"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
@@ -52,6 +53,10 @@ type WakuNodeOption func(*WakuNodeParameters) error
 
 func (w WakuNodeParameters) MultiAddresses() []ma.Multiaddr {
 	return w.multiAddr
+}
+
+func (w WakuNodeParameters) Identity() config.Option {
+	return libp2p.Identity(*w.privKey)
 }
 
 // WithHostAddress is a WakuNodeOption that configures libp2p to listen on a list of net endpoint addresses

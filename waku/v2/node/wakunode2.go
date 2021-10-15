@@ -88,7 +88,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	}
 
 	if params.privKey != nil {
-		params.libP2POpts = append(params.libP2POpts, libp2p.Identity(*params.privKey))
+		params.libP2POpts = append(params.libP2POpts, params.Identity())
 	}
 
 	if params.addressFactory != nil {
