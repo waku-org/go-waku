@@ -2,6 +2,7 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"net"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
@@ -19,9 +22,10 @@ import (
 const clientId string = "Go Waku v2 node"
 
 type WakuNodeParameters struct {
-	multiAddr  []ma.Multiaddr
-	privKey    *crypto.PrivKey
-	libP2POpts []libp2p.Option
+	multiAddr      []ma.Multiaddr
+	addressFactory basichost.AddrsFactory
+	privKey        *crypto.PrivKey
+	libP2POpts     []libp2p.Option
 
 	enableRelay  bool
 	enableFilter bool
@@ -31,7 +35,6 @@ type WakuNodeParameters struct {
 	shouldResume bool
 	storeMsgs    bool
 	store        *store.WakuStore
-	// filter      *filter.WakuFilter
 
 	enableRendezvous       bool
 	enableRendezvousServer bool
@@ -65,6 +68,25 @@ func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
 
 		params.multiAddr = append(params.multiAddr, multiAddresses...)
 
+		return nil
+	}
+}
+
+// WithAdvertiseAddress is a WakuNodeOption that allows overriding the addresses used in the waku node with custom values
+func WithAdvertiseAddress(addressesToAdvertise []net.Addr, enableWS bool, wsPort int) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.addressFactory = func([]ma.Multiaddr) []ma.Multiaddr {
+			var result []multiaddr.Multiaddr
+			for _, adv := range addressesToAdvertise {
+				addr, _ := manet.FromNetAddr(adv)
+				result = append(result, addr)
+				if enableWS {
+					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", adv, wsPort))
+					result = append(result, wsMa)
+				}
+			}
+			return result
+		}
 		return nil
 	}
 }

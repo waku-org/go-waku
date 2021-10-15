@@ -17,11 +17,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
+	manet "github.com/multiformats/go-multiaddr/net"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p/config"
 
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
@@ -61,9 +63,8 @@ func Execute(options Options) {
 		return
 	}
 
-	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
-
-	var err error
+	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
+	failOnErr(err, "invalid host address")
 
 	prvKey, err := getPrivKey(options)
 	failOnErr(err, "nodekey error")
@@ -93,13 +94,19 @@ func Execute(options Options) {
 		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
 	}
 
+	if options.AdvertiseAddress != "" {
+		advertiseAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
+		failOnErr(err, "invalid advertise address")
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress([]net.Addr{advertiseAddr}, options.EnableWS, options.WSPort))
+	}
+
 	if options.EnableWS {
 		wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", options.WSAddress, options.WSPort))
 		nodeOpts = append(nodeOpts, node.WithMultiaddress([]multiaddr.Multiaddr{wsMa}))
 	}
 
 	if options.ShowAddresses {
-		printListeningAddresses(ctx, nodeOpts)
+		printListeningAddresses(ctx, nodeOpts, options)
 		return
 	}
 
@@ -336,7 +343,7 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 	return prvKey, nil
 }
 
-func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption) {
+func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption, options Options) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	params := new(node.WakuNodeParameters)
@@ -346,12 +353,36 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 			panic(err)
 		}
 	}
-	h, err := libp2p.New(ctx, libp2p.ListenAddrs(params.MultiAddresses()...))
+
+	var libp2pOpts []config.Option
+
+	if options.AdvertiseAddress != "" {
+		advertiseAddress, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
+		if err != nil {
+			panic(err)
+		}
+		libp2pOpts = append(libp2pOpts, libp2p.AddrsFactory(func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
+			addr, _ := manet.FromNetAddr(advertiseAddress)
+			var result []multiaddr.Multiaddr
+			result = append(result, addr)
+
+			if options.EnableWS {
+				wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", options.AdvertiseAddress, options.WSPort))
+				result = append(result, wsMa)
+			}
+
+			return result
+		}))
+	}
+
+	libp2pOpts = append(libp2pOpts, libp2p.ListenAddrs(params.MultiAddresses()...))
+	h, err := libp2p.New(ctx, libp2pOpts...)
 	if err != nil {
 		panic(err)
 	}
 
 	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
+
 	for _, addr := range h.Addrs() {
 		fmt.Println(addr.Encapsulate(hostInfo))
 	}

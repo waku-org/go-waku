@@ -91,6 +91,10 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		params.libP2POpts = append(params.libP2POpts, libp2p.Identity(*params.privKey))
 	}
 
+	if params.addressFactory != nil {
+		params.libP2POpts = append(params.libP2POpts, libp2p.AddrsFactory(params.addressFactory))
+	}
+
 	host, err := libp2p.New(ctx, params.libP2POpts...)
 	if err != nil {
 		cancel()
