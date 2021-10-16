@@ -695,13 +695,26 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 
 	w.ping = ping.NewPingService(w.host)
 	ticker := time.NewTicker(t)
+
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				for _, peer := range w.host.Network().Peers() {
-					log.Debug("Pinging", peer)
-					w.ping.Ping(w.ctx, peer)
+				for _, p := range w.host.Network().Peers() {
+					log.Debug("Pinging ", p)
+					go func(peer peer.ID) {
+						ctx, cancel := context.WithTimeout(w.ctx, 3*time.Second)
+						defer cancel()
+						pr := w.ping.Ping(ctx, peer)
+						select {
+						case res := <-pr:
+							if res.Error != nil {
+								log.Error(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
+							}
+						case <-ctx.Done():
+							log.Error(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
+						}
+					}(p)
 				}
 			case <-w.quit:
 				ticker.Stop()
