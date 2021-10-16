@@ -122,7 +122,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		w.connStatusChan = params.connStatusChan
 	}
 
-	w.connectionNotif = NewConnectionNotifier(host)
+	w.connectionNotif = NewConnectionNotifier(ctx, host)
 	w.host.Network().Notify(w.connectionNotif)
 	go w.connectednessListener()
 
@@ -324,8 +324,12 @@ func (w *WakuNode) startStore() {
 func (w *WakuNode) addPeer(info *peer.AddrInfo, protocolID p2pproto.ID) error {
 	log.Info(fmt.Sprintf("Adding peer %s to peerstore", info.ID.Pretty()))
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
-	return w.host.Peerstore().AddProtocols(info.ID, string(protocolID))
+	err := w.host.Peerstore().AddProtocols(info.ID, string(protocolID))
+	if err != nil {
+		return err
+	}
 
+	return nil
 }
 
 func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.ID, error) {
@@ -637,6 +641,8 @@ func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	if err != nil {
 		return err
 	}
+
+	stats.Record(ctx, metrics.Dials.M(1))
 	return nil
 }
 

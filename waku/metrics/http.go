@@ -27,9 +27,7 @@ func NewMetricsServer(address string, port int) *Server {
 		EnableMemory: true,
 	})
 
-	pe, err := prometheus.NewExporter(prometheus.Options{
-		Namespace: "wakunode",
-	})
+	pe, err := prometheus.NewExporter(prometheus.Options{})
 	if err != nil {
 		log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
 	}
@@ -49,10 +47,12 @@ func NewMetricsServer(address string, port int) *Server {
 
 	// Register the views
 	if err := view.Register(
-		metrics.MessageTypeView,
+		metrics.MessageView,
 		metrics.FilterSubscriptionsView,
 		metrics.StoreErrorTypesView,
-		metrics.StoreMessageTypeView,
+		metrics.StoreMessagesView,
+		metrics.PeersView,
+		metrics.DialsView,
 	); err != nil {
 		log.Fatalf("Failed to register views: %v", err)
 	}
@@ -63,6 +63,7 @@ func NewMetricsServer(address string, port int) *Server {
 			Handler: h,
 		},
 	}
+
 	return &p
 }
 

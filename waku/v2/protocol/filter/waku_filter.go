@@ -93,14 +93,13 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 
 	log.Info(fmt.Sprintf("%s: received request from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
 
-	stats.Record(wf.ctx, metrics.Messages.M(1))
-
 	if filterRPCRequest.Push != nil && len(filterRPCRequest.Push.Messages) > 0 {
 		// We're on a light node.
 		// This is a message push coming from a full node.
+		wf.pushHandler(filterRPCRequest.RequestId, *filterRPCRequest.Push)
 
 		log.Info("filter light node, received a message push. ", len(filterRPCRequest.Push.Messages), " messages")
-		wf.pushHandler(filterRPCRequest.RequestId, *filterRPCRequest.Push)
+		stats.Record(wf.ctx, metrics.Messages.M(int64(len(filterRPCRequest.Push.Messages))))
 	} else if filterRPCRequest.Request != nil {
 		// We're on a full node.
 		// This is a filter request coming from a light node.

@@ -188,8 +188,6 @@ func Execute(options Options) {
 
 	for _, n := range options.StaticNodes {
 		go func(node string) {
-			ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
-			defer cancel()
 			err = wakuNode.DialPeer(ctx, node)
 			if err != nil {
 				log.Error("error dialing peer ", err)
