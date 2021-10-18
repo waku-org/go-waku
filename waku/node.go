@@ -88,14 +88,14 @@ func Execute(options Options) {
 
 	nodeOpts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
-		node.WithHostAddress([]net.Addr{hostAddr}),
+		node.WithHostAddress([]*net.TCPAddr{hostAddr}),
 		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
 	}
 
 	if options.AdvertiseAddress != "" {
 		advertiseAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
 		failOnErr(err, "invalid advertise address")
-		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress([]net.Addr{advertiseAddr}, options.EnableWS, options.WSPort))
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress([]*net.TCPAddr{advertiseAddr}, options.EnableWS, options.WSPort))
 	}
 
 	if options.EnableWS {

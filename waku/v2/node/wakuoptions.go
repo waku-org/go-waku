@@ -60,7 +60,7 @@ func (w WakuNodeParameters) Identity() config.Option {
 }
 
 // WithHostAddress is a WakuNodeOption that configures libp2p to listen on a list of net endpoint addresses
-func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
+func WithHostAddress(hostAddr []*net.TCPAddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		var multiAddresses []ma.Multiaddr
 		for _, addr := range hostAddr {
@@ -78,7 +78,7 @@ func WithHostAddress(hostAddr []net.Addr) WakuNodeOption {
 }
 
 // WithAdvertiseAddress is a WakuNodeOption that allows overriding the addresses used in the waku node with custom values
-func WithAdvertiseAddress(addressesToAdvertise []net.Addr, enableWS bool, wsPort int) WakuNodeOption {
+func WithAdvertiseAddress(addressesToAdvertise []*net.TCPAddr, enableWS bool, wsPort int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.addressFactory = func([]ma.Multiaddr) []ma.Multiaddr {
 			var result []multiaddr.Multiaddr
@@ -86,7 +86,7 @@ func WithAdvertiseAddress(addressesToAdvertise []net.Addr, enableWS bool, wsPort
 				addr, _ := manet.FromNetAddr(adv)
 				result = append(result, addr)
 				if enableWS {
-					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", adv, wsPort))
+					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", adv.IP.String(), wsPort))
 					result = append(result, wsMa)
 				}
 			}
