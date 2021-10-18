@@ -28,7 +28,7 @@ var (
 
 type (
 	FilterSubscribeParameters struct {
-		h            host.Host
+		host         host.Host
 		selectedPeer peer.ID
 	}
 
@@ -85,7 +85,7 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 
 func WithAutomaticPeerSelection() FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		p, err := utils.SelectPeer(params.h, string(FilterID_v20beta1))
+		p, err := utils.SelectPeer(params.host, string(FilterID_v20beta1))
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -278,7 +278,7 @@ func (wf *WakuFilter) FilterListener() {
 // and submit FilterRequest wrapped in FilterRPC
 func (wf *WakuFilter) Subscribe(ctx context.Context, filter ContentFilter, opts ...FilterSubscribeOption) (subscription *FilterSubscription, err error) {
 	params := new(FilterSubscribeParameters)
-	params.h = wf.h
+	params.host = wf.h
 
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
