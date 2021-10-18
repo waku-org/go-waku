@@ -69,13 +69,16 @@ func NewMetricsServer(address string, port int) *Server {
 
 // Start executes the HTTP server in the background.
 func (p *Server) Start() {
-	log.Info("Server stopped ", p.server.ListenAndServe())
+	log.Info("server stopped ", p.server.ListenAndServe())
 }
 
 // Stop shuts down the prometheus server
-func (p *Server) Stop(ctx context.Context) {
+func (p *Server) Stop(ctx context.Context) error {
 	err := p.server.Shutdown(ctx)
 	if err != nil {
-		log.Error("Server shutdown err", err)
+		log.Error("error while stopping server", err)
+		return err
 	}
+
+	return nil
 }
