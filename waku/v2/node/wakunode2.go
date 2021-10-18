@@ -466,7 +466,7 @@ func (node *WakuNode) subscribeToTopic(t relay.Topic, subscription *Subscription
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-func (node *WakuNode) SubscribeFilter(ctx context.Context, topic string, contentTopics []string) (filterID string, ch chan *protocol.Envelope, err error) {
+func (node *WakuNode) SubscribeFilter(ctx context.Context, f filter.ContentFilter) (filterID string, ch chan *protocol.Envelope, err error) {
 	if node.filter == nil {
 		err = errors.New("WakuFilter is not set")
 		return
@@ -477,25 +477,24 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, topic string, content
 
 	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
 	// ContentFilterChan takes MessagePush structs
-	var peerID *peer.ID
-	filterID, peerID, err = node.filter.Subscribe(ctx, topic, contentTopics)
-	if filterID == "" || err != nil {
+	subs, err := node.filter.Subscribe(ctx, f)
+	if subs.RequestID == "" || err != nil {
 		// Failed to subscribe
-		log.Error("remote subscription to filter failed")
+		log.Error("remote subscription to filter failed", err)
 		return
 	}
 
 	ch = make(chan *protocol.Envelope, 1024) // To avoid blocking
 
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[filterID] = filter.Filter{
-		PeerID:         *peerID,
-		Topic:          topic,
-		ContentFilters: contentTopics,
+	node.filters[subs.RequestID] = filter.Filter{
+		PeerID:         subs.Peer,
+		Topic:          f.Topic,
+		ContentFilters: f.ContentTopics,
 		Chan:           ch,
 	}
 
-	return
+	return subs.RequestID, ch, nil
 }
 
 // UnsubscribeFilterByID removes a subscription to a filter node completely
@@ -508,7 +507,12 @@ func (node *WakuNode) UnsubscribeFilterByID(ctx context.Context, filterID string
 		return errors.New("filter not found")
 	}
 
-	err := node.filter.Unsubscribe(ctx, f.Topic, f.ContentFilters, f.PeerID)
+	cf := filter.ContentFilter{
+		Topic:         f.Topic,
+		ContentTopics: f.ContentFilters,
+	}
+
+	err := node.filter.Unsubscribe(ctx, cf, f.PeerID)
 	if err != nil {
 		return err
 	}
@@ -521,16 +525,16 @@ func (node *WakuNode) UnsubscribeFilterByID(ctx context.Context, filterID string
 
 // Unsubscribe filter removes content topics from a filter subscription. If all
 // the contentTopics are removed the subscription is dropped completely
-func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, contentTopics []string) error {
+func (node *WakuNode) UnsubscribeFilter(ctx context.Context, cf filter.ContentFilter) error {
 	// Remove local filter
 	var idsToRemove []string
 	for id, f := range node.filters {
-		if f.Topic != topic {
+		if f.Topic != cf.Topic {
 			continue
 		}
 
 		// Send message to full node in order to unsubscribe
-		err := node.filter.Unsubscribe(ctx, topic, contentTopics, f.PeerID)
+		err := node.filter.Unsubscribe(ctx, cf, f.PeerID)
 		if err != nil {
 			return err
 		}
@@ -538,7 +542,7 @@ func (node *WakuNode) UnsubscribeFilter(ctx context.Context, topic string, conte
 		// Iterate filter entries to remove matching content topics
 		// make sure we delete the content filter
 		// if no more topics are left
-		for _, cfToDelete := range contentTopics {
+		for _, cfToDelete := range cf.ContentTopics {
 			for i, cf := range f.ContentFilters {
 				if cf == cfToDelete {
 					l := len(f.ContentFilters) - 1

@@ -85,7 +85,12 @@ func main() {
 	//
 
 	// Send FilterRequest from light node to full node
-	_, filterChan, err := lightNode.SubscribeFilter(ctx, string(pubSubTopic), []string{contentTopic})
+	cf := filter.ContentFilter{
+		Topic:         string(pubSubTopic),
+		ContentTopics: []string{contentTopic},
+	}
+
+	_, filterChan, err := lightNode.SubscribeFilter(ctx, cf)
 	if err != nil {
 		panic(err)
 	}
@@ -103,7 +108,7 @@ func main() {
 	go func() {
 		// Unsubscribe filter after 5 seconds
 		time.Sleep(5 * time.Second)
-		lightNode.UnsubscribeFilter(ctx, string(pubSubTopic), []string{contentTopic})
+		lightNode.UnsubscribeFilter(ctx, cf)
 	}()
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
