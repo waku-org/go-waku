@@ -233,7 +233,8 @@ func Execute(options Options) {
 	wakuNode.Stop()
 
 	if options.Metrics.Enable {
-		metricsServer.Stop(ctx)
+		err = metricsServer.Stop(ctx)
+		failOnErr(err, "MetricsClose")
 	}
 
 	if options.UseDB {
