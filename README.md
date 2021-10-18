@@ -72,6 +72,11 @@ To build and test this repository, you need:
   - [protoc](https://grpc.io/docs/protoc-installation/) 
   - [Protocol Buffers for Go with Gadgets](https://github.com/gogo/protobuf)
 
+To enable the git hooks:
+
+```bash
+git config core.hooksPath hooks
+```
 
 ## License
 Licensed and distributed under either of
