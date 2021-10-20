@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestMsg() *pb.WakuMessage {
+func createTestMsg(version uint32) *pb.WakuMessage {
 	message := new(pb.WakuMessage)
 	message.Payload = []byte{0, 1, 2}
-	message.Version = 0
+	message.Version = version
 	message.Timestamp = float64(123456)
 	return message
 }
@@ -44,7 +44,7 @@ func TestEncodeDecodePayload(t *testing.T) {
 }
 
 func TestEncodeDecodeVersion0(t *testing.T) {
-	message := createTestMsg()
+	message := createTestMsg(0)
 
 	keyInfo := new(KeyInfo)
 	keyInfo.Kind = None
@@ -68,8 +68,7 @@ func generateSymKey() ([]byte, error) {
 }
 
 func TestEncodeDecodeVersion1Symmetric(t *testing.T) {
-	message := createTestMsg()
-	message.Version = 1
+	message := createTestMsg(1)
 	data := message.Payload
 
 	keyInfo := new(KeyInfo)
@@ -90,8 +89,7 @@ func TestEncodeDecodeVersion1Symmetric(t *testing.T) {
 }
 
 func TestEncodeDecodeVersion1Asymmetric(t *testing.T) {
-	message := createTestMsg()
-	message.Version = 1
+	message := createTestMsg(1)
 	data := message.Payload
 
 	privKey, err := crypto.GenerateKey()
@@ -113,8 +111,7 @@ func TestEncodeDecodeVersion1Asymmetric(t *testing.T) {
 }
 
 func TestEncodeDecodeIncorrectKey(t *testing.T) {
-	message := createTestMsg()
-	message.Version = 1
+	message := createTestMsg(1)
 
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -137,20 +134,18 @@ func TestEncodeDecodeIncorrectKey(t *testing.T) {
 }
 
 func TestEncodeUnsupportedVersion(t *testing.T) {
-	message := createTestMsg()
-	message.Version = 99
+	message := createTestMsg(99)
 
 	keyInfo := new(KeyInfo)
 	keyInfo.Kind = None
 
 	err := EncodeWakuMessage(message, keyInfo)
 	require.Error(t, err)
-	require.Equal(t, "unsupported wakumessage version", err.Error())
+	require.EqualError(t, err, "unsupported wakumessage version")
 }
 
 func TestDecodeUnsupportedVersion(t *testing.T) {
-	message := createTestMsg()
-	message.Version = 99
+	message := createTestMsg(99)
 
 	keyInfo := new(KeyInfo)
 	keyInfo.Kind = None
@@ -159,5 +154,5 @@ func TestDecodeUnsupportedVersion(t *testing.T) {
 
 	require.Nil(t, decodedPayload)
 	require.Error(t, err)
-	require.Equal(t, "unsupported wakumessage version", err.Error())
+	require.EqualError(t, err, "unsupported wakumessage version")
 }
