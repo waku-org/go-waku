@@ -114,7 +114,6 @@ func (w *WakuRelay) upsertTopic(topic Topic) (*pubsub.Topic, error) {
 }
 
 func (w *WakuRelay) Subscribe(topic Topic) (subs *pubsub.Subscription, isNew bool, err error) {
-
 	sub, ok := w.relaySubs[topic]
 	if !ok {
 		pubSubTopic, err := w.upsertTopic(topic)
