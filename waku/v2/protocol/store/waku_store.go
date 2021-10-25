@@ -51,6 +51,10 @@ func minOf(vars ...int) int {
 }
 
 func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo) {
+	if pinfo == nil {
+		pinfo = new(pb.PagingInfo)
+	}
+
 	// takes list, and performs paging based on pinfo
 	// returns the page i.e, a sequence of IndexedWakuMessage and the new paging info to be used for the next paging request
 	cursor := pinfo.Cursor
@@ -524,6 +528,10 @@ func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...H
 
 	if len(params.requestId) == 0 {
 		return nil, ErrInvalidId
+	}
+
+	if q.PagingInfo == nil {
+		q.PagingInfo = &pb.PagingInfo{}
 	}
 
 	if params.cursor != nil {
