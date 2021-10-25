@@ -20,6 +20,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
+	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -51,6 +52,10 @@ func minOf(vars ...int) int {
 }
 
 func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo) {
+	if pinfo == nil {
+		pinfo = new(pb.PagingInfo)
+	}
+
 	// takes list, and performs paging based on pinfo
 	// returns the page i.e, a sequence of IndexedWakuMessage and the new paging info to be used for the next paging request
 	cursor := pinfo.Cursor
@@ -179,15 +184,8 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 	return result
 }
 
-type StoredMessage struct {
-	ID           []byte
-	PubsubTopic  string
-	ReceiverTime float64
-	Message      *pb.WakuMessage
-}
-
 type MessageProvider interface {
-	GetAll() ([]StoredMessage, error)
+	GetAll() ([]persistence.StoredMessage, error)
 	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
 	Stop()
 }
@@ -243,6 +241,12 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 		return
 	}
 
+	store.fetchDBRecords(ctx)
+
+	log.Info("Store protocol started")
+}
+
+func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 	storedMessages, err := store.msgProvider.GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages", err)
@@ -265,8 +269,6 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 			log.Error("failed to record with tags")
 		}
 	}
-
-	log.Info("Store protocol started")
 }
 
 func (store *WakuStore) storeMessageWithIndex(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) {
@@ -524,6 +526,10 @@ func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...H
 
 	if len(params.requestId) == 0 {
 		return nil, ErrInvalidId
+	}
+
+	if q.PagingInfo == nil {
+		q.PagingInfo = &pb.PagingInfo{}
 	}
 
 	if params.cursor != nil {
