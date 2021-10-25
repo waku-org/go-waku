@@ -5,13 +5,25 @@ import (
 	"log"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
+
+type MessageProvider interface {
+	GetAll() ([]StoredMessage, error)
+	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
+	Stop()
+}
 
 // DBStore is a MessageProvider that has a *sql.DB connection
 type DBStore struct {
-	store.MessageProvider
+	MessageProvider
 	db *sql.DB
+}
+
+type StoredMessage struct {
+	ID           []byte
+	PubsubTopic  string
+	ReceiverTime float64
+	Message      *pb.WakuMessage
 }
 
 // DBOption is an optional setting that can be used to configure the DBStore
@@ -92,13 +104,13 @@ func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMess
 }
 
 // Returns all the stored WakuMessages
-func (d *DBStore) GetAll() ([]store.StoredMessage, error) {
+func (d *DBStore) GetAll() ([]StoredMessage, error) {
 	rows, err := d.db.Query("SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY senderTimestamp ASC")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []store.StoredMessage
+	var result []StoredMessage
 
 	defer rows.Close()
 
@@ -122,7 +134,7 @@ func (d *DBStore) GetAll() ([]store.StoredMessage, error) {
 		msg.Timestamp = senderTimestamp
 		msg.Version = version
 
-		record := store.StoredMessage{
+		record := StoredMessage{
 			ID:           id,
 			PubsubTopic:  pubsubTopic,
 			ReceiverTime: receiverTimestamp,
