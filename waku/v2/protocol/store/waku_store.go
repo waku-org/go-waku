@@ -20,6 +20,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
+	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -183,15 +184,8 @@ func (w *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 	return result
 }
 
-type StoredMessage struct {
-	ID           []byte
-	PubsubTopic  string
-	ReceiverTime float64
-	Message      *pb.WakuMessage
-}
-
 type MessageProvider interface {
-	GetAll() ([]StoredMessage, error)
+	GetAll() ([]persistence.StoredMessage, error)
 	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
 	Stop()
 }
@@ -247,6 +241,12 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 		return
 	}
 
+	store.fetchDBRecords(ctx)
+
+	log.Info("Store protocol started")
+}
+
+func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 	storedMessages, err := store.msgProvider.GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages", err)
@@ -269,8 +269,6 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 			log.Error("failed to record with tags")
 		}
 	}
-
-	log.Info("Store protocol started")
 }
 
 func (store *WakuStore) storeMessageWithIndex(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) {
