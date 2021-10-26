@@ -1,0 +1,65 @@
+pipeline {
+  agent {
+    label 'linux'
+  }
+
+  parameters {
+    string(
+      name: 'BRANCH',
+      defaultValue: 'master',
+      description: 'Name of branch to build.'
+    )
+    string(
+      name: 'IMAGE_NAME',
+      defaultValue: 'statusteam/go-waku',
+      description: 'Docker image name.',
+    )
+    string(
+      name: 'IMAGE_TAG',
+      defaultValue: 'deploy-test',
+      description: 'Docker image name.',
+    )
+  }
+
+  options {
+    timestamps()
+    buildDiscarder(logRotator(
+      numToKeepStr: '10',
+      daysToKeepStr: '30',
+    ))
+  }
+
+  stages {
+    stage('Build') {
+      steps { script {
+        image = docker.build(
+          "${params.IMAGE_NAME}:${GIT_COMMIT.take(8)}",
+          "--build-arg='GIT_COMMIT=${GIT_COMMIT.take(8)}' ."
+        )
+      } }
+    }
+
+    stage('Push') {
+      steps { script {
+        withDockerRegistry([
+          credentialsId: "dockerhub-statusteam-auto", url: ""
+        ]) {
+          image.push()
+        }
+      } }
+    }
+
+    stage('Deploy') {
+      steps { script {
+        withDockerRegistry([
+          credentialsId: "dockerhub-statusteam-auto", url: ""
+        ]) {
+          image.push(env.IMAGE_TAG)
+        }
+      } }
+    }
+  }
+  post {
+    always { cleanWs() }
+  }
+}
