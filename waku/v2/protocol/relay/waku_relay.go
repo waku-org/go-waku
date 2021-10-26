@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"sync"
 
 	proto "github.com/golang/protobuf/proto"
@@ -137,6 +138,7 @@ func (w *WakuRelay) Subscribe(topic Topic) (subs *pubsub.Subscription, isNew boo
 func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic *Topic) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic.
 
+	fmt.Println(topic)
 	if w.pubsub == nil {
 		return nil, errors.New("PubSub hasn't been set")
 	}
@@ -157,13 +159,14 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic 
 	}
 
 	err = pubSubTopic.Publish(ctx, out)
-
+	fmt.Println(err)
 	if err != nil {
 		return nil, err
 	}
 
 	hash := pb.Hash(out)
 
+	fmt.Println(hash)
 	return hash, nil
 }
 

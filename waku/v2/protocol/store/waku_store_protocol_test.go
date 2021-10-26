@@ -5,18 +5,13 @@ import (
 	"testing"
 
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peerstore"
-	ma "github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
-
-func getHostAddress(ha host.Host) ma.Multiaddr {
-	return ha.Addrs()[0]
-}
 
 func TestWakuStoreProtocolQuery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -48,7 +43,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
-	host2.Peerstore().AddAddr(host1.ID(), getHostAddress(host1), peerstore.PermanentAddrTTL)
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
 	require.NoError(t, err)
 
