@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -25,9 +24,7 @@ func SelectPeer(host host.Host, protocolId string) (*peer.ID, error) {
 
 	var peers peer.IDSlice
 	for _, peer := range host.Peerstore().Peers() {
-		fmt.Println(peer)
 		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)
-		fmt.Println(protocols)
 		if err != nil {
 			log.Error("error obtaining the protocols supported by peers", err)
 			return nil, err

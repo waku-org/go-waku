@@ -3,9 +3,9 @@ package lightpush
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -15,20 +15,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/stretchr/testify/require"
 )
-
-// Node1:   Relay
-// Node2: Relay+Lightpush
-// Node3: Client that will lightpush a message
-
-// Node1  and Node 2 must be peers
-// Node 3 and Node 2 must be peers
-
-// Test would be like this:
-
-// Node 3 will use lightpush request, sending the message to Node2
-// Node2 should then broadcast the message and not fail
-// Node1 should receive the message in relay
-// Node3 should receive a succesful response from lightpushRequest
 
 func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *pubsub.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
@@ -46,8 +32,18 @@ func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *pubsub.S
 	return relay, sub, host
 }
 
+// Node1: Relay
+// Node2: Relay+Lightpush
+// Client that will lightpush a message
+//
+// Node1 and Node 2 are peers
+// Client and Node 2 are peers
+// Node 3 will use lightpush request, sending the message to Node2
+//
+// Client send a succesful message using lightpush
+// Node2 receive the message and broadcast it
+// Node1 receive the message
 func TestWakuLightPush(t *testing.T) {
-	// protocol := libp2pProtocol.ID("/vac/waku/store/2.0.0-beta3")
 	var testTopic relay.Topic = "/waku/2/go/lightpush/test"
 	node1, sub1, host1 := makeWakuRelay(t, testTopic)
 	defer node1.Stop()
@@ -69,13 +65,12 @@ func TestWakuLightPush(t *testing.T) {
 	client := NewWakuLightPush(ctx, clientHost, nil)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	// err = host2.Peerstore().AddProtocols(host1.ID(), string(rendezvous.RendezvousID_v001))
+	err = host2.Peerstore().AddProtocols(host1.ID(), string(relay.WakuRelayID_v200))
 	require.NoError(t, err)
 
-	fmt.Println(" begin")
-	fmt.Println(host1.ID())
-	fmt.Println(host2.ID())
-	fmt.Println(clientHost.ID())
+	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host1.ID()))
+	require.NoError(t, err)
+
 	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
 	err = clientHost.Peerstore().AddProtocols(host2.ID(), string(LightPushID_v20beta1))
 	require.NoError(t, err)
@@ -88,7 +83,9 @@ func TestWakuLightPush(t *testing.T) {
 		Timestamp:    0,
 	}
 	req.PubsubTopic = string(testTopic)
-	fmt.Println(req.PubsubTopic)
+
+	// Wait for the mesh connection to happen between node1 and node2
+	time.Sleep(5 * time.Second)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -96,7 +93,6 @@ func TestWakuLightPush(t *testing.T) {
 		defer wg.Done()
 		_, err := sub1.Next(context.Background())
 		require.NoError(t, err)
-		fmt.Println(" hello111")
 	}()
 
 	wg.Add(1)
@@ -104,10 +100,8 @@ func TestWakuLightPush(t *testing.T) {
 		defer wg.Done()
 		_, err := sub2.Next(context.Background())
 		require.NoError(t, err)
-		fmt.Println(" hello2222")
 	}()
 
-	fmt.Println(" request")
 	resp, err := client.Request(ctx, req, []LightPushOption{}...)
 	require.NoError(t, err)
 	require.True(t, resp.IsSuccess)

@@ -74,7 +74,6 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 			_, err := wakuLP.relay.Publish(wakuLP.ctx, message, &pubSubTopic)
 
 			if err != nil {
-				fmt.Println("We have a problem")
 				response.IsSuccess = false
 				response.Info = "Could not publish message"
 			} else {
@@ -126,12 +125,8 @@ func WithPeer(p peer.ID) LightPushOption {
 
 func WithAutomaticPeerSelection() LightPushOption {
 	return func(params *LightPushParameters) {
-		fmt.Println("hello")
-		fmt.Println(string(LightPushID_v20beta1))
 		p, err := utils.SelectPeer(params.lp.h, string(LightPushID_v20beta1))
 		if err == nil {
-			fmt.Println(p)
-			fmt.Println("error")
 			params.selectedPeer = *p
 		} else {
 			log.Info("Error selecting peer: ", err)
