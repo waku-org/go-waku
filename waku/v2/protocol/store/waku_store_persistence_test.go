@@ -42,4 +42,7 @@ func TestStorePersistence(t *testing.T) {
 	s2.fetchDBRecords(ctx)
 	require.Len(t, s2.messages, 1)
 	require.Equal(t, msg, s2.messages[0].msg)
+
+	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
+	s1.storeMessage(defaultPubSubTopic, msg)
 }

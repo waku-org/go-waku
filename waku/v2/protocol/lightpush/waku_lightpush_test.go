@@ -85,7 +85,7 @@ func TestWakuLightPush(t *testing.T) {
 	req.PubsubTopic = string(testTopic)
 
 	// Wait for the mesh connection to happen between node1 and node2
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 	var wg sync.WaitGroup
 
 	wg.Add(1)

@@ -552,9 +552,10 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 	// returns the number of retrieved messages, or error if all the requests fail
 	for _, peer := range candidateList {
 		result, err := store.queryFrom(ctx, query, peer, protocol.GenerateRequestId())
-		if err != nil {
+		if err == nil {
 			return result, nil
 		}
+		log.Error(fmt.Errorf("resume history with peer %s failed: %w", peer, err))
 	}
 
 	return nil, ErrFailedQuery
