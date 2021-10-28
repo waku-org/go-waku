@@ -12,12 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func createWakuMessage(contentTopic string, timestamp float64) *pb.WakuMessage {
+	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
+}
+
 func TestFindLastSeenMessage(t *testing.T) {
-	msg1 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "1", Version: 0, Timestamp: float64(1)}
-	msg2 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: float64(2)}
-	msg3 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "3", Version: 0, Timestamp: float64(3)}
-	msg4 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "4", Version: 0, Timestamp: float64(4)}
-	msg5 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "5", Version: 0, Timestamp: float64(5)}
+	msg1 := createWakuMessage("1", 1)
+	msg2 := createWakuMessage("2", 2)
+	msg3 := createWakuMessage("3", 3)
+	msg4 := createWakuMessage("4", 4)
+	msg5 := createWakuMessage("5", 5)
 
 	s := NewWakuStore(true, nil)
 	s.storeMessage("test", msg1)
@@ -40,27 +44,15 @@ func TestResume(t *testing.T) {
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
-	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: float64(0 * time.Second)}
-	msg1 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "1", Version: 0, Timestamp: float64(1 * time.Second)}
-	msg2 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: float64(2 * time.Second)}
-	msg3 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "1", Version: 0, Timestamp: float64(3 * time.Second)}
-	msg4 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: float64(4 * time.Second)}
-	msg5 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "1", Version: 0, Timestamp: float64(5 * time.Second)}
-	msg6 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: float64(6 * time.Second)}
-	msg7 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "1", Version: 0, Timestamp: float64(7 * time.Second)}
-	msg8 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: float64(8 * time.Second)}
-	msg9 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "1", Version: 0, Timestamp: float64(9 * time.Second)}
+	for i := 0; i < 10; i++ {
+		var contentTopic = "1"
+		if i%2 == 0 {
+			contentTopic = "2"
+		}
 
-	s1.storeMessage("test", msg0)
-	s1.storeMessage("test", msg1)
-	s1.storeMessage("test", msg2)
-	s1.storeMessage("test", msg3)
-	s1.storeMessage("test", msg4)
-	s1.storeMessage("test", msg5)
-	s1.storeMessage("test", msg6)
-	s1.storeMessage("test", msg7)
-	s1.storeMessage("test", msg8)
-	s1.storeMessage("test", msg9)
+		msg := createWakuMessage(contentTopic, float64(time.Duration(i)*time.Second))
+		s1.storeMessage("test", msg)
+	}
 
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
