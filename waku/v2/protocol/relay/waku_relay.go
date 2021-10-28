@@ -136,7 +136,6 @@ func (w *WakuRelay) Subscribe(topic Topic) (subs *pubsub.Subscription, isNew boo
 
 func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic *Topic) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic.
-
 	if w.pubsub == nil {
 		return nil, errors.New("PubSub hasn't been set")
 	}
@@ -157,7 +156,6 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic 
 	}
 
 	err = pubSubTopic.Publish(ctx, out)
-
 	if err != nil {
 		return nil, err
 	}
