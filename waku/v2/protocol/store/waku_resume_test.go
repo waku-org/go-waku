@@ -8,20 +8,17 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/stretchr/testify/require"
 )
 
-func createWakuMessage(contentTopic string, timestamp float64) *pb.WakuMessage {
-	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
-}
-
 func TestFindLastSeenMessage(t *testing.T) {
-	msg1 := createWakuMessage("1", 1)
-	msg2 := createWakuMessage("2", 2)
-	msg3 := createWakuMessage("3", 3)
-	msg4 := createWakuMessage("4", 4)
-	msg5 := createWakuMessage("5", 5)
+	msg1 := tests.CreateWakuMessage("1", 1)
+	msg2 := tests.CreateWakuMessage("2", 2)
+	msg3 := tests.CreateWakuMessage("3", 3)
+	msg4 := tests.CreateWakuMessage("4", 4)
+	msg5 := tests.CreateWakuMessage("5", 5)
 
 	s := NewWakuStore(true, nil)
 	s.storeMessage("test", msg1)
@@ -50,7 +47,7 @@ func TestResume(t *testing.T) {
 			contentTopic = "2"
 		}
 
-		msg := createWakuMessage(contentTopic, float64(time.Duration(i)*time.Second))
+		msg := tests.CreateWakuMessage(contentTopic, float64(time.Duration(i)*time.Second))
 		s1.storeMessage("test", msg)
 	}
 
@@ -61,7 +58,7 @@ func TestResume(t *testing.T) {
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
-	host2.Peerstore().AddAddr(host1.ID(), getHostAddress(host1), peerstore.PermanentAddrTTL)
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
 	require.NoError(t, err)
 
@@ -104,7 +101,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
-	host2.Peerstore().AddAddr(host1.ID(), getHostAddress(host1), peerstore.PermanentAddrTTL)
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
 	require.NoError(t, err)
 
@@ -137,7 +134,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
-	host2.Peerstore().AddAddr(host1.ID(), getHostAddress(host1), peerstore.PermanentAddrTTL)
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
 	require.NoError(t, err)
 

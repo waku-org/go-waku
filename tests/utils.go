@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 
 func GetHostAddress(ha host.Host) ma.Multiaddr {
@@ -66,4 +67,8 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 		libp2p.ListenAddrs(sourceMultiAddr),
 		libp2p.Identity(prvKey),
 	)
+}
+
+func CreateWakuMessage(contentTopic string, timestamp float64) *pb.WakuMessage {
+	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
 }
