@@ -17,6 +17,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	utils "github.com/status-im/go-waku/waku/v2/utils"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 )
 
 var log = logging.Logger("waku_lightpush")
@@ -216,4 +218,10 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 
 func (w *WakuLightPush) Stop() {
 	w.h.RemoveStreamHandler(LightPushID_v20beta1)
+}
+
+func recordErrorMetric(ctx context.Context, tagType string) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(tag.Key(metrics.ErrorType), tagType)}, metrics.LightpushErrors.M(1)); err != nil {
+		log.Error("failed to record with tags", err)
+	}
 }
