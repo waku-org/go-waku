@@ -17,10 +17,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	lvl, err := logging.LevelFromString(options.LogLevel)
-	if err != nil {
-		os.Exit(1)
-	}
+	lvl := logging.LevelFromString(options.LogLevel)
+
 	logging.SetAllLoggers(lvl)
 
 	waku.Execute(options)
