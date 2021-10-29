@@ -50,6 +50,7 @@ func NewMetricsServer(address string, port int) *Server {
 		metrics.MessageView,
 		metrics.FilterSubscriptionsView,
 		metrics.StoreErrorTypesView,
+		metrics.LightpushErrorTypesView,
 		metrics.StoreMessagesView,
 		metrics.PeersView,
 		metrics.DialsView,

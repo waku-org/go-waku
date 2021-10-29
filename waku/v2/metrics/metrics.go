@@ -12,12 +12,13 @@ var (
 	Dials               = stats.Int64("dials", "Number of peer dials", stats.UnitDimensionless)
 	StoreMessages       = stats.Int64("store_messages", "Number of historical messages", stats.UnitDimensionless)
 	FilterSubscriptions = stats.Int64("filter_subscriptions", "Number of filter subscriptions", stats.UnitDimensionless)
-	Errors              = stats.Int64("errors", "Number of errors", stats.UnitDimensionless)
+	StoreErrors         = stats.Int64("errors", "Number of errors in store protocol", stats.UnitDimensionless)
+	LightpushErrors     = stats.Int64("errors", "Number of errors in lightpush protocol", stats.UnitDimensionless)
 )
 
 var (
-	KeyType, _           = tag.NewKey("type")
-	KeyStoreErrorType, _ = tag.NewKey("store_error_type")
+	KeyType, _   = tag.NewKey("type")
+	ErrorType, _ = tag.NewKey("type")
 )
 
 var (
@@ -44,6 +45,7 @@ var (
 		Measure:     StoreMessages,
 		Description: "The distribution of the store protocol messages",
 		Aggregation: view.LastValue(),
+		TagKeys:     []tag.Key{KeyType},
 	}
 	FilterSubscriptionsView = &view.View{
 		Name:        "gowaku_filter_subscriptions",
@@ -53,8 +55,15 @@ var (
 	}
 	StoreErrorTypesView = &view.View{
 		Name:        "gowaku_store_errors",
-		Measure:     Errors,
+		Measure:     StoreErrors,
 		Description: "The distribution of the store protocol errors",
+		Aggregation: view.Count(),
+		TagKeys:     []tag.Key{KeyType},
+	}
+	LightpushErrorTypesView = &view.View{
+		Name:        "gowaku_lightpush_errors",
+		Measure:     LightpushErrors,
+		Description: "The distribution of the lightpush protocol errors",
 		Aggregation: view.Count(),
 		TagKeys:     []tag.Key{KeyType},
 	}

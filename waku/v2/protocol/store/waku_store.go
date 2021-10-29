@@ -250,10 +250,7 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 	storedMessages, err := store.msgProvider.GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages", err)
-		err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "store_load_failure")}, metrics.Errors.M(1))
-		if err != nil {
-			log.Error("failed to record with tags")
-		}
+		recordErrorMetric(ctx, "store_load_failure")
 		return
 	}
 
@@ -265,9 +262,7 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 
 		store.storeMessageWithIndex(storedMessage.PubsubTopic, idx, storedMessage.Message)
 
-		if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "stored")}, metrics.StoreMessages.M(int64(len(store.messages)))); err != nil {
-			log.Error("failed to record with tags")
-		}
+		recordMessageMetrics(ctx, "stored", len(store.messages))
 	}
 }
 
@@ -296,6 +291,7 @@ func (store *WakuStore) storeMessage(pubSubTopic string, msg *pb.WakuMessage) {
 	store.storeMessageWithIndex(pubSubTopic, index, msg)
 
 	if store.msgProvider == nil {
+		recordMessageMetrics(store.ctx, "stored", len(store.messages))
 		return
 	}
 
@@ -303,16 +299,11 @@ func (store *WakuStore) storeMessage(pubSubTopic string, msg *pb.WakuMessage) {
 
 	if err != nil {
 		log.Error("could not store message", err)
-		if err := stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "store_failure")}, metrics.Errors.M(1)); err != nil {
-			log.Error("failed to record with tags", err)
-		}
+		recordErrorMetric(store.ctx, "store_failure")
 		return
 	}
 
-	if err := stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "stored")}, metrics.StoreMessages.M(int64(len(store.messages)))); err != nil {
-		log.Error("failed to record with tags", err)
-	}
-
+	recordMessageMetrics(store.ctx, "stored", len(store.messages))
 }
 
 func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
@@ -332,9 +323,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
 		log.Error("error reading request", err)
-		if err := stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "decodeRPCFailure")}, metrics.Errors.M(1)); err != nil {
-			log.Error("failed to record with tags", err)
-		}
+		recordErrorMetric(store.ctx, "decodeRPCFailure")
 		return
 	}
 
@@ -497,15 +486,11 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
 		log.Error("could not read response", err)
-		if err := stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyStoreErrorType, "decodeRPCFailure")}, metrics.Errors.M(1)); err != nil {
-			log.Error("failed to record with tags")
-		}
+		recordErrorMetric(store.ctx, "decodeRPCFailure")
 		return nil, err
 	}
 
-	if err := stats.RecordWithTags(store.ctx, []tag.Mutator{tag.Insert(metrics.KeyType, "retrieved")}, metrics.StoreMessages.M(int64(len(store.messages)))); err != nil {
-		log.Error("failed to record with tags", err)
-	}
+	recordMessageMetrics(ctx, "retrieved", len(store.messages))
 
 	return historyResponseRPC.Response, nil
 }
@@ -631,4 +616,16 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 func (w *WakuStore) Stop() {
 	w.h.RemoveStreamHandler(StoreID_v20beta3)
+}
+
+func recordMessageMetrics(ctx context.Context, tagType string, len int) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, tagType)}, metrics.StoreMessages.M(int64(len))); err != nil {
+		log.Error("failed to record with tags", err)
+	}
+}
+
+func recordErrorMetric(ctx context.Context, tagType string) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.ErrorType, tagType)}, metrics.StoreErrors.M(1)); err != nil {
+		log.Error("failed to record with tags", err)
+	}
 }
