@@ -694,6 +694,9 @@ func (w *WakuNode) Peers() PeerStats {
 	return p
 }
 
+// startKeepAlive creates a go routine that periodically pings connected peers.
+// This is necessary because TCP connections are automatically closed due to inactivity,
+// and doing a ping will avoid this (with a small bandwidth cost)
 func (w *WakuNode) startKeepAlive(t time.Duration) {
 	log.Info("Setting up ping protocol with duration of ", t)
 
@@ -705,20 +708,7 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 			select {
 			case <-ticker.C:
 				for _, p := range w.host.Network().Peers() {
-					log.Debug("Pinging ", p)
-					go func(peer peer.ID) {
-						ctx, cancel := context.WithTimeout(w.ctx, 3*time.Second)
-						defer cancel()
-						pr := w.ping.Ping(ctx, peer)
-						select {
-						case res := <-pr:
-							if res.Error != nil {
-								log.Error(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
-							}
-						case <-ctx.Done():
-							log.Error(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
-						}
-					}(p)
+					go pingPeer(w.ctx, w.ping, p)
 				}
 			case <-w.quit:
 				ticker.Stop()
@@ -726,4 +716,20 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 			}
 		}
 	}()
+}
+
+func pingPeer(ctx context.Context, pingService *ping.PingService, peer peer.ID) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	log.Debug("Pinging ", peer)
+	pr := pingService.Ping(ctx, peer)
+	select {
+	case res := <-pr:
+		if res.Error != nil {
+			log.Error(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
+		}
+	case <-ctx.Done():
+		log.Error(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
+	}
 }
