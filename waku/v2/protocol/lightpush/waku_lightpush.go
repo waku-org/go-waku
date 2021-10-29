@@ -42,6 +42,8 @@ func NewWakuLightPush(ctx context.Context, h host.Host, relay *relay.WakuRelay) 
 	if relay != nil {
 		wakuLP.h.SetStreamHandlerMatch(LightPushID_v20beta1, protocol.PrefixTextMatch(string(LightPushID_v20beta1)), wakuLP.onRequest)
 		log.Info("Light Push protocol started")
+	} else {
+		log.Info("Light Push protocol started (only client mode)")
 	}
 
 	return wakuLP

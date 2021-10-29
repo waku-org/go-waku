@@ -48,8 +48,15 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 	}
 
 	if useLightPush {
-		chat.C = make(filter.ContentFilterChan)
-		n.SubscribeFilter(ctx, string(relay.GetTopic(nil)), []string{contentTopic}, chat.C)
+		cf := filter.ContentFilter{
+			Topic:         string(relay.GetTopic(nil)),
+			ContentTopics: []string{contentTopic},
+		}
+		var err error
+		_, chat.C, err = n.SubscribeFilter(ctx, cf)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		sub, err := n.Subscribe(ctx, nil)
 		if err != nil {
