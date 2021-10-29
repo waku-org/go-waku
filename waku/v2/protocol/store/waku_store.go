@@ -17,6 +17,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/metrics"
@@ -709,4 +711,16 @@ func (w *WakuStore) Stop() {
 	w.started = false
 	close(w.MsgC)
 	w.h.RemoveStreamHandler(StoreID_v20beta3)
+}
+
+func recordMessageMetrics(ctx context.Context, tagType string, len int) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, tagType)}, metrics.StoreMessages.M(int64(len))); err != nil {
+		log.Error("failed to record with tags", err)
+	}
+}
+
+func recordErrorMetric(ctx context.Context, tagType string) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.ErrorType, tagType)}, metrics.StoreErrors.M(1)); err != nil {
+		log.Error("failed to record with tags", err)
+	}
 }
