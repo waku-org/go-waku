@@ -77,7 +77,7 @@ func main() {
 
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
-		node.WithHostAddress([]net.Addr{hostAddr}),
+		node.WithHostAddress([]*net.TCPAddr{hostAddr}),
 		node.WithWakuStore(false, true),
 		node.WithKeepAlive(time.Duration(*keepAliveFlag) * time.Second),
 	}
@@ -87,7 +87,7 @@ func main() {
 	}
 
 	if *filterFlag {
-		opts = append(opts, node.WithWakuFilter())
+		opts = append(opts, node.WithWakuFilter(false))
 	}
 
 	if *lightPushFlag || *lightPushNodeFlag != "" {

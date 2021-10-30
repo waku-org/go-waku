@@ -155,9 +155,11 @@ func (w *WakuNode) Start() error {
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(rendezvous, w.opts.rendezvousOpts...))
 	}
 
-	err := w.mountRelay(w.opts.enableRelay, w.opts.wOpts...)
-	if err != nil {
-		return err
+	if w.opts.enableRelay {
+		err := w.mountRelay(w.opts.wOpts...)
+		if err != nil {
+			return err
+		}
 	}
 
 	if w.opts.enableLightPush {
@@ -242,15 +244,16 @@ func (w *WakuNode) Filter() *filter.WakuFilter {
 	return w.filter
 }
 
-func (w *WakuNode) mountRelay(shouldRelayMessages bool, opts ...pubsub.Option) error {
+func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
 	var err error
 	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, opts...)
+	if err != nil {
+		return err
+	}
 
-	if shouldRelayMessages {
-		_, err := w.Subscribe(w.ctx, nil)
-		if err != nil {
-			return err
-		}
+	_, err = w.Subscribe(w.ctx, nil)
+	if err != nil {
+		return err
 	}
 
 	// TODO: rlnRelay
@@ -265,7 +268,7 @@ func (w *WakuNode) mountFilter() error {
 		}
 	}
 
-	w.filter = filter.NewWakuFilter(w.ctx, w.host, filterHandler)
+	w.filter = filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, filterHandler)
 
 	return nil
 }
@@ -572,16 +575,16 @@ func (node *WakuNode) UnsubscribeFilter(ctx context.Context, cf filter.ContentFi
 }
 
 func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic) ([]byte, error) {
-	if node.relay == nil {
-		return nil, errors.New("WakuRelay hasn't been set")
-	}
-
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}
 
 	if node.lightPush != nil {
 		return node.LightPush(ctx, message, topic)
+	}
+
+	if node.relay == nil {
+		return nil, errors.New("WakuRelay hasn't been set")
 	}
 
 	hash, err := node.relay.Publish(ctx, message, topic)

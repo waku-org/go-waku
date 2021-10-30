@@ -54,9 +54,9 @@ func main() {
 
 	fullNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey1),
-		node.WithHostAddress([]net.Addr{hostAddr1}),
+		node.WithHostAddress([]*net.TCPAddr{hostAddr1}),
 		node.WithWakuRelay(),
-		node.WithWakuFilter(),
+		node.WithWakuFilter(true),
 	)
 
 	err = fullNode.Start()
@@ -66,8 +66,8 @@ func main() {
 
 	lightNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey2),
-		node.WithHostAddress([]net.Addr{hostAddr2}),
-		node.WithWakuFilter(),
+		node.WithHostAddress([]*net.TCPAddr{hostAddr2}),
+		node.WithWakuFilter(false),
 	)
 
 	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterID_v20beta1)

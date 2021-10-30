@@ -139,7 +139,7 @@ func Execute(options Options) {
 	}
 
 	if options.Filter.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuFilter())
+		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode))
 	}
 
 	if options.Store.Enable {
@@ -178,10 +178,12 @@ func Execute(options Options) {
 		options.Relay.Topics = []string{string(relay.DefaultWakuTopic)}
 	}
 
-	for _, t := range options.Relay.Topics {
-		nodeTopic := relay.Topic(t)
-		_, err := wakuNode.Subscribe(ctx, &nodeTopic)
-		failOnErr(err, "Error subscring to topic")
+	if !options.Relay.Disable {
+		for _, t := range options.Relay.Topics {
+			nodeTopic := relay.Topic(t)
+			_, err := wakuNode.Subscribe(ctx, &nodeTopic)
+			failOnErr(err, "Error subscring to topic")
+		}
 	}
 
 	for _, n := range options.StaticNodes {
