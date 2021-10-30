@@ -230,7 +230,6 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, handler
 }
 
 func (wf *WakuFilter) FilterListener() {
-
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
 	handle := func(envelope *protocol.Envelope) error { // async
