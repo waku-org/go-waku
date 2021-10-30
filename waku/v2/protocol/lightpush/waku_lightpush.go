@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
+	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
@@ -60,6 +61,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 	err := reader.ReadMsg(requestPushRPC)
 	if err != nil {
 		log.Error("error reading request", err)
+		metrics.RecordLightpushError(wakuLP.ctx, "decodeRpcFailure")
 		return
 	}
 
@@ -166,6 +168,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	}
 
 	if params.selectedPeer == "" {
+		metrics.RecordLightpushError(wakuLP.ctx, "dialError")
 		return nil, ErrNoPeersAvailable
 	}
 
@@ -176,6 +179,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	connOpt, err := wakuLP.h.NewStream(ctx, params.selectedPeer, LightPushID_v20beta1)
 	if err != nil {
 		log.Info("failed to connect to remote peer", err)
+		metrics.RecordLightpushError(wakuLP.ctx, "dialError")
 		return nil, err
 	}
 
@@ -183,6 +187,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	defer func() {
 		err := connOpt.Reset()
 		if err != nil {
+			metrics.RecordLightpushError(wakuLP.ctx, "dialError")
 			log.Error("failed to reset connection", err)
 		}
 	}()
@@ -202,6 +207,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	err = reader.ReadMsg(pushResponseRPC)
 	if err != nil {
 		log.Error("could not read response", err)
+		metrics.RecordLightpushError(wakuLP.ctx, "decodeRPCFailure")
 		return nil, err
 	}
 
