@@ -17,8 +17,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	utils "github.com/status-im/go-waku/waku/v2/utils"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
 )
 
 var log = logging.Logger("waku_lightpush")
@@ -61,7 +59,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 	err := reader.ReadMsg(requestPushRPC)
 	if err != nil {
 		log.Error("error reading request", err)
-		recordErrorMetric(wakuLP.ctx, "decodeRpcFailure")
+		metrics.RecordLightpushError(wakuLP.ctx, "decodeRpcFailure")
 		return
 	}
 
@@ -168,7 +166,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	}
 
 	if params.selectedPeer == "" {
-		recordErrorMetric(wakuLP.ctx, "dialError")
+		metrics.RecordLightpushError(wakuLP.ctx, "dialError")
 		return nil, ErrNoPeersAvailable
 	}
 
@@ -179,7 +177,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	connOpt, err := wakuLP.h.NewStream(ctx, params.selectedPeer, LightPushID_v20beta1)
 	if err != nil {
 		log.Info("failed to connect to remote peer", err)
-		recordErrorMetric(wakuLP.ctx, "dialError")
+		metrics.RecordLightpushError(wakuLP.ctx, "dialError")
 		return nil, err
 	}
 
@@ -187,7 +185,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	defer func() {
 		err := connOpt.Reset()
 		if err != nil {
-			recordErrorMetric(wakuLP.ctx, "dialError")
+			metrics.RecordLightpushError(wakuLP.ctx, "dialError")
 			log.Error("failed to reset connection", err)
 		}
 	}()
@@ -207,7 +205,7 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 	err = reader.ReadMsg(pushResponseRPC)
 	if err != nil {
 		log.Error("could not read response", err)
-		recordErrorMetric(wakuLP.ctx, "decodeRPCFailure")
+		metrics.RecordLightpushError(wakuLP.ctx, "decodeRPCFailure")
 		return nil, err
 	}
 
@@ -216,10 +214,4 @@ func (wakuLP *WakuLightPush) Request(ctx context.Context, req *pb.PushRequest, o
 
 func (w *WakuLightPush) Stop() {
 	w.h.RemoveStreamHandler(LightPushID_v20beta1)
-}
-
-func recordErrorMetric(ctx context.Context, tagType string) {
-	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(tag.Key(metrics.ErrorType), tagType)}, metrics.LightpushErrors.M(1)); err != nil {
-		log.Error("failed to record with tags", err)
-	}
 }

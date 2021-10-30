@@ -1,10 +1,15 @@
 package metrics
 
 import (
+	"context"
+
+	logging "github.com/ipfs/go-log"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
+
+var log = logging.Logger("metrics")
 
 var (
 	Messages            = stats.Int64("node_messages", "Number of messages received", stats.UnitDimensionless)
@@ -18,7 +23,7 @@ var (
 
 var (
 	KeyType, _   = tag.NewKey("type")
-	ErrorType, _ = tag.NewKey("type")
+	ErrorType, _ = tag.NewKey("error_type")
 )
 
 var (
@@ -68,3 +73,21 @@ var (
 		TagKeys:     []tag.Key{KeyType},
 	}
 )
+
+func RecordLightpushError(ctx context.Context, tagType string) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(tag.Key(ErrorType), tagType)}, LightpushErrors.M(1)); err != nil {
+		log.Error("failed to record with tags", err)
+	}
+}
+
+func RecordMessage(ctx context.Context, tagType string, len int) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(KeyType, tagType)}, StoreMessages.M(int64(len))); err != nil {
+		log.Error("failed to record with tags", err)
+	}
+}
+
+func RecordStoreError(ctx context.Context, tagType string) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(ErrorType, tagType)}, StoreErrors.M(1)); err != nil {
+		log.Error("failed to record with tags", err)
+	}
+}
