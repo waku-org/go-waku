@@ -47,14 +47,79 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
 	require.NoError(t, err)
 
-	response, err := s2.Query(ctx, &pb.HistoryQuery{
-		PubsubTopic: pubsubTopic1,
-		ContentFilters: []*pb.ContentFilter{{
-			ContentTopic: topic1,
-		}},
-	}, DefaultOptions()...)
+	q := Query{
+		Topic:         pubsubTopic1,
+		ContentTopics: []string{topic1},
+	}
+
+	response, err := s2.Query(ctx, q, DefaultOptions()...)
 
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 1)
 	require.Equal(t, msg, response.Messages[0])
+}
+
+func TestWakuStoreProtocolNext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	require.NoError(t, err)
+
+	s1 := NewWakuStore(true, nil)
+	s1.Start(ctx, host1)
+	defer s1.Stop()
+
+	topic1 := "1"
+	pubsubTopic1 := "topic1"
+
+	msg1 := tests.CreateWakuMessage(topic1, float64(1))
+	msg2 := tests.CreateWakuMessage(topic1, float64(2))
+	msg3 := tests.CreateWakuMessage(topic1, float64(3))
+	msg4 := tests.CreateWakuMessage(topic1, float64(4))
+	msg5 := tests.CreateWakuMessage(topic1, float64(5))
+
+	s1.MsgC <- protocol.NewEnvelope(msg1, pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg2, pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg3, pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg4, pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg5, pubsubTopic1)
+
+	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	require.NoError(t, err)
+
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
+	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
+	require.NoError(t, err)
+
+	s2 := NewWakuStore(false, nil)
+	s2.Start(ctx, host2)
+	defer s2.Stop()
+
+	q := Query{
+		Topic:         pubsubTopic1,
+		ContentTopics: []string{topic1},
+	}
+
+	response, err := s2.Query(ctx, q, WithAutomaticPeerSelection(), WithAutomaticRequestId(), WithPaging(true, 2))
+	require.NoError(t, err)
+	require.Len(t, response.Messages, 2)
+	require.Equal(t, response.Messages[0].Timestamp, msg1.Timestamp)
+	require.Equal(t, response.Messages[1].Timestamp, msg2.Timestamp)
+
+	response, err = s2.Next(ctx, response)
+	require.NoError(t, err)
+	require.Len(t, response.Messages, 2)
+	require.Equal(t, response.Messages[0].Timestamp, msg3.Timestamp)
+	require.Equal(t, response.Messages[1].Timestamp, msg4.Timestamp)
+
+	response, err = s2.Next(ctx, response)
+	require.NoError(t, err)
+	require.Len(t, response.Messages, 1)
+	require.Equal(t, response.Messages[0].Timestamp, msg5.Timestamp)
+
+	// No more records available
+	response, err = s2.Next(ctx, response)
+	require.NoError(t, err)
+	require.Len(t, response.Messages, 0)
 }

@@ -17,8 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
 
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/metrics"
@@ -188,6 +186,33 @@ type MessageProvider interface {
 	GetAll() ([]persistence.StoredMessage, error)
 	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
 	Stop()
+}
+
+type Query struct {
+	Topic         string
+	ContentTopics []string
+	StartTime     float64
+	EndTime       float64
+}
+
+type Result struct {
+	Messages []*pb.WakuMessage
+
+	query  *pb.HistoryQuery
+	cursor *pb.Index
+	peerId peer.ID
+}
+
+func (r *Result) Cursor() *pb.Index {
+	return r.cursor
+}
+
+func (r *Result) PeerID() peer.ID {
+	return r.peerId
+}
+
+func (r *Result) Query() *pb.HistoryQuery {
+	return r.query
 }
 
 type IndexedWakuMessage struct {
@@ -495,7 +520,19 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	return historyResponseRPC.Response, nil
 }
 
-func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...HistoryRequestOption) (*pb.HistoryResponse, error) {
+func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
+	q := &pb.HistoryQuery{
+		PubsubTopic:    query.Topic,
+		ContentFilters: []*pb.ContentFilter{},
+		StartTime:      query.StartTime,
+		EndTime:        query.EndTime,
+		PagingInfo:     &pb.PagingInfo{},
+	}
+
+	for _, cf := range query.ContentTopics {
+		q.ContentFilters = append(q.ContentFilters, &pb.ContentFilter{ContentTopic: cf})
+	}
+
 	params := new(HistoryRequestParameters)
 	params.s = store
 
@@ -513,10 +550,6 @@ func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...H
 		return nil, ErrInvalidId
 	}
 
-	if q.PagingInfo == nil {
-		q.PagingInfo = &pb.PagingInfo{}
-	}
-
 	if params.cursor != nil {
 		q.PagingInfo.Cursor = params.cursor
 	}
@@ -529,7 +562,55 @@ func (store *WakuStore) Query(ctx context.Context, q *pb.HistoryQuery, opts ...H
 
 	q.PagingInfo.PageSize = params.pageSize
 
-	return store.queryFrom(ctx, q, params.selectedPeer, params.requestId)
+	response, err := store.queryFrom(ctx, q, params.selectedPeer, params.requestId)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error == pb.HistoryResponse_INVALID_CURSOR {
+		return nil, errors.New("invalid cursor")
+	}
+
+	return &Result{
+		Messages: response.Messages,
+		cursor:   response.PagingInfo.Cursor,
+		query:    q,
+		peerId:   params.selectedPeer,
+	}, nil
+}
+
+func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
+	q := &pb.HistoryQuery{
+		PubsubTopic:    r.query.PubsubTopic,
+		ContentFilters: r.query.ContentFilters,
+		StartTime:      r.query.StartTime,
+		EndTime:        r.query.EndTime,
+		PagingInfo: &pb.PagingInfo{
+			PageSize:  r.query.PagingInfo.PageSize,
+			Direction: r.query.PagingInfo.Direction,
+			Cursor: &pb.Index{
+				Digest:       r.cursor.Digest,
+				ReceiverTime: r.cursor.ReceiverTime,
+				SenderTime:   r.cursor.SenderTime,
+			},
+		},
+	}
+
+	response, err := store.queryFrom(ctx, q, r.peerId, protocol.GenerateRequestId())
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error == pb.HistoryResponse_INVALID_CURSOR {
+		return nil, errors.New("invalid cursor")
+	}
+
+	return &Result{
+		Messages: response.Messages,
+		cursor:   response.PagingInfo.Cursor,
+		query:    q,
+		peerId:   r.peerId,
+	}, nil
 }
 
 func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, candidateList []peer.ID) (*pb.HistoryResponse, error) {
@@ -616,16 +697,4 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 func (w *WakuStore) Stop() {
 	w.h.RemoveStreamHandler(StoreID_v20beta3)
-}
-
-func recordMessageMetrics(ctx context.Context, tagType string, len int) {
-	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.KeyType, tagType)}, metrics.StoreMessages.M(int64(len))); err != nil {
-		log.Error("failed to record with tags", err)
-	}
-}
-
-func recordErrorMetric(ctx context.Context, tagType string) {
-	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(metrics.ErrorType, tagType)}, metrics.StoreErrors.M(1)); err != nil {
-		log.Error("failed to record with tags", err)
-	}
 }
