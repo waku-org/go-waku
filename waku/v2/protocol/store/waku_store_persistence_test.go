@@ -23,7 +23,7 @@ func TestStorePersistence(t *testing.T) {
 	dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(true, dbStore)
+	s1 := NewWakuStore(dbStore)
 	s1.fetchDBRecords(ctx)
 	require.Len(t, s1.messages, 0)
 
@@ -38,7 +38,7 @@ func TestStorePersistence(t *testing.T) {
 
 	s1.storeMessage(defaultPubSubTopic, msg)
 
-	s2 := NewWakuStore(true, dbStore)
+	s2 := NewWakuStore(dbStore)
 	s2.fetchDBRecords(ctx)
 	require.Len(t, s2.messages, 1)
 	require.Equal(t, msg, s2.messages[0].msg)

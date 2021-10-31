@@ -16,7 +16,7 @@ func TestStoreQuery(t *testing.T) {
 	msg1 := tests.CreateWakuMessage(defaultContentTopic, utils.GetUnixEpoch())
 	msg2 := tests.CreateWakuMessage("2", utils.GetUnixEpoch())
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	s.storeMessage(defaultPubSubTopic, msg1)
 	s.storeMessage(defaultPubSubTopic, msg2)
 
@@ -42,7 +42,7 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 
 	s.storeMessage(defaultPubSubTopic, msg1)
 	s.storeMessage(defaultPubSubTopic, msg2)
@@ -76,7 +76,7 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	s.storeMessage(pubsubTopic1, msg1)
 	s.storeMessage(pubsubTopic2, msg2)
 	s.storeMessage(pubsubTopic2, msg3)
@@ -108,7 +108,7 @@ func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	s.storeMessage(pubsubTopic2, msg1)
 	s.storeMessage(pubsubTopic2, msg2)
 	s.storeMessage(pubsubTopic2, msg3)
@@ -130,7 +130,7 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	s.storeMessage(pubsubTopic1, msg1)
 	s.storeMessage(pubsubTopic1, msg2)
 	s.storeMessage(pubsubTopic1, msg3)
@@ -149,7 +149,7 @@ func TestStoreQueryForwardPagination(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	for i := 0; i < 10; i++ {
 		msg := tests.CreateWakuMessage(topic1, utils.GetUnixEpoch())
 		msg.Payload = []byte{byte(i)}
@@ -173,7 +173,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	for i := 0; i < 10; i++ {
 		msg := &pb.WakuMessage{
 			Payload:      []byte{byte(i)},
@@ -199,7 +199,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 }
 
 func TestTemporalHistoryQueries(t *testing.T) {
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 
 	var messages []*pb.WakuMessage
 	for i := 0; i < 10; i++ {

@@ -20,7 +20,7 @@ func TestFindLastSeenMessage(t *testing.T) {
 	msg4 := tests.CreateWakuMessage("4", 4)
 	msg5 := tests.CreateWakuMessage("5", 5)
 
-	s := NewWakuStore(true, nil)
+	s := NewWakuStore(nil)
 	s.storeMessage("test", msg1)
 	s.storeMessage("test", msg3)
 	s.storeMessage("test", msg5)
@@ -37,7 +37,7 @@ func TestResume(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(true, nil)
+	s1 := NewWakuStore(nil)
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
@@ -54,7 +54,7 @@ func TestResume(t *testing.T) {
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(false, nil)
+	s2 := NewWakuStore(nil)
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
@@ -86,7 +86,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(true, nil)
+	s1 := NewWakuStore(nil)
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
@@ -97,7 +97,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(false, nil)
+	s2 := NewWakuStore(nil)
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
@@ -119,7 +119,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(true, nil)
+	s1 := NewWakuStore(nil)
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
@@ -130,7 +130,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(false, nil)
+	s2 := NewWakuStore(nil)
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 

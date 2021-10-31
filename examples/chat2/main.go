@@ -205,7 +205,7 @@ func main() {
 		q := store.Query{
 			ContentTopics: []string{*contentTopicFlag},
 		}
-		response, err := wakuNode.Query(tCtx, q,
+		response, err := wakuNode.Store().Query(tCtx, q,
 			store.WithAutomaticRequestId(),
 			store.WithPeer(*storeNodeId),
 			store.WithPaging(true, 0))

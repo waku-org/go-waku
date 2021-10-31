@@ -227,18 +227,17 @@ type WakuStore struct {
 	messages []IndexedWakuMessage
 	seen     map[[32]byte]struct{}
 
+	started bool
+
 	messagesMutex sync.Mutex
 
-	storeMsgs   bool
 	msgProvider MessageProvider
 	h           host.Host
 }
 
-func NewWakuStore(shouldStoreMessages bool, p MessageProvider) *WakuStore {
+func NewWakuStore(p MessageProvider) *WakuStore {
 	wakuStore := new(WakuStore)
-	wakuStore.MsgC = make(chan *protocol.Envelope)
 	wakuStore.msgProvider = p
-	wakuStore.storeMsgs = shouldStoreMessages
 	wakuStore.seen = make(map[[32]byte]struct{})
 
 	return wakuStore
@@ -249,13 +248,14 @@ func (store *WakuStore) SetMsgProvider(p MessageProvider) {
 }
 
 func (store *WakuStore) Start(ctx context.Context, h host.Host) {
-	store.h = h
-	store.ctx = ctx
-
-	if !store.storeMsgs {
-		log.Info("Store protocol started (messages aren't stored)")
+	if store.started {
 		return
 	}
+
+	store.started = true
+	store.h = h
+	store.ctx = ctx
+	store.MsgC = make(chan *protocol.Envelope)
 
 	store.h.SetStreamHandlerMatch(StoreID_v20beta3, protocol.PrefixTextMatch(string(StoreID_v20beta3)), store.onRequest)
 
@@ -272,7 +272,11 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 }
 
 func (store *WakuStore) fetchDBRecords(ctx context.Context) {
-	storedMessages, err := store.msgProvider.GetAll()
+	if store.msgProvider == nil {
+		return
+	}
+
+	storedMessages, err := (store.msgProvider).GetAll()
 	if err != nil {
 		log.Error("could not load DBProvider messages", err)
 		metrics.RecordStoreError(ctx, "store_load_failure")
@@ -647,6 +651,10 @@ func (store *WakuStore) findLastSeen() float64 {
 // the resume proc returns the number of retrieved messages if no error occurs, otherwise returns the error string
 
 func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList []peer.ID) (int, error) {
+	if !store.started {
+		return 0, errors.New("can't resume: store has not started")
+	}
+
 	currentTime := utils.GetUnixEpoch()
 	lastSeenTime := store.findLastSeen()
 
@@ -690,11 +698,15 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 		store.storeMessage(pubsubTopic, msg)
 	}
 
+	log.Info("Retrieved messages since the last online time: ", len(response.Messages))
+
 	return len(response.Messages), nil
 }
 
 // TODO: queryWithAccounting
 
 func (w *WakuStore) Stop() {
+	w.started = false
+	close(w.MsgC)
 	w.h.RemoveStreamHandler(StoreID_v20beta3)
 }

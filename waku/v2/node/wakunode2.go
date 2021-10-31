@@ -138,6 +138,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 }
 
 func (w *WakuNode) Start() error {
+	w.store = store.NewWakuStore(w.opts.messageProvider)
 	if w.opts.enableStore {
 		w.startStore()
 	}
@@ -162,8 +163,11 @@ func (w *WakuNode) Start() error {
 		}
 	}
 
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
 	if w.opts.enableLightPush {
-		w.mountLightPush()
+		if err := w.lightPush.Start(); err != nil {
+			return err
+		}
 	}
 
 	if w.opts.enableRendezvousServer {
@@ -208,13 +212,8 @@ func (w *WakuNode) Stop() {
 		w.filters = nil
 	}
 
-	if w.lightPush != nil {
-		w.lightPush.Stop()
-	}
-
-	if w.store != nil {
-		w.store.Stop()
-	}
+	w.lightPush.Stop()
+	w.store.Stop()
 
 	w.host.Close()
 }
@@ -240,8 +239,16 @@ func (w *WakuNode) Relay() *relay.WakuRelay {
 	return w.relay
 }
 
+func (w *WakuNode) Store() *store.WakuStore {
+	return w.store
+}
+
 func (w *WakuNode) Filter() *filter.WakuFilter {
 	return w.filter
+}
+
+func (w *WakuNode) Lightpush() *lightpush.WakuLightPush {
+	return w.lightPush
 }
 
 func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
@@ -273,10 +280,6 @@ func (w *WakuNode) mountFilter() error {
 	return nil
 }
 
-func (w *WakuNode) mountLightPush() {
-	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
-}
-
 func (w *WakuNode) mountRendezvous() error {
 	w.rendezvous = rendezvous.NewRendezvousService(w.host, w.opts.rendevousStorage)
 
@@ -289,7 +292,6 @@ func (w *WakuNode) mountRendezvous() error {
 }
 
 func (w *WakuNode) startStore() {
-	w.store = w.opts.store
 	w.store.Start(w.ctx, w.host)
 
 	if w.opts.shouldResume {
@@ -313,7 +315,7 @@ func (w *WakuNode) startStore() {
 
 				ctxWithTimeout, ctxCancel := context.WithTimeout(w.ctx, 20*time.Second)
 				defer ctxCancel()
-				if err := w.Resume(ctxWithTimeout, nil); err != nil {
+				if _, err := w.store.Resume(ctxWithTimeout, string(relay.DefaultWakuTopic), nil); err != nil {
 					log.Info("Retrying in 10s...")
 					time.Sleep(10 * time.Second)
 				} else {
@@ -344,37 +346,6 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.
 	return &info.ID, w.addPeer(info, protocolID)
 }
 
-func (w *WakuNode) Query(ctx context.Context, query store.Query, opts ...store.HistoryRequestOption) (*store.Result, error) {
-	if w.store == nil {
-		return nil, errors.New("WakuStore is not set")
-	}
-
-	return w.store.Query(ctx, query, opts...)
-}
-
-func (w *WakuNode) Next(ctx context.Context, result *store.Result) (*store.Result, error) {
-	if w.store == nil {
-		return nil, errors.New("WakuStore is not set")
-	}
-
-	return w.store.Next(ctx, result)
-}
-
-func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
-	if w.store == nil {
-		return errors.New("WakuStore is not set")
-	}
-
-	result, err := w.store.Resume(ctx, string(relay.DefaultWakuTopic), peerList)
-	if err != nil {
-		return err
-	}
-
-	log.Info("Retrieved messages since the last online time: ", result)
-
-	return nil
-}
-
 func (node *WakuNode) Subscribe(ctx context.Context, topic *relay.Topic) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
@@ -386,9 +357,9 @@ func (node *WakuNode) Subscribe(ctx context.Context, topic *relay.Topic) (*Subsc
 	sub, isNew, err := node.relay.Subscribe(t)
 
 	// Subscribe store to topic
-	if isNew && node.opts.store != nil && node.opts.storeMsgs {
+	if isNew && node.opts.storeMsgs {
 		log.Info("Subscribing store to topic ", t)
-		node.bcaster.Register(node.opts.store.MsgC)
+		node.bcaster.Register(node.store.MsgC)
 	}
 
 	// Subscribe filter
@@ -574,10 +545,6 @@ func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topi
 		return nil, errors.New("message can't be null")
 	}
 
-	if node.lightPush != nil {
-		return node.LightPush(ctx, message, topic)
-	}
-
 	if node.relay == nil {
 		return nil, errors.New("WakuRelay hasn't been set")
 	}
@@ -587,32 +554,6 @@ func (node *WakuNode) Publish(ctx context.Context, message *pb.WakuMessage, topi
 		return nil, err
 	}
 	return hash, nil
-}
-
-func (node *WakuNode) LightPush(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic, opts ...lightpush.LightPushOption) ([]byte, error) {
-	if node.lightPush == nil {
-		return nil, errors.New("WakuLightPush hasn't been set")
-	}
-
-	if message == nil {
-		return nil, errors.New("message can't be null")
-	}
-
-	req := new(pb.PushRequest)
-	req.Message = message
-	req.PubsubTopic = string(relay.GetTopic(topic))
-
-	response, err := node.lightPush.Request(ctx, req, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	if response.IsSuccess {
-		hash, _ := message.Hash()
-		return hash, nil
-	} else {
-		return nil, errors.New(response.Info)
-	}
 }
 
 func (w *WakuNode) DialPeerWithMultiAddress(ctx context.Context, address ma.Multiaddr) error {

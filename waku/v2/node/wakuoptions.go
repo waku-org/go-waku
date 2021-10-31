@@ -33,10 +33,10 @@ type WakuNodeParameters struct {
 	isFilterFullNode bool
 	wOpts            []pubsub.Option
 
-	enableStore  bool
-	shouldResume bool
-	storeMsgs    bool
-	store        *store.WakuStore
+	enableStore     bool
+	shouldResume    bool
+	storeMsgs       bool
+	messageProvider store.MessageProvider
 
 	enableRendezvous       bool
 	enableRendezvousServer bool
@@ -166,7 +166,6 @@ func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
 		params.storeMsgs = shouldStoreMessages
-		params.store = store.NewWakuStore(shouldStoreMessages, nil)
 		params.shouldResume = shouldResume
 		return nil
 	}
@@ -176,11 +175,7 @@ func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
 // used to store and retrieve persisted messages
 func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		if params.store != nil {
-			params.store.SetMsgProvider(s)
-		} else {
-			params.store = store.NewWakuStore(true, s)
-		}
+		params.messageProvider = s
 		return nil
 	}
 }
