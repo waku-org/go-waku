@@ -19,18 +19,13 @@ func TestWakuRelay(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := NewWakuRelay(context.Background(), host)
+	relay, err := NewWakuRelay(context.Background(), host, nil)
 	defer relay.Stop()
 	require.NoError(t, err)
 
-	sub, isNew, err := relay.Subscribe(testTopic)
+	sub, err := relay.subscribe(testTopic)
 	defer sub.Cancel()
 	require.NoError(t, err)
-	require.True(t, isNew)
-
-	_, isNew, err = relay.Subscribe(testTopic)
-	require.NoError(t, err)
-	require.False(t, isNew)
 
 	topics := relay.Topics()
 	require.Equal(t, 1, len(topics))
