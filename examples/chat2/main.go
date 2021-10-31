@@ -78,7 +78,7 @@ func main() {
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress([]*net.TCPAddr{hostAddr}),
-		node.WithWakuStore(false, true),
+		node.WithWakuStore(false, false),
 		node.WithKeepAlive(time.Duration(*keepAliveFlag) * time.Second),
 	}
 
@@ -201,7 +201,11 @@ func main() {
 		ui.displayMessage("Querying historic messages")
 
 		tCtx, _ := context.WithTimeout(ctx, 5*time.Second)
-		response, err := wakuNode.Query(tCtx, []string{*contentTopicFlag}, 0, 0,
+
+		q := store.Query{
+			ContentTopics: []string{*contentTopicFlag},
+		}
+		response, err := wakuNode.Query(tCtx, q,
 			store.WithAutomaticRequestId(),
 			store.WithPeer(*storeNodeId),
 			store.WithPaging(true, 0))

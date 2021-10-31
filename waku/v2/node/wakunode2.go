@@ -344,25 +344,20 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.
 	return &info.ID, w.addPeer(info, protocolID)
 }
 
-func (w *WakuNode) Query(ctx context.Context, contentTopics []string, startTime float64, endTime float64, opts ...store.HistoryRequestOption) (*pb.HistoryResponse, error) {
+func (w *WakuNode) Query(ctx context.Context, query store.Query, opts ...store.HistoryRequestOption) (*store.Result, error) {
 	if w.store == nil {
 		return nil, errors.New("WakuStore is not set")
 	}
 
-	query := new(pb.HistoryQuery)
+	return w.store.Query(ctx, query, opts...)
+}
 
-	for _, ct := range contentTopics {
-		query.ContentFilters = append(query.ContentFilters, &pb.ContentFilter{ContentTopic: ct})
+func (w *WakuNode) Next(ctx context.Context, result *store.Result) (*store.Result, error) {
+	if w.store == nil {
+		return nil, errors.New("WakuStore is not set")
 	}
 
-	query.StartTime = startTime
-	query.EndTime = endTime
-	query.PagingInfo = new(pb.PagingInfo)
-	result, err := w.store.Query(ctx, query, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return w.store.Next(ctx, result)
 }
 
 func (w *WakuNode) Resume(ctx context.Context, peerList []peer.ID) error {
