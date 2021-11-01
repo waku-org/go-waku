@@ -9,25 +9,25 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peerstore"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/status-im/go-waku/tests"
+	v2 "github.com/status-im/go-waku/waku/v2"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/stretchr/testify/require"
 )
 
-func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *pubsub.Subscription, host.Host) {
+func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host)
+	relay, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10))
 	require.NoError(t, err)
 
-	sub, _, err := relay.Subscribe(topic)
+	sub, err := relay.Subscribe(context.Background(), &topic)
 	require.NoError(t, err)
 
 	return relay, sub, host
@@ -48,11 +48,11 @@ func TestWakuLightPush(t *testing.T) {
 	var testTopic relay.Topic = "/waku/2/go/lightpush/test"
 	node1, sub1, host1 := makeWakuRelay(t, testTopic)
 	defer node1.Stop()
-	defer sub1.Cancel()
+	defer sub1.Unsubscribe()
 
 	node2, sub2, host2 := makeWakuRelay(t, testTopic)
 	defer node2.Stop()
-	defer sub2.Cancel()
+	defer sub2.Unsubscribe()
 
 	ctx := context.Background()
 	lightPushNode2 := NewWakuLightPush(ctx, host2, node2)
@@ -92,21 +92,15 @@ func TestWakuLightPush(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := sub1.Next(context.Background())
-		require.NoError(t, err)
-
-		_, err = sub1.Next(context.Background())
-		require.NoError(t, err)
+		<-sub1.C
+		<-sub1.C
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := sub2.Next(context.Background())
-		require.NoError(t, err)
-
-		_, err = sub2.Next(context.Background())
-		require.NoError(t, err)
+		<-sub2.C
+		<-sub2.C
 	}()
 
 	// Verifying succesful request
@@ -127,10 +121,9 @@ func TestWakuLightPushStartWithoutRelay(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-
 	client := NewWakuLightPush(ctx, clientHost, nil)
-
 	err = client.Start()
+
 	require.Errorf(t, err, "relay is required")
 }
 

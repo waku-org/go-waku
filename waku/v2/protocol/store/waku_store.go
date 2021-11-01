@@ -707,6 +707,12 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 func (w *WakuStore) Stop() {
 	w.started = false
-	close(w.MsgC)
-	w.h.RemoveStreamHandler(StoreID_v20beta3)
+
+	if w.MsgC != nil {
+		close(w.MsgC)
+	}
+
+	if w.h != nil {
+		w.h.RemoveStreamHandler(StoreID_v20beta3)
+	}
 }

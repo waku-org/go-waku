@@ -30,6 +30,7 @@ type Chat struct {
 	self         peer.ID
 	contentTopic string
 	useV1Payload bool
+	useLightPush bool
 	nick         string
 }
 
@@ -44,6 +45,7 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 		contentTopic: contentTopic,
 		nick:         nickname,
 		useV1Payload: useV1Payload,
+		useLightPush: useLightPush,
 		Messages:     make(chan *pb.Chat2Message, 1024),
 	}
 
@@ -58,7 +60,7 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 			return nil, err
 		}
 	} else {
-		sub, err := n.Subscribe(ctx, nil)
+		sub, err := n.Relay().Subscribe(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +122,13 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 		Timestamp:    timestamp,
 	}
 
-	_, err = cr.node.Publish(ctx, wakuMsg, nil)
+	if cr.useLightPush {
+		_, err = cr.node.Lightpush().Publish(ctx, wakuMsg, nil)
+
+	} else {
+		_, err = cr.node.Relay().Publish(ctx, wakuMsg, nil)
+
+	}
 
 	return err
 }

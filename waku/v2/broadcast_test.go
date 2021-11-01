@@ -1,11 +1,10 @@
-package node
+package v2
 
 import (
 	"sync"
 	"testing"
 
 	"github.com/status-im/go-waku/waku/v2/protocol"
-	"github.com/stretchr/testify/require"
 )
 
 // Adapted from https://github.com/dustin/go-broadcast/commit/f664265f5a662fb4d1df7f3533b1e8d0e0277120
@@ -41,6 +40,5 @@ func TestBroadcast(t *testing.T) {
 func TestBroadcastCleanup(t *testing.T) {
 	b := NewBroadcaster(100)
 	b.Register(make(chan *protocol.Envelope))
-	err := b.Close()
-	require.NoError(t, err)
+	b.Close()
 }

@@ -40,7 +40,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 
 	require.NoError(t, write(ctx, wakuNode, "test"))
 
-	sub, err := wakuNode.Subscribe(ctx, nil)
+	sub, err := wakuNode.Relay().Subscribe(ctx, nil)
 	require.NoError(t, err)
 
 	value := <-sub.C
@@ -79,6 +79,6 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) erro
 		Timestamp:    timestamp,
 	}
 
-	_, err = wakuNode.Publish(ctx, msg, nil)
+	_, err = wakuNode.Relay().Publish(ctx, msg, nil)
 	return err
 }
