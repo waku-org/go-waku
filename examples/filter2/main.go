@@ -146,7 +146,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 		Timestamp:    timestamp,
 	}
 
-	_, err := wakuNode.Publish(ctx, msg, nil)
+	_, err := wakuNode.Relay().Publish(ctx, msg, nil)
 	if err != nil {
 		log.Error("Error sending a message: ", err)
 	}
@@ -160,7 +160,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(ctx, &pubSubTopic)
+	sub, err := wakuNode.Relay().Subscribe(ctx, &pubSubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return

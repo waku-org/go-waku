@@ -62,7 +62,7 @@ func main() {
 	log.Info("### create relayNode1")
 	relayNode1, err := node.New(ctx,
 		node.WithPrivateKey(addrsAndKeys[0].key),
-		node.WithHostAddress([]net.Addr{addrsAndKeys[0].addr}),
+		node.WithHostAddress([]*net.TCPAddr{addrsAndKeys[0].addr}),
 		node.WithWakuRelay(),
 		//node.WithConnStatusChan(connStatusChan),
 		node.WithWakuStore(true, false),
@@ -198,7 +198,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 		Timestamp:    timestamp,
 	}
 
-	_, err = wakuNode.Publish(ctx, msg, nil)
+	_, err = wakuNode.Relay().Publish(ctx, msg, nil)
 	if err != nil {
 		log.Error("Error sending a message: ", err)
 	}
@@ -213,7 +213,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Subscribe(ctx, &pubSubTopic)
+	sub, err := wakuNode.Relay().Subscribe(ctx, &pubSubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return
