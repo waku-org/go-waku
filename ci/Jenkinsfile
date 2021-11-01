@@ -28,6 +28,10 @@ pipeline {
     stage('Test') {
       steps { sh 'make test' }
     }
+
+    stage('Build example') {
+      steps { sh 'make build-example' }
+    }
   }
   post {
     always { cleanWs() }
