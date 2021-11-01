@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/status-im/go-waku/tests"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/stretchr/testify/require"
@@ -55,6 +56,8 @@ func TestWakuLightPush(t *testing.T) {
 
 	ctx := context.Background()
 	lightPushNode2 := NewWakuLightPush(ctx, host2, node2)
+	err := lightPushNode2.Start()
+	require.NoError(t, err)
 	defer lightPushNode2.Stop()
 
 	port, err := tests.FindFreePort(t, "", 5)
@@ -75,13 +78,11 @@ func TestWakuLightPush(t *testing.T) {
 	err = clientHost.Peerstore().AddProtocols(host2.ID(), string(LightPushID_v20beta1))
 	require.NoError(t, err)
 
+	msg1 := tests.CreateWakuMessage("test1", float64(0))
+	msg2 := tests.CreateWakuMessage("test2", float64(1))
+
 	req := new(pb.PushRequest)
-	req.Message = &pb.WakuMessage{
-		Payload:      []byte{1},
-		Version:      0,
-		ContentTopic: "test",
-		Timestamp:    0,
-	}
+	req.Message = msg1
 	req.PubsubTopic = string(testTopic)
 
 	// Wait for the mesh connection to happen between node1 and node2
@@ -93,6 +94,9 @@ func TestWakuLightPush(t *testing.T) {
 		defer wg.Done()
 		_, err := sub1.Next(context.Background())
 		require.NoError(t, err)
+
+		_, err = sub1.Next(context.Background())
+		require.NoError(t, err)
 	}()
 
 	wg.Add(1)
@@ -100,11 +104,46 @@ func TestWakuLightPush(t *testing.T) {
 		defer wg.Done()
 		_, err := sub2.Next(context.Background())
 		require.NoError(t, err)
+
+		_, err = sub2.Next(context.Background())
+		require.NoError(t, err)
 	}()
 
-	resp, err := client.Request(ctx, req, []LightPushOption{}...)
+	// Verifying succesful request
+	resp, err := client.request(ctx, req)
 	require.NoError(t, err)
 	require.True(t, resp.IsSuccess)
 
+	// Checking that msg hash is correct
+	hash, err := client.Publish(ctx, msg2, &testTopic)
+	require.NoError(t, err)
+	require.Equal(t, protocol.NewEnvelope(msg2, string(testTopic)).Hash(), hash)
 	wg.Wait()
+}
+
+func TestWakuLightPushStartWithoutRelay(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
+	require.NoError(t, err)
+
+	client := NewWakuLightPush(ctx, clientHost, nil)
+
+	err = client.Start()
+	require.Errorf(t, err, "relay is required")
+}
+
+func TestWakuLightPushNoPeers(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testTopic := relay.Topic("abc")
+
+	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
+	require.NoError(t, err)
+	client := NewWakuLightPush(ctx, clientHost, nil)
+
+	_, err = client.Publish(ctx, tests.CreateWakuMessage("test", float64(0)), &testTopic)
+	require.Errorf(t, err, "no suitable remote peers")
 }
