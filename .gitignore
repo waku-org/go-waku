@@ -18,6 +18,7 @@ go-waku
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 coverage.html
+coverage.json
 
 # Dependency directories (remove the comment below to include it)
 # vendor/

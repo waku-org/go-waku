@@ -29,6 +29,10 @@ pipeline {
       steps { sh 'make test' }
     }
 
+    stage('Codeclimate') {
+      steps { sh 'make codeclimate-coverage' }
+    }
+
     stage('Build example') {
       steps { sh 'make build-example' }
     }
