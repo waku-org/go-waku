@@ -53,30 +53,26 @@ type SnakeCaseCodecRequest struct {
 // on to the calling rpc server.
 func (c *SnakeCaseCodecRequest) Method() (string, error) {
 	m, err := c.CodecRequest.Method()
-	return snakeCaseToCamelCase(m), err
+	return toWakuMethod(m), err
 }
 
-func snakeCaseToCamelCase(inputUnderScoreStr string) (camelCase string) {
-	isToUpper := false
-	for k, v := range inputUnderScoreStr {
-		if k == 0 {
-			camelCase = strings.ToUpper(string(inputUnderScoreStr[0]))
-		} else {
-			if isToUpper {
-				camelCase += strings.ToUpper(string(v))
-				isToUpper = false
-			} else {
-				if v == '_' {
-					isToUpper = true
-				} else if v == '.' {
-					isToUpper = true
-					camelCase += string(v)
-				} else {
-					camelCase += string(v)
-				}
-			}
-		}
+// toWakuMethod transform get_waku_v2_debug_v1_info to Debug.GetV1Info
+func toWakuMethod(input string) string {
+	typ := "get"
+	if strings.HasPrefix(input, "post") {
+		typ = "post"
+	} else if strings.HasPrefix(input, "delete") {
+		typ = "delete"
 	}
-	return
 
+	base := typ + "_waku_v2_"
+	cleanedInput := strings.Replace(input, base, "", 1)
+	splited := strings.Split(cleanedInput, "_")
+
+	method := strings.Title(typ)
+	for _, val := range splited[1:] {
+		method = method + strings.Title(val)
+	}
+
+	return strings.Title(splited[0]) + "." + method
 }
