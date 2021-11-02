@@ -58,6 +58,13 @@ type MetricsOptions struct {
 	Port    int    `long:"metrics-port" description:"Listening HTTP port of the metrics server" default:"8008"`
 }
 
+// RPCServerOptions are settings used to start a json rpc server
+type RPCServerOptions struct {
+	Enable  bool   `long:"rpc" description:"Enable the rpc server"`
+	Port    int    `long:"rpc-port" description:"Listening port of the rpc server" default:"8009"`
+	Address string `long:"rpc-address" description:"Listening address of the rpc server" default:"127.0.0.1"`
+}
+
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
@@ -86,4 +93,5 @@ type Options struct {
 	RendezvousServer RendezvousServerOptions `group:"Rendezvous Server Options"`
 	DNSDiscovery     DNSDiscoveryOptions     `group:"DNS Discovery Options"`
 	Metrics          MetricsOptions          `group:"Metrics Options"`
+	RPCServer        RPCServerOptions        `group:"RPC Server Options"`
 }

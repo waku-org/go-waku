@@ -10,6 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.4
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
+	github.com/gorilla/rpc v1.2.0
 	github.com/ipfs/go-ds-sql v0.2.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/jessevdk/go-flags v1.4.0
