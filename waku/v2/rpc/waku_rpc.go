@@ -22,7 +22,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 	s.RegisterCodec(NewSnakeCaseCodec(), "application/json")
 	s.RegisterCodec(NewSnakeCaseCodec(), "application/json;charset=UTF-8")
 
-	err := s.RegisterService(&DebugService{node}, "WakuV2Debug")
+	err := s.RegisterService(&DebugService{node}, "Debug")
 	if err != nil {
 		log.Error(err)
 	}
