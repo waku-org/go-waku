@@ -36,16 +36,12 @@ docker-image:
 		--build-arg="GIT_COMMIT=$(shell git rev-parse HEAD)" .
 
 build-example-basic2:
-	go build examples/basic2/main.go
+	cd examples/basic2 && $(MAKE)
 
 build-example-chat-2:
-	# TODO: require UI + Chat which are gone
-	# go build examples/chat2/main.go
+	cd examples/chat2 && $(MAKE)
 
 build-example-filter2:
-	go build examples/filter2/main.go
+	cd examples/filter2 && $(MAKE)
 
-build-example-peer-events:
-	go build examples/peer_events/main.go
-
-build-example: build-example-basic2 build-example-chat-2 build-example-filter2 build-example-peer-events
+build-example: build-example-basic2 build-example-chat-2 build-example-filter2
