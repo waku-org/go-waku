@@ -39,6 +39,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"github.com/status-im/go-waku/waku/v2/rpc"
 )
 
 var log = logging.Logger("wakunode")
@@ -225,6 +226,12 @@ func Execute(options Options) {
 		}
 	}
 
+	var rpcServer *rpc.WakuRpc
+	if options.RPCServer.Enable {
+		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port)
+		go rpcServer.Start()
+	}
+
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
@@ -233,6 +240,11 @@ func Execute(options Options) {
 
 	// shut the node down
 	wakuNode.Stop()
+
+	if options.RPCServer.Enable {
+		err := rpcServer.Stop(ctx)
+		failOnErr(err, "RPCClose")
+	}
 
 	if options.Metrics.Enable {
 		err = metricsServer.Stop(ctx)
