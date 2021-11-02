@@ -35,6 +35,10 @@ func main() {
 		return
 	}
 	prvKey, err := crypto.HexToECDSA(key)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	ctx := context.Background()
 
@@ -85,6 +89,10 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	p.Key = &node.KeyInfo{Kind: node.None}
 
 	payload, err := p.Encode(version)
+	if err != nil {
+		log.Error("Error encoding the payload: ", err)
+		return
+	}
 
 	msg := &pb.WakuMessage{
 		Payload:      payload,
