@@ -34,6 +34,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 		WithHostAddress([]*net.TCPAddr{hostAddr2}),
 		WithWakuRelay(),
 	)
+	require.NoError(t, err)
 	err = node2.Start()
 	require.NoError(t, err)
 
@@ -49,8 +50,11 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node3.Start()
 	require.NoError(t, err)
 
-	node1.DialPeer(ctx, node2.ListenAddresses()[0].String())
-	node1.DialPeer(ctx, node3.ListenAddresses()[0].String())
+	err = node1.DialPeer(ctx, node2.ListenAddresses()[0].String())
+	require.NoError(t, err)
+
+	err = node1.DialPeer(ctx, node3.ListenAddresses()[0].String())
+	require.NoError(t, err)
 
 	var wg sync.WaitGroup
 
@@ -77,6 +81,8 @@ func TestConnectionStatusChanges(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
+		node3.Stop()
+
 		connStatus := <-connStatusChan
 		_, ok := connStatus.Peers[node3.Host().ID()]
 		require.True(t, connStatus.IsOnline)
@@ -85,12 +91,14 @@ func TestConnectionStatusChanges(t *testing.T) {
 		require.Len(t, node1.Host().Network().Peers(), 1) // No peers connected
 	}()
 
-	node3.Stop()
 	wg.Wait()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		err = node1.ClosePeerById(node2.Host().ID())
+		require.NoError(t, err)
 
 		connStatus := <-connStatusChan
 		_, ok := connStatus.Peers[node3.Host().ID()]
@@ -100,13 +108,14 @@ func TestConnectionStatusChanges(t *testing.T) {
 		require.Len(t, node1.Host().Network().Peers(), 0) // No peers connected
 	}()
 
-	err = node1.ClosePeerById(node2.Host().ID())
-	require.NoError(t, err)
 	wg.Wait()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		err = node1.DialPeerByID(ctx, node2.Host().ID())
+		require.NoError(t, err)
 
 		connStatus := <-connStatusChan
 		_, ok := connStatus.Peers[node2.Host().ID()]
@@ -116,7 +125,5 @@ func TestConnectionStatusChanges(t *testing.T) {
 		require.Len(t, node1.Host().Network().Peers(), 1)
 	}()
 
-	err = node1.DialPeerByID(ctx, node2.Host().ID())
-	require.NoError(t, err)
 	wg.Wait()
 }
