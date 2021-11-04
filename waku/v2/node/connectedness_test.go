@@ -5,15 +5,39 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func checkConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {
+	wg.Add(1)
+	defer wg.Done()
+
+	timeout := time.After(5 * time.Second)
+
+	select {
+	case connStatus := <-connStatusChan:
+		_, ok := connStatus.Peers[node.Host().ID()]
+		if (nodeShouldBeConnected && ok) || (!nodeShouldBeConnected && !ok) {
+			// Only execute the test when the node is connected or disconnected and it does not appear in the map returned by the connection status channel
+			require.True(t, connStatus.IsOnline == shouldBeOnline)
+			require.True(t, connStatus.HasHistory == shouldHaveHistory)
+			require.Len(t, clientNode.Host().Network().Peers(), expectedPeers)
+			return
+		}
+
+	case <-timeout:
+		require.Fail(t, "node should have connected")
+
+	}
+}
 
 func TestConnectionStatusChanges(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	connStatusChan := make(chan ConnStatus)
+	connStatusChan := make(chan ConnStatus, 100)
 
 	// Node1: Only Relay
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
@@ -50,80 +74,35 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node3.Start()
 	require.NoError(t, err)
 
+	var wg sync.WaitGroup
+
+	go checkConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
+
 	err = node1.DialPeer(ctx, node2.ListenAddresses()[0].String())
 	require.NoError(t, err)
+
+	wg.Wait()
+
+	go checkConnectedness(t, &wg, connStatusChan, node1, node3, true, true, true, 2)
 
 	err = node1.DialPeer(ctx, node3.ListenAddresses()[0].String())
 	require.NoError(t, err)
 
-	var wg sync.WaitGroup
+	go checkConnectedness(t, &wg, connStatusChan, node1, node3, false, true, false, 1)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		connStatus := <-connStatusChan
-		_, ok := connStatus.Peers[node2.Host().ID()]
-		require.True(t, connStatus.IsOnline)
-		require.True(t, ok)
-		require.False(t, connStatus.HasHistory)
-
-		connStatus = <-connStatusChan
-		_, ok = connStatus.Peers[node3.Host().ID()]
-		require.True(t, connStatus.IsOnline)
-		require.True(t, ok)
-		require.True(t, connStatus.HasHistory)
-	}()
+	node3.Stop()
 
 	wg.Wait()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	go checkConnectedness(t, &wg, connStatusChan, node1, node2, false, false, false, 0)
 
-		node3.Stop()
-
-		connStatus := <-connStatusChan
-		_, ok := connStatus.Peers[node3.Host().ID()]
-		require.True(t, connStatus.IsOnline)
-		require.False(t, ok)                              // Peer3 should have been disconnected
-		require.False(t, connStatus.HasHistory)           // No history, because there are no peers connected with store protocol
-		require.Len(t, node1.Host().Network().Peers(), 1) // No peers connected
-	}()
-
+	err = node1.ClosePeerById(node2.Host().ID())
+	require.NoError(t, err)
 	wg.Wait()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	go checkConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
 
-		err = node1.ClosePeerById(node2.Host().ID())
-		require.NoError(t, err)
-
-		connStatus := <-connStatusChan
-		_, ok := connStatus.Peers[node3.Host().ID()]
-		require.False(t, connStatus.IsOnline)             // Peers are not connected. Should be offline
-		require.False(t, ok)                              // Peer2 should have been disconnected
-		require.False(t, connStatus.HasHistory)           // No history, because there are no peers connected with store protocol
-		require.Len(t, node1.Host().Network().Peers(), 0) // No peers connected
-	}()
-
-	wg.Wait()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		err = node1.DialPeerByID(ctx, node2.Host().ID())
-		require.NoError(t, err)
-
-		connStatus := <-connStatusChan
-		_, ok := connStatus.Peers[node2.Host().ID()]
-		require.True(t, connStatus.IsOnline)    // Peers2 is connected. Should be online
-		require.True(t, ok)                     // Peer2 should have been connected
-		require.False(t, connStatus.HasHistory) // No history because peer2 only has relay
-		require.Len(t, node1.Host().Network().Peers(), 1)
-	}()
-
+	err = node1.DialPeerByID(ctx, node2.Host().ID())
+	require.NoError(t, err)
 	wg.Wait()
 }
