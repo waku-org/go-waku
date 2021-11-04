@@ -255,7 +255,7 @@ func (store *WakuStore) Start(ctx context.Context, h host.Host) {
 	store.started = true
 	store.h = h
 	store.ctx = ctx
-	store.MsgC = make(chan *protocol.Envelope)
+	store.MsgC = make(chan *protocol.Envelope, 1024)
 
 	store.h.SetStreamHandlerMatch(StoreID_v20beta3, protocol.PrefixTextMatch(string(StoreID_v20beta3)), store.onRequest)
 
@@ -487,7 +487,7 @@ func DefaultOptions() []HistoryRequestOption {
 }
 
 func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestId []byte) (*pb.HistoryResponse, error) {
-	log.Info(fmt.Sprintf("Resuming message history with peer %s", selectedPeer))
+	log.Info(fmt.Sprintf("Querying message history with peer %s", selectedPeer))
 
 	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta3)
 	if err != nil {
