@@ -24,9 +24,9 @@ func TestStorePersistence(t *testing.T) {
 	dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(dbStore)
+	s1 := NewWakuStore(dbStore, 0, 0)
 	s1.fetchDBRecords(ctx)
-	require.Len(t, s1.messages, 0)
+	require.Len(t, s1.messageQueue.messages, 0)
 
 	defaultPubSubTopic := "test"
 	defaultContentTopic := "1"
@@ -39,10 +39,10 @@ func TestStorePersistence(t *testing.T) {
 
 	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
 
-	s2 := NewWakuStore(dbStore)
+	s2 := NewWakuStore(dbStore, 0, 0)
 	s2.fetchDBRecords(ctx)
-	require.Len(t, s2.messages, 1)
-	require.Equal(t, msg, s2.messages[0].msg)
+	require.Len(t, s2.messageQueue.messages, 1)
+	require.Equal(t, msg, s2.messageQueue.messages[0].msg)
 
 	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
 	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))

@@ -9,6 +9,7 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"time"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -144,7 +145,7 @@ func (store *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse
 	result := new(pb.HistoryResponse)
 	// data holds IndexedWakuMessage whose topics match the query
 	var data []IndexedWakuMessage
-	for _, indexedMsg := range store.messages {
+	for _, indexedMsg := range w.messageQueue.messages {
 		// temporal filtering
 		// check whether the history query contains a time filter
 		if query.StartTime != 0 && query.EndTime != 0 {
@@ -225,10 +226,13 @@ type IndexedWakuMessage struct {
 }
 
 type WakuStore struct {
-	ctx      context.Context
-	MsgC     chan *protocol.Envelope
-	messages []IndexedWakuMessage
-	seen     map[[32]byte]struct{}
+	ctx  context.Context
+	MsgC chan *protocol.Envelope
+	seen map[[32]byte]struct{}
+
+	messageQueue        *MessageQueue
+	maxNumberOfMessages int
+	maxRetentionDays    time.Duration
 
 	started bool
 
@@ -239,11 +243,13 @@ type WakuStore struct {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(p MessageProvider) *WakuStore {
+func NewWakuStore(p MessageProvider, maxNumberOfMessages int, maxRetentionDays time.Duration) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.seen = make(map[[32]byte]struct{})
-
+	wakuStore.maxNumberOfMessages = maxNumberOfMessages
+	wakuStore.maxRetentionDays = maxRetentionDays
+	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages)
 	return wakuStore
 }
 
@@ -297,7 +303,7 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 
 		store.storeMessageWithIndex(storedMessage.PubsubTopic, idx, storedMessage.Message)
 
-		metrics.RecordMessage(ctx, "stored", len(store.messages))
+		metrics.RecordMessage(ctx, "stored", len(store.messageQueue.messages))
 	}
 }
 
@@ -310,7 +316,7 @@ func (store *WakuStore) storeMessageWithIndex(pubsubTopic string, idx *pb.Index,
 	}
 
 	store.seen[k] = struct{}{}
-	store.messages = append(store.messages, IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
+	store.messageQueue.Push(IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
 }
 
 func (store *WakuStore) storeMessage(env *protocol.Envelope) {
@@ -326,19 +332,19 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) {
 	store.storeMessageWithIndex(env.PubsubTopic(), index, env.Message())
 
 	if store.msgProvider == nil {
-		metrics.RecordMessage(store.ctx, "stored", len(store.messages))
+		metrics.RecordMessage(store.ctx, "stored", len(store.messageQueue.messages))
 		return
 	}
 
+	// TODO: Move this to a separate go routine if DB writes becomes a bottleneck
 	err = store.msgProvider.Put(index, env.PubsubTopic(), env.Message()) // Should the index be stored?
-
 	if err != nil {
 		log.Error("could not store message", err)
 		metrics.RecordStoreError(store.ctx, "store_failure")
 		return
 	}
 
-	metrics.RecordMessage(store.ctx, "stored", len(store.messages))
+	metrics.RecordMessage(store.ctx, "stored", len(store.messageQueue.messages))
 }
 
 func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
@@ -525,7 +531,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		return nil, err
 	}
 
-	metrics.RecordMessage(ctx, "retrieved", len(store.messages))
+	metrics.RecordMessage(ctx, "retrieved", len(store.messageQueue.messages))
 
 	return historyResponseRPC.Response, nil
 }
@@ -643,7 +649,7 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 
 func (store *WakuStore) findLastSeen() float64 {
 	var lastSeenTime float64 = 0
-	for _, imsg := range store.messages {
+	for _, imsg := range store.messageQueue.messages {
 		if imsg.msg.Timestamp > lastSeenTime {
 			lastSeenTime = imsg.msg.Timestamp
 		}

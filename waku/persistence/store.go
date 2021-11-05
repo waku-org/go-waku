@@ -3,8 +3,10 @@ package persistence
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 type MessageProvider interface {
@@ -17,6 +19,9 @@ type MessageProvider interface {
 type DBStore struct {
 	MessageProvider
 	db *sql.DB
+
+	maxMessages int
+	maxDays     time.Duration
 }
 
 type StoredMessage struct {
@@ -49,17 +54,32 @@ func WithDriver(driverName string, datasourceName string) DBOption {
 	}
 }
 
+func WithRetentionPolicy(maxMessages int, maxDays time.Duration) DBOption {
+	return func(d *DBStore) error {
+		d.maxDays = maxDays
+		d.maxMessages = maxMessages
+		return nil
+	}
+}
+
 // Creates a new DB store using the db specified via options.
 // It will create a messages table if it does not exist
-func NewDBStore(opt DBOption) (*DBStore, error) {
+func NewDBStore(options ...DBOption) (*DBStore, error) {
 	result := new(DBStore)
 
-	err := opt(result)
+	for _, opt := range options {
+		err := opt(result)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err := result.createTable()
 	if err != nil {
 		return nil, err
 	}
 
-	err = result.createTable()
+	err = result.cleanOlderRecords()
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +101,28 @@ func (d *DBStore) createTable() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (d *DBStore) cleanOlderRecords() error {
+	// Delete messages older than N days
+	if d.maxDays > 0 {
+		sqlStmt := `DELETE FROM message WHERE receiverTimestamp < ?`
+		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(func() time.Time { return time.Now().Add(-d.maxDays) }))
+		if err != nil {
+			return err
+		}
+	}
+
+	// Limit number of records to a max N
+	if d.maxMessages > 0 {
+		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC LIMIT -1 OFFSET 5)`
+		_, err := d.db.Exec(sqlStmt, d.maxMessages)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

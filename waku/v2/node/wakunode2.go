@@ -128,7 +128,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 }
 
 func (w *WakuNode) Start() error {
-	w.store = store.NewWakuStore(w.opts.messageProvider)
+	w.store = store.NewWakuStore(w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDays)
 	if w.opts.enableStore {
 		w.startStore()
 	}
