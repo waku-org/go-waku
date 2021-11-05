@@ -179,10 +179,12 @@ func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
 	}
 }
 
-func WithWakuStoreAndLimits(shouldStoreMessages bool, shouldResume bool, maxDays time.Duration, maxMessages int) WakuNodeOption {
+// WithWakuStoreAndLimits enables the Waku V2 Store protocol, storing them in an optional message provider
+// applying an specific retention policy
+func WithWakuStoreAndLimits(shouldResume bool, maxDays time.Duration, maxMessages int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
-		params.storeMsgs = shouldStoreMessages
+		params.storeMsgs = true
 		params.shouldResume = shouldResume
 		params.maxDays = maxDays
 		params.maxMessages = maxMessages
