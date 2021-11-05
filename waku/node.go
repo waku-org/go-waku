@@ -144,9 +144,10 @@ func Execute(options Options) {
 	}
 
 	if options.Store.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuStore(true, options.Store.ShouldResume))
+		maxDays := time.Hour * 24 * time.Duration(options.Store.RetentionMaxDays)
+		nodeOpts = append(nodeOpts, node.WithWakuStoreAndLimits(true, options.Store.ShouldResume, maxDays, options.Store.RetentionMaxMessages))
 		if options.UseDB {
-			dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
+			dbStore, err := persistence.NewDBStore(persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, maxDays))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		} else {

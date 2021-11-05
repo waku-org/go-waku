@@ -21,7 +21,7 @@ func TestFindLastSeenMessage(t *testing.T) {
 	msg4 := protocol.NewEnvelope(tests.CreateWakuMessage("4", 4), "test")
 	msg5 := protocol.NewEnvelope(tests.CreateWakuMessage("5", 5), "test")
 
-	s := NewWakuStore(nil)
+	s := NewWakuStore(nil, 0, 0)
 	s.storeMessage(msg1)
 	s.storeMessage(msg3)
 	s.storeMessage(msg5)
@@ -38,7 +38,7 @@ func TestResume(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(nil)
+	s1 := NewWakuStore(nil, 0, 0)
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
@@ -55,7 +55,7 @@ func TestResume(t *testing.T) {
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(nil)
+	s2 := NewWakuStore(nil, 0, 0)
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
@@ -67,7 +67,7 @@ func TestResume(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 10, msgCount)
-	require.Len(t, s2.messages, 10)
+	require.Len(t, s2.messageQueue.messages, 10)
 
 	// Test duplication
 	msgCount, err = s2.Resume(ctx, "test", []peer.ID{host1.ID()})
@@ -87,7 +87,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(nil)
+	s1 := NewWakuStore(nil, 0, 0)
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
@@ -98,7 +98,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(nil)
+	s2 := NewWakuStore(nil, 0, 0)
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
@@ -110,7 +110,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 1, msgCount)
-	require.Len(t, s2.messages, 1)
+	require.Len(t, s2.messageQueue.messages, 1)
 }
 
 func TestResumeWithoutSpecifyingPeer(t *testing.T) {
@@ -120,7 +120,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(nil)
+	s1 := NewWakuStore(nil, 0, 0)
 	s1.Start(ctx, host1)
 	defer s1.Stop()
 
@@ -131,7 +131,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(nil)
+	s2 := NewWakuStore(nil, 0, 0)
 	s2.Start(ctx, host2)
 	defer s2.Stop()
 
@@ -143,5 +143,5 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 1, msgCount)
-	require.Len(t, s2.messages, 1)
+	require.Len(t, s2.messageQueue.messages, 1)
 }

@@ -37,6 +37,8 @@ type WakuNodeParameters struct {
 	shouldResume    bool
 	storeMsgs       bool
 	messageProvider store.MessageProvider
+	maxMessages     int
+	maxDays         time.Duration
 
 	enableRendezvous       bool
 	enableRendezvousServer bool
@@ -173,6 +175,17 @@ func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
 		params.enableStore = true
 		params.storeMsgs = shouldStoreMessages
 		params.shouldResume = shouldResume
+		return nil
+	}
+}
+
+func WithWakuStoreAndLimits(shouldStoreMessages bool, shouldResume bool, maxDays time.Duration, maxMessages int) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableStore = true
+		params.storeMsgs = shouldStoreMessages
+		params.shouldResume = shouldResume
+		params.maxDays = maxDays
+		params.maxMessages = maxMessages
 		return nil
 	}
 }

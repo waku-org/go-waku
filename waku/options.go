@@ -36,9 +36,11 @@ type LightpushOptions struct {
 // retrieve message history from other nodes as well as acting as a store
 // node and provide message history to nodes that ask for it.
 type StoreOptions struct {
-	Enable       bool     `long:"store" description:"Enable store protocol"`
-	ShouldResume bool     `long:"resume" description:"fix the gap in message history"`
-	Nodes        []string `long:"store-node" description:"Multiaddr of a peer that supports store protocol. Option may be repeated"`
+	Enable               bool     `long:"store" description:"Enable store protocol"`
+	ShouldResume         bool     `long:"resume" description:"fix the gap in message history"`
+	RetentionMaxDays     int      `long:"keep-history-days" description:"maximum number of days before a message is removed from the store" default:"30"`
+	RetentionMaxMessages int      `long:"max-history-messages" description:"maximum number of messages to store" default:"50000"`
+	Nodes                []string `long:"store-node" description:"Multiaddr of a peer that supports store protocol. Option may be repeated"`
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery
