@@ -4,6 +4,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ func TestIndexComputation(t *testing.T) {
 		Timestamp: utils.GetUnixEpoch(),
 	}
 
-	idx, err := computeIndex(msg)
+	idx, err := computeIndex(protocol.NewEnvelope(msg, "test"))
 	require.NoError(t, err)
 	require.NotZero(t, idx.ReceiverTime)
 	require.Equal(t, msg.Timestamp, idx.SenderTime)
@@ -27,7 +28,7 @@ func TestIndexComputation(t *testing.T) {
 		Timestamp:    123,
 		ContentTopic: "/waku/2/default-content/proto",
 	}
-	idx1, err := computeIndex(msg1)
+	idx1, err := computeIndex(protocol.NewEnvelope(msg1, "test"))
 	require.NoError(t, err)
 
 	msg2 := &pb.WakuMessage{
@@ -35,7 +36,7 @@ func TestIndexComputation(t *testing.T) {
 		Timestamp:    123,
 		ContentTopic: "/waku/2/default-content/proto",
 	}
-	idx2, err := computeIndex(msg2)
+	idx2, err := computeIndex(protocol.NewEnvelope(msg2, "test"))
 	require.NoError(t, err)
 
 	require.Equal(t, idx1.Digest, idx2.Digest)
@@ -174,7 +175,7 @@ func TestForwardPagination(t *testing.T) {
 	require.Equal(t, uint64(0), newPagingInfo.PageSize)
 
 	// test for an invalid cursor
-	invalidIndex, err := computeIndex(&pb.WakuMessage{Payload: []byte{255, 255, 255}})
+	invalidIndex, err := computeIndex(protocol.NewEnvelope(&pb.WakuMessage{Payload: []byte{255, 255, 255}}, "test"))
 	require.NoError(t, err)
 	pagingInfo = &pb.PagingInfo{PageSize: 10, Cursor: invalidIndex, Direction: pb.PagingInfo_FORWARD}
 	messages, newPagingInfo = paginateWithoutIndex(msgList, pagingInfo)
@@ -258,7 +259,7 @@ func TestBackwardPagination(t *testing.T) {
 	require.Equal(t, uint64(0), newPagingInfo.PageSize)
 
 	// test for an invalid cursor
-	invalidIndex, err := computeIndex(&pb.WakuMessage{Payload: []byte{255, 255, 255}})
+	invalidIndex, err := computeIndex(protocol.NewEnvelope(&pb.WakuMessage{Payload: []byte{255, 255, 255}}, "test"))
 	require.NoError(t, err)
 	pagingInfo = &pb.PagingInfo{PageSize: 10, Cursor: invalidIndex, Direction: pb.PagingInfo_BACKWARD}
 	messages, newPagingInfo = paginateWithoutIndex(msgList, pagingInfo)

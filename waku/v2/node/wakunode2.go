@@ -112,8 +112,8 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		return nil, err
 	}
 
-	if params.connStatusChan != nil {
-		w.connStatusChan = params.connStatusChan
+	if params.connStatusC != nil {
+		w.connStatusChan = params.connStatusC
 	}
 
 	w.connectionNotif = NewConnectionNotifier(ctx, host)
@@ -346,8 +346,8 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.
 
 // Wrapper around WakuFilter.Subscribe
 // that adds a Filter object to node.filters
-func (node *WakuNode) SubscribeFilter(ctx context.Context, f filter.ContentFilter) (filterID string, ch chan *protocol.Envelope, err error) {
-	if node.filter == nil {
+func (w *WakuNode) SubscribeFilter(ctx context.Context, f filter.ContentFilter) (filterID string, ch chan *protocol.Envelope, err error) {
+	if w.filter == nil {
 		err = errors.New("WakuFilter is not set")
 		return
 	}
@@ -357,7 +357,7 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, f filter.ContentFilte
 
 	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
 	// ContentFilterChan takes MessagePush structs
-	subs, err := node.filter.Subscribe(ctx, f)
+	subs, err := w.filter.Subscribe(ctx, f)
 	if err != nil || subs.RequestID == "" {
 		// Failed to subscribe
 		log.Error("remote subscription to filter failed", err)
@@ -367,7 +367,7 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, f filter.ContentFilte
 	ch = make(chan *protocol.Envelope, 1024) // To avoid blocking
 
 	// Register handler for filter, whether remote subscription succeeded or not
-	node.filters[subs.RequestID] = filter.Filter{
+	w.filters[subs.RequestID] = filter.Filter{
 		PeerID:         subs.Peer,
 		Topic:          f.Topic,
 		ContentFilters: f.ContentTopics,
@@ -379,11 +379,11 @@ func (node *WakuNode) SubscribeFilter(ctx context.Context, f filter.ContentFilte
 
 // UnsubscribeFilterByID removes a subscription to a filter node completely
 // using the filterID returned when the subscription was created
-func (node *WakuNode) UnsubscribeFilterByID(ctx context.Context, filterID string) error {
+func (w *WakuNode) UnsubscribeFilterByID(ctx context.Context, filterID string) error {
 
 	var f filter.Filter
 	var ok bool
-	if f, ok = node.filters[filterID]; !ok {
+	if f, ok = w.filters[filterID]; !ok {
 		return errors.New("filter not found")
 	}
 
@@ -392,29 +392,29 @@ func (node *WakuNode) UnsubscribeFilterByID(ctx context.Context, filterID string
 		ContentTopics: f.ContentFilters,
 	}
 
-	err := node.filter.Unsubscribe(ctx, cf, f.PeerID)
+	err := w.filter.Unsubscribe(ctx, cf, f.PeerID)
 	if err != nil {
 		return err
 	}
 
 	close(f.Chan)
-	delete(node.filters, filterID)
+	delete(w.filters, filterID)
 
 	return nil
 }
 
 // Unsubscribe filter removes content topics from a filter subscription. If all
 // the contentTopics are removed the subscription is dropped completely
-func (node *WakuNode) UnsubscribeFilter(ctx context.Context, cf filter.ContentFilter) error {
+func (w *WakuNode) UnsubscribeFilter(ctx context.Context, cf filter.ContentFilter) error {
 	// Remove local filter
 	var idsToRemove []string
-	for id, f := range node.filters {
+	for id, f := range w.filters {
 		if f.Topic != cf.Topic {
 			continue
 		}
 
 		// Send message to full node in order to unsubscribe
-		err := node.filter.Unsubscribe(ctx, cf, f.PeerID)
+		err := w.filter.Unsubscribe(ctx, cf, f.PeerID)
 		if err != nil {
 			return err
 		}
@@ -439,10 +439,10 @@ func (node *WakuNode) UnsubscribeFilter(ctx context.Context, cf filter.ContentFi
 	}
 
 	for _, rId := range idsToRemove {
-		for id := range node.filters {
+		for id := range w.filters {
 			if id == rId {
-				close(node.filters[id].Chan)
-				delete(node.filters, id)
+				close(w.filters[id].Chan)
+				delete(w.filters, id)
 				break
 			}
 		}

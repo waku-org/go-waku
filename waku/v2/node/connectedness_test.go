@@ -45,7 +45,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	node1, err := New(ctx,
 		WithHostAddress([]*net.TCPAddr{hostAddr1}),
 		WithWakuRelay(),
-		WithConnStatusChan(connStatusChan),
+		WithConnectionStatusChannel(connStatusChan),
 	)
 	require.NoError(t, err)
 	err = node1.Start()
