@@ -220,11 +220,11 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, o
 	return pushResponseRPC.Response, nil
 }
 
-func (w *WakuLightPush) Stop() {
-	w.h.RemoveStreamHandler(LightPushID_v20beta1)
+func (wakuLP *WakuLightPush) Stop() {
+	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
 }
 
-func (w *WakuLightPush) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic, opts ...LightPushOption) ([]byte, error) {
+func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *pb.WakuMessage, topic *relay.Topic, opts ...LightPushOption) ([]byte, error) {
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}
@@ -233,7 +233,7 @@ func (w *WakuLightPush) Publish(ctx context.Context, message *pb.WakuMessage, to
 	req.Message = message
 	req.PubsubTopic = string(relay.GetTopic(topic))
 
-	response, err := w.request(ctx, req, opts...)
+	response, err := wakuLP.request(ctx, req, opts...)
 	if err != nil {
 		return nil, err
 	}

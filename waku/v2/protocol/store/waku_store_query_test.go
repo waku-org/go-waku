@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/status-im/go-waku/tests"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
@@ -17,8 +18,8 @@ func TestStoreQuery(t *testing.T) {
 	msg2 := tests.CreateWakuMessage("2", utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil)
-	s.storeMessage(defaultPubSubTopic, msg1)
-	s.storeMessage(defaultPubSubTopic, msg2)
+	s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
+	s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{
@@ -44,9 +45,9 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 
 	s := NewWakuStore(nil)
 
-	s.storeMessage(defaultPubSubTopic, msg1)
-	s.storeMessage(defaultPubSubTopic, msg2)
-	s.storeMessage(defaultPubSubTopic, msg3)
+	s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
+	s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
+	s.storeMessage(protocol.NewEnvelope(msg3, defaultPubSubTopic))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{
@@ -77,9 +78,9 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil)
-	s.storeMessage(pubsubTopic1, msg1)
-	s.storeMessage(pubsubTopic2, msg2)
-	s.storeMessage(pubsubTopic2, msg3)
+	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
+	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
+	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -109,9 +110,9 @@ func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil)
-	s.storeMessage(pubsubTopic2, msg1)
-	s.storeMessage(pubsubTopic2, msg2)
-	s.storeMessage(pubsubTopic2, msg3)
+	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic2))
+	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
+	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -131,9 +132,9 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil)
-	s.storeMessage(pubsubTopic1, msg1)
-	s.storeMessage(pubsubTopic1, msg2)
-	s.storeMessage(pubsubTopic1, msg3)
+	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
+	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic1))
+	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic1))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -153,7 +154,7 @@ func TestStoreQueryForwardPagination(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		msg := tests.CreateWakuMessage(topic1, utils.GetUnixEpoch())
 		msg.Payload = []byte{byte(i)}
-		s.storeMessage(pubsubTopic1, msg)
+		s.storeMessage(protocol.NewEnvelope(msg, pubsubTopic1))
 	}
 
 	response := s.FindMessages(&pb.HistoryQuery{
@@ -181,7 +182,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 			Version:      0,
 			Timestamp:    utils.GetUnixEpoch(),
 		}
-		s.storeMessage(pubsubTopic1, msg)
+		s.storeMessage(protocol.NewEnvelope(msg, pubsubTopic1))
 
 	}
 
@@ -208,7 +209,7 @@ func TestTemporalHistoryQueries(t *testing.T) {
 			contentTopic = "2"
 		}
 		msg := tests.CreateWakuMessage(contentTopic, float64(i))
-		s.storeMessage("test", msg)
+		s.storeMessage(protocol.NewEnvelope(msg, "test"))
 		messages = append(messages, msg)
 	}
 

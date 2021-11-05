@@ -9,10 +9,7 @@ import (
 
 func TestGetUnixEpochFrom(t *testing.T) {
 	loc := time.UTC
-	timeFn := func() time.Time {
-		return time.Date(2019, 1, 1, 0, 0, 0, 0, loc)
-	}
-	timestamp := GetUnixEpochFrom(timeFn)
+	timestamp := GetUnixEpochFrom(time.Date(2019, 1, 1, 0, 0, 0, 0, loc))
 
 	require.Equal(t, float64(1546300800), timestamp)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func TestStorePersistence(t *testing.T) {
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
-	s1.storeMessage(defaultPubSubTopic, msg)
+	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
 
 	s2 := NewWakuStore(dbStore)
 	s2.fetchDBRecords(ctx)
@@ -44,5 +45,5 @@ func TestStorePersistence(t *testing.T) {
 	require.Equal(t, msg, s2.messages[0].msg)
 
 	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
-	s1.storeMessage(defaultPubSubTopic, msg)
+	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
 }
