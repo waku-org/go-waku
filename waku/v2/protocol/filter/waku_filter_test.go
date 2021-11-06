@@ -48,10 +48,10 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 //
 // Node1 and Node2 are peers
 //
-// Node2 send a succesful message with topic A
+// Node2 send a successful message with topic A
 // Node1 receive the message
 //
-// Node2 send a succesful message with topic B
+// Node2 send a successful message with topic B
 // Node1 doesn't receive the message
 func TestWakuFilter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
