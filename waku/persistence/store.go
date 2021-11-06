@@ -21,7 +21,7 @@ type DBStore struct {
 	db *sql.DB
 
 	maxMessages int
-	maxDays     time.Duration
+	maxDuration time.Duration
 }
 
 type StoredMessage struct {
@@ -54,16 +54,17 @@ func WithDriver(driverName string, datasourceName string) DBOption {
 	}
 }
 
-func WithRetentionPolicy(maxMessages int, maxDays time.Duration) DBOption {
+func WithRetentionPolicy(maxMessages int, maxDuration time.Duration) DBOption {
 	return func(d *DBStore) error {
-		d.maxDays = maxDays
+		d.maxDuration = maxDuration
 		d.maxMessages = maxMessages
 		return nil
 	}
 }
 
 // Creates a new DB store using the db specified via options.
-// It will create a messages table if it does not exist
+// It will create a messages table if it does not exist and
+// clean up records according to the retention policy used
 func NewDBStore(options ...DBOption) (*DBStore, error) {
 	result := new(DBStore)
 
@@ -105,10 +106,10 @@ func (d *DBStore) createTable() error {
 }
 
 func (d *DBStore) cleanOlderRecords() error {
-	// Delete messages older than N days
-	if d.maxDays > 0 {
+	// Delete older messages
+	if d.maxDuration > 0 {
 		sqlStmt := `DELETE FROM message WHERE receiverTimestamp < ?`
-		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(func() time.Time { return time.Now().Add(-d.maxDays) }))
+		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(func() time.Time { return time.Now().Add(-d.maxDuration) }))
 		if err != nil {
 			return err
 		}
