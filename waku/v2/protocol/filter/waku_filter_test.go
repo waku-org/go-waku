@@ -11,8 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/status-im/go-waku/tests"
 	v2 "github.com/status-im/go-waku/waku/v2"
-	"github.com/status-im/go-waku/waku/v2/protocol"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/stretchr/testify/require"
 )
@@ -33,20 +31,14 @@ func makeWakuRelay(t *testing.T, topic relay.Topic, broadcaster v2.Broadcaster) 
 	return relay, sub, host
 }
 
-func makeWakuFilter(t *testing.T, filters Filters) (*WakuFilter, host.Host) {
+func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	filterHandler := func(requestId string, msg pb.MessagePush) {
-		for _, message := range msg.Messages {
-			filters.Notify(message, requestId)
-		}
-	}
-
-	filter := NewWakuFilter(context.Background(), host, false, filterHandler)
+	filter := NewWakuFilter(context.Background(), host, false)
 
 	return filter, host
 }
@@ -65,24 +57,18 @@ func TestWakuFilter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 	defer cancel()
 
-	var filters = make(Filters)
 	var testTopic relay.Topic = "/waku/2/go/filter/test"
 	testContentTopic := "TopicA"
 
-	node1, host1 := makeWakuFilter(t, filters)
+	node1, host1 := makeWakuFilter(t)
 	defer node1.Stop()
 
 	broadcaster := v2.NewBroadcaster(10)
 	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
-	filterHandler := func(requestId string, msg pb.MessagePush) {
-		for _, message := range msg.Messages {
-			filters.Notify(message, requestId)
-		}
-	}
 
-	node2Filter := NewWakuFilter(ctx, host2, true, filterHandler)
+	node2Filter := NewWakuFilter(ctx, host2, true)
 	broadcaster.Register(node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
@@ -93,25 +79,19 @@ func TestWakuFilter(t *testing.T) {
 		Topic:         string(testTopic),
 		ContentTopics: []string{testContentTopic},
 	}
-	sub, err := node1.Subscribe(ctx, *contentFilter, WithPeer(node2Filter.h.ID()))
+
+	_, f, err := node1.Subscribe(ctx, *contentFilter, WithPeer(node2Filter.h.ID()))
 	require.NoError(t, err)
 
 	// Sleep to make sure the filter is subscribed
 	time.Sleep(2 * time.Second)
 
-	ch := make(chan *protocol.Envelope, 1024)
-	filters[sub.RequestID] = Filter{
-		PeerID:         sub.Peer,
-		Topic:          contentFilter.Topic,
-		ContentFilters: contentFilter.ContentTopics,
-		Chan:           ch,
-	}
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		env := <-ch
+		env := <-f.Chan
 		require.Equal(t, contentFilter.ContentTopics[0], env.Message().GetContentTopic())
 	}()
 
@@ -123,7 +103,7 @@ func TestWakuFilter(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		select {
-		case <-ch:
+		case <-f.Chan:
 			require.Fail(t, "should not receive another message")
 		case <-time.After(1 * time.Second):
 			defer wg.Done()
@@ -140,7 +120,7 @@ func TestWakuFilter(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		select {
-		case <-ch:
+		case <-f.Chan:
 			require.Fail(t, "should not receive another message")
 		case <-time.After(1 * time.Second):
 			defer wg.Done()

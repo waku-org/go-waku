@@ -47,7 +47,7 @@ type (
 		ContentTopics []string
 	}
 
-	// @TODO MAYBE MORE INFO?
+	// TODO: MAYBE MORE INFO?
 	Filters map[string]Filter
 
 	Subscriber struct {
@@ -61,14 +61,14 @@ type (
 		Peer      peer.ID
 	}
 
-	MessagePushHandler func(requestId string, msg pb.MessagePush)
-
 	WakuFilter struct {
-		ctx         context.Context
-		h           host.Host
-		isFullNode  bool
-		pushHandler MessagePushHandler
-		MsgC        chan *protocol.Envelope
+		ctx        context.Context
+		h          host.Host
+		isFullNode bool
+		MsgC       chan *protocol.Envelope
+
+		filtersMutex sync.RWMutex
+		filters      Filters
 
 		subscriberMutex sync.Mutex
 		subscribers     []Subscriber
@@ -145,7 +145,11 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 	if filterRPCRequest.Push != nil && len(filterRPCRequest.Push.Messages) > 0 {
 		// We're on a light node.
 		// This is a message push coming from a full node.
-		wf.pushHandler(filterRPCRequest.RequestId, *filterRPCRequest.Push)
+		for _, message := range filterRPCRequest.Push.Messages {
+			wf.filtersMutex.RLock()
+			wf.filters.Notify(message, filterRPCRequest.RequestId) // Trigger filter handlers on a light node
+			wf.filtersMutex.RUnlock()
+		}
 
 		log.Info("filter light node, received a message push. ", len(filterRPCRequest.Push.Messages), " messages")
 		stats.Record(wf.ctx, metrics.Messages.M(int64(len(filterRPCRequest.Push.Messages))))
@@ -212,7 +216,7 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 	}
 }
 
-func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, handler MessagePushHandler) *WakuFilter {
+func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool) *WakuFilter {
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
 	if err != nil {
 		log.Error(err)
@@ -222,8 +226,8 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, handler
 	wf.ctx = ctx
 	wf.MsgC = make(chan *protocol.Envelope)
 	wf.h = host
-	wf.pushHandler = handler
 	wf.isFullNode = isFullNode
+	wf.filters = make(Filters)
 
 	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest)
 	go wf.FilterListener()
@@ -294,7 +298,7 @@ func (wf *WakuFilter) FilterListener() {
 // Having a FilterRequest struct,
 // select a peer with filter support, dial it,
 // and submit FilterRequest wrapped in FilterRPC
-func (wf *WakuFilter) Subscribe(ctx context.Context, filter ContentFilter, opts ...FilterSubscribeOption) (subscription *FilterSubscription, err error) {
+func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFilter, opts ...FilterSubscribeOption) (subscription *FilterSubscription, err error) {
 	params := new(FilterSubscribeParameters)
 	params.host = wf.h
 
@@ -346,7 +350,7 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, filter ContentFilter, opts 
 	return
 }
 
-func (wf *WakuFilter) Unsubscribe(ctx context.Context, filter ContentFilter, peer peer.ID) error {
+func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilter, peer peer.ID) error {
 	conn, err := wf.h.NewStream(ctx, peer, FilterID_v20beta1)
 
 	if err != nil {
@@ -359,13 +363,13 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, filter ContentFilter, pee
 	id := protocol.GenerateRequestId()
 
 	var contentFilters []*pb.FilterRequest_ContentFilter
-	for _, ct := range filter.ContentTopics {
+	for _, ct := range contentFilter.ContentTopics {
 		contentFilters = append(contentFilters, &pb.FilterRequest_ContentFilter{ContentTopic: ct})
 	}
 
 	request := pb.FilterRequest{
 		Subscribe:      false,
-		Topic:          filter.Topic,
+		Topic:          contentFilter.Topic,
 		ContentFilters: contentFilters,
 	}
 
@@ -381,4 +385,119 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, filter ContentFilter, pee
 
 func (wf *WakuFilter) Stop() {
 	wf.h.RemoveStreamHandler(FilterID_v20beta1)
+	wf.filtersMutex.Lock()
+	defer wf.filtersMutex.Unlock()
+	for _, filter := range wf.filters {
+		close(filter.Chan)
+	}
+}
+
+func (wf *WakuFilter) Subscribe(ctx context.Context, f ContentFilter, opts ...FilterSubscribeOption) (filterID string, theFilter Filter, err error) {
+	// TODO: check if there's an existing pubsub topic that uses the same peer. If so, reuse filter, and return same channel and filterID
+
+	// Registers for messages that match a specific filter. Triggers the handler whenever a message is received.
+	// ContentFilterChan takes MessagePush structs
+	remoteSubs, err := wf.requestSubscription(ctx, f, opts...)
+	if err != nil || remoteSubs.RequestID == "" {
+		// Failed to subscribe
+		log.Error("remote subscription to filter failed", err)
+		return
+	}
+
+	// Register handler for filter, whether remote subscription succeeded or not
+	wf.filtersMutex.Lock()
+	defer wf.filtersMutex.Unlock()
+
+	filterID = remoteSubs.RequestID
+	theFilter = Filter{
+		PeerID:         remoteSubs.Peer,
+		Topic:          f.Topic,
+		ContentFilters: f.ContentTopics,
+		Chan:           make(chan *protocol.Envelope, 1024), // To avoid blocking
+	}
+
+	wf.filters[filterID] = theFilter
+
+	return
+}
+
+// UnsubscribeFilterByID removes a subscription to a filter node completely
+// using the filterID returned when the subscription was created
+func (wf *WakuFilter) UnsubscribeFilterByID(ctx context.Context, filterID string) error {
+
+	var f Filter
+	var ok bool
+
+	wf.filtersMutex.Lock()
+	defer wf.filtersMutex.Unlock()
+
+	if f, ok = wf.filters[filterID]; !ok {
+		return errors.New("filter not found")
+	}
+
+	cf := ContentFilter{
+		Topic:         f.Topic,
+		ContentTopics: f.ContentFilters,
+	}
+
+	err := wf.Unsubscribe(ctx, cf, f.PeerID)
+	if err != nil {
+		return err
+	}
+
+	close(f.Chan)
+	delete(wf.filters, filterID)
+
+	return nil
+}
+
+// Unsubscribe filter removes content topics from a filter subscription. If all
+// the contentTopics are removed the subscription is dropped completely
+func (wf *WakuFilter) UnsubscribeFilter(ctx context.Context, cf ContentFilter) error {
+	wf.filtersMutex.Lock()
+	defer wf.filtersMutex.Unlock()
+
+	// Remove local filter
+	var idsToRemove []string
+	for id, f := range wf.filters {
+		if f.Topic != cf.Topic {
+			continue
+		}
+
+		// Send message to full node in order to unsubscribe
+		err := wf.Unsubscribe(ctx, cf, f.PeerID)
+		if err != nil {
+			return err
+		}
+
+		// Iterate filter entries to remove matching content topics
+		// make sure we delete the content filter
+		// if no more topics are left
+		for _, cfToDelete := range cf.ContentTopics {
+			for i, cf := range f.ContentFilters {
+				if cf == cfToDelete {
+					l := len(f.ContentFilters) - 1
+					f.ContentFilters[l], f.ContentFilters[i] = f.ContentFilters[i], f.ContentFilters[l]
+					f.ContentFilters = f.ContentFilters[:l]
+					break
+				}
+
+			}
+			if len(f.ContentFilters) == 0 {
+				idsToRemove = append(idsToRemove, id)
+			}
+		}
+	}
+
+	for _, rId := range idsToRemove {
+		for id := range wf.filters {
+			if id == rId {
+				close(wf.filters[id].Chan)
+				delete(wf.filters, id)
+				break
+			}
+		}
+	}
+
+	return nil
 }

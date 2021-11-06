@@ -17,7 +17,7 @@ type RelayOptions struct {
 
 type FilterOptions struct {
 	Enable          bool     `long:"filter" description:"Enable filter protocol"`
-	DisableFullNode bool     `long:"no-subscribers" description:"Don't accept filter subscribers"`
+	DisableFullNode bool     `long:"light-client" description:"Don't accept filter subscribers"`
 	Nodes           []string `long:"filter-node" description:"Multiaddr of a peer that supports filter protocol. Option may be repeated"`
 }
 
