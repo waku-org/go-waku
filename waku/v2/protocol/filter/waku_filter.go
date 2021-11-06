@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -65,10 +66,12 @@ type (
 	WakuFilter struct {
 		ctx         context.Context
 		h           host.Host
-		subscribers []Subscriber
 		isFullNode  bool
 		pushHandler MessagePushHandler
 		MsgC        chan *protocol.Envelope
+
+		subscriberMutex sync.Mutex
+		subscribers     []Subscriber
 	}
 )
 
@@ -150,16 +153,21 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 		// We're on a full node.
 		// This is a filter request coming from a light node.
 		if filterRPCRequest.Request.Subscribe {
+			wf.subscriberMutex.Lock()
+			defer wf.subscriberMutex.Unlock()
+
 			subscriber := Subscriber{peer: s.Conn().RemotePeer(), requestId: filterRPCRequest.RequestId, filter: *filterRPCRequest.Request}
 			wf.subscribers = append(wf.subscribers, subscriber)
 			log.Info("filter full node, add a filter subscriber: ", subscriber.peer)
-
 			stats.Record(wf.ctx, metrics.FilterSubscriptions.M(int64(len(wf.subscribers))))
 		} else {
 			peerId := s.Conn().RemotePeer()
 			log.Info("filter full node, remove a filter subscriber: ", peerId.Pretty())
 			contentFilters := filterRPCRequest.Request.ContentFilters
 			var peerIdsToRemove []peer.ID
+
+			wf.subscriberMutex.Lock()
+			defer wf.subscriberMutex.Unlock()
 			for _, subscriber := range wf.subscribers {
 				if subscriber.peer != peerId {
 					continue

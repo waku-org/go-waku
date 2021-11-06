@@ -62,6 +62,9 @@ func makeWakuFilter(t *testing.T, filters Filters) (*WakuFilter, host.Host) {
 // Node2 send a succesful message with topic B
 // Node1 doesn't receive the message
 func TestWakuFilter(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	defer cancel()
+
 	var filters = make(Filters)
 	var testTopic relay.Topic = "/waku/2/go/filter/test"
 	testContentTopic := "TopicA"
@@ -79,7 +82,7 @@ func TestWakuFilter(t *testing.T) {
 		}
 	}
 
-	node2Filter := NewWakuFilter(context.Background(), host2, true, filterHandler)
+	node2Filter := NewWakuFilter(ctx, host2, true, filterHandler)
 	broadcaster.Register(node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
@@ -90,7 +93,7 @@ func TestWakuFilter(t *testing.T) {
 		Topic:         string(testTopic),
 		ContentTopics: []string{testContentTopic},
 	}
-	sub, err := node1.Subscribe(context.Background(), *contentFilter, []FilterSubscribeOption{WithAutomaticPeerSelection()}...)
+	sub, err := node1.Subscribe(ctx, *contentFilter, WithPeer(node2Filter.h.ID()))
 	require.NoError(t, err)
 
 	// Sleep to make sure the filter is subscribed
@@ -112,12 +115,7 @@ func TestWakuFilter(t *testing.T) {
 		require.Equal(t, contentFilter.ContentTopics[0], env.Message().GetContentTopic())
 	}()
 
-	_, err = node2.Publish(context.Background(), &pb.WakuMessage{
-		Payload:      []byte{1},
-		Version:      0,
-		ContentTopic: testContentTopic,
-		Timestamp:    0,
-	}, &testTopic)
+	_, err = node2.Publish(ctx, tests.CreateWakuMessage(testContentTopic, 0), &testTopic)
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -127,18 +125,36 @@ func TestWakuFilter(t *testing.T) {
 		select {
 		case <-ch:
 			require.Fail(t, "should not receive another message")
-		case <-time.After(3 * time.Second):
+		case <-time.After(1 * time.Second):
 			defer wg.Done()
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
 		}
 	}()
 
-	_, err = node2.Publish(context.Background(), &pb.WakuMessage{
-		Payload:      []byte{1},
-		Version:      0,
-		ContentTopic: "TopicB",
-		Timestamp:    0,
-	}, &testTopic)
+	_, err = node2.Publish(ctx, tests.CreateWakuMessage("TopicB", 1), &testTopic)
 	require.NoError(t, err)
 
+	wg.Wait()
+
+	wg.Add(1)
+	go func() {
+		select {
+		case <-ch:
+			require.Fail(t, "should not receive another message")
+		case <-time.After(1 * time.Second):
+			defer wg.Done()
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
+	}()
+
+	err = node1.Unsubscribe(ctx, *contentFilter, node2Filter.h.ID())
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	_, err = node2.Publish(ctx, tests.CreateWakuMessage(testContentTopic, 2), &testTopic)
+	require.NoError(t, err)
 	wg.Wait()
 }
