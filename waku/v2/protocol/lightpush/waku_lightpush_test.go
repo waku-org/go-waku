@@ -41,7 +41,7 @@ func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *relay.Su
 // Client and Node 2 are peers
 // Node 3 will use lightpush request, sending the message to Node2
 //
-// Client send a succesful message using lightpush
+// Client send a successful message using lightpush
 // Node2 receive the message and broadcast it
 // Node1 receive the message
 func TestWakuLightPush(t *testing.T) {
@@ -103,7 +103,7 @@ func TestWakuLightPush(t *testing.T) {
 		<-sub2.C
 	}()
 
-	// Verifying succesful request
+	// Verifying successful request
 	resp, err := client.request(ctx, req)
 	require.NoError(t, err)
 	require.True(t, resp.IsSuccess)

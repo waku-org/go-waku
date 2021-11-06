@@ -56,10 +56,10 @@ func makeWakuFilter(t *testing.T, filters Filters) (*WakuFilter, host.Host) {
 //
 // Node1 and Node2 are peers
 //
-// Node2 send a succesful message with topic A
+// Node2 send a successful message with topic A
 // Node1 receive the message
 //
-// Node2 send a succesful message with topic B
+// Node2 send a successful message with topic B
 // Node1 doesn't receive the message
 func TestWakuFilter(t *testing.T) {
 	var filters = make(Filters)
