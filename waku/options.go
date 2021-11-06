@@ -1,5 +1,7 @@
 package waku
 
+import "time"
+
 type RendezvousOptions struct {
 	Enable bool     `long:"rendezvous" description:"Enable rendezvous protocol for peer discovery"`
 	Nodes  []string `long:"rendezvous-node" description:"Multiaddr of a waku2 rendezvous node. Option may be repeated"`
@@ -41,6 +43,10 @@ type StoreOptions struct {
 	RetentionMaxDays     int      `long:"keep-history-days" description:"maximum number of days before a message is removed from the store" default:"30"`
 	RetentionMaxMessages int      `long:"max-history-messages" description:"maximum number of messages to store" default:"50000"`
 	Nodes                []string `long:"store-node" description:"Multiaddr of a peer that supports store protocol. Option may be repeated"`
+}
+
+func (s *StoreOptions) RetentionMaxDaysDuration() time.Duration {
+	return time.Duration(s.RetentionMaxDays) * time.Hour * 24
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery
