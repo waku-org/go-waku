@@ -109,7 +109,7 @@ func (d *DBStore) cleanOlderRecords() error {
 	// Delete older messages
 	if d.maxDuration > 0 {
 		sqlStmt := `DELETE FROM message WHERE receiverTimestamp < ?`
-		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(func() time.Time { return time.Now().Add(-d.maxDuration) }))
+		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(time.Now().Add(-d.maxDuration)))
 		if err != nil {
 			return err
 		}
