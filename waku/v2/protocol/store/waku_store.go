@@ -145,7 +145,7 @@ func (store *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse
 	result := new(pb.HistoryResponse)
 	// data holds IndexedWakuMessage whose topics match the query
 	var data []IndexedWakuMessage
-	for _, indexedMsg := range w.messageQueue.messages {
+	for _, indexedMsg := range store.messageQueue.messages {
 		// temporal filtering
 		// check whether the history query contains a time filter
 		if query.StartTime != 0 && query.EndTime != 0 {

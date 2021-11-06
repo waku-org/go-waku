@@ -9,7 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,24 +58,18 @@ func TestStoreRetention(t *testing.T) {
 
 	insertTime := time.Now()
 
-	fnTime := func(t1 time.Duration) float64 {
-		return utils.GetUnixEpochFrom(func() time.Time {
-			return insertTime.Add(t1)
-		})
-	}
-
-	_ = store.Put(createIndex([]byte{1}, fnTime(-70*time.Second)), "test", tests.CreateWakuMessage("test", 1))
-	_ = store.Put(createIndex([]byte{2}, fnTime(-60*time.Second)), "test", tests.CreateWakuMessage("test", 2))
-	_ = store.Put(createIndex([]byte{3}, fnTime(-50*time.Second)), "test", tests.CreateWakuMessage("test", 3))
-	_ = store.Put(createIndex([]byte{4}, fnTime(-40*time.Second)), "test", tests.CreateWakuMessage("test", 4))
-	_ = store.Put(createIndex([]byte{5}, fnTime(-30*time.Second)), "test", tests.CreateWakuMessage("test", 5))
+	_ = store.Put(createIndex([]byte{1}, float64(insertTime.Add(-70*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 1))
+	_ = store.Put(createIndex([]byte{2}, float64(insertTime.Add(-60*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 2))
+	_ = store.Put(createIndex([]byte{3}, float64(insertTime.Add(-50*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 3))
+	_ = store.Put(createIndex([]byte{4}, float64(insertTime.Add(-40*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 4))
+	_ = store.Put(createIndex([]byte{5}, float64(insertTime.Add(-30*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 5))
 
 	dbResults, err := store.GetAll()
 	require.NoError(t, err)
 	require.Len(t, dbResults, 5)
 
-	_ = store.Put(createIndex([]byte{6}, fnTime(-20*time.Second)), "test", tests.CreateWakuMessage("test", 6))
-	_ = store.Put(createIndex([]byte{7}, fnTime(-10*time.Second)), "test", tests.CreateWakuMessage("test", 7))
+	_ = store.Put(createIndex([]byte{6}, float64(insertTime.Add(-20*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 6))
+	_ = store.Put(createIndex([]byte{7}, float64(insertTime.Add(-10*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 7))
 
 	// This step simulates starting go-waku again from scratch
 
