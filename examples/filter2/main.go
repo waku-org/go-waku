@@ -42,13 +42,22 @@ func main() {
 		return
 	}
 	prvKey1, err := crypto.HexToECDSA(key1)
+	if err != nil {
+		log.Error("Invalid key")
+		return
+	}
 
 	key2, err := randomHex(32)
 	if err != nil {
 		log.Error("Could not generate random key")
 		return
 	}
+
 	prvKey2, err := crypto.HexToECDSA(key2)
+	if err != nil {
+		log.Error("Invalid key")
+		return
+	}
 
 	ctx := context.Background()
 
@@ -69,6 +78,9 @@ func main() {
 		node.WithHostAddress([]*net.TCPAddr{hostAddr2}),
 		node.WithWakuFilter(false),
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterID_v20beta1)
 	if err != nil {
