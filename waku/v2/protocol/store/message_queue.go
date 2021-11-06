@@ -18,11 +18,6 @@ type MessageQueue struct {
 	quit chan struct{}
 }
 
-type MessageQueueItem struct {
-	Index int
-	Value IndexedWakuMessage
-}
-
 func (self *MessageQueue) Push(msg IndexedWakuMessage) {
 	self.Lock()
 	defer self.Unlock()
@@ -42,14 +37,14 @@ func (self *MessageQueue) Push(msg IndexedWakuMessage) {
 	}
 }
 
-func (self *MessageQueue) Messages() <-chan MessageQueueItem {
-	c := make(chan MessageQueueItem)
+func (self *MessageQueue) Messages() <-chan IndexedWakuMessage {
+	c := make(chan IndexedWakuMessage)
 
 	f := func() {
 		self.RLock()
 		defer self.RUnlock()
-		for index, value := range self.messages {
-			c <- MessageQueueItem{index, value}
+		for _, value := range self.messages {
+			c <- value
 		}
 		close(c)
 	}

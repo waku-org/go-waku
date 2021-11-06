@@ -144,7 +144,7 @@ func (store *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse
 	result := new(pb.HistoryResponse)
 	// data holds IndexedWakuMessage whose topics match the query
 	var data []IndexedWakuMessage
-	for _, indexedMsg := range store.messageQueue.messages {
+	for indexedMsg := range store.messageQueue.Messages() {
 		// temporal filtering
 		// check whether the history query contains a time filter
 		if query.StartTime != 0 && query.EndTime != 0 {
@@ -628,7 +628,7 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 
 func (store *WakuStore) findLastSeen() float64 {
 	var lastSeenTime float64 = 0
-	for _, imsg := range store.messageQueue.messages {
+	for imsg := range store.messageQueue.Messages() {
 		if imsg.msg.Timestamp > lastSeenTime {
 			lastSeenTime = imsg.msg.Timestamp
 		}
