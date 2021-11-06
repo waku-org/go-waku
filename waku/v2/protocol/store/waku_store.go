@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log"
@@ -228,28 +227,19 @@ type IndexedWakuMessage struct {
 type WakuStore struct {
 	ctx  context.Context
 	MsgC chan *protocol.Envelope
-	seen map[[32]byte]struct{}
-
-	messageQueue        *MessageQueue
-	maxNumberOfMessages int
-	maxRetentionDays    time.Duration
 
 	started bool
 
-	messagesMutex sync.Mutex
-
-	msgProvider MessageProvider
-	h           host.Host
+	messageQueue *MessageQueue
+	msgProvider  MessageProvider
+	h            host.Host
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(p MessageProvider, maxNumberOfMessages int, maxRetentionDays time.Duration) *WakuStore {
+func NewWakuStore(p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
-	wakuStore.seen = make(map[[32]byte]struct{})
-	wakuStore.maxNumberOfMessages = maxNumberOfMessages
-	wakuStore.maxRetentionDays = maxRetentionDays
-	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages)
+	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages, maxRetentionDuration)
 	return wakuStore
 }
 
@@ -303,19 +293,11 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 
 		store.storeMessageWithIndex(storedMessage.PubsubTopic, idx, storedMessage.Message)
 
-		metrics.RecordMessage(ctx, "stored", len(store.messageQueue.messages))
+		metrics.RecordMessage(ctx, "stored", store.messageQueue.Length())
 	}
 }
 
 func (store *WakuStore) storeMessageWithIndex(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) {
-	var k [32]byte
-	copy(k[:], idx.Digest)
-
-	if _, ok := store.seen[k]; ok {
-		return
-	}
-
-	store.seen[k] = struct{}{}
 	store.messageQueue.Push(IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
 }
 
@@ -326,13 +308,10 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) {
 		return
 	}
 
-	store.messagesMutex.Lock()
-	defer store.messagesMutex.Unlock()
-
 	store.storeMessageWithIndex(env.PubsubTopic(), index, env.Message())
 
 	if store.msgProvider == nil {
-		metrics.RecordMessage(store.ctx, "stored", len(store.messageQueue.messages))
+		metrics.RecordMessage(store.ctx, "stored", store.messageQueue.Length())
 		return
 	}
 
@@ -344,7 +323,7 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) {
 		return
 	}
 
-	metrics.RecordMessage(store.ctx, "stored", len(store.messageQueue.messages))
+	metrics.RecordMessage(store.ctx, "stored", store.messageQueue.Length())
 }
 
 func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
@@ -531,7 +510,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		return nil, err
 	}
 
-	metrics.RecordMessage(ctx, "retrieved", len(store.messageQueue.messages))
+	metrics.RecordMessage(ctx, "retrieved", store.messageQueue.Length())
 
 	return historyResponseRPC.Response, nil
 }
