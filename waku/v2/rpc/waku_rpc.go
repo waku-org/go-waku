@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/rpc/v2"
 	logging "github.com/ipfs/go-log"
@@ -27,8 +28,17 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		log.Error(err)
 	}
 
+	err = s.RegisterService(&RelayService{node}, "Relay")
+	if err != nil {
+		log.Error(err)
+	}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/jsonrpc", s.ServeHTTP)
+	mux.HandleFunc("/jsonrpc", func(w http.ResponseWriter, r *http.Request) {
+		t := time.Now()
+		s.ServeHTTP(w, r)
+		log.Infof("RPC request at %s took %s", r.URL.Path, time.Since(t))
+	})
 
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
 
