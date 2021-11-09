@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/libp2p/go-msgio/protoio"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
@@ -29,6 +30,7 @@ var (
 type (
 	FilterSubscribeParameters struct {
 		host         host.Host
+		ping         *ping.PingService
 		selectedPeer peer.ID
 	}
 
@@ -54,6 +56,7 @@ type (
 	WakuFilter struct {
 		ctx        context.Context
 		h          host.Host
+		ping       *ping.PingService
 		isFullNode bool
 		MsgC       chan *protocol.Envelope
 
@@ -77,6 +80,17 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 func WithAutomaticPeerSelection() FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
 		p, err := utils.SelectPeer(params.host, string(FilterID_v20beta1))
+		if err == nil {
+			params.selectedPeer = *p
+		} else {
+			log.Info("Error selecting peer: ", err)
+		}
+	}
+}
+
+func WithFastestPeerSelection(ctx context.Context) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) {
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.ping, string(FilterID_v20beta1))
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -137,7 +151,7 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 	}
 }
 
-func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool) *WakuFilter {
+func NewWakuFilter(ctx context.Context, host host.Host, ping *ping.PingService, isFullNode bool) *WakuFilter {
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
 	if err != nil {
 		log.Error(err)
@@ -147,6 +161,7 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool) *WakuFi
 	wf.ctx = ctx
 	wf.MsgC = make(chan *protocol.Envelope)
 	wf.h = host
+	wf.ping = ping
 	wf.isFullNode = isFullNode
 	wf.filters = NewFilterMap()
 	wf.subscribers = NewSubscribers()
@@ -230,6 +245,7 @@ func (wf *WakuFilter) FilterListener() {
 func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFilter, opts ...FilterSubscribeOption) (subscription *FilterSubscription, err error) {
 	params := new(FilterSubscribeParameters)
 	params.host = wf.h
+	params.ping = wf.ping
 
 	optList := DefaultOptions()
 	optList = append(optList, opts...)

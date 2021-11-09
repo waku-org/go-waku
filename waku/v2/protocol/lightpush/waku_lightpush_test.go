@@ -55,7 +55,7 @@ func TestWakuLightPush(t *testing.T) {
 	defer sub2.Unsubscribe()
 
 	ctx := context.Background()
-	lightPushNode2 := NewWakuLightPush(ctx, host2, node2)
+	lightPushNode2 := NewWakuLightPush(ctx, host2, nil, node2)
 	err := lightPushNode2.Start()
 	require.NoError(t, err)
 	defer lightPushNode2.Stop()
@@ -65,7 +65,7 @@ func TestWakuLightPush(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(ctx, clientHost, nil)
+	client := NewWakuLightPush(ctx, clientHost, nil, nil)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(relay.WakuRelayID_v200))
@@ -121,7 +121,7 @@ func TestWakuLightPushStartWithoutRelay(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(ctx, clientHost, nil)
+	client := NewWakuLightPush(ctx, clientHost, nil, nil)
 	err = client.Start()
 
 	require.Errorf(t, err, "relay is required")
@@ -135,7 +135,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(ctx, clientHost, nil)
+	client := NewWakuLightPush(ctx, clientHost, nil, nil)
 
 	_, err = client.Publish(ctx, tests.CreateWakuMessage("test", float64(0)), &testTopic)
 	require.Errorf(t, err, "no suitable remote peers")

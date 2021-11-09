@@ -38,7 +38,7 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	filter := NewWakuFilter(context.Background(), host, false)
+	filter := NewWakuFilter(context.Background(), host, nil, false)
 
 	return filter, host
 }
@@ -68,7 +68,7 @@ func TestWakuFilter(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilter(ctx, host2, true)
+	node2Filter := NewWakuFilter(ctx, host2, nil, true)
 	broadcaster.Register(node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)

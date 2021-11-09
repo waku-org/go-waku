@@ -15,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/libp2p/go-msgio/protoio"
 
 	"github.com/status-im/go-waku/waku/persistence"
@@ -233,13 +234,15 @@ type WakuStore struct {
 	messageQueue *MessageQueue
 	msgProvider  MessageProvider
 	h            host.Host
+	ping         *ping.PingService
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration) *WakuStore {
+func NewWakuStore(host host.Host, p MessageProvider, ping *ping.PingService, maxNumberOfMessages int, maxRetentionDuration time.Duration) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.h = host
+	wakuStore.ping = ping
 	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages, maxRetentionDuration)
 	return wakuStore
 }
@@ -411,6 +414,7 @@ func findIndex(msgList []IndexedWakuMessage, index *pb.Index) int {
 }
 
 type HistoryRequestParameters struct {
+	ping         *ping.PingService
 	selectedPeer peer.ID
 	requestId    []byte
 	cursor       *pb.Index
@@ -434,6 +438,17 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
 		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta3))
+		if err == nil {
+			params.selectedPeer = *p
+		} else {
+			log.Info("Error selecting peer: ", err)
+		}
+	}
+}
+
+func WithFastestPeerSelection(ctx context.Context) HistoryRequestOption {
+	return func(params *HistoryRequestParameters) {
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.ping, string(StoreID_v20beta3))
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -530,6 +545,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 
 	params := new(HistoryRequestParameters)
 	params.s = store
+	params.ping = store.ping
 
 	optList := DefaultOptions()
 	optList = append(optList, opts...)

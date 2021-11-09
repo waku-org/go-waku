@@ -128,13 +128,13 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 }
 
 func (w *WakuNode) Start() error {
-	w.store = store.NewWakuStore(w.host, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration)
+	w.store = store.NewWakuStore(w.host, w.opts.messageProvider, w.ping, w.opts.maxMessages, w.opts.maxDuration)
 	if w.opts.enableStore {
 		w.startStore()
 	}
 
 	if w.opts.enableFilter {
-		w.filter = filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode)
+		w.filter = filter.NewWakuFilter(w.ctx, w.host, w.ping, w.opts.isFilterFullNode)
 	}
 
 	if w.opts.enableRendezvous {
@@ -147,7 +147,7 @@ func (w *WakuNode) Start() error {
 		return err
 	}
 
-	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.ping, w.relay)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(); err != nil {
 			return err

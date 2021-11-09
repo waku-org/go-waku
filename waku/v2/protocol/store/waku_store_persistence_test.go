@@ -24,7 +24,7 @@ func TestStorePersistence(t *testing.T) {
 	dbStore, err := persistence.NewDBStore(persistence.WithDB(db))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(nil, dbStore, 0, 0)
+	s1 := NewWakuStore(nil, dbStore, nil, 0, 0)
 	s1.fetchDBRecords(ctx)
 	require.Len(t, s1.messageQueue.messages, 0)
 
@@ -39,7 +39,7 @@ func TestStorePersistence(t *testing.T) {
 
 	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
 
-	s2 := NewWakuStore(nil, dbStore, 0, 0)
+	s2 := NewWakuStore(nil, dbStore, nil, 0, 0)
 	s2.fetchDBRecords(ctx)
 	require.Len(t, s2.messageQueue.messages, 1)
 	require.Equal(t, msg, s2.messageQueue.messages[0].msg)
