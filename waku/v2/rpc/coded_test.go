@@ -1,7 +1,5 @@
 package rpc
 
-//
-
 import (
 	"testing"
 
