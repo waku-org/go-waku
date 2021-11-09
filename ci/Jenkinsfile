@@ -26,11 +26,7 @@ pipeline {
     }
 
     stage('Test') {
-      steps { sh 'make test' }
-    }
-
-    stage('Codeclimate') {
-      steps { sh 'make codeclimate-coverage' }
+      steps { sh 'make test-ci' }
     }
 
     stage('Build example') {

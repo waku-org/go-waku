@@ -1,3 +1,9 @@
+
+CC_TEST_REPORTER_ID := 343d0af350b29aaf08d1e5bb4465d0e21df6298a27240acd2434457a9984c74a
+GO_HTML_COV         := ./coverage.html
+GO_TEST_OUTFILE     := ./c.out
+CC_PREFIX       	:= github.com/status-im/go-waku
+
 .PHONY: all build lint test coverage build-example
 
 all: build
@@ -19,7 +25,16 @@ lint:
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
 test:
-	go test -v -failfast ./...
+	go test ./waku/... -coverprofile=${GO_TEST_OUTFILE}
+	go tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
+
+_before-cc:
+	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter before-build
+	
+_after-cc:
+	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter after-build --prefix ${CC_PREFIX}
+
+test-ci: _before-cc test _after-cc
 
 generate:
 	go generate ./waku/v2/protocol/pb/generate.go
@@ -27,15 +42,6 @@ generate:
 coverage:
 	go test  -count 1 -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o=coverage.html
-
-codeclimate-coverage:
-	CC_TEST_REPORTER_ID=343d0af350b29aaf08d1e5bb4465d0e21df6298a27240acd2434457a9984c74a
-	GIT_COMMIT=$(git log | grep -m1 -oE '[^ ]+$')
-	./coverage/cc-test-reporter before-build;\
-	go test -count 1 -coverprofile coverage/cover.out ./...;\
-	go test -coverprofile coverage/cover.out -json ./... > coverage/coverage.json
-    EXIT_CODE=$$?;\
-	./coverage/cc-test-reporter after-build -t cover --exit-code $$EXIT_CODE || echo  “Skipping Code Climate coverage upload”
 
 # build a docker image for the fleet
 docker-image: DOCKER_IMAGE_TAG ?= latest
