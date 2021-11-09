@@ -5,14 +5,13 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 type LightPushParameters struct {
+	host         host.Host
 	selectedPeer peer.ID
-	ping         *ping.PingService
 	requestId    []byte
 }
 
@@ -37,7 +36,7 @@ func WithAutomaticPeerSelection(host host.Host) LightPushOption {
 
 func WithFastestPeerSelection(ctx context.Context) LightPushOption {
 	return func(params *LightPushParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.ping, string(LightPushID_v20beta1))
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(LightPushID_v20beta1))
 		if err == nil {
 			params.selectedPeer = *p
 		} else {

@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/libp2p/go-msgio/protoio"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
@@ -29,16 +28,14 @@ var (
 
 type WakuLightPush struct {
 	h     host.Host
-	ping  *ping.PingService
 	relay *relay.WakuRelay
 	ctx   context.Context
 }
 
-func NewWakuLightPush(ctx context.Context, h host.Host, ping *ping.PingService, relay *relay.WakuRelay) *WakuLightPush {
+func NewWakuLightPush(ctx context.Context, h host.Host, relay *relay.WakuRelay) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay
 	wakuLP.ctx = ctx
-	wakuLP.ping = ping
 	wakuLP.h = h
 
 	return wakuLP
@@ -125,7 +122,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 
 func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, opts ...LightPushOption) (*pb.PushResponse, error) {
 	params := new(LightPushParameters)
-	params.ping = wakuLP.ping
+	params.host = wakuLP.h
 
 	optList := DefaultOptions(wakuLP.h)
 	optList = append(optList, opts...)

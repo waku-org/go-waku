@@ -52,14 +52,10 @@ type pingResult struct {
 	rtt time.Duration
 }
 
-func SelectPeerWithLowestRTT(ctx context.Context, pingService *ping.PingService, protocolId string) (*peer.ID, error) {
-	if pingService == nil {
-		return nil, PingServiceNotAvailable
-	}
-
+func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId string) (*peer.ID, error) {
 	var peers peer.IDSlice
-	for _, peer := range pingService.Host.Peerstore().Peers() {
-		protocols, err := pingService.Host.Peerstore().SupportsProtocols(peer, protocolId)
+	for _, peer := range host.Peerstore().Peers() {
+		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)
 		if err != nil {
 			log.Error("error obtaining the protocols supported by peers", err)
 			return nil, err
@@ -81,7 +77,7 @@ func SelectPeerWithLowestRTT(ctx context.Context, pingService *ping.PingService,
 				defer wg.Done()
 				ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 				defer cancel()
-				result := <-pingService.Ping(ctx, p)
+				result := <-ping.Ping(ctx, host, p)
 				if result.Error == nil {
 					pingCh <- pingResult{
 						p:   p,

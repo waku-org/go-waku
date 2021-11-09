@@ -7,7 +7,6 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peerstore"
-	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,13 +24,11 @@ func TestKeepAlive(t *testing.T) {
 	err = host1.Connect(ctx, host1.Peerstore().PeerInfo(host2.ID()))
 	require.NoError(t, err)
 
-	ping := ping.NewPingService(host1)
-
 	require.Len(t, host1.Network().Peers(), 1)
 
 	ctx2, cancel2 := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel2()
-	pingPeer(ctx2, ping, host2.ID())
+	pingPeer(ctx2, host1, host2.ID())
 
 	require.NoError(t, ctx.Err())
 }

@@ -40,7 +40,6 @@ type WakuNode struct {
 	filter     *filter.WakuFilter
 	lightPush  *lightpush.WakuLightPush
 	rendezvous *rendezvous.RendezvousService
-	ping       *ping.PingService
 	store      *store.WakuStore
 
 	bcaster v2.Broadcaster
@@ -128,13 +127,13 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 }
 
 func (w *WakuNode) Start() error {
-	w.store = store.NewWakuStore(w.host, w.opts.messageProvider, w.ping, w.opts.maxMessages, w.opts.maxDuration)
+	w.store = store.NewWakuStore(w.host, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration)
 	if w.opts.enableStore {
 		w.startStore()
 	}
 
 	if w.opts.enableFilter {
-		w.filter = filter.NewWakuFilter(w.ctx, w.host, w.ping, w.opts.isFilterFullNode)
+		w.filter = filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode)
 	}
 
 	if w.opts.enableRendezvous {
@@ -147,7 +146,7 @@ func (w *WakuNode) Start() error {
 		return err
 	}
 
-	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.ping, w.relay)
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(); err != nil {
 			return err
@@ -402,7 +401,6 @@ func (w *WakuNode) Peers() PeerStats {
 func (w *WakuNode) startKeepAlive(t time.Duration) {
 	log.Info("Setting up ping protocol with duration of ", t)
 
-	w.ping = ping.NewPingService(w.host)
 	ticker := time.NewTicker(t)
 
 	go func() {
@@ -417,7 +415,7 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 				// through Network's peer collection, as it will be empty
 				for _, p := range w.host.Peerstore().Peers() {
 					if p != w.host.ID() {
-						go pingPeer(w.ctx, w.ping, p)
+						go pingPeer(w.ctx, w.host, p)
 					}
 				}
 			case <-w.quit:
@@ -428,12 +426,12 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 	}()
 }
 
-func pingPeer(ctx context.Context, pingService *ping.PingService, peer peer.ID) {
+func pingPeer(ctx context.Context, host host.Host, peer peer.ID) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	log.Debug("Pinging ", peer)
-	pr := pingService.Ping(ctx, peer)
+	pr := ping.Ping(ctx, host, peer)
 	select {
 	case res := <-pr:
 		if res.Error != nil {
