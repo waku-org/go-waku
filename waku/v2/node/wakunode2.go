@@ -416,7 +416,9 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 				// which is not possible when iterating
 				// through Network's peer collection, as it will be empty
 				for _, p := range w.host.Peerstore().Peers() {
-					go pingPeer(w.ctx, w.ping, p)
+					if p != w.host.ID() {
+						go pingPeer(w.ctx, w.ping, p)
+					}
 				}
 			case <-w.quit:
 				ticker.Stop()
