@@ -25,7 +25,8 @@ lint:
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
 test:
-	go test ./waku/... -coverprofile=${GO_TEST_OUTFILE}
+	go test ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
+	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
 	go tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 
 _before-cc:
