@@ -55,7 +55,8 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 			ContentTopics: []string{contentTopic},
 		}
 		var err error
-		_, chat.C, err = n.SubscribeFilter(ctx, cf)
+		_, theFilter, err := n.Filter().Subscribe(ctx, cf)
+		chat.C = theFilter.Chan
 		if err != nil {
 			return nil, err
 		}

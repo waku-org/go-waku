@@ -58,7 +58,7 @@ Examples of usage of go-waku as a library can be found in the examples folder. T
 |[18/WAKU2-SWAP](https://rfc.vac.dev/spec/18)||
 |[21/WAKU2-FTSTORE](https://rfc.vac.dev/spec/21)|✔|
 |[22/TOY-CHAT](https://rfc.vac.dev/spec/22)|✔|
-|[23/TOPICS](https://rfc.vac.dev/spec/22)|(implemented in status-go)|
+|[23/TOPICS](https://rfc.vac.dev/spec/22)|✔|
 |[25/LIBP2P-DNS-DISCOVERY](https://rfc.vac.dev/spec/25)|🚧|
 |[26/WAKU2-PAYLOAD](https://rfc.vac.dev/spec/26)|✔|
 |[27/WAKU2-PEERS](https://rfc.vac.dev/spec/27)|✔|

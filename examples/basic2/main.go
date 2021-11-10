@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
@@ -80,7 +81,8 @@ func randomHex(n int) (string, error) {
 }
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
-	var contentTopic string = "test"
+	contentTopic := protocol.NewContentTopic("basic2", 1, "test", "proto")
+
 	var version uint32 = 0
 	var timestamp float64 = utils.GetUnixEpoch()
 
@@ -97,7 +99,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	msg := &pb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
-		ContentTopic: contentTopic,
+		ContentTopic: contentTopic.String(),
 		Timestamp:    timestamp,
 	}
 
