@@ -21,11 +21,6 @@ type TopicsArgs struct {
 	Topics []string `json:"topics,omitempty"`
 }
 
-type SuccessReply struct {
-	Success bool   `json:"success,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
 func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, reply *SuccessReply) error {
 	_, err := r.node.Relay().Publish(req.Context(), &args.Message, (*relay.Topic)(&args.Topic))
 	if err != nil {
