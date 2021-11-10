@@ -41,7 +41,7 @@ func StringToContentTopic(s string) (ContentTopic, error) {
 		return ContentTopic{}, ErrInvalidFormat
 	}
 
-	vNum, err := strconv.ParseUint(p[2], 10, 64)
+	vNum, err := strconv.ParseUint(p[2], 10, 32)
 	if err != nil {
 		return ContentTopic{}, ErrInvalidFormat
 	}
