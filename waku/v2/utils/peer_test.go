@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"testing"
 	"time"
 
@@ -71,7 +70,6 @@ func TestSelectPeerWithLowestRTT(t *testing.T) {
 
 	// No peers with selected protocol
 	_, err = SelectPeerWithLowestRTT(ctx, h1, proto)
-	fmt.Println(err)
 	require.Error(t, ErrNoPeersAvailable, err)
 
 	// Peers with selected protocol

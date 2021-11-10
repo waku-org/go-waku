@@ -10,6 +10,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	p2pproto "github.com/libp2p/go-libp2p-core/protocol"
@@ -31,6 +32,13 @@ import (
 var log = logging.Logger("wakunode")
 
 type Message []byte
+
+type Peer struct {
+	ID        peer.ID
+	Protocols []string
+	Addrs     []ma.Multiaddr
+	Connected bool
+}
 
 type WakuNode struct {
 	host host.Host
@@ -383,7 +391,7 @@ func (w *WakuNode) PeerCount() int {
 	return len(w.host.Network().Peers())
 }
 
-func (w *WakuNode) Peers() PeerStats {
+func (w *WakuNode) PeerStats() PeerStats {
 	p := make(PeerStats)
 	for _, peerID := range w.host.Network().Peers() {
 		protocols, err := w.host.Peerstore().GetProtocols(peerID)
@@ -393,6 +401,26 @@ func (w *WakuNode) Peers() PeerStats {
 		p[peerID] = protocols
 	}
 	return p
+}
+
+func (w *WakuNode) Peers() ([]*Peer, error) {
+	var peers []*Peer
+	for _, peerId := range w.host.Peerstore().Peers() {
+		connected := w.host.Network().Connectedness(peerId) == network.Connected
+		protocols, err := w.host.Peerstore().GetProtocols(peerId)
+		if err != nil {
+			return nil, err
+		}
+
+		addrs := w.host.Peerstore().Addrs(peerId)
+		peers = append(peers, &Peer{
+			ID:        peerId,
+			Protocols: protocols,
+			Connected: connected,
+			Addrs:     addrs,
+		})
+	}
+	return peers, nil
 }
 
 // startKeepAlive creates a go routine that periodically pings connected peers.
