@@ -20,6 +20,8 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	wakuprotocol "github.com/status-im/go-waku/waku/v2/protocol"
+
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/discovery"
 	"github.com/status-im/go-waku/waku/v2/node"
@@ -28,7 +30,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
-var DefaultContentTopic string = "/toy-chat/2/huilong/proto"
+var DefaultContentTopic string = wakuprotocol.NewContentTopic("toy-chat", 2, "huilong", "proto").String()
 
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())

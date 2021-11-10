@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
@@ -22,7 +23,7 @@ import (
 
 var log = logging.Logger("filter2")
 
-var pubSubTopic = relay.DefaultWakuTopic
+var pubSubTopic = protocol.DefaultPubsubTopic()
 
 const contentTopic = "test"
 
@@ -98,17 +99,17 @@ func main() {
 
 	// Send FilterRequest from light node to full node
 	cf := filter.ContentFilter{
-		Topic:         string(pubSubTopic),
+		Topic:         pubSubTopic.String(),
 		ContentTopics: []string{contentTopic},
 	}
 
-	_, filterChan, err := lightNode.SubscribeFilter(ctx, cf)
+	_, theFilter, err := lightNode.Filter().Subscribe(ctx, cf)
 	if err != nil {
 		panic(err)
 	}
 
 	go func() {
-		for env := range filterChan {
+		for env := range theFilter.Chan {
 			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
 		log.Info("Message channel closed!")
@@ -120,7 +121,7 @@ func main() {
 	go func() {
 		// Unsubscribe filter after 5 seconds
 		time.Sleep(5 * time.Second)
-		lightNode.UnsubscribeFilter(ctx, cf)
+		lightNode.Filter().UnsubscribeFilter(ctx, cf)
 	}()
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -172,7 +173,8 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Relay().Subscribe(ctx, &pubSubTopic)
+	pubsubTopic := relay.Topic(pubSubTopic.String())
+	sub, err := wakuNode.Relay().Subscribe(ctx, &pubsubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return
