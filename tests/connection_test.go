@@ -2,8 +2,6 @@ package tests
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"net"
 	"testing"
 
@@ -19,7 +17,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 	hostAddr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
 
-	key, err := randomHex(32)
+	key, err := RandomHex(32)
 	require.NoError(t, err)
 
 	prvKey, err := crypto.HexToECDSA(key)
@@ -48,14 +46,6 @@ func TestBasicSendingReceiving(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Contains(t, string(payload.Data), "test")
-}
-
-func randomHex(n int) (string, error) {
-	bytes := make([]byte, n)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
 }
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) error {

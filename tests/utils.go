@@ -2,6 +2,8 @@ package tests
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -71,4 +73,12 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 
 func CreateWakuMessage(contentTopic string, timestamp float64) *pb.WakuMessage {
 	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
+}
+
+func RandomHex(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
