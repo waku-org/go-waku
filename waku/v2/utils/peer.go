@@ -3,10 +3,14 @@ package utils
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
 
+	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -111,4 +115,13 @@ func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId str
 	case <-ctx.Done():
 		return nil, ErrNoPeersAvailable
 	}
+}
+
+func EnodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
+	peerID, err := peer.IDFromPublicKey(&ECDSAPublicKey{node.Pubkey()})
+	if err != nil {
+		return nil, err
+	}
+
+	return ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", node.IP(), node.TCP(), peerID))
 }
