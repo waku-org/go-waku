@@ -46,7 +46,6 @@ type peerRecord struct {
 }
 
 type discV5Parameters struct {
-	host             host.Host
 	bootnodes        []*enode.Node
 	advertiseAddress *net.IP
 	udpPort          int
