@@ -27,7 +27,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 
 	wakuNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey),
-		node.WithHostAddress([]*net.TCPAddr{hostAddr}),
+		node.WithHostAddress(hostAddr),
 		node.WithWakuRelay(),
 	)
 	require.NoError(t, err)

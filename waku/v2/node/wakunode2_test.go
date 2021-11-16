@@ -22,7 +22,7 @@ func TestWakuNode2(t *testing.T) {
 
 	wakuNode, err := New(ctx,
 		WithPrivateKey(prvKey),
-		WithHostAddress([]*net.TCPAddr{hostAddr}),
+		WithHostAddress(hostAddr),
 		WithWakuRelay(),
 	)
 	require.NoError(t, err)

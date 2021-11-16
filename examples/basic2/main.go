@@ -45,7 +45,7 @@ func main() {
 
 	wakuNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey),
-		node.WithHostAddress([]*net.TCPAddr{hostAddr}),
+		node.WithHostAddress(hostAddr),
 		node.WithWakuRelay(),
 	)
 	if err != nil {

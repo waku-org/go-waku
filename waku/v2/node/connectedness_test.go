@@ -43,7 +43,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
 	node1, err := New(ctx,
-		WithHostAddress([]*net.TCPAddr{hostAddr1}),
+		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
 		WithConnectionStatusChannel(connStatusChan),
 	)
@@ -55,7 +55,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
 	node2, err := New(ctx,
-		WithHostAddress([]*net.TCPAddr{hostAddr2}),
+		WithHostAddress(hostAddr2),
 		WithWakuRelay(),
 	)
 	require.NoError(t, err)
@@ -66,7 +66,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	hostAddr3, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
 	node3, err := New(ctx,
-		WithHostAddress([]*net.TCPAddr{hostAddr3}),
+		WithHostAddress(hostAddr3),
 		WithWakuRelay(),
 		WithWakuStore(false, false),
 	)

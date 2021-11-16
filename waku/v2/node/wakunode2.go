@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	logging "github.com/ipfs/go-log"
@@ -21,6 +23,7 @@ import (
 
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	v2 "github.com/status-im/go-waku/waku/v2"
+	"github.com/status-im/go-waku/waku/v2/discv5"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
@@ -50,11 +53,16 @@ type WakuNode struct {
 	rendezvous *rendezvous.RendezvousService
 	store      *store.WakuStore
 
+	addrChan chan ma.Multiaddr
+
+	discoveryV5 *discv5.DiscoveryV5
+
 	bcaster v2.Broadcaster
 
 	connectionNotif        ConnectionNotifier
 	protocolEventSub       event.Subscription
 	identificationEventSub event.Subscription
+	addressChangesSub      event.Subscription
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -65,6 +73,26 @@ type WakuNode struct {
 	connStatusChan chan ConnStatus
 }
 
+func freePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+
+	port := l.Addr().(*net.TCPAddr).Port
+	err = l.Close()
+	if err != nil {
+		return 0, err
+	}
+
+	return port, nil
+}
+
 func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	params := new(WakuNodeParameters)
 
@@ -72,6 +100,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 	params.libP2POpts = DefaultLibP2POptions
 
+	opts = append(DefaultWakuNodeOptions, opts...)
 	for _, opt := range opts {
 		err := opt(params)
 		if err != nil {
@@ -80,6 +109,14 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
+	// Setting default host address if none was provided
+	if params.hostAddr == nil {
+		err := WithHostAddress(&net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 0})(params)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
 	if len(params.multiAddr) > 0 {
 		params.libP2POpts = append(params.libP2POpts, libp2p.ListenAddrs(params.multiAddr...))
 	}
@@ -105,12 +142,17 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.ctx = ctx
 	w.opts = params
 	w.quit = make(chan struct{})
+	w.addrChan = make(chan ma.Multiaddr, 1024)
 
 	if w.protocolEventSub, err = host.EventBus().Subscribe(new(event.EvtPeerProtocolsUpdated)); err != nil {
 		return nil, err
 	}
 
 	if w.identificationEventSub, err = host.EventBus().Subscribe(new(event.EvtPeerIdentificationCompleted)); err != nil {
+		return nil, err
+	}
+
+	if w.addressChangesSub, err = host.EventBus().Subscribe(new(event.EvtLocalAddressesUpdated)); err != nil {
 		return nil, err
 	}
 
@@ -127,11 +169,87 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		w.startKeepAlive(w.opts.keepAliveInterval)
 	}
 
-	for _, addr := range w.ListenAddresses() {
-		log.Info("Listening on ", addr)
-	}
+	go w.checkForAddressChanges()
+	go w.onAddrChange()
 
 	return w, nil
+}
+
+func (w *WakuNode) onAddrChange() {
+	for m := range w.addrChan {
+		ipStr, err := m.ValueForProtocol(ma.P_IP4)
+		if err != nil {
+			log.Error("could not extract ip from ma %s: %s", m, err.Error())
+			continue
+		}
+		ip := net.ParseIP(ipStr)
+		if !ip.IsLoopback() && !ip.IsUnspecified() {
+			if w.opts.enableDiscV5 {
+				w.discoveryV5.UpdateAddr(ip)
+			}
+		}
+	}
+}
+
+// IsPrivate reports whether ip is a private address, according to
+// RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
+// Copied/Adapted from https://go-review.googlesource.com/c/go/+/272668/11/src/net/ip.go
+// Copyright (c) The Go Authors. All rights reserved.
+// @TODO: once Go 1.17 is released in Q42021, remove this function as it will become part of the language
+func IsPrivate(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		// Following RFC 4193, Section 3. Local IPv6 Unicast Addresses which says:
+		//   The Internet Assigned Numbers Authority (IANA) has reserved the
+		//   following three blocks of the IPv4 address space for private internets:
+		//     10.0.0.0        -   10.255.255.255  (10/8 prefix)
+		//     172.16.0.0      -   172.31.255.255  (172.16/12 prefix)
+		//     192.168.0.0     -   192.168.255.255 (192.168/16 prefix)
+		return ip4[0] == 10 ||
+			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
+			(ip4[0] == 192 && ip4[1] == 168)
+	}
+	// Following RFC 4193, Section 3. Private Address Space which says:
+	//   The Internet Assigned Numbers Authority (IANA) has reserved the
+	//   following block of the IPv6 address space for local internets:
+	//     FC00::  -  FDFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF (FC00::/7 prefix)
+	return len(ip) == net.IPv6len && ip[0]&0xfe == 0xfc
+}
+
+func (w *WakuNode) checkForAddressChanges() {
+	addrs := w.ListenAddresses()
+	first := make(chan struct{}, 1)
+	first <- struct{}{}
+	for {
+		select {
+		case <-w.quit:
+			return
+		case <-first:
+			for _, addr := range addrs {
+				log.Info("Listening on ", addr)
+			}
+		case <-w.addressChangesSub.Out():
+			newAddrs := w.ListenAddresses()
+			print := false
+			if len(addrs) != len(newAddrs) {
+				print = true
+			} else {
+				for i := range newAddrs {
+					if addrs[i].String() != newAddrs[i].String() {
+						print = true
+						break
+					}
+				}
+			}
+			if print {
+				addrs = newAddrs
+				log.Warn("Change in host multiaddresses")
+				for _, addr := range newAddrs {
+					w.addrChan <- addr
+					log.Warn("Listening on ", addr)
+				}
+			}
+		}
+	}
 }
 
 func (w *WakuNode) Start() error {
@@ -147,6 +265,17 @@ func (w *WakuNode) Start() error {
 	if w.opts.enableRendezvous {
 		rendezvous := rendezvous.NewRendezvousDiscovery(w.host)
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(rendezvous, w.opts.rendezvousOpts...))
+	}
+
+	if w.opts.enableDiscV5 {
+		err := w.mountDiscV5()
+		if err != nil {
+			return err
+		}
+	}
+
+	if w.opts.enableDiscV5 {
+		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.discoveryV5, w.opts.discV5Opts...))
 	}
 
 	err := w.mountRelay(w.opts.wOpts...)
@@ -186,12 +315,14 @@ func (w *WakuNode) Stop() {
 	defer w.cancel()
 
 	close(w.quit)
+	close(w.addrChan)
 
 	w.bcaster.Close()
 
 	defer w.connectionNotif.Close()
 	defer w.protocolEventSub.Close()
 	defer w.identificationEventSub.Close()
+	defer w.addressChangesSub.Close()
 
 	if w.rendezvous != nil {
 		w.rendezvous.Stop()
@@ -241,6 +372,10 @@ func (w *WakuNode) Lightpush() *lightpush.WakuLightPush {
 	return w.lightPush
 }
 
+func (w *WakuNode) DiscV5() *discv5.DiscoveryV5 {
+	return w.discoveryV5
+}
+
 func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
 	var err error
 	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, opts...)
@@ -258,6 +393,41 @@ func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
 	// TODO: rlnRelay
 
 	return err
+}
+
+func (w *WakuNode) mountDiscV5() error {
+	wakuFlag := discv5.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilter, w.opts.enableStore, w.opts.enableRelay)
+
+	discV5Options := []discv5.DiscoveryV5Option{
+		discv5.WithBootnodes(w.opts.discV5bootnodes),
+		discv5.WithUDPPort(w.opts.udpPort),
+		discv5.WithAutoUpdate(w.opts.discV5autoupdate),
+	}
+
+	addr := w.ListenAddresses()[0]
+
+	ipStr, err := addr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return err
+	}
+
+	portStr, err := addr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return err
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return err
+	}
+
+	discoveryV5, err := discv5.NewDiscoveryV5(w.Host(), net.ParseIP(ipStr), port, w.opts.privKey, wakuFlag, discV5Options...)
+	if err != nil {
+		return err
+	}
+
+	w.discoveryV5 = discoveryV5
+	return nil
 }
 
 func (w *WakuNode) mountRendezvous() error {
@@ -463,9 +633,9 @@ func pingPeer(ctx context.Context, host host.Host, peer peer.ID) {
 	select {
 	case res := <-pr:
 		if res.Error != nil {
-			log.Error(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
+			log.Debug(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
 		}
 	case <-ctx.Done():
-		log.Error(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
+		log.Debug(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
 	}
 }

@@ -6,9 +6,17 @@ type RendezvousOptions struct {
 	Enable bool     `long:"rendezvous" description:"Enable rendezvous protocol for peer discovery"`
 	Nodes  []string `long:"rendezvous-node" description:"Multiaddr of a waku2 rendezvous node. Option may be repeated"`
 }
+
 type RendezvousServerOptions struct {
 	Enable bool   `long:"rendezvous-server" description:"Node will act as rendezvous server"`
 	DBPath string `long:"rendezvous-db-path" description:"Path where peer records database will be stored" default:"/tmp/rendezvous"`
+}
+
+type DiscV5Options struct {
+	Enable     bool     `long:"discv5-discovery" description:"Enable discovering nodes via Node Discovery v5"`
+	Nodes      []string `long:"discv5-bootstrap-node" description:"Text-encoded ENR for bootstrap node. Used when connecting to the network. Option may be repeated"`
+	Port       int      `long:"discv5-udp-port" description:"Listening UDP port for Node Discovery v5." default:"9000"`
+	AutoUpdate bool     `long:"discv5-enr-auto-update" description:"Discovery can automatically update its ENR with the IP address as seen by other nodes it communicates with." `
 }
 
 type RelayOptions struct {
@@ -76,10 +84,10 @@ type RPCServerOptions struct {
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
-	Port             int      `short:"p" long:"port" description:"Libp2p TCP listening port (0 for random)" default:"9000"`
+	Port             int      `short:"p" long:"port" description:"Libp2p TCP listening port (0 for random)" default:"60000"`
 	Address          string   `long:"address" description:"Listening address" default:"0.0.0.0"`
 	EnableWS         bool     `long:"ws" description:"Enable websockets support"`
-	WSPort           int      `long:"ws-port" description:"Libp2p TCP listening port for websocket connection (0 for random)" default:"9001"`
+	WSPort           int      `long:"ws-port" description:"Libp2p TCP listening port for websocket connection (0 for random)" default:"60001"`
 	WSAddress        string   `long:"ws-address" description:"Listening address for websocket connections" default:"0.0.0.0"`
 	NodeKey          string   `long:"nodekey" description:"P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)"`
 	KeyFile          string   `long:"key-file" description:"Path to a file containing the private key for the P2P node" default:"./nodekey"`
@@ -97,6 +105,7 @@ type Options struct {
 	Store            StoreOptions            `group:"Store Options"`
 	Filter           FilterOptions           `group:"Filter Options"`
 	LightPush        LightpushOptions        `group:"LightPush Options"`
+	DiscV5           DiscV5Options           `group:"DiscoveryV5 Options"`
 	Rendezvous       RendezvousOptions       `group:"Rendezvous Options"`
 	RendezvousServer RendezvousServerOptions `group:"Rendezvous Server Options"`
 	DNSDiscovery     DNSDiscoveryOptions     `group:"DNS Discovery Options"`

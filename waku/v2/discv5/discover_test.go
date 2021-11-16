@@ -81,6 +81,7 @@ func TestDiscV5(t *testing.T) {
 	foundHost2 := false
 	foundHost3 := false
 	for p := range peerChan {
+		fmt.Println(p)
 		if p.Addrs[0].String() == host2.Addrs()[0].String() {
 			foundHost2 = true
 		}

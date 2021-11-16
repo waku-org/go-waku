@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
-	manet "github.com/multiformats/go-multiaddr/net"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
@@ -51,6 +50,26 @@ func failOnErr(err error, msg string) {
 		}
 		log.Fatal(msg, err)
 	}
+}
+
+func freePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+
+	port := l.Addr().(*net.TCPAddr).Port
+	err = l.Close()
+	if err != nil {
+		return 0, err
+	}
+
+	return port, nil
 }
 
 // Execute starts a go-waku node with settings determined by the Options parameter
@@ -89,14 +108,25 @@ func Execute(options Options) {
 
 	nodeOpts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
-		node.WithHostAddress([]*net.TCPAddr{hostAddr}),
+		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
 	}
 
 	if options.AdvertiseAddress != "" {
 		advertiseAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
-		failOnErr(err, "invalid advertise address")
-		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress([]*net.TCPAddr{advertiseAddr}, options.EnableWS, options.WSPort))
+		failOnErr(err, "Invalid advertise address")
+
+		if advertiseAddr.Port == 0 {
+			for {
+				p, err := freePort()
+				if err == nil {
+					advertiseAddr.Port = p
+					break
+				}
+			}
+		}
+
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr, options.EnableWS, options.WSPort))
 	}
 
 	if options.EnableWS {
@@ -110,6 +140,9 @@ func Execute(options Options) {
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
+	if options.AdvertiseAddress == "" {
+		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
+	}
 
 	if options.UseDB {
 		// Create persistent peerstore
@@ -162,6 +195,18 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
+	if options.DiscV5.Enable {
+		var bootnodes []*enode.Node
+		for _, addr := range options.DiscV5.Nodes {
+			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
+			if err != nil {
+				log.Fatal("could not parse enr: ", err)
+			}
+			bootnodes = append(bootnodes, bootnode)
+		}
+		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
+	}
+
 	wakuNode, err := node.New(ctx, nodeOpts...)
 
 	failOnErr(err, "Wakunode")
@@ -171,8 +216,23 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
 	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 
+	if options.DNSDiscovery.Enable || options.DiscV5.Enable {
+		for _, addr := range wakuNode.ListenAddresses() {
+			ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
+			// TODO: use enode.New
+			enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
+			log.Info("ENR: ", enr)
+		}
+	}
+
 	if err = wakuNode.Start(); err != nil {
 		log.Fatal(fmt.Errorf("could not start waku node, %w", err))
+	}
+
+	if options.DiscV5.Enable {
+		if err = wakuNode.DiscV5().Start(); err != nil {
+			log.Fatal(fmt.Errorf("could not start discovery v5, %w", err))
+		}
 	}
 
 	if len(options.Relay.Topics) == 0 {
@@ -197,12 +257,6 @@ func Execute(options Options) {
 	}
 
 	if options.DNSDiscovery.Enable {
-		for _, addr := range wakuNode.ListenAddresses() {
-			ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
-			enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
-			log.Info("ENR: ", enr)
-		}
-
 		if options.DNSDiscovery.URL != "" {
 			log.Info("attempting DNS discovery with ", options.DNSDiscovery.URL)
 			multiaddresses, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
@@ -366,29 +420,15 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 	}
 
 	var libp2pOpts []config.Option
-	libp2pOpts = append(libp2pOpts, params.Identity())
+	libp2pOpts = append(libp2pOpts,
+		params.Identity(),
+		libp2p.ListenAddrs(params.MultiAddresses()...),
+	)
 
-	if options.AdvertiseAddress != "" {
-		advertiseAddress, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
-		if err != nil {
-			panic(err)
-		}
-
-		libp2pOpts = append(libp2pOpts, libp2p.AddrsFactory(func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
-			addr, _ := manet.FromNetAddr(advertiseAddress)
-			var result []multiaddr.Multiaddr
-			result = append(result, addr)
-
-			if options.EnableWS {
-				wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", options.AdvertiseAddress, options.WSPort))
-				result = append(result, wsMa)
-			}
-
-			return result
-		}))
+	addrFactory := params.AddressFactory()
+	if addrFactory != nil {
+		libp2pOpts = append(libp2pOpts, libp2p.AddrsFactory(addrFactory))
 	}
-
-	libp2pOpts = append(libp2pOpts, libp2p.ListenAddrs(params.MultiAddresses()...))
 
 	h, err := libp2p.New(ctx, libp2pOpts...)
 	if err != nil {
