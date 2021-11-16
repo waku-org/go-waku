@@ -23,7 +23,7 @@ import (
 	wakuprotocol "github.com/status-im/go-waku/waku/v2/protocol"
 
 	"github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/waku/v2/discovery"
+	"github.com/status-im/go-waku/waku/v2/dnsdisc"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
@@ -169,7 +169,7 @@ func main() {
 
 		if enableDiscovery && dnsDiscoveryUrl != "" {
 			ui.displayMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
-			multiaddresses, err := discovery.RetrieveNodes(ctx, dnsDiscoveryUrl, discovery.WithNameserver(dnsDiscoveryNameServer))
+			multiaddresses, err := dnsdisc.RetrieveNodes(ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(dnsDiscoveryNameServer))
 			if err != nil {
 				ui.displayMessage("DNS discovery error: " + err.Error())
 			} else {

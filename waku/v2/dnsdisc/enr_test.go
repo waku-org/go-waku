@@ -1,10 +1,11 @@
-package discovery
+package dnsdisc
 
 import (
 	"context"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,7 +14,7 @@ func TestEnodeToMultiAddr(t *testing.T) {
 
 	parsedNode := enode.MustParse(enr)
 	expectedMultiAddr := "/ip4/134.209.139.210/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ"
-	actualMultiAddr, err := EnodeToMultiAddr(parsedNode)
+	actualMultiAddr, err := utils.EnodeToMultiAddr(parsedNode)
 	require.NoError(t, err)
 	require.Equal(t, expectedMultiAddr, actualMultiAddr.String())
 }
