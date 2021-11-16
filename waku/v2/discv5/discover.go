@@ -14,7 +14,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
@@ -197,11 +196,7 @@ func isWakuNode(node *enode.Node) bool {
 	return false
 }
 
-func (d *DiscoveryV5) evaluateNode(node *enode.Node) bool {
-	if node == nil || node.IP() == nil {
-		return false
-	}
-
+func hasTCPPort(node *enode.Node) bool {
 	enrTCP := new(enr.TCP)
 	if err := node.Record().Load(enr.WithEntry(enrTCP.ENRKey(), enrTCP)); err != nil {
 		if !enr.IsNotFound(err) {
@@ -210,23 +205,21 @@ func (d *DiscoveryV5) evaluateNode(node *enode.Node) bool {
 		return false
 	}
 
-	if !isWakuNode(node) {
+	return true
+}
+
+func (d *DiscoveryV5) evaluateNode(node *enode.Node) bool {
+	if node == nil || node.IP() == nil {
 		return false
 	}
 
-	address, err := utils.EnodeToMultiAddr(node)
+	if !isWakuNode(node) || !hasTCPPort(node) {
+		return false
+	}
+
+	_, err := utils.EnodeToPeerInfo(node)
 	if err != nil {
-		log.Error("could not convert enode to multiaddress ", err)
-		return false
-	}
-
-	info, err := peer.AddrInfoFromP2pAddr(address)
-	if err != nil {
-		log.Error("could not obtain peer info from multiaddress ", err)
-		return false
-	}
-
-	if d.host.Network().Connectedness(info.ID) == network.Connected {
+		log.Error("could not obtain peer info from enode:", err)
 		return false
 	}
 

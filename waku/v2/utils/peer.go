@@ -125,3 +125,12 @@ func EnodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
 
 	return ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/p2p/%s", node.IP(), node.TCP(), peerID))
 }
+
+func EnodeToPeerInfo(node *enode.Node) (*peer.AddrInfo, error) {
+	address, err := EnodeToMultiAddr(node)
+	if err != nil {
+		return nil, err
+	}
+
+	return peer.AddrInfoFromP2pAddr(address)
+}
