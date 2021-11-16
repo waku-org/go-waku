@@ -117,22 +117,23 @@ func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.Priv
 		return nil, err
 	}
 
-	discV5 := new(DiscoveryV5)
-	discV5.host = host
-	discV5.params = params
-	discV5.peerCache.rng = rand.New(rand.NewSource(rand.Int63()))
-	discV5.peerCache.recs = make(map[peer.ID]peerRecord)
-	discV5.localnode = localnode
-	discV5.config = discover.Config{
-		PrivateKey: priv,
-		Bootnodes:  params.bootnodes,
-	}
-	discV5.udpAddr = &net.UDPAddr{
-		IP:   ipAddr,
-		Port: params.udpPort,
-	}
-
-	return discV5, nil
+	return &DiscoveryV5{
+		host:   host,
+		params: params,
+		peerCache: peerCache{
+			rng:  rand.New(rand.NewSource(rand.Int63())),
+			recs: make(map[peer.ID]peerRecord),
+		},
+		localnode: localnode,
+		config: discover.Config{
+			PrivateKey: priv,
+			Bootnodes:  params.bootnodes,
+		},
+		udpAddr: &net.UDPAddr{
+			IP:   ipAddr,
+			Port: params.udpPort,
+		},
+	}, nil
 }
 
 func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort int, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP) (*enode.LocalNode, error) {
@@ -145,15 +146,15 @@ func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort in
 	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	localnode.SetFallbackUDP(udpPort)
 
+	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
+
+	localnode.Set(enr.IP(ipAddr)) // Test if IP changes in p2p/enode/localnode.go ?
+	localnode.Set(enr.UDP(udpPort))
+	localnode.Set(enr.TCP(tcpPort))
+
 	if advertiseAddr != nil {
 		localnode.SetStaticIP(*advertiseAddr)
 	}
-
-	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
-
-	localnode.Set(enr.IP(ipAddr))
-	localnode.Set(enr.UDP(udpPort))
-	localnode.Set(enr.TCP(tcpPort))
 
 	return localnode, nil
 }
@@ -277,6 +278,22 @@ func (d *DiscoveryV5) iterate(iterator enode.Iterator, limit int, doneCh chan st
 	close(doneCh)
 }
 
+func (d *DiscoveryV5) removeExpiredPeers() int {
+	// Remove all expired entries from cache
+	currentTime := time.Now().Unix()
+	newCacheSize := len(d.peerCache.recs)
+
+	for p := range d.peerCache.recs {
+		rec := d.peerCache.recs[p]
+		if rec.expire < currentTime {
+			newCacheSize--
+			delete(d.peerCache.recs, p)
+		}
+	}
+
+	return newCacheSize
+}
+
 func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...discovery.Option) (<-chan peer.AddrInfo, error) {
 	// Get options
 	var options discovery.Options
@@ -296,20 +313,10 @@ func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...disco
 	d.peerCache.Lock()
 	defer d.peerCache.Unlock()
 
-	// Remove all expired entries from cache
-	currentTime := time.Now().Unix()
-	newCacheSize := len(d.peerCache.recs)
-
-	for p := range d.peerCache.recs {
-		rec := d.peerCache.recs[p]
-		if rec.expire < currentTime {
-			newCacheSize--
-			delete(d.peerCache.recs, p)
-		}
-	}
+	cacheSize := d.removeExpiredPeers()
 
 	// Discover new records if we don't have enough
-	if newCacheSize < limit {
+	if cacheSize < limit {
 		iterator := d.listener.RandomNodes()
 		iterator = enode.Filter(iterator, d.evaluateNode)
 		defer iterator.Close()

@@ -123,6 +123,17 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		log.Info("Listening on ", addr)
 	}
 
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		select {
+		case <-ticker.C:
+			for _, addr := range w.ListenAddresses() {
+				log.Info("Listening on ", addr)
+			}
+		}
+
+	}()
+
 	return w, nil
 }
 

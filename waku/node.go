@@ -22,7 +22,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
-	libp2pdisc "github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p/config"
 
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -33,7 +33,7 @@ import (
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
-	"github.com/status-im/go-waku/waku/v2/discovery"
+	"github.com/status-im/go-waku/waku/v2/dnsdisc"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
@@ -159,7 +159,7 @@ func Execute(options Options) {
 	}
 
 	if options.Rendezvous.Enable {
-		nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(libp2pdisc.Limit(45), libp2pdisc.TTL(time.Duration(20)*time.Second))))
+		nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
 	wakuNode, err := node.New(ctx, nodeOpts...)
@@ -205,7 +205,7 @@ func Execute(options Options) {
 
 		if options.DNSDiscovery.URL != "" {
 			log.Info("attempting DNS discovery with ", options.DNSDiscovery.URL)
-			multiaddresses, err := discovery.RetrieveNodes(ctx, options.DNSDiscovery.URL, discovery.WithNameserver(options.DNSDiscovery.Nameserver))
+			multiaddresses, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
 			if err != nil {
 				log.Warn("dns discovery error ", err)
 			} else {
