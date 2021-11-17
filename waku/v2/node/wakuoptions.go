@@ -52,7 +52,7 @@ type WakuNodeParameters struct {
 	udpPort          int
 	discV5bootnodes  []*enode.Node
 	discV5Opts       []pubsub.DiscoverOpt
-	discV5autoupdate bool
+	discV5autoUpdate bool
 
 	keepAliveInterval time.Duration
 
@@ -167,7 +167,7 @@ func WithDiscoveryV5(udpPort int, bootnodes []*enode.Node, autoUpdate bool, disc
 		params.udpPort = udpPort
 		params.discV5bootnodes = bootnodes
 		params.discV5Opts = discoverOpts
-		params.discV5autoupdate = autoUpdate
+		params.discV5autoUpdate = autoUpdate
 		return nil
 	}
 }

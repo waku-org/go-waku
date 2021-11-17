@@ -159,13 +159,17 @@ func (w *WakuNode) onAddrChange() {
 	for m := range w.addrChan {
 		ipStr, err := m.ValueForProtocol(ma.P_IP4)
 		if err != nil {
-			log.Error("could not extract ip from ma %s: %s", m, err.Error())
+			log.Error(fmt.Sprintf("could not extract ip from ma %s: %s", m, err.Error()))
 			continue
 		}
 		ip := net.ParseIP(ipStr)
 		if !ip.IsLoopback() && !ip.IsUnspecified() {
 			if w.opts.enableDiscV5 {
-				w.discoveryV5.UpdateAddr(ip)
+				err := w.discoveryV5.UpdateAddr(ip)
+				if err != nil {
+					log.Error(fmt.Sprintf("could not update DiscV5 address with IP %s: %s", ip, err.Error()))
+					continue
+				}
 			}
 		}
 	}
@@ -357,7 +361,7 @@ func (w *WakuNode) mountDiscV5() error {
 	discV5Options := []discv5.DiscoveryV5Option{
 		discv5.WithBootnodes(w.opts.discV5bootnodes),
 		discv5.WithUDPPort(w.opts.udpPort),
-		discv5.WithAutoUpdate(w.opts.discV5autoupdate),
+		discv5.WithAutoUpdate(w.opts.discV5autoUpdate),
 	}
 
 	addr := w.ListenAddresses()[0]

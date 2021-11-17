@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math"
 	"math/rand"
 	"net"
 	"sync"
@@ -48,7 +49,7 @@ type peerRecord struct {
 }
 
 type discV5Parameters struct {
-	autoupdate    bool
+	autoUpdate    bool
 	bootnodes     []*enode.Node
 	udpPort       int
 	tcpPort       int
@@ -62,9 +63,9 @@ type WakuEnrBitfield = uint8
 
 type DiscoveryV5Option func(*discV5Parameters)
 
-func WithAutoUpdate(autoupdate bool) DiscoveryV5Option {
+func WithAutoUpdate(autoUpdate bool) DiscoveryV5Option {
 	return func(params *discV5Parameters) {
-		params.autoupdate = autoupdate
+		params.autoUpdate = autoUpdate
 	}
 }
 
@@ -158,8 +159,18 @@ func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort in
 	localnode.SetFallbackUDP(udpPort)
 	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
 	localnode.Set(enr.IP(ipAddr))
-	localnode.Set(enr.UDP(udpPort))
-	localnode.Set(enr.TCP(tcpPort))
+
+	if udpPort > 0 && udpPort <= math.MaxUint16 {
+		localnode.Set(enr.UDP(uint16(udpPort)))
+	} else {
+		log.Error("could not set udpPort ", udpPort)
+	}
+
+	if tcpPort > 0 && tcpPort <= math.MaxUint16 {
+		localnode.Set(enr.TCP(uint16(tcpPort)))
+	} else {
+		log.Error("could not set tcpPort ", tcpPort)
+	}
 
 	if advertiseAddr != nil {
 		localnode.SetStaticIP(*advertiseAddr)
@@ -232,7 +243,7 @@ func IsPrivate(ip net.IP) bool {
 }
 
 func (d *DiscoveryV5) UpdateAddr(addr net.IP) error {
-	if !d.params.autoupdate {
+	if !d.params.autoUpdate {
 		return nil
 	}
 
