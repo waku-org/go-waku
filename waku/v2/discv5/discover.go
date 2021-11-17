@@ -161,13 +161,13 @@ func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort in
 	localnode.Set(enr.IP(ipAddr))
 
 	if udpPort > 0 && udpPort <= math.MaxUint16 {
-		localnode.Set(enr.UDP(uint16(udpPort)))
+		localnode.Set(enr.UDP(uint16(udpPort))) // lgtm [go/incorrect-integer-conversion]
 	} else {
 		log.Error("could not set udpPort ", udpPort)
 	}
 
 	if tcpPort > 0 && tcpPort <= math.MaxUint16 {
-		localnode.Set(enr.TCP(uint16(tcpPort)))
+		localnode.Set(enr.TCP(uint16(tcpPort))) // lgtm [go/incorrect-integer-conversion]
 	} else {
 		log.Error("could not set tcpPort ", tcpPort)
 	}
