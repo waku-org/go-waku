@@ -31,7 +31,7 @@ func TestPostV1Message(t *testing.T) {
 	require.True(t, reply.Success)
 }
 
-func TestSubscription(t *testing.T) {
+func TestRelaySubscription(t *testing.T) {
 	var reply SuccessReply
 
 	d := makeRelayService(t)
