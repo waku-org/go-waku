@@ -26,12 +26,11 @@ func TestWakuOptions(t *testing.T) {
 	addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4000/ws")
 	require.NoError(t, err)
 
-	advertiseAddr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:4000")
-	require.NoError(t, err)
+	advertiseAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 
 	options := []WakuNodeOption{
-		WithHostAddress([]*net.TCPAddr{hostAddr}),
-		WithAdvertiseAddress([]*net.TCPAddr{advertiseAddr}, false, 4000),
+		WithHostAddress(hostAddr),
+		WithAdvertiseAddress(advertiseAddr, false, 4000),
 		WithMultiaddress([]multiaddr.Multiaddr{addr}),
 		WithPrivateKey(prvKey),
 		WithLibP2POptions(),
@@ -39,6 +38,7 @@ func TestWakuOptions(t *testing.T) {
 		WithRendezvous(),
 		WithRendezvousServer(rendezvous.NewStorage(nil)),
 		WithWakuFilter(true),
+		WithDiscoveryV5(123, nil, false),
 		WithWakuStore(true, true),
 		WithWakuStoreAndRetentionPolicy(true, time.Hour, 100),
 		WithMessageProvider(nil),

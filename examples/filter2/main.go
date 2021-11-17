@@ -64,7 +64,7 @@ func main() {
 
 	fullNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey1),
-		node.WithHostAddress([]*net.TCPAddr{hostAddr1}),
+		node.WithHostAddress(hostAddr1),
 		node.WithWakuRelay(),
 		node.WithWakuFilter(true),
 	)
@@ -76,7 +76,7 @@ func main() {
 
 	lightNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey2),
-		node.WithHostAddress([]*net.TCPAddr{hostAddr2}),
+		node.WithHostAddress(hostAddr2),
 		node.WithWakuFilter(false),
 	)
 	if err != nil {
