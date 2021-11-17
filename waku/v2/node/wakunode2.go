@@ -73,26 +73,6 @@ type WakuNode struct {
 	connStatusChan chan ConnStatus
 }
 
-func freePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-
-	port := l.Addr().(*net.TCPAddr).Port
-	err = l.Close()
-	if err != nil {
-		return 0, err
-	}
-
-	return port, nil
-}
-
 func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	params := new(WakuNodeParameters)
 
@@ -189,30 +169,6 @@ func (w *WakuNode) onAddrChange() {
 			}
 		}
 	}
-}
-
-// IsPrivate reports whether ip is a private address, according to
-// RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
-// Copied/Adapted from https://go-review.googlesource.com/c/go/+/272668/11/src/net/ip.go
-// Copyright (c) The Go Authors. All rights reserved.
-// @TODO: once Go 1.17 is released in Q42021, remove this function as it will become part of the language
-func IsPrivate(ip net.IP) bool {
-	if ip4 := ip.To4(); ip4 != nil {
-		// Following RFC 4193, Section 3. Local IPv6 Unicast Addresses which says:
-		//   The Internet Assigned Numbers Authority (IANA) has reserved the
-		//   following three blocks of the IPv4 address space for private internets:
-		//     10.0.0.0        -   10.255.255.255  (10/8 prefix)
-		//     172.16.0.0      -   172.31.255.255  (172.16/12 prefix)
-		//     192.168.0.0     -   192.168.255.255 (192.168/16 prefix)
-		return ip4[0] == 10 ||
-			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
-			(ip4[0] == 192 && ip4[1] == 168)
-	}
-	// Following RFC 4193, Section 3. Private Address Space which says:
-	//   The Internet Assigned Numbers Authority (IANA) has reserved the
-	//   following block of the IPv6 address space for local internets:
-	//     FC00::  -  FDFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF (FC00::/7 prefix)
-	return len(ip) == net.IPv6len && ip[0]&0xfe == 0xfc
 }
 
 func (w *WakuNode) checkForAddressChanges() {
