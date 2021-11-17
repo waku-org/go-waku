@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +32,9 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
+	relay, err := relay.NewWakuRelay(context.Background(), host, nil)
+	require.NoError(t, err)
+	defer relay.Stop()
 
 	var reply PeersReply
 
@@ -55,6 +60,8 @@ func TestV1Peers(t *testing.T) {
 	err = a.PostV1Peers(request, &PeersArgs{Peers: []string{addr.String()}}, &reply2)
 	require.NoError(t, err)
 	require.True(t, reply2.Success)
+
+	time.Sleep(2 * time.Second)
 
 	err = a.GetV1Peers(request, &GetPeersArgs{}, &reply)
 	require.NoError(t, err)

@@ -6,6 +6,10 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
+	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
 type AdminService struct {
@@ -52,6 +56,10 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 	return nil
 }
 
+func isWakuProtocol(protocol string) bool {
+	return protocol == string(filter.FilterID_v20beta1) || protocol == string(relay.WakuRelayID_v200) || protocol == string(lightpush.LightPushID_v20beta1) || protocol == string(store.StoreID_v20beta3)
+}
+
 func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *PeersReply) error {
 	peers, err := a.node.Peers()
 	if err != nil {
@@ -59,12 +67,17 @@ func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *
 		return nil
 	}
 	for _, peer := range peers {
-		for idx, addr := range peer.Addrs {
-			reply.Peers = append(reply.Peers, PeerReply{
-				Multiaddr: addr.String(),
-				Protocol:  peer.Protocols[idx],
-				Connected: peer.Connected,
-			})
+		for _, addr := range peer.Addrs {
+			for _, proto := range peer.Protocols {
+				if !isWakuProtocol(proto) {
+					continue
+				}
+				reply.Peers = append(reply.Peers, PeerReply{
+					Multiaddr: addr.String(),
+					Protocol:  proto,
+					Connected: peer.Connected,
+				})
+			}
 		}
 	}
 	return nil
