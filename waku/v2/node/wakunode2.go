@@ -336,6 +336,10 @@ func (w *WakuNode) DiscV5() *discv5.DiscoveryV5 {
 	return w.discoveryV5
 }
 
+func (w *WakuNode) Broadcaster() v2.Broadcaster {
+	return w.bcaster
+}
+
 func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
 	var err error
 	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, opts...)

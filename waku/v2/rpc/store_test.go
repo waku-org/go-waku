@@ -17,7 +17,7 @@ func makeStoreService(t *testing.T) *StoreService {
 	return &StoreService{n}
 }
 
-func TestGetV1Message(t *testing.T) {
+func TestStoreGetV1Messages(t *testing.T) {
 	var reply StoreMessagesReply
 
 	s := makeStoreService(t)
