@@ -72,24 +72,88 @@ func TestDiscV5(t *testing.T) {
 	err = d3.Start()
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	peerChan, err := d1.FindPeers(ctx, "", discovery.Limit(2))
+	peerChan, err := d3.FindPeers(ctx, "", discovery.Limit(2))
 	require.NoError(t, err)
 
+	foundHost1 := false
 	foundHost2 := false
-	foundHost3 := false
 	for p := range peerChan {
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
+		if p.Addrs[0].String() == host1.Addrs()[0].String() {
+			foundHost1 = true
 		}
 
-		if p.Addrs[0].String() == host3.Addrs()[0].String() {
-			foundHost3 = true
+		if p.Addrs[0].String() == host2.Addrs()[0].String() {
+			foundHost2 = true
 
 		}
 	}
 
-	require.True(t, foundHost2 && foundHost3)
+	require.True(t, foundHost1 && foundHost2)
+
+	// Should return nodes from the cache
+
+	d3.Stop()
+
+	foundHost1 = false
+	foundHost2 = false
+
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel1()
+
+	peerChan, err = d3.FindPeers(ctx1, "", discovery.Limit(2))
+	require.NoError(t, err)
+	for p := range peerChan {
+		if p.Addrs[0].String() == host1.Addrs()[0].String() {
+			foundHost1 = true
+		}
+
+		if p.Addrs[0].String() == host2.Addrs()[0].String() {
+			foundHost2 = true
+		}
+	}
+
+	require.True(t, foundHost1 && foundHost2)
+
+	// Simulate empty cache
+
+	for i := range d3.peerCache.recs {
+		delete(d3.peerCache.recs, i)
+	}
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel2()
+
+	peerChan, err = d3.FindPeers(ctx2, "", discovery.Limit(2))
+	require.NoError(t, err)
+	for range peerChan {
+		require.Fail(t, "Should not have peers")
+	}
+
+	// Restart peer search
+	err = d3.Start()
+	require.NoError(t, err)
+
+	foundHost1 = false
+	foundHost2 = false
+
+	ctx3, cancel3 := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel3()
+
+	peerChan, err = d3.FindPeers(ctx3, "", discovery.Limit(2))
+	require.NoError(t, err)
+	for p := range peerChan {
+		if p.Addrs[0].String() == host1.Addrs()[0].String() {
+			foundHost1 = true
+		}
+
+		if p.Addrs[0].String() == host2.Addrs()[0].String() {
+			foundHost2 = true
+		}
+	}
+
+	require.True(t, foundHost1 && foundHost2)
+
 }
