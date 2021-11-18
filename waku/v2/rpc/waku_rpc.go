@@ -48,6 +48,11 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		log.Error(err)
 	}
 
+	err = s.RegisterService(&PrivateService{node}, "Private")
+	if err != nil {
+		log.Error(err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jsonrpc", func(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
