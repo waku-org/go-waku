@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/status-im/go-waku/waku/v2/node"
@@ -58,4 +59,8 @@ func (f *FilterService) DeleteV1Subscription(req *http.Request, args *FilterCont
 	}
 	reply.Success = true
 	return nil
+}
+
+func (f *FilterService) GetV1Messages(req *http.Request, args *Empty, reply *Empty) error {
+	return fmt.Errorf("not implemented")
 }
