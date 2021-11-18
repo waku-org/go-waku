@@ -16,6 +16,8 @@ var log = logging.Logger("wakurpc")
 type WakuRpc struct {
 	node   *node.WakuNode
 	server *http.Server
+
+	relayService *RelayService
 }
 
 func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
@@ -28,7 +30,9 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		log.Error(err)
 	}
 
-	err = s.RegisterService(&RelayService{node}, "Relay")
+	relayService := NewRelayService(node)
+
+	err = s.RegisterService(relayService, "Relay")
 	if err != nil {
 		log.Error(err)
 	}
@@ -67,10 +71,16 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		Handler: mux,
 	}
 
-	return &WakuRpc{node: node, server: server}
+	return &WakuRpc{
+		node:         node,
+		server:       server,
+		relayService: relayService,
+	}
 }
 
 func (r *WakuRpc) Start() {
+	go r.relayService.Start()
+	defer r.relayService.Stop()
 	log.Info("Rpc server started at ", r.server.Addr)
 	log.Info("server stopped ", r.server.ListenAndServe())
 }
