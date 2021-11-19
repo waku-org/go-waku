@@ -216,15 +216,6 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
 	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 
-	if options.DNSDiscovery.Enable || options.DiscV5.Enable {
-		for _, addr := range wakuNode.ListenAddresses() {
-			ip, _ := addr.ValueForProtocol(multiaddr.P_IP4)
-			// TODO: use enode.New
-			enr := enode.NewV4(&prvKey.PublicKey, net.ParseIP(ip), hostAddr.Port, 0)
-			log.Info("ENR: ", enr)
-		}
-	}
-
 	if err = wakuNode.Start(); err != nil {
 		log.Fatal(fmt.Errorf("could not start waku node, %w", err))
 	}
