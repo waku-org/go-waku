@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *relay.Subscription, host.Host) {
+func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
@@ -45,7 +45,7 @@ func makeWakuRelay(t *testing.T, topic relay.Topic) (*relay.WakuRelay, *relay.Su
 // Node2 receive the message and broadcast it
 // Node1 receive the message
 func TestWakuLightPush(t *testing.T) {
-	var testTopic relay.Topic = "/waku/2/go/lightpush/test"
+	testTopic := "/waku/2/go/lightpush/test"
 	node1, sub1, host1 := makeWakuRelay(t, testTopic)
 	defer node1.Stop()
 	defer sub1.Unsubscribe()
@@ -131,7 +131,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testTopic := relay.Topic("abc")
+	testTopic := "abc"
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)

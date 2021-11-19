@@ -24,7 +24,7 @@ func makeFilterService(t *testing.T) *FilterService {
 	err = n.Start()
 	require.NoError(t, err)
 
-	_, err = n.Relay().Subscribe(context.Background(), (*relay.Topic)(&testTopic))
+	_, err = n.Relay().Subscribe(context.Background(), &testTopic)
 	require.NoError(t, err)
 
 	return &FilterService{n}
@@ -40,7 +40,7 @@ func TestFilterSubscription(t *testing.T) {
 	node, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10))
 	require.NoError(t, err)
 
-	_, err = node.Subscribe(context.Background(), (*relay.Topic)(&testTopic))
+	_, err = node.Subscribe(context.Background(), &testTopic)
 	require.NoError(t, err)
 
 	_ = filter.NewWakuFilter(context.Background(), host, false)
