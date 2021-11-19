@@ -143,7 +143,7 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 	return sub, nil
 }
 
-func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic *string) ([]byte, error) {
+func (w *WakuRelay) PublishWithTopic(ctx context.Context, message *pb.WakuMessage, topic string) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic.
 	if w.pubsub == nil {
 		return nil, errors.New("PubSub hasn't been set")
@@ -153,7 +153,7 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic 
 		return nil, errors.New("message can't be null")
 	}
 
-	pubSubTopic, err := w.upsertTopic(GetTopic(topic))
+	pubSubTopic, err := w.upsertTopic(topic)
 
 	if err != nil {
 		return nil, err
@@ -174,12 +174,8 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, topic 
 	return hash, nil
 }
 
-func GetTopic(topic *string) string {
-	t := DefaultWakuTopic
-	if topic != nil {
-		t = *topic
-	}
-	return t
+func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byte, error) {
+	return w.PublishWithTopic(ctx, message, DefaultWakuTopic)
 }
 
 func (w *WakuRelay) Stop() {
@@ -195,11 +191,10 @@ func (w *WakuRelay) Stop() {
 	w.subscriptions = nil
 }
 
-func (w *WakuRelay) Subscribe(ctx context.Context, topic *string) (*Subscription, error) {
+func (w *WakuRelay) SubscribeWithTopic(ctx context.Context, topic string) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
-	t := GetTopic(topic)
-	sub, err := w.subscribe(t)
+	sub, err := w.subscribe(topic)
 
 	if err != nil {
 		return nil, err
@@ -214,15 +209,19 @@ func (w *WakuRelay) Subscribe(ctx context.Context, topic *string) (*Subscription
 	w.subscriptionsMutex.Lock()
 	defer w.subscriptionsMutex.Unlock()
 
-	w.subscriptions[t] = append(w.subscriptions[t], subscription)
+	w.subscriptions[topic] = append(w.subscriptions[topic], subscription)
 
 	if w.bcaster != nil {
 		w.bcaster.Register(subscription.C)
 	}
 
-	go w.subscribeToTopic(t, subscription, sub)
+	go w.subscribeToTopic(topic, subscription, sub)
 
 	return subscription, nil
+}
+
+func (w *WakuRelay) Subscribe(ctx context.Context) (*Subscription, error) {
+	return w.SubscribeWithTopic(ctx, DefaultWakuTopic)
 }
 
 func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {

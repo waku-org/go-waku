@@ -51,7 +51,7 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 
 	if useLightPush {
 		cf := filter.ContentFilter{
-			Topic:         string(relay.GetTopic(nil)),
+			Topic:         relay.DefaultWakuTopic,
 			ContentTopics: []string{contentTopic},
 		}
 		var err error
@@ -61,7 +61,7 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 			return nil, err
 		}
 	} else {
-		sub, err := n.Relay().Subscribe(ctx, nil)
+		sub, err := n.Relay().Subscribe(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -124,10 +124,10 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	}
 
 	if cr.useLightPush {
-		_, err = cr.node.Lightpush().Publish(ctx, wakuMsg, nil)
+		_, err = cr.node.Lightpush().Publish(ctx, wakuMsg)
 
 	} else {
-		_, err = cr.node.Relay().Publish(ctx, wakuMsg, nil)
+		_, err = cr.node.Relay().Publish(ctx, wakuMsg)
 
 	}
 
