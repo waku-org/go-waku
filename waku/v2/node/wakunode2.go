@@ -362,7 +362,7 @@ func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
 	}
 
 	if w.opts.enableRelay {
-		_, err = w.relay.Subscribe(w.ctx, nil)
+		_, err = w.relay.Subscribe(w.ctx)
 		if err != nil {
 			return err
 		}

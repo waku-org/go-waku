@@ -45,7 +45,7 @@ func TestWakuRelay(t *testing.T) {
 		ContentTopic: "test",
 		Timestamp:    0,
 	}
-	_, err = relay.Publish(context.Background(), msg, &testTopic)
+	_, err = relay.PublishWithTopic(context.Background(), msg, testTopic)
 	require.NoError(t, err)
 
 	<-ctx.Done()

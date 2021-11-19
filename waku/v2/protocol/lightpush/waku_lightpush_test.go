@@ -27,7 +27,7 @@ func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscri
 	relay, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10))
 	require.NoError(t, err)
 
-	sub, err := relay.Subscribe(context.Background(), &topic)
+	sub, err := relay.SubscribeWithTopic(context.Background(), topic)
 	require.NoError(t, err)
 
 	return relay, sub, host
@@ -109,7 +109,7 @@ func TestWakuLightPush(t *testing.T) {
 	require.True(t, resp.IsSuccess)
 
 	// Checking that msg hash is correct
-	hash, err := client.Publish(ctx, msg2, &testTopic)
+	hash, err := client.PublishWithTopic(ctx, msg2, testTopic)
 	require.NoError(t, err)
 	require.Equal(t, protocol.NewEnvelope(msg2, string(testTopic)).Hash(), hash)
 	wg.Wait()
@@ -137,6 +137,6 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	require.NoError(t, err)
 	client := NewWakuLightPush(ctx, clientHost, nil)
 
-	_, err = client.Publish(ctx, tests.CreateWakuMessage("test", float64(0)), &testTopic)
+	_, err = client.PublishWithTopic(ctx, tests.CreateWakuMessage("test", float64(0)), testTopic)
 	require.Errorf(t, err, "no suitable remote peers")
 }
