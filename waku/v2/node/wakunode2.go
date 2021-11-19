@@ -426,14 +426,16 @@ func (w *WakuNode) startStore() {
 		// TODO: extract this to a function and run it when you go offline
 		// TODO: determine if a store is listening to a topic
 		go func() {
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+
 			for {
-				t := time.NewTicker(time.Second)
 			peerVerif:
 				for {
 					select {
 					case <-w.quit:
 						return
-					case <-t.C:
+					case <-ticker.C:
 						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta3))
 						if err == nil {
 							break peerVerif
@@ -578,6 +580,7 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 	log.Info("Setting up ping protocol with duration of ", t)
 
 	ticker := time.NewTicker(t)
+	defer ticker.Stop()
 
 	go func() {
 		for {
@@ -595,7 +598,6 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 					}
 				}
 			case <-w.quit:
-				ticker.Stop()
 				return
 			}
 		}
