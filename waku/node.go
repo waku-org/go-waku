@@ -274,7 +274,7 @@ func Execute(options Options) {
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
 		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port)
-		go rpcServer.Start()
+		rpcServer.Start()
 	}
 
 	// Wait for a SIGINT or SIGTERM signal

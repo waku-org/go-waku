@@ -53,18 +53,18 @@ func (p *PrivateService) GetV1AsymmetricKeypair(req *http.Request, args *Empty, 
 	return nil
 }
 
-func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *FilterContentFilterArgs, reply *SuccessReply) error {
+func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Empty, reply *SuccessReply) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *FilterContentFilterArgs, reply *SuccessReply) error {
+func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Empty, reply *SuccessReply) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *FilterContentFilterArgs, reply *SuccessReply) error {
+func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *Empty, reply *SuccessReply) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *FilterContentFilterArgs, reply *SuccessReply) error {
+func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *Empty, reply *SuccessReply) error {
 	return fmt.Errorf("not implemented")
 }

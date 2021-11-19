@@ -17,7 +17,8 @@ type WakuRpc struct {
 	node   *node.WakuNode
 	server *http.Server
 
-	relayService *RelayService
+	relayService  *RelayService
+	filterService *FilterService
 }
 
 func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
@@ -31,7 +32,6 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 	}
 
 	relayService := NewRelayService(node)
-
 	err = s.RegisterService(relayService, "Relay")
 	if err != nil {
 		log.Error(err)
@@ -47,7 +47,8 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		log.Error(err)
 	}
 
-	err = s.RegisterService(&FilterService{node}, "Filter")
+	filterService := NewFilterService(node)
+	err = s.RegisterService(filterService, "Filter")
 	if err != nil {
 		log.Error(err)
 	}
@@ -71,20 +72,29 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		Handler: mux,
 	}
 
+	server.RegisterOnShutdown(func() {
+		filterService.Stop()
+		relayService.Stop()
+	})
+
 	return &WakuRpc{
-		node:         node,
-		server:       server,
-		relayService: relayService,
+		node:          node,
+		server:        server,
+		relayService:  relayService,
+		filterService: filterService,
 	}
 }
 
 func (r *WakuRpc) Start() {
 	go r.relayService.Start()
-	defer r.relayService.Stop()
+	go r.filterService.Start()
+	go func() {
+		_ = r.server.ListenAndServe()
+	}()
 	log.Info("Rpc server started at ", r.server.Addr)
-	log.Info("server stopped ", r.server.ListenAndServe())
 }
 
 func (r *WakuRpc) Stop(ctx context.Context) error {
+	log.Info("Shutting down rpc server")
 	return r.server.Shutdown(ctx)
 }

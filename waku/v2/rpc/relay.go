@@ -34,10 +34,6 @@ type TopicArgs struct {
 	Topic string `json:"topic,omitempty"`
 }
 
-type MessagesReply struct {
-	Messages []*pb.WakuMessage `json:"messages,omitempty"`
-}
-
 func NewRelayService(node *node.WakuNode) *RelayService {
 	return &RelayService{
 		node:     node,

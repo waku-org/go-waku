@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/tests"
@@ -27,7 +28,7 @@ func makeFilterService(t *testing.T) *FilterService {
 	_, err = n.Relay().Subscribe(context.Background(), (*relay.Topic)(&testTopic))
 	require.NoError(t, err)
 
-	return &FilterService{n}
+	return NewFilterService(n)
 }
 
 func TestFilterSubscription(t *testing.T) {
@@ -60,7 +61,7 @@ func TestFilterSubscription(t *testing.T) {
 	_, err = d.node.AddPeer(addr, filter.FilterID_v20beta1)
 	require.NoError(t, err)
 
-	args := &FilterContentFilterArgs{Topic: testTopic, ContentFilters: []pb.ContentFilter{{ContentTopic: "ct"}}}
+	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []pb.ContentFilter{{ContentTopic: "ct"}}}
 
 	var reply SuccessReply
 	err = d.PostV1Subscription(
@@ -78,4 +79,67 @@ func TestFilterSubscription(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.True(t, reply.Success)
+}
+
+func TestFilterGetV1Messages(t *testing.T) {
+	serviceA := makeFilterService(t)
+	var reply SuccessReply
+
+	serviceB := makeFilterService(t)
+	go serviceB.Start()
+	defer serviceB.Stop()
+
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	require.NoError(t, err)
+
+	var addr multiaddr.Multiaddr
+	for _, a := range serviceB.node.Host().Addrs() {
+		addr = a.Encapsulate(hostInfo)
+		break
+	}
+	err = serviceA.node.DialPeerWithMultiAddress(context.Background(), addr)
+	require.NoError(t, err)
+
+	// Wait for the dial to complete
+	time.Sleep(1 * time.Second)
+
+	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []pb.ContentFilter{{ContentTopic: "ct"}}}
+	err = serviceB.PostV1Subscription(
+		makeRequest(t),
+		args,
+		&reply,
+	)
+	require.NoError(t, err)
+	require.True(t, reply.Success)
+
+	// Wait for the subscription to be started
+	time.Sleep(1 * time.Second)
+
+	_, err = serviceA.node.Relay().Publish(
+		context.Background(),
+		&pb.WakuMessage{ContentTopic: "ct"},
+		(*relay.Topic)(&testTopic),
+	)
+	require.NoError(t, err)
+	require.True(t, reply.Success)
+
+	// Wait for the message to be received
+	time.Sleep(1 * time.Second)
+
+	var messagesReply MessagesReply
+	err = serviceB.GetV1Messages(
+		makeRequest(t),
+		&ContentTopicArgs{"ct"},
+		&messagesReply,
+	)
+	require.NoError(t, err)
+	require.Len(t, messagesReply.Messages, 1)
+
+	err = serviceB.GetV1Messages(
+		makeRequest(t),
+		&ContentTopicArgs{"ct"},
+		&messagesReply,
+	)
+	require.NoError(t, err)
+	require.Len(t, messagesReply.Messages, 0)
 }
