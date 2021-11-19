@@ -17,7 +17,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
@@ -173,7 +172,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
-	pubsubTopic := relay.Topic(pubSubTopic.String())
+	pubsubTopic := pubSubTopic.String()
 	sub, err := wakuNode.Relay().Subscribe(ctx, &pubsubTopic)
 	if err != nil {
 		log.Error("Could not subscribe: ", err)

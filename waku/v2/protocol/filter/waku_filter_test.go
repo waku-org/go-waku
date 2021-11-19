@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func makeWakuRelay(t *testing.T, topic relay.Topic, broadcaster v2.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
+func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
@@ -57,7 +57,7 @@ func TestWakuFilter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 	defer cancel()
 
-	var testTopic relay.Topic = "/waku/2/go/filter/test"
+	testTopic := "/waku/2/go/filter/test"
 	testContentTopic := "TopicA"
 
 	node1, host1 := makeWakuFilter(t)

@@ -11,7 +11,7 @@ import (
 )
 
 func TestWakuRelay(t *testing.T) {
-	var testTopic Topic = "/waku/2/go/relay/test"
+	testTopic := "/waku/2/go/relay/test"
 
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
