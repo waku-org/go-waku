@@ -175,6 +175,20 @@ func (w *WakuNode) onAddrChange() {
 	}
 }
 
+func (w *WakuNode) logAddress(addr ma.Multiaddr) {
+	log.Info("Listening on ", addr)
+
+	// TODO: make this optional depending on DNS Disc being enabled
+	if w.opts.privKey != nil {
+		enr, ip, err := utils.GetENRandIP(addr, w.opts.privKey)
+		if err != nil {
+			log.Error("could not obtain ENR record from multiaddress", err)
+		} else {
+			log.Info(fmt.Sprintf("ENR for IP %s:  %s", ip, enr))
+		}
+	}
+}
+
 func (w *WakuNode) checkForAddressChanges() {
 	addrs := w.ListenAddresses()
 	first := make(chan struct{}, 1)
@@ -185,15 +199,7 @@ func (w *WakuNode) checkForAddressChanges() {
 			return
 		case <-first:
 			for _, addr := range addrs {
-				log.Info("Listening on ", addr)
-
-				// TODO: make this optional depending on DNS Disc being enabled
-				enr, ip, err := utils.GetENRandIP(addr, w.opts.privKey)
-				if err != nil {
-					log.Error("could not obtain ENR record from multiaddress", err)
-				} else {
-					log.Info(fmt.Sprintf("ENR for IP %s:  %s", ip, enr))
-				}
+				w.logAddress(addr)
 			}
 		case <-w.addressChangesSub.Out():
 			newAddrs := w.ListenAddresses()
@@ -213,15 +219,7 @@ func (w *WakuNode) checkForAddressChanges() {
 				log.Warn("Change in host multiaddresses")
 				for _, addr := range newAddrs {
 					w.addrChan <- addr
-					log.Warn("Listening on ", addr)
-
-					// TODO: make this optional depending on DNS Disc being enabled
-					enr, ip, err := utils.GetENRandIP(addr, w.opts.privKey)
-					if err != nil {
-						log.Error("could not obtain ENR record from multiaddress", err)
-					} else {
-						log.Warn(fmt.Sprintf("ENR for IP %s:  %s", ip, enr))
-					}
+					w.logAddress(addr)
 				}
 			}
 		}

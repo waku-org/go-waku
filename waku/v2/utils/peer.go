@@ -164,7 +164,10 @@ func GetENRandIP(addr ma.Multiaddr, privK *ecdsa.PrivateKey) (*enode.Node, *net.
 	r.Set(enr.TCP(port))
 	r.Set(enr.IP(net.ParseIP(ip)))
 
-	enode.SignV4(r, privK)
+	err = enode.SignV4(r, privK)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	node, err := enode.New(enode.ValidSchemes, r)
 
