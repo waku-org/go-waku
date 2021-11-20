@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"net"
 	"strconv"
@@ -161,7 +162,13 @@ func GetENRandIP(addr ma.Multiaddr, privK *ecdsa.PrivateKey) (*enode.Node, *net.
 	}
 
 	r := &enr.Record{}
-	r.Set(enr.TCP(port))
+
+	if port > 0 && port <= math.MaxUint16 {
+		r.Set(enr.TCP(uint16(port))) // lgtm [go/incorrect-integer-conversion]
+	} else {
+		return nil, nil, fmt.Errorf("could not set port %d", port)
+	}
+
 	r.Set(enr.IP(net.ParseIP(ip)))
 
 	err = enode.SignV4(r, privK)
