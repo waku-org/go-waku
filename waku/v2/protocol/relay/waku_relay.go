@@ -143,7 +143,7 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 	return sub, nil
 }
 
-func (w *WakuRelay) PublishWithTopic(ctx context.Context, message *pb.WakuMessage, topic string) ([]byte, error) {
+func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage, topic string) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic.
 	if w.pubsub == nil {
 		return nil, errors.New("PubSub hasn't been set")
@@ -175,7 +175,7 @@ func (w *WakuRelay) PublishWithTopic(ctx context.Context, message *pb.WakuMessag
 }
 
 func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byte, error) {
-	return w.PublishWithTopic(ctx, message, DefaultWakuTopic)
+	return w.PublishToTopic(ctx, message, DefaultWakuTopic)
 }
 
 func (w *WakuRelay) Stop() {
@@ -191,7 +191,7 @@ func (w *WakuRelay) Stop() {
 	w.subscriptions = nil
 }
 
-func (w *WakuRelay) SubscribeWithTopic(ctx context.Context, topic string) (*Subscription, error) {
+func (w *WakuRelay) SubscribeToTopic(ctx context.Context, topic string) (*Subscription, error) {
 	// Subscribes to a PubSub topic.
 	// NOTE The data field SHOULD be decoded as a WakuMessage.
 	sub, err := w.subscribe(topic)
@@ -221,7 +221,7 @@ func (w *WakuRelay) SubscribeWithTopic(ctx context.Context, topic string) (*Subs
 }
 
 func (w *WakuRelay) Subscribe(ctx context.Context) (*Subscription, error) {
-	return w.SubscribeWithTopic(ctx, DefaultWakuTopic)
+	return w.SubscribeToTopic(ctx, DefaultWakuTopic)
 }
 
 func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {

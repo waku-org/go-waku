@@ -81,7 +81,7 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	if args.Topic == "" {
 		_, err = r.node.Relay().Publish(req.Context(), &args.Message)
 	} else {
-		_, err = r.node.Relay().PublishWithTopic(req.Context(), &args.Message, args.Topic)
+		_, err = r.node.Relay().PublishToTopic(req.Context(), &args.Message, args.Topic)
 	}
 	if err != nil {
 		log.Error("Error publishing message:", err)
@@ -101,7 +101,7 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 			_, err = r.node.Relay().Subscribe(ctx)
 
 		} else {
-			_, err = r.node.Relay().SubscribeWithTopic(ctx, topic)
+			_, err = r.node.Relay().SubscribeToTopic(ctx, topic)
 		}
 		if err != nil {
 			log.Error("Error subscribing to topic:", topic, "err:", err)

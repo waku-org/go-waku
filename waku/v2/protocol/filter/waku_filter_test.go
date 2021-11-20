@@ -25,7 +25,7 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*rel
 	relay, err := relay.NewWakuRelay(context.Background(), host, broadcaster)
 	require.NoError(t, err)
 
-	sub, err := relay.SubscribeWithTopic(context.Background(), topic)
+	sub, err := relay.SubscribeToTopic(context.Background(), topic)
 	require.NoError(t, err)
 
 	return relay, sub, host
@@ -95,7 +95,7 @@ func TestWakuFilter(t *testing.T) {
 		require.Equal(t, contentFilter.ContentTopics[0], env.Message().GetContentTopic())
 	}()
 
-	_, err = node2.PublishWithTopic(ctx, tests.CreateWakuMessage(testContentTopic, 0), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 0), testTopic)
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -112,7 +112,7 @@ func TestWakuFilter(t *testing.T) {
 		}
 	}()
 
-	_, err = node2.PublishWithTopic(ctx, tests.CreateWakuMessage("TopicB", 1), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage("TopicB", 1), testTopic)
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -134,7 +134,7 @@ func TestWakuFilter(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	_, err = node2.PublishWithTopic(ctx, tests.CreateWakuMessage(testContentTopic, 2), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 2), testTopic)
 	require.NoError(t, err)
 	wg.Wait()
 }
