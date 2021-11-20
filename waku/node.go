@@ -232,7 +232,7 @@ func Execute(options Options) {
 
 	if !options.Relay.Disable {
 		for _, nodeTopic := range options.Relay.Topics {
-			_, err := wakuNode.Relay().SubscribeWithTopic(ctx, nodeTopic)
+			_, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
 		}
 	}
