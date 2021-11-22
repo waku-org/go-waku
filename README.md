@@ -46,7 +46,7 @@ Examples of usage of go-waku as a library can be found in the examples folder. T
 
 | Spec | Implementation Status |
 | ---- | -------------- |
-|[7/WAKU2](https://rfc.vac.dev/spec/7)|✔|
+|[7/WAKU-DATA](https://rfc.vac.dev/spec/7)|✔|
 |[10/WAKU2](https://rfc.vac.dev/spec/10)|🚧|
 |[11/WAKU2-RELAY](https://rfc.vac.dev/spec/11)|✔|
 |[12/WAKU2-FILTER](https://rfc.vac.dev/spec/12)|✔|
