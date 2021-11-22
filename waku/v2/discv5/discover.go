@@ -199,9 +199,7 @@ func (d *DiscoveryV5) listen() error {
 	if d.NAT != nil {
 		if !d.udpAddr.IP.IsLoopback() {
 			go func() {
-				fmt.Println("A")
 				nat.Map(d.NAT, d.quit, "udp", d.udpAddr.Port, d.udpAddr.Port, "go-waku discv5 discovery")
-				fmt.Println("B")
 			}()
 		}
 	}
