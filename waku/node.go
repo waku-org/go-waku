@@ -280,7 +280,7 @@ func Execute(options Options) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
-	fmt.Println("\n\n\nReceived signal, shutting down...")
+	log.Info("Received signal, shutting down...")
 
 	// shut the node down
 	wakuNode.Stop()
