@@ -17,8 +17,7 @@ type FilterService struct {
 	messages      map[string][]*pb.WakuMessage
 	messagesMutex sync.RWMutex
 
-	ch   chan *protocol.Envelope
-	quit chan bool
+	runner *runnerService
 }
 
 type FilterContentArgs struct {
@@ -31,11 +30,12 @@ type ContentTopicArgs struct {
 }
 
 func NewFilterService(node *node.WakuNode) *FilterService {
-	return &FilterService{
+	s := &FilterService{
 		node:     node,
 		messages: make(map[string][]*pb.WakuMessage),
-		quit:     make(chan bool),
 	}
+	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
+	return s
 }
 
 func makeContentFilter(args *FilterContentArgs) filter.ContentFilter {
@@ -63,23 +63,11 @@ func (f *FilterService) addEnvelope(envelope *protocol.Envelope) {
 }
 
 func (f *FilterService) Start() {
-	f.ch = make(chan *protocol.Envelope, 1024)
-	f.node.Broadcaster().Register(f.ch)
-
-	for {
-		select {
-		case <-f.quit:
-			return
-		case envelope := <-f.ch:
-			f.addEnvelope(envelope)
-		}
-	}
+	f.runner.Start()
 }
 
 func (f *FilterService) Stop() {
-	f.quit <- true
-	f.node.Broadcaster().Unregister(f.ch)
-	close(f.ch)
+	f.runner.Stop()
 }
 
 func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterContentArgs, reply *SuccessReply) error {

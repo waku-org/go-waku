@@ -115,10 +115,10 @@ func TestFilterGetV1Messages(t *testing.T) {
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
 
-	_, err = serviceA.node.Relay().Publish(
+	_, err = serviceA.node.Relay().PublishToTopic(
 		context.Background(),
 		&pb.WakuMessage{ContentTopic: "ct"},
-		(*relay.Topic)(&testTopic),
+		testTopic,
 	)
 	require.NoError(t, err)
 	require.True(t, reply.Success)

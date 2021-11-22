@@ -16,8 +16,7 @@ type RelayService struct {
 	messages      map[string][]*pb.WakuMessage
 	messagesMutex sync.RWMutex
 
-	ch   chan *protocol.Envelope
-	quit chan bool
+	runner *runnerService
 }
 
 type RelayMessageArgs struct {
@@ -34,11 +33,13 @@ type TopicArgs struct {
 }
 
 func NewRelayService(node *node.WakuNode) *RelayService {
-	return &RelayService{
+	s := &RelayService{
 		node:     node,
 		messages: make(map[string][]*pb.WakuMessage),
-		quit:     make(chan bool),
 	}
+
+	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
+	return s
 }
 
 func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
@@ -53,23 +54,11 @@ func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
 }
 
 func (r *RelayService) Start() {
-	r.ch = make(chan *protocol.Envelope, 1024)
-	r.node.Broadcaster().Register(r.ch)
-
-	for {
-		select {
-		case <-r.quit:
-			return
-		case envelope := <-r.ch:
-			r.addEnvelope(envelope)
-		}
-	}
+	r.runner.Start()
 }
 
 func (r *RelayService) Stop() {
-	r.quit <- true
-	r.node.Broadcaster().Unregister(r.ch)
-	close(r.ch)
+	r.runner.Stop()
 }
 
 func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, reply *SuccessReply) error {
