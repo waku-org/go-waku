@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/nat"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -33,6 +34,8 @@ type DiscoveryV5 struct {
 	udpAddr   *net.UDPAddr
 	listener  *discover.UDPv5
 	localnode *enode.LocalNode
+	NAT       nat.Interface
+	quit      chan struct{}
 
 	peerCache peerCache
 }
@@ -130,9 +133,15 @@ func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.Priv
 		return nil, err
 	}
 
+	var NAT nat.Interface = nil
+	if params.advertiseAddr == nil {
+		NAT = nat.Any()
+	}
+
 	return &DiscoveryV5{
 		host:   host,
 		params: params,
+		NAT:    NAT,
 		peerCache: peerCache{
 			rng:  rand.New(rand.NewSource(rand.Int63())),
 			recs: make(map[peer.ID]peerRecord),
@@ -175,6 +184,7 @@ func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort in
 	if advertiseAddr != nil {
 		localnode.SetStaticIP(*advertiseAddr)
 	}
+
 	return localnode, nil
 }
 
@@ -184,12 +194,26 @@ func (d *DiscoveryV5) listen() error {
 		return err
 	}
 
+	d.udpAddr = conn.LocalAddr().(*net.UDPAddr)
+
+	if d.NAT != nil && !d.udpAddr.IP.IsLoopback() {
+		go func() {
+			nat.Map(d.NAT, d.quit, "udp", d.udpAddr.Port, d.udpAddr.Port, "go-waku discv5 discovery")
+		}()
+
+	}
+
+	d.localnode.SetFallbackUDP(d.udpAddr.Port)
+
 	listener, err := discover.ListenV5(conn, d.localnode, d.config)
 	if err != nil {
 		return err
 	}
 
 	d.listener = listener
+
+	log.Info(fmt.Sprintf("Started Discovery V5 at %s:%d, advertising IP: %s:%d", d.udpAddr.IP, d.udpAddr.Port, d.localnode.Node().IP(), d.params.tcpPort))
+	log.Info("Discovery V5 ", d.localnode.Node())
 
 	return nil
 }
@@ -203,8 +227,7 @@ func (d *DiscoveryV5) Start() error {
 		return err
 	}
 
-	log.Info(fmt.Sprintf("Started Discovery V5 at %s:%d, advertising IP: %s:%d", d.udpAddr.IP, d.udpAddr.Port, d.localnode.Node().IP(), d.params.tcpPort))
-	log.Info("Discovery V5 ", d.localnode.Node())
+	d.quit = make(chan struct{})
 
 	return nil
 }
@@ -215,6 +238,9 @@ func (d *DiscoveryV5) Stop() {
 
 	d.listener.Close()
 	d.listener = nil
+
+	close(d.quit)
+
 	log.Info("Stopped Discovery V5")
 }
 
