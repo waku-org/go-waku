@@ -684,27 +684,21 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 			Direction: pb.PagingInfo_BACKWARD,
 		},
 	}
-	var response *pb.HistoryResponse
-	if len(peerList) > 0 {
-		var err error
-		response, err = store.queryLoop(ctx, rpc, peerList)
-		if err != nil {
-			log.Error("failed to resume history", err)
-			return -1, ErrFailedToResumeHistory
-		}
-	} else {
-		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta3))
 
+	if len(peerList) == 0 {
+		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta3))
 		if err != nil {
 			log.Info("Error selecting peer: ", err)
 			return -1, ErrNoPeersAvailable
 		}
 
-		response, err = store.queryFrom(ctx, rpc, *p, protocol.GenerateRequestId())
-		if err != nil {
-			log.Error("failed to resume history", err)
-			return -1, ErrFailedToResumeHistory
-		}
+		peerList = append(peerList, *p)
+	}
+
+	response, err := store.queryLoop(ctx, rpc, peerList)
+	if err != nil {
+		log.Error("failed to resume history", err)
+		return -1, ErrFailedToResumeHistory
 	}
 
 	for _, msg := range response.Messages {
