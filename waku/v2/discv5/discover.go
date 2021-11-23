@@ -196,12 +196,11 @@ func (d *DiscoveryV5) listen() error {
 
 	d.udpAddr = conn.LocalAddr().(*net.UDPAddr)
 
-	if d.NAT != nil {
-		if !d.udpAddr.IP.IsLoopback() {
-			go func() {
-				nat.Map(d.NAT, d.quit, "udp", d.udpAddr.Port, d.udpAddr.Port, "go-waku discv5 discovery")
-			}()
-		}
+	if d.NAT != nil && !d.udpAddr.IP.IsLoopback() {
+		go func() {
+			nat.Map(d.NAT, d.quit, "udp", d.udpAddr.Port, d.udpAddr.Port, "go-waku discv5 discovery")
+		}()
+
 	}
 
 	d.localnode.SetFallbackUDP(d.udpAddr.Port)
