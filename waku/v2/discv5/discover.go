@@ -227,12 +227,14 @@ func (d *DiscoveryV5) Start() error {
 	d.Lock()
 	defer d.Unlock()
 
+	d.wg.Wait() // Waiting for other go routines to stop
+
+	d.quit = make(chan struct{}, 1)
+
 	err := d.listen()
 	if err != nil {
 		return err
 	}
-
-	d.quit = make(chan struct{})
 
 	return nil
 }
@@ -241,10 +243,10 @@ func (d *DiscoveryV5) Stop() {
 	d.Lock()
 	defer d.Unlock()
 
+	close(d.quit)
+
 	d.listener.Close()
 	d.listener = nil
-
-	close(d.quit)
 
 	log.Info("Stopped Discovery V5")
 
@@ -361,6 +363,8 @@ func (c *DiscoveryV5) Advertise(ctx context.Context, ns string, opts ...discover
 }
 
 func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limit int, doneCh chan struct{}) {
+	defer d.wg.Done()
+
 	for {
 		if len(d.peerCache.recs) >= limit {
 			break
@@ -393,7 +397,6 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 		}
 	}
 
-	d.wg.Done()
 	close(doneCh)
 }
 
