@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,7 +29,10 @@ func TestKeepAlive(t *testing.T) {
 
 	ctx2, cancel2 := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel2()
-	pingPeer(ctx2, host1, host2.ID())
+
+	wg := &sync.WaitGroup{}
+
+	pingPeer(ctx2, wg, host1, host2.ID())
 
 	require.NoError(t, ctx.Err())
 }

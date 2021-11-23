@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	logging "github.com/ipfs/go-log"
@@ -67,6 +68,7 @@ type WakuNode struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	quit   chan struct{}
+	wg     *sync.WaitGroup
 
 	// Channel passed to WakuNode constructor
 	// receiving connection status notifications
@@ -122,6 +124,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.ctx = ctx
 	w.opts = params
 	w.quit = make(chan struct{})
+	w.wg = &sync.WaitGroup{}
 	w.addrChan = make(chan ma.Multiaddr, 1024)
 
 	if w.protocolEventSub, err = host.EventBus().Subscribe(new(event.EvtPeerProtocolsUpdated)); err != nil {
@@ -143,14 +146,15 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.connectionNotif = NewConnectionNotifier(ctx, host)
 	w.host.Network().Notify(w.connectionNotif)
 
+	w.wg.Add(2)
 	go w.connectednessListener()
-
-	if w.opts.keepAliveInterval > time.Duration(0) {
-		w.startKeepAlive(w.opts.keepAliveInterval)
-	}
-
 	go w.checkForAddressChanges()
 	go w.onAddrChange()
+
+	if w.opts.keepAliveInterval > time.Duration(0) {
+		w.wg.Add(1)
+		w.startKeepAlive(w.opts.keepAliveInterval)
+	}
 
 	return w, nil
 }
@@ -190,6 +194,8 @@ func (w *WakuNode) logAddress(addr ma.Multiaddr) {
 }
 
 func (w *WakuNode) checkForAddressChanges() {
+	defer w.wg.Done()
+
 	addrs := w.ListenAddresses()
 	first := make(chan struct{}, 1)
 	first <- struct{}{}
@@ -311,6 +317,8 @@ func (w *WakuNode) Stop() {
 	w.store.Stop()
 
 	w.host.Close()
+
+	w.wg.Wait()
 }
 
 func (w *WakuNode) Host() host.Host {
@@ -425,7 +433,10 @@ func (w *WakuNode) startStore() {
 	if w.opts.shouldResume {
 		// TODO: extract this to a function and run it when you go offline
 		// TODO: determine if a store is listening to a topic
+		w.wg.Add(1)
 		go func() {
+			defer w.wg.Done()
+
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 
@@ -577,6 +588,8 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 // This is necessary because TCP connections are automatically closed due to inactivity,
 // and doing a ping will avoid this (with a small bandwidth cost)
 func (w *WakuNode) startKeepAlive(t time.Duration) {
+	defer w.wg.Done()
+
 	log.Info("Setting up ping protocol with duration of ", t)
 
 	ticker := time.NewTicker(t)
@@ -594,7 +607,7 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 				// through Network's peer collection, as it will be empty
 				for _, p := range w.host.Peerstore().Peers() {
 					if p != w.host.ID() {
-						go pingPeer(w.ctx, w.host, p)
+						go pingPeer(w.ctx, w.wg, w.host, p)
 					}
 				}
 			case <-w.quit:
@@ -604,7 +617,10 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 	}()
 }
 
-func pingPeer(ctx context.Context, host host.Host, peer peer.ID) {
+func pingPeer(ctx context.Context, wg *sync.WaitGroup, host host.Host, peer peer.ID) {
+	wg.Add(1)
+	defer wg.Done()
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
