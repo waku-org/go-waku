@@ -37,6 +37,8 @@ type DiscoveryV5 struct {
 	NAT       nat.Interface
 	quit      chan struct{}
 
+	wg *sync.WaitGroup
+
 	peerCache peerCache
 }
 
@@ -142,6 +144,7 @@ func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.Priv
 		host:   host,
 		params: params,
 		NAT:    NAT,
+		wg:     &sync.WaitGroup{},
 		peerCache: peerCache{
 			rng:  rand.New(rand.NewSource(rand.Int63())),
 			recs: make(map[peer.ID]peerRecord),
@@ -197,7 +200,9 @@ func (d *DiscoveryV5) listen() error {
 	d.udpAddr = conn.LocalAddr().(*net.UDPAddr)
 
 	if d.NAT != nil && !d.udpAddr.IP.IsLoopback() {
+		d.wg.Add(1)
 		go func() {
+			defer d.wg.Done()
 			nat.Map(d.NAT, d.quit, "udp", d.udpAddr.Port, d.udpAddr.Port, "go-waku discv5 discovery")
 		}()
 
@@ -242,6 +247,8 @@ func (d *DiscoveryV5) Stop() {
 	close(d.quit)
 
 	log.Info("Stopped Discovery V5")
+
+	d.wg.Wait()
 }
 
 // IsPrivate reports whether ip is a private address, according to
@@ -386,6 +393,7 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 		}
 	}
 
+	d.wg.Done()
 	close(doneCh)
 }
 
@@ -435,6 +443,8 @@ func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...disco
 		defer iterator.Close()
 
 		doneCh := make(chan struct{})
+
+		d.wg.Add(1)
 		go d.iterate(ctx, iterator, limit, doneCh)
 
 		select {
