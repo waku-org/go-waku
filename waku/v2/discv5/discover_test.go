@@ -63,6 +63,10 @@ func TestDiscV5(t *testing.T) {
 	d3, err := NewDiscoveryV5(host3, net.IPv4(127, 0, 0, 1), tcpPort3, prvKey3, NewWakuEnrBitfield(true, true, true, true), WithUDPPort(udpPort3), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 
+	defer d1.Stop()
+	defer d2.Stop()
+	defer d3.Stop()
+
 	err = d1.Start()
 	require.NoError(t, err)
 
