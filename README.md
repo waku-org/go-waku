@@ -55,7 +55,7 @@ Examples of usage of go-waku as a library can be found in the examples folder. T
 |[15/WAKU2-BRIDGE](https://rfc.vac.dev/spec/15)|⛔|
 |[16/WAKU2-RPC](https://rfc.vac.dev/spec/16)|🚧|
 |[17/WAKU2-RLNRELAY](https://rfc.vac.dev/spec/17)||
-|[18/WAKU2-SWAP](https://rfc.vac.dev/spec/18)||
+|[18/WAKU2-SWAP](https://rfc.vac.dev/spec/18)|🚧|
 |[21/WAKU2-FTSTORE](https://rfc.vac.dev/spec/21)|✔|
 |[22/TOY-CHAT](https://rfc.vac.dev/spec/22)|✔|
 |[23/TOPICS](https://rfc.vac.dev/spec/22)|✔|
