@@ -433,8 +433,8 @@ func (w *WakuNode) startStore() {
 	if w.opts.shouldResume {
 		// TODO: extract this to a function and run it when you go offline
 		// TODO: determine if a store is listening to a topic
+		w.wg.Add(1)
 		go func() {
-			w.wg.Add(1)
 			defer w.wg.Done()
 
 			ticker := time.NewTicker(time.Second)
