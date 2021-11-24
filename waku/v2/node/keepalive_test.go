@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/stretchr/testify/require"
 )
@@ -29,10 +30,18 @@ func TestKeepAlive(t *testing.T) {
 
 	ctx2, cancel2 := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel2()
-
 	wg := &sync.WaitGroup{}
 
-	pingPeer(ctx2, wg, host1, host2.ID())
+	w := &WakuNode{
+		host:           host1,
+		ctx:            ctx2,
+		wg:             wg,
+		keepAliveMutex: sync.Mutex{},
+		keepAliveFails: make(map[peer.ID]int),
+	}
+
+	w.wg.Add(1)
+	w.pingPeer(host2.ID())
 
 	require.NoError(t, ctx.Err())
 }
