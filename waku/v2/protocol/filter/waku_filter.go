@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 
 	logging "github.com/ipfs/go-log"
@@ -95,7 +96,7 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 
 	filterRPCRequest := &pb.FilterRPC{}
 
-	reader := protoio.NewDelimitedReader(s, 64*1024)
+	reader := protoio.NewDelimitedReader(s, math.MaxInt64)
 
 	err := reader.ReadMsg(filterRPCRequest)
 	if err != nil {
