@@ -96,7 +96,7 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 
 	filterRPCRequest := &pb.FilterRPC{}
 
-	reader := protoio.NewDelimitedReader(s, math.MaxInt64)
+	reader := protoio.NewDelimitedReader(s, math.MaxInt32)
 
 	err := reader.ReadMsg(filterRPCRequest)
 	if err != nil {

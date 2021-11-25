@@ -343,7 +343,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	historyRPCRequest := &pb.HistoryRPC{}
 
 	writer := protoio.NewDelimitedWriter(s)
-	reader := protoio.NewDelimitedReader(s, math.MaxInt64)
+	reader := protoio.NewDelimitedReader(s, math.MaxInt32)
 
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
@@ -510,7 +510,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(requestId)}
 
 	writer := protoio.NewDelimitedWriter(connOpt)
-	reader := protoio.NewDelimitedReader(connOpt, math.MaxInt64)
+	reader := protoio.NewDelimitedReader(connOpt, math.MaxInt32)
 
 	err = writer.WriteMsg(historyRequest)
 	if err != nil {
