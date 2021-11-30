@@ -55,6 +55,7 @@ type WakuNode struct {
 	lightPush  *lightpush.WakuLightPush
 	rendezvous *rendezvous.RendezvousService
 	store      *store.WakuStore
+	wakuFlag   utils.WakuEnrBitfield
 
 	addrChan chan ma.Multiaddr
 
@@ -132,6 +133,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.wg = &sync.WaitGroup{}
 	w.addrChan = make(chan ma.Multiaddr, 1024)
 	w.keepAliveFails = make(map[peer.ID]int)
+	w.wakuFlag = utils.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilter, w.opts.enableStore, w.opts.enableRelay)
 
 	if w.protocolEventSub, err = host.EventBus().Subscribe(new(event.EvtPeerProtocolsUpdated)); err != nil {
 		return nil, err
@@ -190,7 +192,7 @@ func (w *WakuNode) logAddress(addr ma.Multiaddr) {
 
 	// TODO: make this optional depending on DNS Disc being enabled
 	if w.opts.privKey != nil {
-		enr, ip, err := utils.GetENRandIP(addr, w.opts.privKey)
+		enr, ip, err := utils.GetENRandIP(addr, w.wakuFlag, w.opts.privKey)
 		if err != nil {
 			log.Error("could not obtain ENR record from multiaddress", err)
 		} else {
@@ -388,8 +390,6 @@ func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
 }
 
 func (w *WakuNode) mountDiscV5() error {
-	wakuFlag := discv5.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilter, w.opts.enableStore, w.opts.enableRelay)
-
 	discV5Options := []discv5.DiscoveryV5Option{
 		discv5.WithBootnodes(w.opts.discV5bootnodes),
 		discv5.WithUDPPort(w.opts.udpPort),
@@ -413,7 +413,7 @@ func (w *WakuNode) mountDiscV5() error {
 		return err
 	}
 
-	discoveryV5, err := discv5.NewDiscoveryV5(w.Host(), net.ParseIP(ipStr), port, w.opts.privKey, wakuFlag, discV5Options...)
+	discoveryV5, err := discv5.NewDiscoveryV5(w.Host(), net.ParseIP(ipStr), port, w.opts.privKey, w.wakuFlag, discV5Options...)
 	if err != nil {
 		return err
 	}
