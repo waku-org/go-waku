@@ -61,11 +61,6 @@ type discV5Parameters struct {
 	advertiseAddr *net.IP
 }
 
-const WakuENRField = "waku2"
-
-// WakuEnrBitfield is a8-bit flag field to indicate Waku capabilities. Only the 4 LSBs are currently defined according to RFC31 (https://rfc.vac.dev/spec/31/).
-type WakuEnrBitfield = uint8
-
 type DiscoveryV5Option func(*discV5Parameters)
 
 func WithAutoUpdate(autoUpdate bool) DiscoveryV5Option {
@@ -98,29 +93,7 @@ func DefaultOptions() []DiscoveryV5Option {
 	}
 }
 
-func NewWakuEnrBitfield(lightpush, filter, store, relay bool) WakuEnrBitfield {
-	var v uint8 = 0
-
-	if lightpush {
-		v |= (1 << 3)
-	}
-
-	if filter {
-		v |= (1 << 2)
-	}
-
-	if store {
-		v |= (1 << 1)
-	}
-
-	if relay {
-		v |= (1 << 0)
-	}
-
-	return v
-}
-
-func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.PrivateKey, wakuFlags WakuEnrBitfield, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
+func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.PrivateKey, wakuFlags utils.WakuEnrBitfield, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
 	params := new(discV5Parameters)
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
@@ -161,7 +134,7 @@ func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.Priv
 	}, nil
 }
 
-func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort int, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP) (*enode.LocalNode, error) {
+func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort int, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP) (*enode.LocalNode, error) {
 	db, err := enode.OpenDB("")
 	if err != nil {
 		return nil, err
@@ -169,7 +142,7 @@ func newLocalnode(priv *ecdsa.PrivateKey, ipAddr net.IP, udpPort int, tcpPort in
 	localnode := enode.NewLocalNode(db, priv)
 	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	localnode.SetFallbackUDP(udpPort)
-	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
+	localnode.Set(enr.WithEntry(utils.WakuENRField, wakuFlags))
 	localnode.Set(enr.IP(ipAddr))
 
 	if udpPort > 0 && udpPort <= math.MaxUint16 {
@@ -303,8 +276,8 @@ func (d *DiscoveryV5) UpdateAddr(addr net.IP) error {
 }
 
 func isWakuNode(node *enode.Node) bool {
-	enrField := new(WakuEnrBitfield)
-	if err := node.Record().Load(enr.WithEntry(WakuENRField, &enrField)); err != nil {
+	enrField := new(utils.WakuEnrBitfield)
+	if err := node.Record().Load(enr.WithEntry(utils.WakuENRField, &enrField)); err != nil {
 		if !enr.IsNotFound(err) {
 			log.Error("could not retrieve port for enr ", node)
 		}
