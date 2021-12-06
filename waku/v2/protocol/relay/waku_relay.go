@@ -34,6 +34,8 @@ type WakuRelay struct {
 
 	bcaster v2.Broadcaster
 
+	minPeersToPublish int
+
 	// TODO: convert to concurrent maps
 	topicsMutex     sync.Mutex
 	wakuRelayTopics map[string]*pubsub.Topic
@@ -50,13 +52,14 @@ func msgIdFn(pmsg *pubsub_pb.Message) string {
 	return string(hash[:])
 }
 
-func NewWakuRelay(ctx context.Context, h host.Host, bcaster v2.Broadcaster, opts ...pubsub.Option) (*WakuRelay, error) {
+func NewWakuRelay(ctx context.Context, h host.Host, bcaster v2.Broadcaster, minPeersToPublish int, opts ...pubsub.Option) (*WakuRelay, error) {
 	w := new(WakuRelay)
 	w.host = h
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
 	w.relaySubs = make(map[string]*pubsub.Subscription)
 	w.subscriptions = make(map[string][]*Subscription)
 	w.bcaster = bcaster
+	w.minPeersToPublish = minPeersToPublish
 
 	// default options required by WakuRelay
 	opts = append(opts, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
@@ -153,6 +156,10 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 		return nil, errors.New("message can't be null")
 	}
 
+	if !w.EnoughPeersToPublishToTopic(topic) {
+		return nil, errors.New("not enougth peers to publish")
+	}
+
 	pubSubTopic, err := w.upsertTopic(topic)
 
 	if err != nil {
@@ -189,6 +196,14 @@ func (w *WakuRelay) Stop() {
 		}
 	}
 	w.subscriptions = nil
+}
+
+func (w *WakuRelay) EnoughPeersToPublish() bool {
+	return w.EnoughPeersToPublishToTopic(DefaultWakuTopic)
+}
+
+func (w *WakuRelay) EnoughPeersToPublishToTopic(topic string) bool {
+	return len(w.PubSub().ListPeers(topic)) >= w.minPeersToPublish
 }
 
 func (w *WakuRelay) SubscribeToTopic(ctx context.Context, topic string) (*Subscription, error) {

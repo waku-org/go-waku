@@ -31,6 +31,8 @@ type WakuLightPush struct {
 	h     host.Host
 	relay *relay.WakuRelay
 	ctx   context.Context
+
+	started bool
 }
 
 func NewWakuLightPush(ctx context.Context, h host.Host, relay *relay.WakuRelay) *WakuLightPush {
@@ -49,6 +51,7 @@ func (wakuLP *WakuLightPush) Start() error {
 
 	wakuLP.h.SetStreamHandlerMatch(LightPushID_v20beta1, protocol.PrefixTextMatch(string(LightPushID_v20beta1)), wakuLP.onRequest)
 	log.Info("Light Push protocol started")
+	wakuLP.started = true
 
 	return nil
 }
@@ -178,8 +181,13 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, o
 	return pushResponseRPC.Response, nil
 }
 
+func (wakuLP *WakuLightPush) IsStarted() bool {
+	return wakuLP.started
+}
+
 func (wakuLP *WakuLightPush) Stop() {
 	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
+	wakuLP.started = false
 }
 
 func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *pb.WakuMessage, topic string, opts ...LightPushOption) ([]byte, error) {

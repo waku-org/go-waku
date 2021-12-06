@@ -23,6 +23,9 @@ import (
 // Default clientId
 const clientId string = "Go Waku v2 node"
 
+// Default minRelayPeersToPublish
+const defaultMinRelayPeersToPublish = 1
+
 type WakuNodeParameters struct {
 	hostAddr       *net.TCPAddr
 	advertiseAddr  *net.IP
@@ -35,6 +38,8 @@ type WakuNodeParameters struct {
 	enableFilter     bool
 	isFilterFullNode bool
 	wOpts            []pubsub.Option
+
+	minRelayPeersToPublish int
 
 	enableStore     bool
 	shouldResume    bool
@@ -153,9 +158,16 @@ func WithLibP2POptions(opts ...libp2p.Option) WakuNodeOption {
 // WithWakuRelay enables the Waku V2 Relay protocol. This WakuNodeOption
 // accepts a list of WakuRelay gossipsub option to setup the protocol
 func WithWakuRelay(opts ...pubsub.Option) WakuNodeOption {
+	return WithWakuRelayAndMinPeers(defaultMinRelayPeersToPublish, opts...)
+}
+
+// WithWakuRelayAndMinPeers enables the Waku V2 Relay protocol. This WakuNodeOption
+// accepts a min peers require to publish and a list of WakuRelay gossipsub option to setup the protocol
+func WithWakuRelayAndMinPeers(minRelayPeersToPublish int, opts ...pubsub.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRelay = true
 		params.wOpts = opts
+		params.minRelayPeersToPublish = minRelayPeersToPublish
 		return nil
 	}
 }
