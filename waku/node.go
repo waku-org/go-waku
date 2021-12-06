@@ -162,7 +162,7 @@ func Execute(options Options) {
 	if !options.Relay.Disable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
-		nodeOpts = append(nodeOpts, node.WithWakuRelay(wakurelayopts...))
+		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
 	}
 
 	if options.RendezvousServer.Enable {

@@ -32,7 +32,7 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay, err := relay.NewWakuRelay(context.Background(), host, nil)
+	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0)
 	require.NoError(t, err)
 	defer relay.Stop()
 

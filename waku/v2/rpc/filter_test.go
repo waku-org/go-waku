@@ -38,7 +38,7 @@ func TestFilterSubscription(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	node, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10))
+	node, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10), 0)
 	require.NoError(t, err)
 
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)

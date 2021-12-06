@@ -13,7 +13,7 @@ import (
 )
 
 func makeRelayService(t *testing.T) *RelayService {
-	options := node.WithWakuRelay()
+	options := node.WithWakuRelayAndMinPeers(0)
 	n, err := node.New(context.Background(), options)
 	require.NoError(t, err)
 	err = n.Start()

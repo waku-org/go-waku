@@ -2,12 +2,14 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 
@@ -23,11 +25,13 @@ import (
 	"go.opencensus.io/stats"
 
 	rendezvous "github.com/status-im/go-waku-rendezvous"
+	"github.com/status-im/go-waku/waku/try"
 	v2 "github.com/status-im/go-waku/waku/v2"
 	"github.com/status-im/go-waku/waku/v2/discv5"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/protocol/swap"
@@ -37,6 +41,7 @@ import (
 var log = logging.Logger("wakunode")
 
 const maxAllowedPingFailures = 2
+const maxPublishAttempt = 5
 
 type Message []byte
 
@@ -273,7 +278,7 @@ func (w *WakuNode) Start() error {
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.discoveryV5, w.opts.discV5Opts...))
 	}
 
-	err := w.mountRelay(w.opts.wOpts...)
+	err := w.mountRelay(w.opts.minRelayPeersToPublish, w.opts.wOpts...)
 	if err != nil {
 		return err
 	}
@@ -377,9 +382,35 @@ func (w *WakuNode) Broadcaster() v2.Broadcaster {
 	return w.bcaster
 }
 
-func (w *WakuNode) mountRelay(opts ...pubsub.Option) error {
+func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
+	if !w.opts.enableLightPush && !w.opts.enableRelay {
+		return errors.New("cannot publish message, relay and lightpush are disabled")
+	}
+
+	hash, _ := msg.Hash()
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		if !w.relay.EnoughPeersToPublish() {
+			if !w.lightPush.IsStarted() {
+				err = errors.New("not enought peers for relay and lightpush is not yet started")
+			} else {
+				log.Debug("publishing message via lightpush", hexutil.Encode(hash))
+				_, err = w.Lightpush().Publish(ctx, msg)
+			}
+		} else {
+			log.Debug("publishing message via relay", hexutil.Encode(hash))
+			_, err = w.Relay().Publish(ctx, msg)
+		}
+
+		return attempt < maxPublishAttempt, err
+	})
+
+	return err
+}
+
+func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option) error {
 	var err error
-	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, opts...)
+	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, opts...)
 	if err != nil {
 		return err
 	}

@@ -20,9 +20,10 @@ type DiscV5Options struct {
 }
 
 type RelayOptions struct {
-	Disable      bool     `long:"no-relay" description:"Disable relay protocol"`
-	Topics       []string `long:"topics" description:"List of topics to listen"`
-	PeerExchange bool     `long:"peer-exchange" description:"Enable GossipSub Peer Exchange"`
+	Disable                bool     `long:"no-relay" description:"Disable relay protocol"`
+	Topics                 []string `long:"topics" description:"List of topics to listen"`
+	PeerExchange           bool     `long:"peer-exchange" description:"Enable GossipSub Peer Exchange"`
+	MinRelayPeersToPublish int      `long:"min-relay-peers-to-publish" description:"Minimum number of peers to publish to Relay" default:"1"`
 }
 
 type FilterOptions struct {
