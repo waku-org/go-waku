@@ -43,6 +43,10 @@ type WakuNodeParameters struct {
 	maxMessages     int
 	maxDuration     time.Duration
 
+	swapMode                int
+	swapDisconnectThreshold int
+	swapPaymentThreshold    int
+
 	enableRendezvous       bool
 	enableRendezvousServer bool
 	rendevousStorage       rendezvous.Storage
@@ -209,6 +213,16 @@ func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
 		params.enableStore = true
 		params.storeMsgs = shouldStoreMessages
 		params.shouldResume = shouldResume
+		return nil
+	}
+}
+
+// WithWakuSwap set the option of the Waku V2 Swap protocol
+func WithWakuSwap(mode int, disconnectThreshold, paymentThreshold int) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.swapMode = mode
+		params.swapDisconnectThreshold = disconnectThreshold
+		params.swapPaymentThreshold = paymentThreshold
 		return nil
 	}
 }

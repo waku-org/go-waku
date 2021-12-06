@@ -22,6 +22,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/swap"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
@@ -235,13 +236,15 @@ type WakuStore struct {
 	messageQueue *MessageQueue
 	msgProvider  MessageProvider
 	h            host.Host
+	swap         *swap.WakuSwap
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration) *WakuStore {
+func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.h = host
+	wakuStore.swap = swap
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages, maxRetentionDuration)
 	return wakuStore

@@ -53,6 +53,13 @@ type StoreOptions struct {
 	Nodes                []string `long:"store-node" description:"Multiaddr of a peer that supports store protocol. Option may be repeated"`
 }
 
+// SwapOptions are settings used for configuring the swap protocol
+type SwapOptions struct {
+	Mode                int `long:"swap-mode" description:"Swap mode: 0=soft, 1=mock, 2=hard" default:"0"`
+	PaymentThreshold    int `long:"swap-payment-threshold" description:"Threshold for payment" default:"100"`
+	DisconnectThreshold int `long:"swap-disconnect-threshold" description:"Threshold for disconnecting" default:"-100"`
+}
+
 func (s *StoreOptions) RetentionMaxDaysDuration() time.Duration {
 	return time.Duration(s.RetentionMaxDays) * time.Hour * 24
 }
@@ -103,6 +110,7 @@ type Options struct {
 
 	Relay            RelayOptions            `group:"Relay Options"`
 	Store            StoreOptions            `group:"Store Options"`
+	Swap             SwapOptions             `group:"Swap Options"`
 	Filter           FilterOptions           `group:"Filter Options"`
 	LightPush        LightpushOptions        `group:"LightPush Options"`
 	DiscV5           DiscV5Options           `group:"DiscoveryV5 Options"`

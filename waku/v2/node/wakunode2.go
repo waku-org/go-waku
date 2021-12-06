@@ -30,6 +30,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"github.com/status-im/go-waku/waku/v2/protocol/swap"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
@@ -55,6 +56,7 @@ type WakuNode struct {
 	lightPush  *lightpush.WakuLightPush
 	rendezvous *rendezvous.RendezvousService
 	store      *store.WakuStore
+	swap       *swap.WakuSwap
 	wakuFlag   utils.WakuEnrBitfield
 
 	addrChan chan ma.Multiaddr
@@ -241,7 +243,12 @@ func (w *WakuNode) checkForAddressChanges() {
 }
 
 func (w *WakuNode) Start() error {
-	w.store = store.NewWakuStore(w.host, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration)
+	w.swap = swap.NewWakuSwap([]swap.SwapOption{
+		swap.WithMode(w.opts.swapMode),
+		swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
+	}...)
+
+	w.store = store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration)
 	if w.opts.enableStore {
 		w.startStore()
 	}
