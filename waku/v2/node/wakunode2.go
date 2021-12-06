@@ -247,7 +247,7 @@ func (w *WakuNode) Start() error {
 	}
 
 	if w.opts.enableFilter {
-		w.filter = filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode)
+		w.filter = filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.opts.filterOpts...)
 	}
 
 	if w.opts.enableRendezvous {

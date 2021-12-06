@@ -173,7 +173,7 @@ func Execute(options Options) {
 	}
 
 	if options.Filter.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode))
+		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(time.Duration(options.Filter.Timeout)*time.Second)))
 	}
 
 	if options.Store.Enable {

@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -15,7 +16,19 @@ type (
 	}
 
 	FilterSubscribeOption func(*FilterSubscribeParameters)
+
+	FilterParameters struct {
+		timeout time.Duration
+	}
+
+	Option func(*FilterParameters)
 )
+
+func WithTimeout(timeout time.Duration) Option {
+	return func(params *FilterParameters) {
+		params.timeout = timeout
+	}
+}
 
 func WithPeer(p peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
@@ -45,7 +58,13 @@ func WithFastestPeerSelection(ctx context.Context) FilterSubscribeOption {
 	}
 }
 
-func DefaultOptions() []FilterSubscribeOption {
+func DefaultOptions() []Option {
+	return []Option{
+		WithTimeout(24 * time.Hour),
+	}
+}
+
+func DefaultSubscribtionOptions() []FilterSubscribeOption {
 	return []FilterSubscribeOption{
 		WithAutomaticPeerSelection(),
 	}
