@@ -17,7 +17,7 @@ func TestStoreQuery(t *testing.T) {
 	msg1 := tests.CreateWakuMessage(defaultContentTopic, utils.GetUnixEpoch())
 	msg2 := tests.CreateWakuMessage("2", utils.GetUnixEpoch())
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 	s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
 	s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
 
@@ -43,7 +43,7 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 
 	s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
 	s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
@@ -77,7 +77,7 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
 	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
 	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
@@ -109,7 +109,7 @@ func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic2))
 	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
 	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
@@ -131,7 +131,7 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
 	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic1))
 	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic1))
@@ -150,7 +150,7 @@ func TestStoreQueryForwardPagination(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 	for i := 0; i < 10; i++ {
 		msg := tests.CreateWakuMessage(topic1, utils.GetUnixEpoch())
 		msg.Payload = []byte{byte(i)}
@@ -174,7 +174,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 	for i := 0; i < 10; i++ {
 		msg := &pb.WakuMessage{
 			Payload:      []byte{byte(i)},
@@ -200,7 +200,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 }
 
 func TestTemporalHistoryQueries(t *testing.T) {
-	s := NewWakuStore(nil, nil, 0, 0)
+	s := NewWakuStore(nil, nil, nil, 0, 0)
 
 	var messages []*pb.WakuMessage
 	for i := 0; i < 10; i++ {
