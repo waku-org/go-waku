@@ -59,7 +59,7 @@ func (sub *Subscribers) Length() int {
 	return len(sub.subscribers)
 }
 
-func (sub *Subscribers) Success(peerID peer.ID) {
+func (sub *Subscribers) FlagAsSuccess(peerID peer.ID) {
 	sub.Lock()
 	defer sub.Unlock()
 
@@ -69,13 +69,13 @@ func (sub *Subscribers) Success(peerID peer.ID) {
 	}
 }
 
-func (sub *Subscribers) Failure(peerID peer.ID) {
+func (sub *Subscribers) FlagAsFailure(peerID peer.ID) {
 	sub.Lock()
 	defer sub.Unlock()
 
 	lastFailure, ok := sub.failedPeers[peerID]
 	if ok {
-		elapsedTime := time.Now().Sub(lastFailure)
+		elapsedTime := time.Since(lastFailure)
 		if elapsedTime > sub.timeout {
 			log.Debug("filter timeout reached for peer:", peerID)
 

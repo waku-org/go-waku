@@ -62,11 +62,11 @@ type (
 // relay protocol.
 const FilterID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter/2.0.0-beta1")
 
-func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, opts ...Option) *WakuFilter {
+func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, opts ...Option) (*WakuFilter, error) {
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
 	if err != nil {
 		log.Error(err)
-		panic("Could not start waku filter")
+		return nil, errors.New("could not start waku filter")
 	}
 
 	params := new(FilterParameters)
@@ -96,7 +96,7 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, opts ..
 		log.Info("Filter protocol started (only client mode)")
 	}
 
-	return wf
+	return wf, nil
 }
 
 func (wf *WakuFilter) onRequest(s network.Stream) {
@@ -150,7 +150,7 @@ func (wf *WakuFilter) pushMessage(subscriber Subscriber, msg *pb.WakuMessage) er
 
 	conn, err := wf.h.NewStream(wf.ctx, subscriber.peer, FilterID_v20beta1)
 	if err != nil {
-		wf.subscribers.Failure(subscriber.peer)
+		wf.subscribers.FlagAsFailure(subscriber.peer)
 
 		log.Error("failed to open peer stream", err)
 		//waku_filter_errors.inc(labelValues = [dialFailure])
@@ -162,11 +162,11 @@ func (wf *WakuFilter) pushMessage(subscriber Subscriber, msg *pb.WakuMessage) er
 	err = writer.WriteMsg(pushRPC)
 	if err != nil {
 		log.Error("failed to push messages to remote peer", err)
-		wf.subscribers.Failure(subscriber.peer)
+		wf.subscribers.FlagAsFailure(subscriber.peer)
 		return nil
 	}
 
-	wf.subscribers.Success(subscriber.peer)
+	wf.subscribers.FlagAsSuccess(subscriber.peer)
 	return nil
 }
 
