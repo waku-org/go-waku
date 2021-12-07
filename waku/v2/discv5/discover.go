@@ -126,6 +126,10 @@ func NewDiscoveryV5(host host.Host, ipAddr net.IP, tcpPort int, priv *ecdsa.Priv
 		config: discover.Config{
 			PrivateKey: priv,
 			Bootnodes:  params.bootnodes,
+			ValidNodeFn: func(n enode.Node) bool {
+				// TODO: track https://github.com/status-im/nim-waku/issues/770 for improvements over validation func
+				return evaluateNode(&n)
+			},
 		},
 		udpAddr: &net.UDPAddr{
 			IP:   net.IPv4zero,
@@ -303,7 +307,7 @@ func hasTCPPort(node *enode.Node) bool {
 	return true
 }
 
-func (d *DiscoveryV5) evaluateNode(node *enode.Node) bool {
+func evaluateNode(node *enode.Node) bool {
 	if node == nil || node.IP() == nil {
 		return false
 	}
@@ -415,7 +419,7 @@ func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...disco
 		d.Lock()
 
 		iterator := d.listener.RandomNodes()
-		iterator = enode.Filter(iterator, d.evaluateNode)
+		iterator = enode.Filter(iterator, evaluateNode)
 		defer iterator.Close()
 
 		doneCh := make(chan struct{})
