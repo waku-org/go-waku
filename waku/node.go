@@ -337,10 +337,10 @@ func loadPrivateKeyFromFile(path string) (*ecdsa.PrivateKey, error) {
 	return privKey, nil
 }
 
-func writePrivateKeyToFile(path string, force bool) error {
+func checkForPrivateKeyFile(path string, overwrite bool) error {
 	_, err := os.Stat(path)
 
-	if err == nil && !force {
+	if err == nil && !overwrite {
 		return fmt.Errorf("%s already exists. Use --overwrite to overwrite the file", path)
 	}
 
@@ -348,20 +348,37 @@ func writePrivateKeyToFile(path string, force bool) error {
 		return err
 	}
 
+	return nil
+}
+
+func generatePrivateKey() ([]byte, error) {
 	key, err := crypto.GenerateKey()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	privKey := libp2pcrypto.PrivKey((*libp2pcrypto.Secp256k1PrivateKey)(key))
 
 	b, err := privKey.Raw()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	output := make([]byte, hex.EncodedLen(len(b)))
 	hex.Encode(output, b)
+
+	return output, nil
+}
+
+func writePrivateKeyToFile(path string, overwrite bool) error {
+	if err := checkForPrivateKeyFile(path, overwrite); err != nil {
+		return err
+	}
+
+	output, err := generatePrivateKey()
+	if err != nil {
+		return err
+	}
 
 	return ioutil.WriteFile(path, output, 0600)
 }
