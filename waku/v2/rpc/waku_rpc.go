@@ -17,8 +17,9 @@ type WakuRpc struct {
 	node   *node.WakuNode
 	server *http.Server
 
-	relayService  *RelayService
-	filterService *FilterService
+	relayService   *RelayService
+	filterService  *FilterService
+	privateService *PrivateService
 }
 
 func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
@@ -53,7 +54,8 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		log.Error(err)
 	}
 
-	err = s.RegisterService(&PrivateService{node}, "Private")
+	privateService := NewPrivateService(node)
+	err = s.RegisterService(privateService, "Private")
 	if err != nil {
 		log.Error(err)
 	}
@@ -78,10 +80,11 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 	})
 
 	return &WakuRpc{
-		node:          node,
-		server:        server,
-		relayService:  relayService,
-		filterService: filterService,
+		node:           node,
+		server:         server,
+		relayService:   relayService,
+		filterService:  filterService,
+		privateService: privateService,
 	}
 }
 
