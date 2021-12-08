@@ -17,6 +17,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
@@ -37,6 +38,7 @@ type WakuNodeParameters struct {
 	enableRelay      bool
 	enableFilter     bool
 	isFilterFullNode bool
+	filterOpts       []filter.Option
 	wOpts            []pubsub.Option
 
 	minRelayPeersToPublish int
@@ -210,10 +212,11 @@ func WithRendezvousServer(storage rendezvous.Storage) WakuNodeOption {
 
 // WithWakuFilter enables the Waku V2 Filter protocol. This WakuNodeOption
 // accepts a list of WakuFilter gossipsub options to setup the protocol
-func WithWakuFilter(fullNode bool) WakuNodeOption {
+func WithWakuFilter(fullNode bool, filterOpts ...filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableFilter = true
 		params.isFilterFullNode = fullNode
+		params.filterOpts = filterOpts
 		return nil
 	}
 }

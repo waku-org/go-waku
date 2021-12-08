@@ -30,6 +30,7 @@ type FilterOptions struct {
 	Enable          bool     `long:"filter" description:"Enable filter protocol"`
 	DisableFullNode bool     `long:"light-client" description:"Don't accept filter subscribers"`
 	Nodes           []string `long:"filter-node" description:"Multiaddr of a peer that supports filter protocol. Option may be repeated"`
+	Timeout         int      `long:"filter-timeout" description:"Timeout for filter node in seconds" default:"14400"`
 }
 
 // LightpushOptions are settings used to enable the lightpush protocol. This is

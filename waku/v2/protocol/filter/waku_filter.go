@@ -62,10 +62,18 @@ type (
 // relay protocol.
 const FilterID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter/2.0.0-beta1")
 
-func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool) *WakuFilter {
+func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, opts ...Option) (*WakuFilter, error) {
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
 	if err != nil {
 		log.Error(err)
+		return nil, errors.New("could not start waku filter")
+	}
+
+	params := new(FilterParameters)
+	optList := DefaultOptions()
+	optList = append(optList, opts...)
+	for _, opt := range optList {
+		opt(params)
 	}
 
 	wf := new(WakuFilter)
@@ -75,7 +83,7 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool) *WakuFi
 	wf.h = host
 	wf.isFullNode = isFullNode
 	wf.filters = NewFilterMap()
-	wf.subscribers = NewSubscribers()
+	wf.subscribers = NewSubscribers(params.timeout)
 
 	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest)
 
@@ -88,7 +96,7 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool) *WakuFi
 		log.Info("Filter protocol started (only client mode)")
 	}
 
-	return wf
+	return wf, nil
 }
 
 func (wf *WakuFilter) onRequest(s network.Stream) {
@@ -140,11 +148,11 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 func (wf *WakuFilter) pushMessage(subscriber Subscriber, msg *pb.WakuMessage) error {
 	pushRPC := &pb.FilterRPC{RequestId: subscriber.requestId, Push: &pb.MessagePush{Messages: []*pb.WakuMessage{msg}}}
 
-	conn, err := wf.h.NewStream(wf.ctx, peer.ID(subscriber.peer), FilterID_v20beta1)
-	// TODO: keep track of errors to automatically unsubscribe a peer?
+	conn, err := wf.h.NewStream(wf.ctx, subscriber.peer, FilterID_v20beta1)
 	if err != nil {
-		// @TODO more sophisticated error handling here
-		log.Error("failed to open peer stream")
+		wf.subscribers.FlagAsFailure(subscriber.peer)
+
+		log.Error("failed to open peer stream", err)
 		//waku_filter_errors.inc(labelValues = [dialFailure])
 		return err
 	}
@@ -153,10 +161,12 @@ func (wf *WakuFilter) pushMessage(subscriber Subscriber, msg *pb.WakuMessage) er
 	writer := protoio.NewDelimitedWriter(conn)
 	err = writer.WriteMsg(pushRPC)
 	if err != nil {
-		log.Error("failed to push messages to remote peer")
+		log.Error("failed to push messages to remote peer", err)
+		wf.subscribers.FlagAsFailure(subscriber.peer)
 		return nil
 	}
 
+	wf.subscribers.FlagAsSuccess(subscriber.peer)
 	return nil
 }
 
@@ -206,7 +216,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	params := new(FilterSubscribeParameters)
 	params.host = wf.h
 
-	optList := DefaultOptions()
+	optList := DefaultSubscribtionOptions()
 	optList = append(optList, opts...)
 	for _, opt := range optList {
 		opt(params)
