@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/go-waku/waku/v2/node"
@@ -14,6 +15,12 @@ import (
 
 type PrivateService struct {
 	node *node.WakuNode
+
+	symmetricMessages      map[string][]*pb.WakuMessage
+	symmetricMessagesMutex sync.RWMutex
+
+	asymmetricMessages      map[string][]*pb.WakuMessage
+	asymmetricMessagesMutex sync.RWMutex
 }
 
 type SymmetricKeyReply struct {
@@ -49,7 +56,9 @@ type AsymmetricMessagesArgs struct {
 
 func NewPrivateService(node *node.WakuNode) *PrivateService {
 	return &PrivateService{
-		node: node,
+		node:               node,
+		symmetricMessages:  make(map[string][]*pb.WakuMessage),
+		asymmetricMessages: make(map[string][]*pb.WakuMessage),
 	}
 }
 
@@ -91,10 +100,23 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 	if err != nil {
 		reply.Error = err.Error()
 		reply.Success = false
-	} else {
-		reply.Success = true
+		return nil
+	}
+	err = p.node.Publish(req.Context(), &args.Message)
+	if err != nil {
+		reply.Error = err.Error()
+		reply.Success = false
+		return nil
 	}
 
+	p.symmetricMessagesMutex.Lock()
+	defer p.symmetricMessagesMutex.Unlock()
+	if _, ok := p.symmetricMessages[args.Topic]; !ok {
+		p.symmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	}
+	p.symmetricMessages[args.Topic] = append(p.symmetricMessages[args.Topic], &args.Message)
+
+	reply.Success = true
 	return nil
 }
 
@@ -116,17 +138,48 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 	if err != nil {
 		reply.Error = err.Error()
 		reply.Success = false
-	} else {
-		reply.Success = true
+		return nil
+	}
+	err = p.node.Publish(req.Context(), &args.Message)
+	if err != nil {
+		reply.Error = err.Error()
+		reply.Success = false
+		return nil
 	}
 
+	p.asymmetricMessagesMutex.Lock()
+	defer p.asymmetricMessagesMutex.Unlock()
+	if _, ok := p.asymmetricMessages[args.Topic]; !ok {
+		p.asymmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	}
+	p.asymmetricMessages[args.Topic] = append(p.asymmetricMessages[args.Topic], &args.Message)
+
+	reply.Success = true
 	return nil
 }
 
 func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *SymmetricMessagesArgs, reply *MessagesReply) error {
-	return fmt.Errorf("not implemented")
+	p.symmetricMessagesMutex.Lock()
+	defer p.symmetricMessagesMutex.Unlock()
+
+	if _, ok := p.symmetricMessages[args.Topic]; !ok {
+		return fmt.Errorf("topic %s not subscribed", args.Topic)
+	}
+
+	reply.Messages = p.symmetricMessages[args.Topic]
+	p.symmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	return nil
 }
 
 func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *AsymmetricMessagesArgs, reply *MessagesReply) error {
-	return fmt.Errorf("not implemented")
+	p.asymmetricMessagesMutex.Lock()
+	defer p.asymmetricMessagesMutex.Unlock()
+
+	if _, ok := p.asymmetricMessages[args.Topic]; !ok {
+		return fmt.Errorf("topic %s not subscribed", args.Topic)
+	}
+
+	reply.Messages = p.asymmetricMessages[args.Topic]
+	p.asymmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	return nil
 }
