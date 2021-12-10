@@ -45,3 +45,19 @@ func TestGetENRandIP(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ogMultiaddress.String(), resMultiaddress.String())
 }
+
+func TestMultiaddr(t *testing.T) {
+	key, _ := gcrypto.GenerateKey()
+	privKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(key))
+	id, _ := peer.IDFromPublicKey(privKey.GetPublic())
+	ogMultiaddress, _ := ma.NewMultiaddr("/ip4/10.0.0.241/tcp/60001/ws/p2p/" + id.Pretty())
+	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
+
+	node, _, err := GetENRandIP(ogMultiaddress, wakuFlag, key)
+	require.NoError(t, err)
+
+	multiaddresses, err := Multiaddress(node)
+	require.NoError(t, err)
+	require.Len(t, multiaddresses, 1)
+	require.True(t, ogMultiaddress.Equal(multiaddresses[0]))
+}
