@@ -7,7 +7,7 @@ replace github.com/ethereum/go-ethereum v1.10.4 => github.com/status-im/go-ether
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
-	github.com/ethereum/go-ethereum v1.10.4
+	github.com/ethereum/go-ethereum v1.10.13
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/rpc v1.2.0
@@ -23,8 +23,9 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/minio/sha256-simd v1.0.0
 	github.com/multiformats/go-multiaddr v0.4.0
+	github.com/status-im/go-discover v0.0.0-20211207185514-87bd8c3fe429
 	github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432
 	github.com/stretchr/testify v1.7.0
-	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	go.opencensus.io v0.23.0
 )
