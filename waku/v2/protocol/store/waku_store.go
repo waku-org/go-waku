@@ -64,12 +64,12 @@ func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMess
 	pageSize := pinfo.PageSize
 	dir := pinfo.Direction
 
-	if pageSize == 0 { // pageSize being zero indicates that no pagination is required
-		return list, pinfo
-	}
-
 	if len(list) == 0 { // no pagination is needed for an empty list
 		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+	}
+
+	if pageSize == 0 {
+		pageSize = MaxPageSize
 	}
 
 	msgList := make([]IndexedWakuMessage, len(list))
@@ -298,14 +298,14 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 			ReceiverTime: float64(storedMessage.ReceiverTime),
 		}
 
-		store.storeMessageWithIndex(storedMessage.PubsubTopic, idx, storedMessage.Message)
+		_ = store.addToMessageQueue(storedMessage.PubsubTopic, idx, storedMessage.Message)
 
 		metrics.RecordMessage(ctx, "stored", store.messageQueue.Length())
 	}
 }
 
-func (store *WakuStore) storeMessageWithIndex(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) {
-	store.messageQueue.Push(IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
+func (store *WakuStore) addToMessageQueue(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) error {
+	return store.messageQueue.Push(IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
 }
 
 func (store *WakuStore) storeMessage(env *protocol.Envelope) {
@@ -315,7 +315,10 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) {
 		return
 	}
 
-	store.storeMessageWithIndex(env.PubsubTopic(), index, env.Message())
+	err = store.addToMessageQueue(env.PubsubTopic(), index, env.Message())
+	if err == ErrDuplicatedMessage {
+		return
+	}
 
 	if store.msgProvider == nil {
 		metrics.RecordMessage(store.ctx, "stored", store.messageQueue.Length())
@@ -631,15 +634,38 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 	}, nil
 }
 
-func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, candidateList []peer.ID) (*pb.HistoryResponse, error) {
+func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, candidateList []peer.ID) ([]*pb.WakuMessage, error) {
 	// loops through the candidateList in order and sends the query to each until one of the query gets resolved successfully
 	// returns the number of retrieved messages, or error if all the requests fail
+
+	queryWg := sync.WaitGroup{}
+	queryWg.Add(len(candidateList))
+
+	resultChan := make(chan *pb.HistoryResponse, len(candidateList))
+
 	for _, peer := range candidateList {
-		result, err := store.queryFrom(ctx, query, peer, protocol.GenerateRequestId())
-		if err == nil {
-			return result, nil
-		}
-		log.Error(fmt.Errorf("resume history with peer %s failed: %w", peer, err))
+		func() {
+			defer queryWg.Done()
+			result, err := store.queryFrom(ctx, query, peer, protocol.GenerateRequestId())
+			if err == nil {
+				resultChan <- result
+			}
+			log.Error(fmt.Errorf("resume history with peer %s failed: %w", peer, err))
+		}()
+	}
+
+	queryWg.Wait()
+	close(resultChan)
+
+	var messages []*pb.WakuMessage
+	hasResults := false
+	for result := range resultChan {
+		hasResults = true
+		messages = append(messages, result.Messages...)
+	}
+
+	if hasResults {
+		return messages, nil
 	}
 
 	return nil, ErrFailedQuery
@@ -695,19 +721,19 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 		peerList = append(peerList, *p)
 	}
 
-	response, err := store.queryLoop(ctx, rpc, peerList)
+	messages, err := store.queryLoop(ctx, rpc, peerList)
 	if err != nil {
 		log.Error("failed to resume history", err)
 		return -1, ErrFailedToResumeHistory
 	}
 
-	for _, msg := range response.Messages {
+	for _, msg := range messages {
 		store.storeMessage(protocol.NewEnvelope(msg, pubsubTopic))
 	}
 
-	log.Info("Retrieved messages since the last online time: ", len(response.Messages))
+	log.Info("Retrieved messages since the last online time: ", len(messages))
 
-	return len(response.Messages), nil
+	return len(messages), nil
 }
 
 // TODO: queryWithAccounting
