@@ -282,11 +282,11 @@ func (d *DiscoveryV5) UpdateAddr(addr net.IP) error {
 	return nil
 }
 
-func (d *DiscoveryV5) isWakuNode(node *enode.Node) bool {
+func isWakuNode(node *enode.Node) bool {
 	enrField := new(utils.WakuEnrBitfield)
 	if err := node.Record().Load(enr.WithEntry(utils.WakuENRField, &enrField)); err != nil {
 		if !enr.IsNotFound(err) {
-			d.log.Error("could not retrieve port for enr ", node)
+			utils.Logger().Named("discv5").Error("could not retrieve port for enr ", zap.Any("node", node))
 		}
 		return false
 	}
@@ -298,11 +298,11 @@ func (d *DiscoveryV5) isWakuNode(node *enode.Node) bool {
 	return false
 }
 
-func (d *DiscoveryV5) hasTCPPort(node *enode.Node) bool {
+func hasTCPPort(node *enode.Node) bool {
 	enrTCP := new(enr.TCP)
 	if err := node.Record().Load(enr.WithEntry(enrTCP.ENRKey(), enrTCP)); err != nil {
 		if !enr.IsNotFound(err) {
-			d.log.Error("could not retrieve port for enr ", node)
+			utils.Logger().Named("discv5").Error("could not retrieve port for enr ", zap.Any("node", node))
 		}
 		return false
 	}
@@ -315,21 +315,21 @@ func evaluateNode(node *enode.Node) bool {
 		return false
 	}
 
-	if !d.isWakuNode(node) || !d.hasTCPPort(node) {
+	if !isWakuNode(node) || !hasTCPPort(node) {
 		return false
 	}
 
 	_, err := utils.EnodeToPeerInfo(node)
 
 	if err != nil {
-		d.log.Error("could not obtain peer info from enode:", err)
+		utils.Logger().Named("discv5").Error("could not obtain peer info from enode:", zap.Error(err))
 		return false
 	}
 
 	return true
 }
 
-func (c *DiscoveryV5) Advertise(ctx context.Context, ns string, opts ...discovery.Option) (time.Duration, error) {
+func (d *DiscoveryV5) Advertise(ctx context.Context, ns string, opts ...discovery.Option) (time.Duration, error) {
 	// Get options
 	var options discovery.Options
 	err := options.Apply(opts...)
