@@ -6,11 +6,14 @@ import (
 	"testing"
 	"time"
 
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/stretchr/testify/require"
 )
+
+var log = logging.Logger("test")
 
 func TestKeepAlive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -36,6 +39,7 @@ func TestKeepAlive(t *testing.T) {
 		host:           host1,
 		ctx:            ctx2,
 		wg:             wg,
+		log:            &log.SugaredLogger,
 		keepAliveMutex: sync.Mutex{},
 		keepAliveFails: make(map[peer.ID]int),
 	}

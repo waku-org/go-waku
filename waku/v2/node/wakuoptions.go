@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -19,6 +20,7 @@ import (
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"go.uber.org/zap"
 )
 
 // Default clientId
@@ -34,6 +36,8 @@ type WakuNodeParameters struct {
 	addressFactory basichost.AddrsFactory
 	privKey        *ecdsa.PrivateKey
 	libP2POpts     []libp2p.Option
+
+	logger *zap.SugaredLogger
 
 	enableRelay      bool
 	enableFilter     bool
@@ -76,6 +80,7 @@ type WakuNodeOption func(*WakuNodeParameters) error
 
 // Default options used in the libp2p node
 var DefaultWakuNodeOptions = []WakuNodeOption{
+	WithLogger(logging.Logger("waku").Desugar()),
 	WithWakuRelay(),
 }
 
@@ -91,6 +96,14 @@ func (w WakuNodeParameters) Identity() config.Option {
 
 func (w WakuNodeParameters) AddressFactory() basichost.AddrsFactory {
 	return w.addressFactory
+}
+
+// WithLogger is a WakuNodeOption that adds a custom logger
+func WithLogger(l *zap.Logger) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.logger = l.Sugar()
+		return nil
+	}
 }
 
 // WithHostAddress is a WakuNodeOption that configures libp2p to listen on a specific address

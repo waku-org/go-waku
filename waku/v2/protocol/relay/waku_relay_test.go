@@ -5,10 +5,13 @@ import (
 	"crypto/rand"
 	"testing"
 
+	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/stretchr/testify/require"
 )
+
+var log = logging.Logger("test")
 
 func TestWakuRelay(t *testing.T) {
 	testTopic := "/waku/2/go/relay/test"
@@ -19,7 +22,7 @@ func TestWakuRelay(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := NewWakuRelay(context.Background(), host, nil, 0)
+	relay, err := NewWakuRelay(context.Background(), host, nil, 0, &log.SugaredLogger)
 	defer relay.Stop()
 	require.NoError(t, err)
 

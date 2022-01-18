@@ -26,6 +26,7 @@ func TestLightPushOption(t *testing.T) {
 
 	params := new(LightPushParameters)
 	params.host = host
+	params.log = &log.SugaredLogger
 
 	for _, opt := range options {
 		opt(params)

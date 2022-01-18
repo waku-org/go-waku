@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/status-im/go-waku/tests"
@@ -15,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var log = logging.Logger("test")
+
 func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -22,7 +25,7 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*rel
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host, broadcaster, 0)
+	relay, err := relay.NewWakuRelay(context.Background(), host, broadcaster, 0, &log.SugaredLogger)
 	require.NoError(t, err)
 
 	sub, err := relay.SubscribeToTopic(context.Background(), topic)
@@ -38,7 +41,7 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	filter, _ := NewWakuFilter(context.Background(), host, false)
+	filter, _ := NewWakuFilter(context.Background(), host, false, &log.SugaredLogger)
 
 	return filter, host
 }
@@ -68,7 +71,7 @@ func TestWakuFilter(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter, _ := NewWakuFilter(ctx, host2, true)
+	node2Filter, _ := NewWakuFilter(ctx, host2, true, &log.SugaredLogger)
 	broadcaster.Register(node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
@@ -153,7 +156,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter, _ := NewWakuFilter(ctx, host2, true, WithTimeout(3*time.Second))
+	node2Filter, _ := NewWakuFilter(ctx, host2, true, &log.SugaredLogger, WithTimeout(3*time.Second))
 	broadcaster.Register(node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)

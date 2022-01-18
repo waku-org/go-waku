@@ -41,7 +41,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/rpc"
 )
 
-var log = logging.Logger("wakunode")
+var log = logging.Logger("gowaku")
 
 func failOnErr(err error, msg string) {
 	if err != nil {
@@ -102,11 +102,12 @@ func Execute(options Options) {
 
 	var metricsServer *metrics.Server
 	if options.Metrics.Enable {
-		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port)
+		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, &log.SugaredLogger)
 		go metricsServer.Start()
 	}
 
 	nodeOpts := []node.WakuNodeOption{
+		node.WithLogger(log.Desugar()),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
@@ -179,7 +180,7 @@ func Execute(options Options) {
 	if options.Store.Enable {
 		nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
 		if options.UseDB {
-			dbStore, err := persistence.NewDBStore(persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
+			dbStore, err := persistence.NewDBStore(&log.SugaredLogger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		} else {
@@ -272,7 +273,7 @@ func Execute(options Options) {
 
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port)
+		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, &log.SugaredLogger)
 		rpcServer.Start()
 	}
 

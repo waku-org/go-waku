@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
+	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -37,8 +37,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
-var log = logging.Logger("wakunode")
-
 type Peer struct {
 	ID        peer.ID
 	Protocols []string
@@ -49,6 +47,7 @@ type Peer struct {
 type WakuNode struct {
 	host host.Host
 	opts *WakuNodeParameters
+	log  *zap.SugaredLogger
 
 	relay      *relay.WakuRelay
 	filter     *filter.WakuFilter
@@ -130,6 +129,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.cancel = cancel
 	w.ctx = ctx
 	w.opts = params
+	w.log = params.logger.Named("node2")
 	w.quit = make(chan struct{})
 	w.wg = &sync.WaitGroup{}
 	w.addrChan = make(chan ma.Multiaddr, 1024)
@@ -152,7 +152,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		w.connStatusChan = params.connStatusC
 	}
 
-	w.connectionNotif = NewConnectionNotifier(ctx, host)
+	w.connectionNotif = NewConnectionNotifier(ctx, host, w.log)
 	w.host.Network().Notify(w.connectionNotif)
 
 	w.wg.Add(2)
@@ -172,7 +172,7 @@ func (w *WakuNode) onAddrChange() {
 	for m := range w.addrChan {
 		ipStr, err := m.ValueForProtocol(ma.P_IP4)
 		if err != nil {
-			log.Error(fmt.Sprintf("could not extract ip from ma %s: %s", m, err.Error()))
+			w.log.Error(fmt.Sprintf("could not extract ip from ma %s: %s", m, err.Error()))
 			continue
 		}
 		ip := net.ParseIP(ipStr)
@@ -180,7 +180,7 @@ func (w *WakuNode) onAddrChange() {
 			if w.opts.enableDiscV5 {
 				err := w.discoveryV5.UpdateAddr(ip)
 				if err != nil {
-					log.Error(fmt.Sprintf("could not update DiscV5 address with IP %s: %s", ip, err.Error()))
+					w.log.Error(fmt.Sprintf("could not update DiscV5 address with IP %s: %s", ip, err.Error()))
 					continue
 				}
 			}
@@ -189,15 +189,15 @@ func (w *WakuNode) onAddrChange() {
 }
 
 func (w *WakuNode) logAddress(addr ma.Multiaddr) {
-	log.Info("Listening on ", addr)
+	w.log.Info("Listening on ", addr)
 
 	// TODO: make this optional depending on DNS Disc being enabled
 	if w.opts.privKey != nil {
 		enr, ip, err := utils.GetENRandIP(addr, w.wakuFlag, w.opts.privKey)
 		if err != nil {
-			log.Error("could not obtain ENR record from multiaddress", err)
+			w.log.Error("could not obtain ENR record from multiaddress", err)
 		} else {
-			log.Info(fmt.Sprintf("ENR for IP %s:  %s", ip, enr))
+			w.log.Info(fmt.Sprintf("ENR for IP %s:  %s", ip, enr))
 		}
 	}
 }
@@ -231,7 +231,7 @@ func (w *WakuNode) checkForAddressChanges() {
 			}
 			if print {
 				addrs = newAddrs
-				log.Warn("Change in host multiaddresses")
+				w.log.Warn("Change in host multiaddresses")
 				for _, addr := range newAddrs {
 					w.addrChan <- addr
 					w.logAddress(addr)
@@ -242,18 +242,18 @@ func (w *WakuNode) checkForAddressChanges() {
 }
 
 func (w *WakuNode) Start() error {
-	w.swap = swap.NewWakuSwap([]swap.SwapOption{
+	w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
 		swap.WithMode(w.opts.swapMode),
 		swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
 	}...)
 
-	w.store = store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration)
+	w.store = store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log)
 	if w.opts.enableStore {
 		w.startStore()
 	}
 
 	if w.opts.enableFilter {
-		filter, err := filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.opts.filterOpts...)
+		filter, err := filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.log, w.opts.filterOpts...)
 		if err != nil {
 			return err
 		}
@@ -281,7 +281,7 @@ func (w *WakuNode) Start() error {
 		return err
 	}
 
-	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay)
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay, w.log)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(); err != nil {
 			return err
@@ -297,12 +297,12 @@ func (w *WakuNode) Start() error {
 
 	// Subscribe store to topic
 	if w.opts.storeMsgs {
-		log.Info("Subscribing store to broadcaster")
+		w.log.Info("Subscribing store to broadcaster")
 		w.bcaster.Register(w.store.MsgC)
 	}
 
 	if w.filter != nil {
-		log.Info("Subscribing filter to broadcaster")
+		w.log.Info("Subscribing filter to broadcaster")
 		w.bcaster.Register(w.filter.MsgC)
 	}
 
@@ -392,11 +392,11 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 			if !w.lightPush.IsStarted() {
 				err = errors.New("not enought peers for relay and lightpush is not yet started")
 			} else {
-				log.Debug("publishing message via lightpush", hexutil.Encode(hash))
+				w.log.Debug("publishing message via lightpush", hexutil.Encode(hash))
 				_, err = w.Lightpush().Publish(ctx, msg)
 			}
 		} else {
-			log.Debug("publishing message via relay", hexutil.Encode(hash))
+			w.log.Debug("publishing message via relay", hexutil.Encode(hash))
 			_, err = w.Relay().Publish(ctx, msg)
 		}
 
@@ -408,7 +408,7 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 
 func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option) error {
 	var err error
-	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, opts...)
+	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.log, opts...)
 	if err != nil {
 		return err
 	}
@@ -449,7 +449,7 @@ func (w *WakuNode) mountDiscV5() error {
 		return err
 	}
 
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), net.ParseIP(ipStr), port, w.opts.privKey, w.wakuFlag, discV5Options...)
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), net.ParseIP(ipStr), port, w.opts.privKey, w.wakuFlag, w.log, discV5Options...)
 
 	return err
 }
@@ -461,7 +461,7 @@ func (w *WakuNode) mountRendezvous() error {
 		return err
 	}
 
-	log.Info("Rendezvous service started")
+	w.log.Info("Rendezvous service started")
 	return nil
 }
 
@@ -485,7 +485,7 @@ func (w *WakuNode) startStore() {
 					case <-w.quit:
 						return
 					case <-ticker.C:
-						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta3))
+						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta3), w.log)
 						if err == nil {
 							break peerVerif
 						}
@@ -495,7 +495,7 @@ func (w *WakuNode) startStore() {
 				ctxWithTimeout, ctxCancel := context.WithTimeout(w.ctx, 20*time.Second)
 				defer ctxCancel()
 				if _, err := w.store.Resume(ctxWithTimeout, string(relay.DefaultWakuTopic), nil); err != nil {
-					log.Info("Retrying in 10s...")
+					w.log.Info("Retrying in 10s...")
 					time.Sleep(10 * time.Second)
 				} else {
 					break
@@ -506,7 +506,7 @@ func (w *WakuNode) startStore() {
 }
 
 func (w *WakuNode) addPeer(info *peer.AddrInfo, protocolID p2pproto.ID) error {
-	log.Info(fmt.Sprintf("Adding peer %s to peerstore", info.ID.Pretty()))
+	w.log.Info(fmt.Sprintf("Adding peer %s to peerstore", info.ID.Pretty()))
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
 	err := w.host.Peerstore().AddProtocols(info.ID, string(protocolID))
 	if err != nil {

@@ -9,10 +9,12 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"go.uber.org/zap"
 )
 
 type FilterService struct {
 	node *node.WakuNode
+	log  *zap.SugaredLogger
 
 	messages      map[string][]*pb.WakuMessage
 	messagesMutex sync.RWMutex
@@ -29,9 +31,10 @@ type ContentTopicArgs struct {
 	ContentTopic string `json:"contentTopic,omitempty"`
 }
 
-func NewFilterService(node *node.WakuNode) *FilterService {
+func NewFilterService(node *node.WakuNode, log *zap.SugaredLogger) *FilterService {
 	s := &FilterService{
 		node:     node,
+		log:      log.Named("filter"),
 		messages: make(map[string][]*pb.WakuMessage),
 	}
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
@@ -77,7 +80,7 @@ func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterConten
 		filter.WithAutomaticPeerSelection(),
 	)
 	if err != nil {
-		log.Error("Error subscribing to topic:", args.Topic, "err:", err)
+		f.log.Error("Error subscribing to topic:", args.Topic, "err:", err)
 		reply.Success = false
 		reply.Error = err.Error()
 		return nil
@@ -95,7 +98,7 @@ func (f *FilterService) DeleteV1Subscription(req *http.Request, args *FilterCont
 		makeContentFilter(args),
 	)
 	if err != nil {
-		log.Error("Error unsubscribing to topic:", args.Topic, "err:", err)
+		f.log.Error("Error unsubscribing to topic:", args.Topic, "err:", err)
 		reply.Success = false
 		reply.Error = err.Error()
 		return nil
