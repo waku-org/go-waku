@@ -6,10 +6,12 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"go.uber.org/zap"
 )
 
 type StoreService struct {
 	node *node.WakuNode
+	log  *zap.SugaredLogger
 }
 
 // cursor       *pb.Index
@@ -54,7 +56,7 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 		options...,
 	)
 	if err != nil {
-		log.Error("Error querying messages:", err)
+		s.log.Error("Error querying messages:", err)
 		reply.Error = err.Error()
 		return nil
 	}

@@ -6,22 +6,25 @@ import (
 	"net/http"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
-	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/runmetrics"
 	"go.opencensus.io/stats/view"
+	"go.uber.org/zap"
 )
-
-var log = logging.Logger("metrics")
 
 // Server runs and controls a HTTP pprof interface.
 type Server struct {
 	server *http.Server
+	log    *zap.SugaredLogger
 }
 
 // NewMetricsServer creates a prometheus server on a particular interface and port
-func NewMetricsServer(address string, port int) *Server {
+func NewMetricsServer(address string, port int, log *zap.SugaredLogger) *Server {
+	p := Server{
+		log: log.Named("metrics"),
+	}
+
 	_ = runmetrics.Enable(runmetrics.RunMetricOptions{
 		EnableCPU:    true,
 		EnableMemory: true,
@@ -29,12 +32,12 @@ func NewMetricsServer(address string, port int) *Server {
 
 	pe, err := prometheus.NewExporter(prometheus.Options{})
 	if err != nil {
-		log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
+		p.log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
 	}
 
 	view.RegisterExporter(pe)
 
-	log.Info(fmt.Sprintf("Starting server at  %s:%d", address, port))
+	p.log.Info(fmt.Sprintf("Starting server at  %s:%d", address, port))
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", pe)
 
@@ -55,14 +58,12 @@ func NewMetricsServer(address string, port int) *Server {
 		metrics.PeersView,
 		metrics.DialsView,
 	); err != nil {
-		log.Fatalf("Failed to register views: %v", err)
+		p.log.Fatalf("Failed to register views: %v", err)
 	}
 
-	p := Server{
-		server: &http.Server{
-			Addr:    fmt.Sprintf("%s:%d", address, port),
-			Handler: h,
-		},
+	p.server = &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", address, port),
+		Handler: h,
 	}
 
 	return &p
@@ -70,14 +71,14 @@ func NewMetricsServer(address string, port int) *Server {
 
 // Start executes the HTTP server in the background.
 func (p *Server) Start() {
-	log.Info("server stopped ", p.server.ListenAndServe())
+	p.log.Info("server stopped ", p.server.ListenAndServe())
 }
 
 // Stop shuts down the prometheus server
 func (p *Server) Stop(ctx context.Context) error {
 	err := p.server.Shutdown(ctx)
 	if err != nil {
-		log.Error("error while stopping server", err)
+		p.log.Error("error while stopping server", err)
 		return err
 	}
 

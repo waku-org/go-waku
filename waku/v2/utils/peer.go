@@ -7,19 +7,17 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
+	"go.uber.org/zap"
 )
-
-var log = logging.Logger("utils")
 
 var ErrNoPeersAvailable = errors.New("no suitable peers found")
 var PingServiceNotAvailable = errors.New("ping service not available")
 
 // SelectPeer is used to return a random peer that supports a given protocol.
-func SelectPeer(host host.Host, protocolId string) (*peer.ID, error) {
+func SelectPeer(host host.Host, protocolId string, log *zap.SugaredLogger) (*peer.ID, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
@@ -52,7 +50,7 @@ type pingResult struct {
 	rtt time.Duration
 }
 
-func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId string) (*peer.ID, error) {
+func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId string, log *zap.SugaredLogger) (*peer.ID, error) {
 	var peers peer.IDSlice
 	for _, peer := range host.Peerstore().Peers() {
 		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)

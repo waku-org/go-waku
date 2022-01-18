@@ -7,64 +7,67 @@ import (
 	"time"
 
 	"github.com/gorilla/rpc/v2"
-	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"go.uber.org/zap"
 )
-
-var log = logging.Logger("wakurpc")
 
 type WakuRpc struct {
 	node   *node.WakuNode
 	server *http.Server
+
+	log *zap.SugaredLogger
 
 	relayService   *RelayService
 	filterService  *FilterService
 	privateService *PrivateService
 }
 
-func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
+func NewWakuRpc(node *node.WakuNode, address string, port int, log *zap.SugaredLogger) *WakuRpc {
+	wrpc := new(WakuRpc)
+	wrpc.log = log.Named("rpc")
+
 	s := rpc.NewServer()
 	s.RegisterCodec(NewSnakeCaseCodec(), "application/json")
 	s.RegisterCodec(NewSnakeCaseCodec(), "application/json;charset=UTF-8")
 
 	err := s.RegisterService(&DebugService{node}, "Debug")
 	if err != nil {
-		log.Error(err)
+		wrpc.log.Error(err)
 	}
 
-	relayService := NewRelayService(node)
+	relayService := NewRelayService(node, log)
 	err = s.RegisterService(relayService, "Relay")
 	if err != nil {
-		log.Error(err)
+		wrpc.log.Error(err)
 	}
 
-	err = s.RegisterService(&StoreService{node}, "Store")
+	err = s.RegisterService(&StoreService{node, log.Named("store")}, "Store")
 	if err != nil {
-		log.Error(err)
+		wrpc.log.Error(err)
 	}
 
-	err = s.RegisterService(&AdminService{node}, "Admin")
+	err = s.RegisterService(&AdminService{node, log.Named("admin")}, "Admin")
 	if err != nil {
-		log.Error(err)
+		wrpc.log.Error(err)
 	}
 
-	filterService := NewFilterService(node)
+	filterService := NewFilterService(node, log)
 	err = s.RegisterService(filterService, "Filter")
 	if err != nil {
-		log.Error(err)
+		wrpc.log.Error(err)
 	}
 
-	privateService := NewPrivateService(node)
+	privateService := NewPrivateService(node, log)
 	err = s.RegisterService(privateService, "Private")
 	if err != nil {
-		log.Error(err)
+		wrpc.log.Error(err)
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/jsonrpc", func(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		s.ServeHTTP(w, r)
-		log.Infof("RPC request at %s took %s", r.URL.Path, time.Since(t))
+		wrpc.log.Infof("RPC request at %s took %s", r.URL.Path, time.Since(t))
 	})
 
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
@@ -79,13 +82,13 @@ func NewWakuRpc(node *node.WakuNode, address string, port int) *WakuRpc {
 		relayService.Stop()
 	})
 
-	return &WakuRpc{
-		node:           node,
-		server:         server,
-		relayService:   relayService,
-		filterService:  filterService,
-		privateService: privateService,
-	}
+	wrpc.node = node
+	wrpc.server = server
+	wrpc.relayService = relayService
+	wrpc.filterService = filterService
+	wrpc.privateService = privateService
+
+	return wrpc
 }
 
 func (r *WakuRpc) Start() {
@@ -94,10 +97,10 @@ func (r *WakuRpc) Start() {
 	go func() {
 		_ = r.server.ListenAndServe()
 	}()
-	log.Info("Rpc server started at ", r.server.Addr)
+	r.log.Info("Rpc server started at ", r.server.Addr)
 }
 
 func (r *WakuRpc) Stop(ctx context.Context) error {
-	log.Info("Shutting down rpc server")
+	r.log.Info("Shutting down rpc server")
 	return r.server.Shutdown(ctx)
 }

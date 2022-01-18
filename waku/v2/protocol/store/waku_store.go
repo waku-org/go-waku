@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-msgio/protoio"
+	"go.uber.org/zap"
 
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/metrics"
@@ -25,8 +25,6 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/swap"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
-
-var log = logging.Logger("wakustore")
 
 // StoreID_v20beta3 is the current Waku Store protocol identifier
 const StoreID_v20beta3 = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta3")
@@ -231,6 +229,8 @@ type WakuStore struct {
 	MsgC chan *protocol.Envelope
 	wg   *sync.WaitGroup
 
+	log *zap.SugaredLogger
+
 	started bool
 
 	messageQueue *MessageQueue
@@ -240,12 +240,13 @@ type WakuStore struct {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration) *WakuStore {
+func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration, log *zap.SugaredLogger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.h = host
 	wakuStore.swap = swap
 	wakuStore.wg = &sync.WaitGroup{}
+	wakuStore.log = log.Named("store")
 	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages, maxRetentionDuration)
 	return wakuStore
 }
@@ -271,13 +272,13 @@ func (store *WakuStore) Start(ctx context.Context) {
 	go store.storeIncomingMessages(ctx)
 
 	if store.msgProvider == nil {
-		log.Info("Store protocol started (no message provider)")
+		store.log.Info("Store protocol started (no message provider)")
 		return
 	}
 
 	store.fetchDBRecords(ctx)
 
-	log.Info("Store protocol started")
+	store.log.Info("Store protocol started")
 }
 
 func (store *WakuStore) fetchDBRecords(ctx context.Context) {
@@ -287,7 +288,7 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 
 	storedMessages, err := (store.msgProvider).GetAll()
 	if err != nil {
-		log.Error("could not load DBProvider messages", err)
+		store.log.Error("could not load DBProvider messages", err)
 		metrics.RecordStoreError(ctx, "store_load_failure")
 		return
 	}
@@ -311,7 +312,7 @@ func (store *WakuStore) addToMessageQueue(pubsubTopic string, idx *pb.Index, msg
 func (store *WakuStore) storeMessage(env *protocol.Envelope) {
 	index, err := computeIndex(env)
 	if err != nil {
-		log.Error("could not calculate message index", err)
+		store.log.Error("could not calculate message index", err)
 		return
 	}
 
@@ -328,7 +329,7 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) {
 	// TODO: Move this to a separate go routine if DB writes becomes a bottleneck
 	err = store.msgProvider.Put(index, env.PubsubTopic(), env.Message()) // Should the index be stored?
 	if err != nil {
-		log.Error("could not store message", err)
+		store.log.Error("could not store message", err)
 		metrics.RecordStoreError(store.ctx, "store_failure")
 		return
 	}
@@ -353,12 +354,12 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
-		log.Error("error reading request", err)
+		store.log.Error("error reading request", err)
 		metrics.RecordStoreError(store.ctx, "decodeRPCFailure")
 		return
 	}
 
-	log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
+	store.log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
 
 	historyResponseRPC := &pb.HistoryRPC{}
 	historyResponseRPC.RequestId = historyRPCRequest.RequestId
@@ -366,10 +367,10 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	err = writer.WriteMsg(historyResponseRPC)
 	if err != nil {
-		log.Error("error writing response", err)
+		store.log.Error("error writing response", err)
 		_ = s.Reset()
 	} else {
-		log.Info(fmt.Sprintf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
+		store.log.Info(fmt.Sprintf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
 	}
 }
 
@@ -444,22 +445,22 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // to request the message history
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta3))
+		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta3), params.s.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
-			log.Info("Error selecting peer: ", err)
+			params.s.log.Info("Error selecting peer: ", err)
 		}
 	}
 }
 
 func WithFastestPeerSelection(ctx context.Context) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta3))
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta3), params.s.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
-			log.Info("Error selecting peer: ", err)
+			params.s.log.Info("Error selecting peer: ", err)
 		}
 	}
 }
@@ -500,11 +501,11 @@ func DefaultOptions() []HistoryRequestOption {
 }
 
 func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestId []byte) (*pb.HistoryResponse, error) {
-	log.Info(fmt.Sprintf("Querying message history with peer %s", selectedPeer))
+	store.log.Info(fmt.Sprintf("Querying message history with peer %s", selectedPeer))
 
 	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta3)
 	if err != nil {
-		log.Error("Failed to connect to remote peer", err)
+		store.log.Error("Failed to connect to remote peer", err)
 		return nil, err
 	}
 
@@ -520,14 +521,14 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 
 	err = writer.WriteMsg(historyRequest)
 	if err != nil {
-		log.Error("could not write request", err)
+		store.log.Error("could not write request", err)
 		return nil, err
 	}
 
 	historyResponseRPC := &pb.HistoryRPC{}
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
-		log.Error("could not read response", err)
+		store.log.Error("could not read response", err)
 		metrics.RecordStoreError(store.ctx, "decodeRPCFailure")
 		return nil, err
 	}
@@ -650,7 +651,7 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 			if err == nil {
 				resultChan <- result
 			}
-			log.Error(fmt.Errorf("resume history with peer %s failed: %w", peer, err))
+			store.log.Error(fmt.Errorf("resume history with peer %s failed: %w", peer, err))
 		}()
 	}
 
@@ -712,9 +713,9 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	}
 
 	if len(peerList) == 0 {
-		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta3))
+		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta3), store.log)
 		if err != nil {
-			log.Info("Error selecting peer: ", err)
+			store.log.Info("Error selecting peer: ", err)
 			return -1, ErrNoPeersAvailable
 		}
 
@@ -723,7 +724,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 	messages, err := store.queryLoop(ctx, rpc, peerList)
 	if err != nil {
-		log.Error("failed to resume history", err)
+		store.log.Error("failed to resume history", err)
 		return -1, ErrFailedToResumeHistory
 	}
 
@@ -731,7 +732,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 		store.storeMessage(protocol.NewEnvelope(msg, pubsubTopic))
 	}
 
-	log.Info("Retrieved messages since the last online time: ", len(messages))
+	store.log.Info("Retrieved messages since the last online time: ", len(messages))
 
 	return len(messages), nil
 }
