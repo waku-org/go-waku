@@ -11,10 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"go.uber.org/zap"
 )
 
 type PrivateService struct {
 	node *node.WakuNode
+	log  *zap.SugaredLogger
 
 	symmetricMessages      map[string][]*pb.WakuMessage
 	symmetricMessagesMutex sync.RWMutex
@@ -54,11 +56,12 @@ type AsymmetricMessagesArgs struct {
 	PrivateKey string `json:"privateKey"`
 }
 
-func NewPrivateService(node *node.WakuNode) *PrivateService {
+func NewPrivateService(node *node.WakuNode, log *zap.SugaredLogger) *PrivateService {
 	return &PrivateService{
 		node:               node,
 		symmetricMessages:  make(map[string][]*pb.WakuMessage),
 		asymmetricMessages: make(map[string][]*pb.WakuMessage),
+		log:                log.Named("private"),
 	}
 }
 

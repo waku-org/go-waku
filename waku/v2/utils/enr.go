@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"go.uber.org/zap"
 )
 
 const WakuENRField = "waku2"
@@ -141,7 +142,7 @@ func Multiaddress(node *enode.Node) ([]ma.Multiaddr, error) {
 	var multiaddrRaw []byte
 	if err := node.Record().Load(enr.WithEntry(MultiaddrENRField, &multiaddrRaw)); err != nil {
 		if !enr.IsNotFound(err) {
-			log.Error("could not retrieve multiaddress field for node ", node)
+			Logger().Error("could not retrieve multiaddress field for node ", zap.Any("enode", node))
 		}
 		return nil, err
 	}

@@ -19,7 +19,7 @@ const maxPublishAttempt = 5
 func (w *WakuNode) startKeepAlive(t time.Duration) {
 	go func() {
 		defer w.wg.Done()
-		log.Info("Setting up ping protocol with duration of ", t)
+		w.log.Info("Setting up ping protocol with duration of ", t)
 		ticker := time.NewTicker(t)
 		defer ticker.Stop()
 		for {
@@ -52,25 +52,25 @@ func (w *WakuNode) pingPeer(peer peer.ID) {
 	ctx, cancel := context.WithTimeout(w.ctx, 3*time.Second)
 	defer cancel()
 
-	log.Debug("Pinging ", peer)
+	w.log.Debug("Pinging ", peer)
 	pr := ping.Ping(ctx, w.host, peer)
 	select {
 	case res := <-pr:
 		if res.Error != nil {
 			w.keepAliveFails[peer]++
-			log.Debug(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
+			w.log.Debug(fmt.Sprintf("Could not ping %s: %s", peer, res.Error.Error()))
 		} else {
 			w.keepAliveFails[peer] = 0
 		}
 	case <-ctx.Done():
 		w.keepAliveFails[peer]++
-		log.Debug(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
+		w.log.Debug(fmt.Sprintf("Could not ping %s: %s", peer, ctx.Err()))
 	}
 
 	if w.keepAliveFails[peer] > maxAllowedPingFailures && w.host.Network().Connectedness(peer) == network.Connected {
-		log.Info("Disconnecting peer ", peer)
+		w.log.Info("Disconnecting peer ", peer)
 		if err := w.host.Network().ClosePeer(peer); err != nil {
-			log.Debug(fmt.Sprintf("Could not close conn to peer %s: %s", peer, err))
+			w.log.Debug(fmt.Sprintf("Could not close conn to peer %s: %s", peer, err))
 		}
 		w.keepAliveFails[peer] = 0
 	}

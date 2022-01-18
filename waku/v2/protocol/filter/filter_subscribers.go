@@ -77,8 +77,6 @@ func (sub *Subscribers) FlagAsFailure(peerID peer.ID) {
 	if ok {
 		elapsedTime := time.Since(lastFailure)
 		if elapsedTime > sub.timeout {
-			log.Debug("filter timeout reached for peer:", peerID)
-
 			var tmpSubs []Subscriber
 			for _, s := range sub.subscribers {
 				if s.peer != peerID {

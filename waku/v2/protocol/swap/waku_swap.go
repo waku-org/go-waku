@@ -3,9 +3,8 @@ package swap
 import (
 	"sync"
 
-	logging "github.com/ipfs/go-log"
-
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"go.uber.org/zap"
 )
 
 const (
@@ -16,16 +15,16 @@ const (
 
 const WakuSwapID_v200 = protocol.ID("/vac/waku/swap/2.0.0-beta1")
 
-var log = logging.Logger("wakuswap")
-
 type WakuSwap struct {
 	params *SwapParameters
+
+	log *zap.SugaredLogger
 
 	Accounting      map[string]int
 	accountingMutex sync.RWMutex
 }
 
-func NewWakuSwap(opts ...SwapOption) *WakuSwap {
+func NewWakuSwap(log *zap.SugaredLogger, opts ...SwapOption) *WakuSwap {
 	params := &SwapParameters{}
 
 	optList := DefaultOptions()
@@ -36,21 +35,22 @@ func NewWakuSwap(opts ...SwapOption) *WakuSwap {
 
 	return &WakuSwap{
 		params:     params,
+		log:        log.Named("swap"),
 		Accounting: make(map[string]int),
 	}
 }
 
 func (s *WakuSwap) sendCheque(peerId string) {
-	log.Debug("not yet implemented")
+	s.log.Debug("not yet implemented")
 }
 
 func (s *WakuSwap) applyPolicy(peerId string) {
 	if s.Accounting[peerId] <= s.params.disconnectThreshold {
-		log.Warnf("Disconnect threshhold has been reached for %s at %d", peerId, s.Accounting[peerId])
+		s.log.Warnf("Disconnect threshhold has been reached for %s at %d", peerId, s.Accounting[peerId])
 	}
 
 	if s.Accounting[peerId] >= s.params.paymentThreshold {
-		log.Warnf("Disconnect threshhold has been reached for %s at %d", peerId, s.Accounting[peerId])
+		s.log.Warnf("Disconnect threshhold has been reached for %s at %d", peerId, s.Accounting[peerId])
 		if s.params.mode != HardMode {
 			s.sendCheque(peerId)
 		}

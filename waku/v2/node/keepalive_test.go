@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/status-im/go-waku/tests"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,6 +37,7 @@ func TestKeepAlive(t *testing.T) {
 		host:           host1,
 		ctx:            ctx2,
 		wg:             wg,
+		log:            tests.Logger(),
 		keepAliveMutex: sync.Mutex{},
 		keepAliveFails: make(map[peer.ID]int),
 	}

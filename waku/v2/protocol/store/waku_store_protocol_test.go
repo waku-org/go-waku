@@ -20,7 +20,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, nil, 0, 0)
+	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
 	s1.Start(ctx)
 	defer s1.Stop()
 
@@ -39,7 +39,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	// Simulate a message has been received via relay protocol
 	s1.MsgC <- protocol.NewEnvelope(msg, pubsubTopic1)
 
-	s2 := NewWakuStore(host2, nil, nil, 0, 0)
+	s2 := NewWakuStore(host2, nil, nil, 0, 0, tests.Logger())
 	s2.Start(ctx)
 	defer s2.Stop()
 
@@ -66,7 +66,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, nil, 0, 0)
+	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
 	s1.Start(ctx)
 	defer s1.Stop()
 
@@ -92,7 +92,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta3))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(host2, nil, nil, 0, 0)
+	s2 := NewWakuStore(host2, nil, nil, 0, 0, tests.Logger())
 	s2.Start(ctx)
 	defer s2.Stop()
 
