@@ -5,14 +5,12 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	"github.com/status-im/go-waku/tests"
 	"github.com/stretchr/testify/require"
 )
 
-var log = logging.Logger("test")
-
 func TestStartAndStopMetricsServer(t *testing.T) {
-	server := NewMetricsServer("0.0.0.0", 9876, &log.SugaredLogger)
+	server := NewMetricsServer("0.0.0.0", 9876, tests.Logger())
 
 	go func() {
 		time.Sleep(1 * time.Second)

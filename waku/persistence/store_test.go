@@ -5,19 +5,16 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log"
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/stretchr/testify/require"
 )
 
-var log = logging.Logger("test")
-
 func NewMock() *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
-		log.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		tests.Logger().Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 
 	return db
@@ -34,7 +31,7 @@ func createIndex(digest []byte, receiverTime float64) *pb.Index {
 func TestDbStore(t *testing.T) {
 	db := NewMock()
 	option := WithDB(db)
-	store, err := NewDBStore(&log.SugaredLogger, option)
+	store, err := NewDBStore(tests.Logger(), option)
 	require.NoError(t, err)
 
 	res, err := store.GetAll()
@@ -55,7 +52,7 @@ func TestDbStore(t *testing.T) {
 
 func TestStoreRetention(t *testing.T) {
 	db := NewMock()
-	store, err := NewDBStore(&log.SugaredLogger, WithDB(db), WithRetentionPolicy(5, 20*time.Second))
+	store, err := NewDBStore(tests.Logger(), WithDB(db), WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
 	insertTime := time.Now()
@@ -75,7 +72,7 @@ func TestStoreRetention(t *testing.T) {
 
 	// This step simulates starting go-waku again from scratch
 
-	store, err = NewDBStore(&log.SugaredLogger, WithDB(db), WithRetentionPolicy(5, 40*time.Second))
+	store, err = NewDBStore(tests.Logger(), WithDB(db), WithRetentionPolicy(5, 40*time.Second))
 	require.NoError(t, err)
 
 	dbResults, err = store.GetAll()

@@ -24,7 +24,7 @@ func TestFilterOption(t *testing.T) {
 
 	params := new(FilterSubscribeParameters)
 	params.host = host
-	params.log = &log.SugaredLogger
+	params.log = tests.Logger()
 
 	for _, opt := range options {
 		opt(params)

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -20,6 +19,7 @@ import (
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -80,7 +80,7 @@ type WakuNodeOption func(*WakuNodeParameters) error
 
 // Default options used in the libp2p node
 var DefaultWakuNodeOptions = []WakuNodeOption{
-	WithLogger(logging.Logger("waku").Desugar()),
+	WithLogger(utils.Logger()),
 	WithWakuRelay(),
 }
 

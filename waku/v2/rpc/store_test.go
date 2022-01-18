@@ -4,12 +4,10 @@ import (
 	"context"
 	"testing"
 
-	logging "github.com/ipfs/go-log"
+	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/stretchr/testify/require"
 )
-
-var log = logging.Logger("test")
 
 func makeStoreService(t *testing.T) *StoreService {
 	options := node.WithWakuStore(false, false)
@@ -17,7 +15,7 @@ func makeStoreService(t *testing.T) *StoreService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return &StoreService{n, &log.SugaredLogger}
+	return &StoreService{n, tests.Logger()}
 }
 
 func TestStoreGetV1Messages(t *testing.T) {

@@ -23,7 +23,7 @@ func makeAdminService(t *testing.T) *AdminService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return &AdminService{n, &log.SugaredLogger}
+	return &AdminService{n, tests.Logger()}
 }
 
 func TestV1Peers(t *testing.T) {
@@ -32,7 +32,7 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, &log.SugaredLogger)
+	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, tests.Logger())
 	require.NoError(t, err)
 	defer relay.Stop()
 
