@@ -2,7 +2,7 @@ module github.com/status-im/go-waku
 
 go 1.15
 
-replace github.com/ethereum/go-ethereum v1.10.4 => github.com/status-im/go-ethereum v1.10.4-status.2
+replace github.com/ethereum/go-ethereum v1.10.16 => github.com/status-im/go-ethereum v1.10.4-status.2
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
