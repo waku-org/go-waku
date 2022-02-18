@@ -81,7 +81,7 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 	)
 }
 
-func CreateWakuMessage(contentTopic string, timestamp float64) *pb.WakuMessage {
+func CreateWakuMessage(contentTopic string, timestamp int64) *pb.WakuMessage {
 	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
 }
 

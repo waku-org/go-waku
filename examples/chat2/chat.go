@@ -95,7 +95,7 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	}
 
 	var version uint32
-	var timestamp float64 = utils.GetUnixEpoch()
+	var timestamp int64 = utils.GetUnixEpoch()
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 
 	if cr.useV1Payload { // Use WakuV1 encryption

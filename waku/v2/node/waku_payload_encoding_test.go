@@ -13,7 +13,7 @@ func createTestMsg(version uint32) *pb.WakuMessage {
 	message := new(pb.WakuMessage)
 	message.Payload = []byte{0, 1, 2}
 	message.Version = version
-	message.Timestamp = float64(123456)
+	message.Timestamp = 123456
 	return message
 }
 
@@ -36,7 +36,7 @@ func TestEncodeDecodePayload(t *testing.T) {
 	message := new(pb.WakuMessage)
 	message.Payload = encodedPayload
 	message.Version = version
-	message.Timestamp = float64(123456)
+	message.Timestamp = 123456
 
 	decodedPayload, err := DecodePayload(message, keyInfo)
 	require.NoError(t, err)

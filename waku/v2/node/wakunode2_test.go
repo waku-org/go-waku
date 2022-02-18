@@ -129,7 +129,7 @@ func Test1100(t *testing.T) {
 		for i := 1; i <= 1100; i++ {
 			msg := createTestMsg(0)
 			msg.Payload = []byte(fmt.Sprint(i))
-			msg.Timestamp = float64(i)
+			msg.Timestamp = int64(i)
 			if err := wakuNode2.Publish(ctx, msg); err != nil {
 				require.Fail(t, "Could not publish all messages")
 			}

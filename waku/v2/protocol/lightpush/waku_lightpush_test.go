@@ -78,8 +78,8 @@ func TestWakuLightPush(t *testing.T) {
 	err = clientHost.Peerstore().AddProtocols(host2.ID(), string(LightPushID_v20beta1))
 	require.NoError(t, err)
 
-	msg1 := tests.CreateWakuMessage("test1", float64(0))
-	msg2 := tests.CreateWakuMessage("test2", float64(1))
+	msg1 := tests.CreateWakuMessage("test1", 0)
+	msg2 := tests.CreateWakuMessage("test2", 1)
 
 	req := new(pb.PushRequest)
 	req.Message = msg1
@@ -137,6 +137,6 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	require.NoError(t, err)
 	client := NewWakuLightPush(ctx, clientHost, nil, tests.Logger())
 
-	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", float64(0)), testTopic)
+	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", 0), testTopic)
 	require.Errorf(t, err, "no suitable remote peers")
 }

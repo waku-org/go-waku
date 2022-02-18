@@ -51,7 +51,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) error {
 	var contentTopic string = "test"
 	var version uint32 = 0
-	var timestamp float64 = utils.GetUnixEpoch()
+	var timestamp int64 = utils.GetUnixEpoch()
 
 	p := new(node.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
