@@ -8,11 +8,11 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
-	github.com/ethereum/go-ethereum v1.10.13
+	github.com/ethereum/go-ethereum v1.10.16
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/rpc v1.2.0
-	github.com/ipfs/go-ds-sql v0.2.0
+	github.com/ipfs/go-ds-sql v0.3.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
@@ -29,5 +29,5 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.23.0
-	go.uber.org/zap v1.19.0
+	go.uber.org/zap v1.21.0
 )

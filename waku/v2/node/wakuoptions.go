@@ -308,6 +308,14 @@ func WithConnectionStatusChannel(connStatus chan ConnStatus) WakuNodeOption {
 var DefaultLibP2POptions = []libp2p.Option{
 	libp2p.DefaultTransports,
 	libp2p.UserAgent(clientId),
-	libp2p.EnableNATService(), // TODO: is this needed?)
-	libp2p.ConnectionManager(connmgr.NewConnManager(200, 300, 0)),
+	libp2p.EnableNATService(),
+	libp2p.ConnectionManager(newConnManager(200, 300, connmgr.WithGracePeriod(0))),
+}
+
+func newConnManager(lo int, hi int, opts ...connmgr.Option) *connmgr.BasicConnMgr {
+	mgr, err := connmgr.NewConnManager(lo, hi, opts...)
+	if err != nil {
+		panic("could not create ConnManager: " + err.Error())
+	}
+	return mgr
 }

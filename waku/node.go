@@ -419,8 +419,6 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 }
 
 func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption, options Options) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	params := new(node.WakuNodeParameters)
 	for _, opt := range nodeOpts {
 		err := opt(params)
@@ -440,7 +438,7 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		libp2pOpts = append(libp2pOpts, libp2p.AddrsFactory(addrFactory))
 	}
 
-	h, err := libp2p.New(ctx, libp2pOpts...)
+	h, err := libp2p.New(libp2pOpts...)
 	if err != nil {
 		panic(err)
 	}

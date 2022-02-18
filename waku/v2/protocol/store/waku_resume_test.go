@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/libp2p/go-libp2p"
@@ -35,7 +34,7 @@ func TestResume(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
@@ -53,9 +52,7 @@ func TestResume(t *testing.T) {
 		_ = s1.storeMessage(msg)
 	}
 
-	fmt.Println(s1.messageQueue.messages[9].msg.Timestamp, s1.messageQueue.messages[9].msg.ContentTopic, "????????????????")
-
-	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s2 := NewWakuStore(host2, nil, nil, 0, 0, tests.Logger())
@@ -84,10 +81,10 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	defer cancel()
 
 	// Host that does not support store protocol
-	invalidHost, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	invalidHost, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
@@ -98,7 +95,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 
 	_ = s1.storeMessage(protocol.NewEnvelope(msg0, "test"))
 
-	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s2 := NewWakuStore(host2, nil, nil, 0, 0, tests.Logger())
@@ -120,7 +117,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
@@ -131,7 +128,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 
 	_ = s1.storeMessage(protocol.NewEnvelope(msg0, "test"))
 
-	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s2 := NewWakuStore(host2, nil, nil, 0, 0, tests.Logger())
