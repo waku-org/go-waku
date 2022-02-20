@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p"
@@ -160,7 +161,7 @@ func Execute(options Options) {
 
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 
-	if !options.Relay.Disable {
+	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
@@ -198,7 +199,7 @@ func Execute(options Options) {
 
 	if options.DiscV5.Enable {
 		var bootnodes []*enode.Node
-		for _, addr := range options.DiscV5.Nodes {
+		for _, addr := range options.DiscV5.Nodes.Value() {
 			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
 			if err != nil {
 				utils.Logger().Fatal("could not parse enr: ", zap.Error(err))
@@ -212,10 +213,10 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
-	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID_v001)
-	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta3)
-	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
-	addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
+	addPeers(wakuNode, options.Rendezvous.Nodes.Value(), rendezvous.RendezvousID_v001)
+	addPeers(wakuNode, options.Store.Nodes.Value(), store.StoreID_v20beta3)
+	addPeers(wakuNode, options.LightPush.Nodes.Value(), lightpush.LightPushID_v20beta1)
+	addPeers(wakuNode, options.Filter.Nodes.Value(), filter.FilterID_v20beta1)
 
 	if err = wakuNode.Start(); err != nil {
 		utils.Logger().Fatal(fmt.Errorf("could not start waku node, %w", err).Error())
@@ -227,19 +228,19 @@ func Execute(options Options) {
 		}
 	}
 
-	if len(options.Relay.Topics) == 0 {
-		options.Relay.Topics = []string{string(relay.DefaultWakuTopic)}
+	if len(options.Relay.Topics.Value()) == 0 {
+		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)
 	}
 
-	if !options.Relay.Disable {
-		for _, nodeTopic := range options.Relay.Topics {
+	if options.Relay.Enable {
+		for _, nodeTopic := range options.Relay.Topics.Value() {
 			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
 			wakuNode.Broadcaster().Unregister(sub.C)
 		}
 	}
 
-	for _, n := range options.StaticNodes {
+	for _, n := range options.StaticNodes.Value() {
 		go func(node string) {
 			err = wakuNode.DialPeer(ctx, node)
 			if err != nil {

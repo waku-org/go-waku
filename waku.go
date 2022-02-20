@@ -1,37 +1,329 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	logging "github.com/ipfs/go-log"
-	"github.com/jessevdk/go-flags"
 	"github.com/status-im/go-waku/waku"
 	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/urfave/cli/v2"
 )
 
 var options waku.Options
 
-var parser = flags.NewParser(&options, flags.Default)
-
 func main() {
-	if _, err := parser.Parse(); err != nil {
-		os.Exit(1)
+	app := &cli.App{
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:        "tcp-port",
+				Aliases:     []string{"port", "p"},
+				Value:       60000,
+				Usage:       "Libp2p TCP listening port (0 for random)",
+				Destination: &options.Port,
+			},
+			&cli.StringFlag{
+				Name:        "address",
+				Value:       "0.0.0.0",
+				Usage:       "Listening address",
+				Destination: &options.Address,
+			},
+			&cli.BoolFlag{
+				Name:        "websocket-support",
+				Aliases:     []string{"ws"},
+				Usage:       "Enable websockets support",
+				Destination: &options.EnableWS,
+			},
+			&cli.IntFlag{
+				Name:        "websocket-port",
+				Aliases:     []string{"ws-port"},
+				Value:       60001,
+				Usage:       "Libp2p TCP listening port for websocket connection (0 for random)",
+				Destination: &options.WSPort,
+			},
+			&cli.StringFlag{
+				Name:        "websocket-address",
+				Aliases:     []string{"ws-address"},
+				Value:       "0.0.0.0",
+				Usage:       "Listening address for websocket connections",
+				Destination: &options.WSAddress,
+			},
+			&cli.StringFlag{
+				Name:        "nodekey",
+				Usage:       "P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)",
+				Destination: &options.NodeKey,
+			},
+			&cli.StringFlag{
+				Name:        "key-file",
+				Value:       "./nodekey",
+				Usage:       "Path to a file containing the private key for the P2P node",
+				Destination: &options.KeyFile,
+			},
+			&cli.BoolFlag{
+				Name:        "generate-key",
+				Usage:       "Generate private key file at path specified in --key-file",
+				Destination: &options.GenerateKey,
+			},
+			&cli.BoolFlag{
+				Name:        "overwrite",
+				Usage:       "When generating a keyfile, overwrite the nodekey file if it already exists",
+				Destination: &options.Overwrite,
+			},
+			&cli.StringSliceFlag{
+				Name:        "staticnode",
+				Usage:       "Multiaddr of peer to directly connect with. Option may be repeated",
+				Destination: &options.StaticNodes,
+			},
+			&cli.IntFlag{
+				Name:        "keep-alive",
+				Value:       20,
+				Usage:       "Interval in seconds for pinging peers to keep the connection alive.",
+				Destination: &options.KeepAlive,
+			},
+			&cli.BoolFlag{
+				Name:        "use-db",
+				Usage:       "Use SQLiteDB to persist information",
+				Destination: &options.UseDB,
+			},
+			&cli.StringFlag{
+				Name:        "db-path",
+				Aliases:     []string{"dbpath"},
+				Value:       "./store.db",
+				Usage:       "Path to DB file",
+				Destination: &options.DBPath,
+			},
+			&cli.StringFlag{
+				Name:        "advertise-address",
+				Usage:       "External address to advertise to other nodes (overrides --address and --ws-address flags)",
+				Destination: &options.AdvertiseAddress,
+			},
+			&cli.BoolFlag{
+				Name:        "show-addresses",
+				Usage:       "Display listening addresses according to current configuration",
+				Destination: &options.ShowAddresses,
+			},
+			&cli.StringFlag{
+				Name:        "log-level",
+				Aliases:     []string{"l"},
+				Value:       "INFO",
+				Usage:       "Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms.",
+				Destination: &options.LogLevel,
+			},
+			&cli.BoolFlag{
+				Name:        "relay",
+				Value:       true,
+				Usage:       "Enable relay protocol",
+				Destination: &options.Relay.Enable,
+			},
+			&cli.StringSliceFlag{
+				Name:        "topics",
+				Usage:       "List of topics to listen",
+				Destination: &options.Relay.Topics,
+			},
+			&cli.BoolFlag{
+				Name:        "peer-exchange",
+				Value:       true,
+				Usage:       "Enable GossipSub Peer Exchange",
+				Destination: &options.Relay.PeerExchange,
+			},
+			&cli.IntFlag{
+				Name:        "min-relay-peers-to-publish",
+				Value:       1,
+				Usage:       "Minimum number of peers to publish to Relay",
+				Destination: &options.Relay.MinRelayPeersToPublish,
+			},
+			&cli.BoolFlag{
+				Name:        "store",
+				Usage:       "Enable relay protocol",
+				Destination: &options.Store.Enable,
+			},
+			&cli.BoolFlag{
+				Name:        "resume",
+				Usage:       "Fix the gaps in message history",
+				Destination: &options.Store.ShouldResume,
+			},
+			&cli.IntFlag{
+				Name:        "store-days",
+				Value:       30,
+				Usage:       "maximum number of days before a message is removed from the store",
+				Destination: &options.Store.RetentionMaxDays,
+			},
+			&cli.IntFlag{
+				Name:        "store-capacity",
+				Value:       50000,
+				Usage:       "maximum number of messages to store",
+				Destination: &options.Store.RetentionMaxMessages,
+			},
+			&cli.StringSliceFlag{
+				Name:        "storenode",
+				Usage:       "Multiaddr of a peer that supports store protocol. Option may be repeated",
+				Destination: &options.Store.Nodes,
+			},
+			&cli.IntFlag{
+				Name:        "swap-mode",
+				Value:       0,
+				Usage:       "Swap mode: 0=soft, 1=mock, 2=hard",
+				Destination: &options.Swap.Mode,
+			},
+			&cli.IntFlag{
+				Name:        "swap-payment-threshold",
+				Value:       100,
+				Usage:       "Threshold for payment",
+				Destination: &options.Swap.PaymentThreshold,
+			},
+			&cli.IntFlag{
+				Name:        "swap-disconnect-threshold",
+				Value:       -100,
+				Usage:       "Threshold for disconnecting",
+				Destination: &options.Swap.DisconnectThreshold,
+			},
+			&cli.BoolFlag{
+				Name:        "filter",
+				Usage:       "Enable filter protocol",
+				Destination: &options.Filter.Enable,
+			},
+			&cli.BoolFlag{
+				Name:        "light-client",
+				Usage:       "Don't accept filter subscribers",
+				Destination: &options.Filter.DisableFullNode,
+			},
+			&cli.StringSliceFlag{
+				Name:        "filternode",
+				Usage:       "Multiaddr of a peer that supports filter protocol. Option may be repeated",
+				Destination: &options.Filter.Nodes,
+			},
+			&cli.IntFlag{
+				Name:        "filter-timeout",
+				Value:       14400,
+				Usage:       "Timeout for filter node in seconds",
+				Destination: &options.Filter.Timeout,
+			},
+			&cli.BoolFlag{
+				Name:        "lightpush",
+				Usage:       "Enable lightpush protocol",
+				Destination: &options.LightPush.Enable,
+			},
+			&cli.StringSliceFlag{
+				Name:        "lightpushnode",
+				Usage:       "Multiaddr of a peer that supports lightpush protocol. Option may be repeated",
+				Destination: &options.LightPush.Nodes,
+			},
+			&cli.BoolFlag{
+				Name:        "discv5-discovery",
+				Usage:       "Enable discovering nodes via Node Discovery v5",
+				Destination: &options.DiscV5.Enable,
+			},
+			&cli.StringSliceFlag{
+				Name:        "discv5-bootstrap-node",
+				Usage:       "Text-encoded ENR for bootstrap node. Used when connecting to the network. Option may be repeated",
+				Destination: &options.DiscV5.Nodes,
+			},
+			&cli.IntFlag{
+				Name:        "discv5-udp-port",
+				Value:       9000,
+				Usage:       "Listening UDP port for Node Discovery v5.",
+				Destination: &options.DiscV5.Port,
+			},
+			&cli.BoolFlag{
+				Name:        "discv5-enr-auto-update",
+				Usage:       "Discovery can automatically update its ENR with the IP address as seen by other nodes it communicates with.",
+				Destination: &options.DiscV5.AutoUpdate,
+			},
+			&cli.BoolFlag{
+				Name:        "rendezvous",
+				Usage:       "Enable rendezvous protocol for peer discovery",
+				Destination: &options.Rendezvous.Enable,
+			},
+			&cli.StringSliceFlag{
+				Name:        "rendezvous-node",
+				Usage:       "Multiaddr of a waku2 rendezvous node. Option may be repeated",
+				Destination: &options.Rendezvous.Nodes,
+			},
+			&cli.BoolFlag{
+				Name:        "rendezvous-server",
+				Usage:       "Node will act as rendezvous server",
+				Destination: &options.RendezvousServer.Enable,
+			},
+			&cli.StringFlag{
+				Name:        "rendezvous-db-path",
+				Value:       "/tmp/rendezvous",
+				Usage:       "Path where peer records database will be stored",
+				Destination: &options.RendezvousServer.DBPath,
+			},
+			&cli.BoolFlag{
+				Name:        "dns-discovery",
+				Usage:       "Enable DNS discovery",
+				Destination: &options.DNSDiscovery.Enable,
+			},
+			&cli.StringFlag{
+				Name:        "dns-discovery-url",
+				Usage:       "URL for DNS node list in format 'enrtree://<key>@<fqdn>'",
+				Destination: &options.DNSDiscovery.URL,
+			},
+			&cli.StringFlag{
+				Name:        "dns-discovery-name-server",
+				Aliases:     []string{"dns-discovery-nameserver"},
+				Usage:       "DNS nameserver IP to query (empty to use system's default)",
+				Destination: &options.DNSDiscovery.Nameserver,
+			},
+			&cli.BoolFlag{
+				Name:        "metrics-server",
+				Aliases:     []string{"metrics"},
+				Usage:       "Enable the metrics server",
+				Destination: &options.Metrics.Enable,
+			},
+			&cli.StringFlag{
+				Name:        "metrics-server-address",
+				Aliases:     []string{"metrics-address"},
+				Value:       "127.0.0.1",
+				Usage:       "Listening address of the metrics server",
+				Destination: &options.Metrics.Address,
+			},
+			&cli.IntFlag{
+				Name:        "metrics-server-port",
+				Aliases:     []string{"metrics-port"},
+				Value:       8008,
+				Usage:       "Listening HTTP port of the metrics server",
+				Destination: &options.Metrics.Port,
+			},
+			&cli.BoolFlag{
+				Name:        "rpc",
+				Usage:       "Enable the rpc server",
+				Destination: &options.RPCServer.Enable,
+			},
+			&cli.IntFlag{
+				Name:        "rpc-port",
+				Value:       8009,
+				Usage:       "Listening port of the rpc server",
+				Destination: &options.RPCServer.Port,
+			},
+			&cli.StringFlag{
+				Name:        "rpc-address",
+				Value:       "127.0.0.1",
+				Usage:       "Listening address of the rpc server",
+				Destination: &options.RPCServer.Address,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			// for go-libp2p loggers
+			lvl, err := logging.LevelFromString(options.LogLevel)
+			if err != nil {
+				return err
+			}
+			logging.SetAllLoggers(lvl)
+
+			// go-waku logger
+			err = utils.SetLogLevel(options.LogLevel)
+			if err != nil {
+				return err
+			}
+
+			waku.Execute(options)
+			return nil
+		},
 	}
 
-	// for go-libp2p loggers
-	lvl, err := logging.LevelFromString(options.LogLevel)
+	err := app.Run(os.Args)
 	if err != nil {
-		os.Exit(1)
+		panic(err)
 	}
-	logging.SetAllLoggers(lvl)
-
-	// go-waku logger
-	fmt.Println(options.LogLevel)
-	err = utils.SetLogLevel(options.LogLevel)
-	if err != nil {
-		os.Exit(1)
-	}
-
-	waku.Execute(options)
 }
