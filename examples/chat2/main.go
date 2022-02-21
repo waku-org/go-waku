@@ -8,11 +8,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
 	mrand "math/rand"
 	"net"
-	"net/http"
 	"os"
 	"time"
 
@@ -21,6 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	wakuprotocol "github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/utils"
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/dnsdisc"
@@ -34,6 +32,19 @@ var DefaultContentTopic string = wakuprotocol.NewContentTopic("toy-chat", 2, "hu
 
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())
+
+	// Display panic level to reduce log noise
+	lvl, err := logging.LevelFromString("panic")
+	if err != nil {
+		panic(err)
+	}
+	logging.SetAllLoggers(lvl)
+
+	// go-waku logger
+	err = utils.SetLogLevel("panic")
+	if err != nil {
+		os.Exit(1)
+	}
 
 	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
 	fleetFlag := flag.String("fleet", "wakuv2.prod", "Select the fleet to connect to. (wakuv2.prod, wakuv2.test)")
@@ -126,13 +137,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	// Display panic level to reduce log noise
-	lvl, err := logging.LevelFromString("panic")
-	if err != nil {
-		panic(err)
-	}
-	logging.SetAllLoggers(lvl)
 
 	ui := NewChatUI(ctx, chat)
 
@@ -256,31 +260,11 @@ func shortID(p peer.ID) string {
 }
 
 func getFleetData() []byte {
-	url := "https://fleets.status.im"
-	httpClient := http.Client{
-		Timeout: time.Second * 2,
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	b, err := os.ReadFile("fleets.json")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-
-	res, getErr := httpClient.Do(req)
-	if getErr != nil {
-		log.Fatal(getErr)
-	}
-
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
-
-	body, readErr := ioutil.ReadAll(res.Body)
-	if readErr != nil {
-		log.Fatal(readErr)
-	}
-
-	return body
+	return b
 }
 
 func getRandomFleetNode(data []byte, fleetId string) string {
