@@ -16,12 +16,11 @@ func TestEnvelopeHash(t *testing.T) {
 	msg := new(WakuMessage)
 	msg.ContentTopic = "Test"
 	msg.Payload = []byte("Hello World")
-	msg.Timestamp = float64(123456789123456789)
+	msg.Timestamp = 123456789123456789
 	msg.Version = 1
 
-	expected := []byte{77, 197, 250, 41, 30, 163, 192, 239, 48, 104, 58, 175, 36, 81, 96, 58, 118, 107, 73, 4, 153, 182, 33, 199, 144, 156, 110, 226, 93, 85, 160, 180}
+	expected := []byte{82, 136, 166, 250, 14, 69, 211, 99, 19, 161, 139, 206, 179, 3, 117, 51, 112, 111, 203, 150, 207, 35, 104, 102, 21, 181, 114, 165, 77, 29, 190, 61}
 	result, err := msg.Hash()
-
 	require.NoError(t, err)
 	require.Equal(t, expected, result)
 }

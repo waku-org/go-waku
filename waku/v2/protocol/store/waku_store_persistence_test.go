@@ -38,7 +38,7 @@ func TestStorePersistence(t *testing.T) {
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
-	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
+	_ = s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
 
 	s2 := NewWakuStore(nil, nil, dbStore, 0, 0, tests.Logger())
 	s2.fetchDBRecords(ctx)
@@ -46,5 +46,6 @@ func TestStorePersistence(t *testing.T) {
 	require.Equal(t, msg, s2.messageQueue.messages[0].msg)
 
 	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
-	s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
+	err = s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
+	require.ErrorIs(t, err, ErrDuplicatedMessage)
 }

@@ -96,8 +96,8 @@ func createSampleList(s int) []IndexedWakuMessage {
 				Payload: []byte{byte(i)},
 			},
 			index: &pb.Index{
-				ReceiverTime: float64(i),
-				SenderTime:   float64(i),
+				ReceiverTime: int64(i),
+				SenderTime:   int64(i),
 				Digest:       []byte{1},
 			},
 		})

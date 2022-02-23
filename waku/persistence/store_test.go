@@ -20,7 +20,7 @@ func NewMock() *sql.DB {
 	return db
 }
 
-func createIndex(digest []byte, receiverTime float64) *pb.Index {
+func createIndex(digest []byte, receiverTime int64) *pb.Index {
 	return &pb.Index{
 		Digest:       digest,
 		ReceiverTime: receiverTime,
@@ -57,18 +57,18 @@ func TestStoreRetention(t *testing.T) {
 
 	insertTime := time.Now()
 
-	_ = store.Put(createIndex([]byte{1}, float64(insertTime.Add(-70*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 1))
-	_ = store.Put(createIndex([]byte{2}, float64(insertTime.Add(-60*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 2))
-	_ = store.Put(createIndex([]byte{3}, float64(insertTime.Add(-50*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 3))
-	_ = store.Put(createIndex([]byte{4}, float64(insertTime.Add(-40*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 4))
-	_ = store.Put(createIndex([]byte{5}, float64(insertTime.Add(-30*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 5))
+	_ = store.Put(createIndex([]byte{1}, insertTime.Add(-70*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 1))
+	_ = store.Put(createIndex([]byte{2}, insertTime.Add(-60*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 2))
+	_ = store.Put(createIndex([]byte{3}, insertTime.Add(-50*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 3))
+	_ = store.Put(createIndex([]byte{4}, insertTime.Add(-40*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 4))
+	_ = store.Put(createIndex([]byte{5}, insertTime.Add(-30*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 5))
 
 	dbResults, err := store.GetAll()
 	require.NoError(t, err)
 	require.Len(t, dbResults, 5)
 
-	_ = store.Put(createIndex([]byte{6}, float64(insertTime.Add(-20*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 6))
-	_ = store.Put(createIndex([]byte{7}, float64(insertTime.Add(-10*time.Second).Unix())), "test", tests.CreateWakuMessage("test", 7))
+	_ = store.Put(createIndex([]byte{6}, insertTime.Add(-20*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 6))
+	_ = store.Put(createIndex([]byte{7}, insertTime.Add(-10*time.Second).UnixNano()), "test", tests.CreateWakuMessage("test", 7))
 
 	// This step simulates starting go-waku again from scratch
 

@@ -18,8 +18,8 @@ func TestStoreQuery(t *testing.T) {
 	msg2 := tests.CreateWakuMessage("2", utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil, nil, nil, 0, 0, tests.Logger())
-	s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
-	s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{
@@ -45,9 +45,9 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 
 	s := NewWakuStore(nil, nil, nil, 0, 0, tests.Logger())
 
-	s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
-	s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
-	s.storeMessage(protocol.NewEnvelope(msg3, defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, defaultPubSubTopic))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{
@@ -78,9 +78,9 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil, nil, nil, 0, 0, tests.Logger())
-	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
-	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
-	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -110,9 +110,9 @@ func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil, nil, nil, 0, 0, tests.Logger())
-	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic2))
-	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
-	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic2))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -132,9 +132,9 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(nil, nil, nil, 0, 0, tests.Logger())
-	s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
-	s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic1))
-	s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, pubsubTopic1))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -154,7 +154,7 @@ func TestStoreQueryForwardPagination(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		msg := tests.CreateWakuMessage(topic1, utils.GetUnixEpoch())
 		msg.Payload = []byte{byte(i)}
-		s.storeMessage(protocol.NewEnvelope(msg, pubsubTopic1))
+		_ = s.storeMessage(protocol.NewEnvelope(msg, pubsubTopic1))
 	}
 
 	response := s.FindMessages(&pb.HistoryQuery{
@@ -182,7 +182,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 			Version:      0,
 			Timestamp:    utils.GetUnixEpoch(),
 		}
-		s.storeMessage(protocol.NewEnvelope(msg, pubsubTopic1))
+		_ = s.storeMessage(protocol.NewEnvelope(msg, pubsubTopic1))
 
 	}
 
@@ -208,16 +208,16 @@ func TestTemporalHistoryQueries(t *testing.T) {
 		if i%2 == 0 {
 			contentTopic = "2"
 		}
-		msg := tests.CreateWakuMessage(contentTopic, float64(i))
-		s.storeMessage(protocol.NewEnvelope(msg, "test"))
+		msg := tests.CreateWakuMessage(contentTopic, int64(i))
+		_ = s.storeMessage(protocol.NewEnvelope(msg, "test"))
 		messages = append(messages, msg)
 	}
 
 	// handle temporal history query with a valid time window
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      float64(2),
-		EndTime:        float64(5),
+		StartTime:      int64(2),
+		EndTime:        int64(5),
 	})
 
 	require.Len(t, response.Messages, 2)
@@ -227,8 +227,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with a zero-size time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      float64(2),
-		EndTime:        float64(2),
+		StartTime:      int64(2),
+		EndTime:        int64(2),
 	})
 
 	require.Len(t, response.Messages, 0)
@@ -236,8 +236,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with an invalid time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      float64(5),
-		EndTime:        float64(2),
+		StartTime:      int64(5),
+		EndTime:        int64(2),
 	})
 	// time window is invalid since start time > end time
 	// perhaps it should return an error?

@@ -143,7 +143,7 @@ func randomHex(n int) (string, error) {
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	var version uint32 = 0
-	var timestamp float64 = utils.GetUnixEpoch()
+	var timestamp int64 = utils.GetUnixEpoch()
 
 	p := new(node.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
