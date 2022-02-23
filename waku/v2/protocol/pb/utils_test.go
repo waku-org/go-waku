@@ -19,9 +19,8 @@ func TestEnvelopeHash(t *testing.T) {
 	msg.Timestamp = 123456789123456789
 	msg.Version = 1
 
-	expected := []byte{210, 65, 134, 59, 106, 26, 242, 81, 17, 153, 82, 253, 107, 231, 251, 228, 49, 148, 161, 104, 111, 213, 249, 89, 85, 99, 198, 9, 2, 63, 174, 236}
+	expected := []byte{82, 136, 166, 250, 14, 69, 211, 99, 19, 161, 139, 206, 179, 3, 117, 51, 112, 111, 203, 150, 207, 35, 104, 102, 21, 181, 114, 165, 77, 29, 190, 61}
 	result, err := msg.Hash()
-
 	require.NoError(t, err)
 	require.Equal(t, expected, result)
 }
