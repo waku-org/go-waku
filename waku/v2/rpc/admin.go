@@ -59,7 +59,7 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 }
 
 func isWakuProtocol(protocol string) bool {
-	return protocol == string(filter.FilterID_v20beta1) || protocol == string(relay.WakuRelayID_v200) || protocol == string(lightpush.LightPushID_v20beta1) || protocol == string(store.StoreID_v20beta3)
+	return protocol == string(filter.FilterID_v20beta1) || protocol == string(relay.WakuRelayID_v200) || protocol == string(lightpush.LightPushID_v20beta1) || protocol == string(store.StoreID_v20beta4)
 }
 
 func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *PeersReply) error {

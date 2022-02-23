@@ -26,8 +26,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
-// StoreID_v20beta3 is the current Waku Store protocol identifier
-const StoreID_v20beta3 = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta4")
+// StoreID_v20beta4 is the current Waku Store protocol identifier
+const StoreID_v20beta4 = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta4")
 
 // MaxPageSize is the maximum number of waku messages to return per page
 const MaxPageSize = 100
@@ -266,7 +266,7 @@ func (store *WakuStore) Start(ctx context.Context) {
 	store.ctx = ctx
 	store.MsgC = make(chan *protocol.Envelope, 1024)
 
-	store.h.SetStreamHandlerMatch(StoreID_v20beta3, protocol.PrefixTextMatch(string(StoreID_v20beta3)), store.onRequest)
+	store.h.SetStreamHandlerMatch(StoreID_v20beta4, protocol.PrefixTextMatch(string(StoreID_v20beta4)), store.onRequest)
 
 	store.wg.Add(1)
 	go store.storeIncomingMessages(ctx)
@@ -446,7 +446,7 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // to request the message history
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta3), params.s.log)
+		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), params.s.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -457,7 +457,7 @@ func WithAutomaticPeerSelection() HistoryRequestOption {
 
 func WithFastestPeerSelection(ctx context.Context) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta3), params.s.log)
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), params.s.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -504,7 +504,7 @@ func DefaultOptions() []HistoryRequestOption {
 func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestId []byte) (*pb.HistoryResponse, error) {
 	store.log.Info(fmt.Sprintf("Querying message history with peer %s", selectedPeer))
 
-	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta3)
+	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta4)
 	if err != nil {
 		store.log.Error("Failed to connect to remote peer", err)
 		return nil, err
@@ -722,7 +722,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	}
 
 	if len(peerList) == 0 {
-		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta3), store.log)
+		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta4), store.log)
 		if err != nil {
 			store.log.Info("Error selecting peer: ", err)
 			return -1, ErrNoPeersAvailable
@@ -760,7 +760,7 @@ func (store *WakuStore) Stop() {
 	}
 
 	if store.h != nil {
-		store.h.RemoveStreamHandler(StoreID_v20beta3)
+		store.h.RemoveStreamHandler(StoreID_v20beta4)
 	}
 
 	store.wg.Wait()

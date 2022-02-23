@@ -214,7 +214,7 @@ func Execute(options Options) {
 	failOnErr(err, "Wakunode")
 
 	addPeers(wakuNode, options.Rendezvous.Nodes.Value(), rendezvous.RendezvousID_v001)
-	addPeers(wakuNode, options.Store.Nodes.Value(), store.StoreID_v20beta3)
+	addPeers(wakuNode, options.Store.Nodes.Value(), store.StoreID_v20beta4)
 	addPeers(wakuNode, options.LightPush.Nodes.Value(), lightpush.LightPushID_v20beta1)
 	addPeers(wakuNode, options.Filter.Nodes.Value(), filter.FilterID_v20beta1)
 
