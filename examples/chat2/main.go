@@ -195,7 +195,7 @@ func main() {
 			storenode = getRandomFleetNode(fleetData, *fleetFlag)
 		}
 
-		storeNodeId, err := addPeer(wakuNode, storenode, store.StoreID_v20beta3)
+		storeNodeId, err := addPeer(wakuNode, storenode, store.StoreID_v20beta4)
 		if err != nil {
 			ui.displayMessage("Could not connect to storenode: " + err.Error())
 			return
