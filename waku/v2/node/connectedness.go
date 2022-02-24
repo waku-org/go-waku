@@ -94,9 +94,7 @@ func (w *WakuNode) connectednessListener() {
 		case <-w.quit:
 			return
 		case a := <-w.protocolEventSub.Out():
-			fmt.Println(a)
 		case b := <-w.identificationEventSub.Out():
-			fmt.Println(b)
 		case <-w.connectionNotif.DisconnectChan:
 		}
 		w.sendConnStatus()
