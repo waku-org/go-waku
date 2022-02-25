@@ -359,22 +359,25 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 			break
 		}
 
-		address, err := utils.EnodeToMultiAddr(iterator.Node())
+		addresses, err := utils.Multiaddress(iterator.Node())
 		if err != nil {
 			d.log.Error(err)
 			continue
 		}
 
-		peerInfo, err := peer.AddrInfoFromP2pAddr(address)
+		peerAddrs, err := peer.AddrInfosFromP2pAddrs(addresses...)
 		if err != nil {
 			d.log.Error(err)
 			continue
 		}
 
-		d.peerCache.recs[peerInfo.ID] = peerRecord{
-			expire: time.Now().Unix() + 3600, // Expires in 1hr
-			peer:   *peerInfo,
+		for _, p := range peerAddrs {
+			d.peerCache.recs[p.ID] = peerRecord{
+				expire: time.Now().Unix() + 3600, // Expires in 1hr
+				peer:   p,
+			}
 		}
+
 	}
 
 	close(doneCh)
