@@ -433,6 +433,10 @@ func (w *WakuNode) mountDiscV5() error {
 		discv5.WithAutoUpdate(w.opts.discV5autoUpdate),
 	}
 
+	if w.opts.advertiseAddr != nil {
+		discV5Options = append(discV5Options, discv5.WithAdvertiseAddr(*w.opts.advertiseAddr))
+	}
+
 	addr := w.ListenAddresses()[0]
 
 	ipStr, err := addr.ValueForProtocol(ma.P_IP4)

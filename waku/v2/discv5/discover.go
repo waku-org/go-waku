@@ -318,7 +318,8 @@ func evaluateNode(node *enode.Node) bool {
 		return false
 	}
 
-	if !isWakuNode(node) || !hasTCPPort(node) {
+	//  TODO: consider node filtering based on ENR; we do not filter based on ENR in the first waku discv5 beta stage
+	if /*!isWakuNode(node) ||*/ !hasTCPPort(node) {
 		return false
 	}
 
