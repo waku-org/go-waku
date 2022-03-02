@@ -48,37 +48,50 @@ func TestIndexComparison(t *testing.T) {
 		ReceiverTime: 2,
 		SenderTime:   1,
 		Digest:       []byte{1},
+		PubsubTopic:  "abc",
 	}
 
 	index2 := &pb.Index{
 		ReceiverTime: 2,
 		SenderTime:   1,
 		Digest:       []byte{2},
+		PubsubTopic:  "abc",
 	}
 
 	index3 := &pb.Index{
 		ReceiverTime: 1,
 		SenderTime:   2,
 		Digest:       []byte{3},
+		PubsubTopic:  "abc",
+	}
+
+	index4 := &pb.Index{
+		ReceiverTime: 1,
+		SenderTime:   2,
+		Digest:       []byte{3},
+		PubsubTopic:  "def",
 	}
 
 	iwm1 := IndexedWakuMessage{index: index1}
 	iwm2 := IndexedWakuMessage{index: index2}
 	iwm3 := IndexedWakuMessage{index: index3}
+	iwm4 := IndexedWakuMessage{index: index4}
 
 	require.Equal(t, 0, indexComparison(index1, index1))
 	require.Equal(t, -1, indexComparison(index1, index2))
 	require.Equal(t, 1, indexComparison(index2, index1))
 	require.Equal(t, -1, indexComparison(index1, index3))
 	require.Equal(t, 1, indexComparison(index3, index1))
+	require.Equal(t, -1, indexComparison(index3, index4))
 
 	require.Equal(t, 0, indexedWakuMessageComparison(iwm1, iwm1))
 	require.Equal(t, -1, indexedWakuMessageComparison(iwm1, iwm2))
 	require.Equal(t, 1, indexedWakuMessageComparison(iwm2, iwm1))
 	require.Equal(t, -1, indexedWakuMessageComparison(iwm1, iwm3))
 	require.Equal(t, 1, indexedWakuMessageComparison(iwm3, iwm1))
+	require.Equal(t, -1, indexedWakuMessageComparison(iwm3, iwm4))
 
-	sortingList := []IndexedWakuMessage{iwm3, iwm1, iwm2}
+	sortingList := []IndexedWakuMessage{iwm3, iwm1, iwm2, iwm4}
 	sort.Slice(sortingList, func(i, j int) bool {
 		return indexedWakuMessageComparison(sortingList[i], sortingList[j]) == -1
 	})
@@ -86,6 +99,8 @@ func TestIndexComparison(t *testing.T) {
 	require.Equal(t, iwm1, sortingList[0])
 	require.Equal(t, iwm2, sortingList[1])
 	require.Equal(t, iwm3, sortingList[2])
+	require.Equal(t, iwm4, sortingList[3])
+
 }
 
 func createSampleList(s int) []IndexedWakuMessage {
@@ -99,6 +114,7 @@ func createSampleList(s int) []IndexedWakuMessage {
 				ReceiverTime: int64(i),
 				SenderTime:   int64(i),
 				Digest:       []byte{1},
+				PubsubTopic:  "abc",
 			},
 		})
 	}
