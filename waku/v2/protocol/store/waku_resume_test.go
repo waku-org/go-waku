@@ -2,8 +2,8 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -48,10 +48,12 @@ func TestResume(t *testing.T) {
 			contentTopic = "2"
 		}
 
-		wakuMessage := tests.CreateWakuMessage(contentTopic, (time.Duration(i) * time.Second).Nanoseconds())
+		wakuMessage := tests.CreateWakuMessage(contentTopic, int64(i+1))
 		msg := protocol.NewEnvelope(wakuMessage, "test")
 		_ = s1.storeMessage(msg)
 	}
+
+	fmt.Println(s1.messageQueue.messages[9].msg.Timestamp, s1.messageQueue.messages[9].msg.ContentTopic, "????????????????")
 
 	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
