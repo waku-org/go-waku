@@ -14,15 +14,17 @@ require (
 	github.com/gorilla/rpc v1.2.0
 	github.com/ipfs/go-ds-sql v0.3.0
 	github.com/ipfs/go-log v1.0.5
-	github.com/libp2p/go-libp2p v0.15.1
-	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.9.0
-	github.com/libp2p/go-libp2p-peerstore v0.3.0
-	github.com/libp2p/go-libp2p-pubsub v0.5.5
-	github.com/libp2p/go-msgio v0.0.6
-	github.com/mattn/go-sqlite3 v1.14.6
-	github.com/minio/sha256-simd v1.0.0
-	github.com/multiformats/go-multiaddr v0.4.0
+	github.com/libp2p/go-libp2p v0.18.0-rc6
+	github.com/libp2p/go-libp2p-connmgr v0.3.1
+	github.com/libp2p/go-libp2p-core v0.14.0
+	github.com/libp2p/go-libp2p-peerstore v0.6.0
+	github.com/libp2p/go-libp2p-pubsub v0.6.1
+	github.com/libp2p/go-libp2p-quic-transport v0.16.1
+	github.com/libp2p/go-msgio v0.1.0
+	github.com/libp2p/go-tcp-transport v0.5.1
+	github.com/libp2p/go-ws-transport v0.6.1-0.20220221074654-eeaddb3c061d
+	github.com/mattn/go-sqlite3 v1.14.11
+	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/status-im/go-discover v0.0.0-20220220162124-91b97a3e0efe
 	github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432
 	github.com/stretchr/testify v1.7.0
