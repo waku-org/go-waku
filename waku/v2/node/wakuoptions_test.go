@@ -9,6 +9,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/tests"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +29,10 @@ func TestWakuOptions(t *testing.T) {
 
 	advertiseAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 
+	storeFactory := func(w *WakuNode) store.Store {
+		return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log)
+	}
+
 	options := []WakuNodeOption{
 		WithHostAddress(hostAddr),
 		WithAdvertiseAddress(advertiseAddr, false, 4000),
@@ -45,6 +50,7 @@ func TestWakuOptions(t *testing.T) {
 		WithLightPush(),
 		WithKeepAlive(time.Hour),
 		WithConnectionStatusChannel(connStatusChan),
+		WithWakuStoreFactory(storeFactory),
 	}
 
 	params := new(WakuNodeParameters)
