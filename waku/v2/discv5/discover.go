@@ -285,6 +285,7 @@ func (d *DiscoveryV5) UpdateAddr(addr net.IP) error {
 	return nil
 }
 
+/*
 func isWakuNode(node *enode.Node) bool {
 	enrField := new(utils.WakuEnrBitfield)
 	if err := node.Record().Load(enr.WithEntry(utils.WakuENRField, &enrField)); err != nil {
@@ -300,6 +301,7 @@ func isWakuNode(node *enode.Node) bool {
 
 	return false
 }
+*/
 
 func hasTCPPort(node *enode.Node) bool {
 	enrTCP := new(enr.TCP)

@@ -1,8 +1,9 @@
 package node
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"math/big"
 	"net"
 	"sync"
 	"testing"
@@ -36,7 +37,17 @@ func TestWakuNode2(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test1100(t *testing.T) {
+func int2Bytes(i int) []byte {
+	if i > 0 {
+		return append(big.NewInt(int64(i)).Bytes(), byte(1))
+	}
+	return append(big.NewInt(int64(i)).Bytes(), byte(0))
+}
+
+func Test5000(t *testing.T) {
+	maxMsgs := 5000
+	maxMsgBytes := int2Bytes(maxMsgs)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -86,16 +97,12 @@ func Test1100(t *testing.T) {
 		ticker := time.NewTimer(20 * time.Second)
 		defer ticker.Stop()
 
-		msgCnt := 0
 		for {
 			select {
 			case <-ticker.C:
-				if msgCnt != 1100 {
-					require.Fail(t, "Timeout Sub1")
-				}
-			case <-sub1.C:
-				msgCnt++
-				if msgCnt == 1100 {
+				require.Fail(t, "Timeout Sub1")
+			case msg := <-sub1.C:
+				if bytes.Equal(msg.Message().Payload, maxMsgBytes) {
 					return
 				}
 			}
@@ -108,16 +115,12 @@ func Test1100(t *testing.T) {
 		ticker := time.NewTimer(20 * time.Second)
 		defer ticker.Stop()
 
-		msgCnt := 0
 		for {
 			select {
 			case <-ticker.C:
-				if msgCnt != 1100 {
-					require.Fail(t, "Timeout Sub2")
-				}
-			case <-sub2.C:
-				msgCnt++
-				if msgCnt == 1100 {
+				require.Fail(t, "Timeout Sub2")
+			case msg := <-sub2.C:
+				if bytes.Equal(msg.Message().Payload, maxMsgBytes) {
 					return
 				}
 			}
@@ -126,9 +129,9 @@ func Test1100(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		for i := 1; i <= 1100; i++ {
+		for i := 1; i <= maxMsgs; i++ {
 			msg := createTestMsg(0)
-			msg.Payload = []byte(fmt.Sprint(i))
+			msg.Payload = int2Bytes(i)
 			msg.Timestamp = int64(i)
 			if err := wakuNode2.Publish(ctx, msg); err != nil {
 				require.Fail(t, "Could not publish all messages")
