@@ -27,7 +27,7 @@ import (
 const clientId string = "Go Waku v2 node"
 
 // Default minRelayPeersToPublish
-const defaultMinRelayPeersToPublish = 1
+const defaultMinRelayPeersToPublish = 0
 
 type WakuNodeParameters struct {
 	hostAddr       *net.TCPAddr

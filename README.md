@@ -34,6 +34,12 @@ docker run go-waku:latest --help
 go get github.com/status-im/go-waku
 ```
 
+## C Bindings
+```
+make static-library
+make dynamic-library
+```
+
 ## Examples
 Examples of usage of go-waku as a library can be found in the examples folder. There is a fully featured chat example.
 

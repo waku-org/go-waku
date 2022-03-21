@@ -4,7 +4,30 @@ GO_HTML_COV         := ./coverage.html
 GO_TEST_OUTFILE     := ./c.out
 CC_PREFIX       	:= github.com/status-im/go-waku
 
-.PHONY: all build lint test coverage build-example
+SHELL := bash # the shell used internally by Make
+
+.PHONY: all build lint test coverage build-example static-library dynamic-library test-c test-c-template
+
+ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
+ detected_OS := Windows
+else
+ detected_OS := $(strip $(shell uname))
+endif
+
+ifeq ($(detected_OS),Darwin)
+ GOBIN_SHARED_LIB_EXT := dylib
+  ifeq ("$(shell sysctl -nq hw.optional.arm64)","1")
+    # Building on M1 is still not supported, so in the meantime we crosscompile to amd64
+    GOBIN_SHARED_LIB_CFLAGS=CGO_ENABLED=1 GOOS=darwin GOARCH=amd64
+  endif
+else ifeq ($(detected_OS),Windows)
+ # on Windows need `--export-all-symbols` flag else expected symbols will not be found in libgowaku.dll
+ GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,--export-all-symbols"
+ GOBIN_SHARED_LIB_EXT := dll
+else
+ GOBIN_SHARED_LIB_EXT := so
+ GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,-soname,libgowaku.so.0"
+endif
 
 all: build
 
@@ -61,3 +84,29 @@ build-example-filter2:
 	cd examples/filter2 && $(MAKE)
 
 build-example: build-example-basic2 build-example-chat-2 build-example-filter2
+
+static-library: ##@cross-compile Build go-waku as static library for current platform
+	mkdir -p ./build/lib
+	@echo "Building static library..."
+	go build \
+		-buildmode=c-archive \
+		-o ./build/lib/libgowaku.a \
+		./library/
+	@echo "Static library built:"
+	@ls -la ./build/lib/libgowaku.*
+
+dynamic-library: ##@cross-compile Build status-go as shared library for current platform
+	mkdir -p ./build/lib
+	@echo "Building shared library..."
+	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) go build \
+		-buildmode=c-shared \
+		-o ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT) \
+		./library/
+ifeq ($(detected_OS),Linux)
+	cd ./build/lib && \
+	ls -lah . && \
+	mv ./libgowaku.$(GOBIN_SHARED_LIB_EXT) ./libgowaku.$(GOBIN_SHARED_LIB_EXT).0 && \
+	ln -s ./libgowaku.$(GOBIN_SHARED_LIB_EXT).0 ./libgowaku.$(GOBIN_SHARED_LIB_EXT)
+endif
+	@echo "Shared library built:"
+	@ls -la ./build/lib/libgowaku.*
