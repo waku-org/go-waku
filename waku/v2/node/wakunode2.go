@@ -39,10 +39,10 @@ import (
 )
 
 type Peer struct {
-	ID        peer.ID
-	Protocols []string
-	Addrs     []ma.Multiaddr
-	Connected bool
+	ID        peer.ID        `json:"peerID"`
+	Protocols []string       `json:"protocols"`
+	Addrs     []ma.Multiaddr `json:"addrs"`
+	Connected bool           `json:"connected"`
 }
 
 type storeFactory func(w *WakuNode) store.Store

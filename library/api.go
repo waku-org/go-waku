@@ -66,12 +66,14 @@ type WakuConfig struct {
 	NodeKey           *string `json:"nodeKey,omitempty"`
 	KeepAliveInterval *int    `json:"keepAliveInterval,omitempty"`
 	EnableRelay       *bool   `json:"relay"`
+	MinPeersToPublish *int    `json:"minPeersToPublish`
 }
 
 var DefaultHost = "0.0.0.0"
 var DefaultPort = 60000
 var DefaultKeepAliveInterval = 20
 var DefaultEnableRelay = true
+var DefaultMinPeersToPublish = 0
 
 func getConfig(configJSON *C.char) (WakuConfig, error) {
 	var config WakuConfig
@@ -100,6 +102,10 @@ func getConfig(configJSON *C.char) (WakuConfig, error) {
 
 	if config.KeepAliveInterval == nil {
 		config.KeepAliveInterval = &DefaultKeepAliveInterval
+	}
+
+	if config.MinPeersToPublish == nil {
+		config.MinPeersToPublish = &DefaultMinPeersToPublish
 	}
 
 	return config, nil
@@ -155,7 +161,7 @@ func gowaku_new(configJSON *C.char) *C.char {
 	}
 
 	if *config.EnableRelay {
-		opts = append(opts, node.WithWakuRelay())
+		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish))
 	}
 
 	ctx := context.Background()
@@ -207,9 +213,9 @@ func gowaku_stop(nodeID C.int) *C.char {
 	return makeJSONResponse(nil)
 }
 
-//export gowaku_id
+//export gowaku_peerid
 // Obtain the peer ID of the waku node
-func gowaku_id(nodeID C.int) *C.char {
+func gowaku_peerid(nodeID C.int) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -279,7 +285,7 @@ func gowaku_dial_peer(nodeID C.int, address *C.char, ms C.int) *C.char {
 
 //export gowaku_dial_peerid
 // Dial known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
-func gowaku_dial_peerid(nodeID C.int, id *C.char, ms C.int) *C.char {
+func gowaku_dial_peerid(nodeID C.int, peerID *C.char, ms C.int) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -290,7 +296,7 @@ func gowaku_dial_peerid(nodeID C.int, id *C.char, ms C.int) *C.char {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
-	peerID, err := peer.Decode(C.GoString(id))
+	pID, err := peer.Decode(C.GoString(peerID))
 	if err != nil {
 		return makeJSONResponse(err)
 	}
@@ -302,7 +308,7 @@ func gowaku_dial_peerid(nodeID C.int, id *C.char, ms C.int) *C.char {
 		ctx = context.Background()
 	}
 
-	err = wakuNode.DialPeerByID(ctx, peerID)
+	err = wakuNode.DialPeerByID(ctx, pID)
 	return makeJSONResponse(err)
 }
 
@@ -322,7 +328,7 @@ func gowaku_close_peer(nodeID C.int, address *C.char) *C.char {
 
 //export gowaku_close_peerid
 // Close connection to a known peer by peerID
-func gowaku_close_peerid(nodeID C.int, id *C.char) *C.char {
+func gowaku_close_peerid(nodeID C.int, peerID *C.char) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -330,12 +336,12 @@ func gowaku_close_peerid(nodeID C.int, id *C.char) *C.char {
 		return makeJSONResponse(ErrWakuNodeNotReady)
 	}
 
-	peerID, err := peer.Decode(C.GoString(id))
+	pID, err := peer.Decode(C.GoString(peerID))
 	if err != nil {
 		return makeJSONResponse(err)
 	}
 
-	err = wakuNode.ClosePeerById(peerID)
+	err = wakuNode.ClosePeerById(pID)
 	return makeJSONResponse(err)
 }
 
@@ -355,7 +361,7 @@ func gowaku_peer_cnt(nodeID C.int) *C.char {
 //export gowaku_content_topic
 // Create a content topic string according to RFC 23
 func gowaku_content_topic(applicationName *C.char, applicationVersion C.uint, contentTopicName *C.char, encoding *C.char) *C.char {
-	return prepareJSONResponse(protocol.NewContentTopic(C.GoString(applicationName), uint(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding)).String(), nil)
+	return C.CString(protocol.NewContentTopic(C.GoString(applicationName), uint(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding)).String())
 }
 
 //export gowaku_pubsub_topic
@@ -367,7 +373,7 @@ func gowaku_pubsub_topic(name *C.char, encoding *C.char) *C.char {
 //export gowaku_default_pubsub_topic
 // Get the default pubsub topic used in waku2: /waku/2/default-waku/proto
 func gowaku_default_pubsub_topic() *C.char {
-	return prepareJSONResponse(protocol.DefaultPubsubTopic().String(), nil)
+	return C.CString(protocol.DefaultPubsubTopic().String())
 }
 
 func publish(nodeID int, message string, pubsubTopic string, ms int) (string, error) {
@@ -442,16 +448,18 @@ func gowaku_set_event_callback(cb unsafe.Pointer) {
 }
 
 type SubscriptionMsg struct {
-	MessageID   string          `json:"messageID"`
-	PubsubTopic string          `json:"pubsubTopic"`
-	Message     *pb.WakuMessage `json:"wakuMessage"`
+	MessageID      string          `json:"messageID"`
+	SubscriptionID string          `json:"subscriptionID"`
+	PubsubTopic    string          `json:"pubsubTopic"`
+	Message        *pb.WakuMessage `json:"wakuMessage"`
 }
 
-func toSubscriptionMessage(msg *protocol.Envelope) *SubscriptionMsg {
+func toSubscriptionMessage(subsID string, msg *protocol.Envelope) *SubscriptionMsg {
 	return &SubscriptionMsg{
-		MessageID:   hexutil.Encode(msg.Hash()),
-		PubsubTopic: msg.PubsubTopic(),
-		Message:     msg.Message(),
+		SubscriptionID: subsID,
+		MessageID:      hexutil.Encode(msg.Hash()),
+		PubsubTopic:    msg.PubsubTopic(),
+		Message:        msg.Message(),
 	}
 }
 
@@ -460,7 +468,7 @@ func toSubscriptionMessage(msg *protocol.Envelope) *SubscriptionMsg {
 // to the default topic. Returns a json response containing the subscription ID
 // or an error message. When a message is received, a "message" is emitted containing
 // the message, pubsub topic, and nodeID in which the message was received
-func gowaku_relay_subscribe(nodeID int, topic *C.char) *C.char {
+func gowaku_relay_subscribe(nodeID C.int, topic *C.char) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -483,7 +491,7 @@ func gowaku_relay_subscribe(nodeID int, topic *C.char) *C.char {
 
 	go func() {
 		for envelope := range subscription.C {
-			send(nodeID, "message", toSubscriptionMessage(envelope))
+			send(int(nodeID), "message", toSubscriptionMessage(subsID, envelope))
 		}
 	}()
 
@@ -493,7 +501,7 @@ func gowaku_relay_subscribe(nodeID int, topic *C.char) *C.char {
 //export gowaku_relay_unsubscribe_from_topic
 // Closes the pubsub subscription to a pubsub topic. Existing subscriptions
 // will not be closed, but they will stop receiving messages
-func gowaku_relay_unsubscribe_from_topic(nodeID int, topic *C.char) *C.char {
+func gowaku_relay_unsubscribe_from_topic(nodeID C.int, topic *C.char) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -516,7 +524,7 @@ func gowaku_relay_unsubscribe_from_topic(nodeID int, topic *C.char) *C.char {
 
 //export gowaku_relay_close_subscription
 // Closes a waku relay subscription
-func gowaku_relay_close_subscription(nodeID int, subsID *C.char) *C.char {
+func gowaku_relay_close_subscription(nodeID C.int, subsID *C.char) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -537,8 +545,8 @@ func gowaku_relay_close_subscription(nodeID int, subsID *C.char) *C.char {
 }
 
 //export gowaku_peers
-// Retrieve the list of peers connected to the waku node
-func gowaku_peers(nodeID int) *C.char {
+// Retrieve the list of peers known by the waku node
+func gowaku_peers(nodeID C.int) *C.char {
 	mutex.Lock()
 	defer mutex.Unlock()
 	wakuNode, ok := nodes[int(nodeID)]
@@ -604,8 +612,13 @@ func gowaku_encode_data(data *C.char, keyType *C.char, key *C.char, signingKey *
 		keyInfo.PubKey = *pubK
 	}
 
+	b, err := base64.StdEncoding.DecodeString(C.GoString(data))
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
 	payload := node.Payload{
-		Data: []byte(C.GoString(data)),
+		Data: b,
 		Key:  keyInfo,
 	}
 
@@ -689,7 +702,8 @@ func gowaku_utils_base64_decode(data *C.char) *C.char {
 // format understood by gowaku_relay_publish)
 func gowaku_utils_base64_encode(data *C.char) *C.char {
 	str := base64.StdEncoding.EncodeToString([]byte(C.GoString(data)))
-	return prepareJSONResponse(str, nil)
+	return C.CString(string(str))
+
 }
 
 // TODO:
