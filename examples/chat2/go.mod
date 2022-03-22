@@ -9,7 +9,7 @@ require (
 	github.com/gdamore/tcell/v2 v2.2.0
 	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-log v1.0.5
-	github.com/libp2p/go-libp2p-core v0.13.0
+	github.com/libp2p/go-libp2p-core v0.14.0
 	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/rivo/tview v0.0.0-20210312174852-ae9464cc3598
 	github.com/status-im/go-waku v0.0.0-20211101194039-94e8b9cf86fc

@@ -20,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	p2pproto "github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	ws "github.com/libp2p/go-ws-transport"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
 
@@ -95,6 +96,12 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 			cancel()
 			return nil, err
 		}
+	}
+
+	if params.enableWSS {
+		params.libP2POpts = append(params.libP2POpts, libp2p.Transport(ws.New, ws.WithTLSConfig(params.tlsConfig)))
+	} else if params.enableWS {
+		params.libP2POpts = append(params.libP2POpts, libp2p.Transport(ws.New))
 	}
 
 	// Setting default host address if none was provided
