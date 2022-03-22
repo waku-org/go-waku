@@ -126,7 +126,11 @@ func Execute(options Options) {
 			}
 		}
 
-		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr, options.Websocket.Enable, options.Websocket.Secure, options.Websocket.Port))
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr))
+	}
+
+	if options.Dns4DomainName != "" {
+		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.Dns4DomainName))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions

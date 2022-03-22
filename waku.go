@@ -22,8 +22,8 @@ func main() {
 				Destination: &options.Port,
 			},
 			&cli.StringFlag{
-				Name:        "listen-address",
-				Aliases:     []string{"address"},
+				Name:        "address",
+				Aliases:     []string{"host", "listen-address"},
 				Value:       "0.0.0.0",
 				Usage:       "Listening address",
 				Destination: &options.Address,
@@ -67,6 +67,12 @@ func main() {
 				Value:       "/path/to/cert.txt",
 				Usage:       "Secure websocket certificate path",
 				Destination: &options.Websocket.CertPath,
+			},
+			&cli.StringFlag{
+				Name:        "dns4-domain-name",
+				Value:       "",
+				Usage:       "The domain name resolving to the node's public IPv4 address",
+				Destination: &options.Dns4DomainName,
 			},
 			&cli.StringFlag{
 				Name:        "nodekey",

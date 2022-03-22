@@ -35,7 +35,7 @@ func TestWakuOptions(t *testing.T) {
 
 	options := []WakuNodeOption{
 		WithHostAddress(hostAddr),
-		WithAdvertiseAddress(advertiseAddr, false, false, 4000),
+		WithAdvertiseAddress(advertiseAddr),
 		WithMultiaddress([]multiaddr.Multiaddr{addr}),
 		WithPrivateKey(prvKey),
 		WithLibP2POptions(),

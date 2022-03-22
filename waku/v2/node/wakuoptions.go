@@ -34,6 +34,7 @@ const defaultMinRelayPeersToPublish = 0
 
 type WakuNodeParameters struct {
 	hostAddr       *net.TCPAddr
+	dns4Domain     string
 	advertiseAddr  *net.IP
 	multiAddr      []ma.Multiaddr
 	addressFactory basichost.AddrsFactory
@@ -41,7 +42,9 @@ type WakuNodeParameters struct {
 	libP2POpts     []libp2p.Option
 
 	enableWS  bool
+	wsPort    int
 	enableWSS bool
+	wssPort   int
 	tlsConfig *tls.Config
 
 	logger *zap.SugaredLogger
@@ -116,6 +119,39 @@ func WithLogger(l *zap.Logger) WakuNodeOption {
 	}
 }
 
+// WithDns4Domain is a WakuNodeOption that adds a custom domain name to listen
+func WithDns4Domain(dns4Domain string) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.dns4Domain = dns4Domain
+
+		params.addressFactory = func([]ma.Multiaddr) []ma.Multiaddr {
+			var result []multiaddr.Multiaddr
+
+			hostAddrMA, err := ma.NewMultiaddr("/dns4/" + params.dns4Domain)
+			if err != nil {
+				panic(fmt.Sprintf("invalid dns4 address: %s", err.Error()))
+			}
+
+			tcp, _ := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d", params.hostAddr.Port))
+
+			result = append(result, hostAddrMA.Encapsulate(tcp))
+
+			if params.enableWS || params.enableWSS {
+				if params.enableWSS {
+					wss, _ := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d/wss", params.wssPort))
+					result = append(result, hostAddrMA.Encapsulate(wss))
+				} else {
+					ws, _ := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d/ws", params.wsPort))
+					result = append(result, hostAddrMA.Encapsulate(ws))
+				}
+			}
+			return result
+		}
+
+		return nil
+	}
+}
+
 // WithHostAddress is a WakuNodeOption that configures libp2p to listen on a specific address
 func WithHostAddress(hostAddr *net.TCPAddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
@@ -131,7 +167,7 @@ func WithHostAddress(hostAddr *net.TCPAddr) WakuNodeOption {
 }
 
 // WithAdvertiseAddress is a WakuNodeOption that allows overriding the address used in the waku node with custom value
-func WithAdvertiseAddress(address *net.TCPAddr, enableWS bool, secure bool, wsPort int) WakuNodeOption {
+func WithAdvertiseAddress(address *net.TCPAddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.advertiseAddr = &address.IP
 
@@ -143,12 +179,12 @@ func WithAdvertiseAddress(address *net.TCPAddr, enableWS bool, secure bool, wsPo
 		params.addressFactory = func([]ma.Multiaddr) []ma.Multiaddr {
 			var result []multiaddr.Multiaddr
 			result = append(result, advertiseAddress)
-			if enableWS || secure {
-				if secure {
-					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address, wsPort))
+			if params.enableWS || params.enableWSS {
+				if params.enableWSS {
+					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address, params.wssPort))
 					result = append(result, wsMa)
 				} else {
-					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address, wsPort))
+					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address, params.wsPort))
 					result = append(result, wsMa)
 				}
 			}
@@ -334,6 +370,7 @@ func WithConnectionStatusChannel(connStatus chan ConnStatus) WakuNodeOption {
 func WithWebsockets(address string, port int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableWS = true
+		params.wsPort = port
 
 		wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/%s", address, port, "ws"))
 		if err != nil {
@@ -350,6 +387,7 @@ func WithWebsockets(address string, port int) WakuNodeOption {
 func WithSecureWebsockets(address string, port int, certPath string, keyPath string) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableWSS = true
+		params.wssPort = port
 
 		wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/%s", address, port, "wss"))
 		if err != nil {
