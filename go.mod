@@ -4,10 +4,12 @@ go 1.15
 
 replace github.com/raulk/go-watchdog v1.2.0 => github.com/status-im/go-watchdog v1.2.0-ios-nolibproc
 
+replace github.com/ethereum/go-ethereum v1.10.17 => github.com/status-im/go-ethereum v1.10.4-status.2
+
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
-	github.com/ethereum/go-ethereum v1.10.16
+	github.com/ethereum/go-ethereum v1.10.17
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/rpc v1.2.0
@@ -31,6 +33,6 @@ require (
 	github.com/urfave/cli/v2 v2.4.0
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
+	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	google.golang.org/protobuf v1.28.0 // indirect
 )

@@ -52,9 +52,20 @@ func NewWakuEnrBitfield(lightpush, filter, store, relay bool) WakuEnrBitfield {
 
 // GetENRandIP returns a enr Node and TCP address obtained from a multiaddress. priv key and protocols supported
 func GetENRandIP(addr ma.Multiaddr, wakuFlags WakuEnrBitfield, privK *ecdsa.PrivateKey) (*enode.Node, *net.TCPAddr, error) {
-	ip, err := addr.ValueForProtocol(ma.P_IP4)
+	var ip string
+
+	dns4, err := addr.ValueForProtocol(ma.P_DNS4)
 	if err != nil {
-		return nil, nil, err
+		ip, err = addr.ValueForProtocol(ma.P_IP4)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		netIP, err := net.ResolveIPAddr("ip4", dns4)
+		if err != nil {
+			return nil, nil, err
+		}
+		ip = netIP.String()
 	}
 
 	portStr, err := addr.ValueForProtocol(ma.P_TCP)

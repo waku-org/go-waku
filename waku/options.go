@@ -110,6 +110,7 @@ type WSOptions struct {
 type Options struct {
 	Port             int
 	Address          string
+	Dns4DomainName   string
 	NodeKey          string
 	KeyFile          string
 	GenerateKey      bool
