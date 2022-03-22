@@ -14,6 +14,13 @@ import (
 	"unsafe"
 )
 
+// SignalHandler defines a minimal interface
+// a signal handler needs to implement.
+//nolint
+type SignalHandler interface {
+	HandleSignal(string)
+}
+
 // SignalHandler is a simple callback function that gets called when any signal is received
 type MobileSignalHandler func([]byte)
 

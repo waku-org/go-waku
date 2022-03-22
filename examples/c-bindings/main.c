@@ -29,13 +29,13 @@ int main(int argc, char *argv[])
 
 
 
-  response = gowaku_start(nodeID); // Start the node, enabling the waku protocols
+  response = gowaku_start(1); // Start the node, enabling the waku protocols
   if (isError(response))
     return 1;
 
 
 
-  response = gowaku_id(nodeID); // Obtain the node peerID
+  response = gowaku_peerid(nodeID); // Obtain the node peerID
   if (isError(response))
     return 1;
   char *nodePeerID = getStrValue(response);
@@ -61,14 +61,15 @@ int main(int argc, char *argv[])
   int version = 1;
   while (true){
       i++;
-      
-      response = gowaku_encode_data("Hello World!", ASYMMETRIC, bobPubKey, alicePrivKey, version); // Send a message encrypting it with Bob's PubK, and signing it with Alice PrivK
+
+      char *msg = gowaku_utils_base64_encode("Hello World!");
+      response = gowaku_encode_data(msg, ASYMMETRIC, bobPubKey, alicePrivKey, version); // Send a message encrypting it with Bob's PubK, and signing it with Alice PrivK
       if (isError(response))
         return 1;
       char *encodedData = getStrValue(response);
 
 
-      char *contentTopic = getStrValue(gowaku_content_topic("example", 1, "default", "rfc26"));
+      char *contentTopic = gowaku_content_topic("example", 1, "default", "rfc26");
 
 
       char wakuMsg[1000];
@@ -100,8 +101,9 @@ void callBack(char *signal)
       "nodeId":1,
       "type":"message",
       "event":{
-        "messageID":"0x6496491e40dbe0b6c3a2198c2426b16301688a2daebc4f57ad7706115eac3ad1",
         "pubsubTopic":"/waku/2/default-waku/proto",
+        "subscriptionID": ".....",
+        "messageID":"0x6496491e40dbe0b6c3a2198c2426b16301688a2daebc4f57ad7706115eac3ad1",
         "wakuMessage":{
           "payload":"BPABASUqWgRkgp73aW/FHIyGtJDYnStvaQvCoX9MdaNsOH39Vet0em6ipZc3lZ7kK9uFFtbJgIWfRaqTxSRjiFOPx88gXt1JeSm2SUwGSz+1gh2xTy0am8tXkc8OWSSjamdkEbXuVgAueLxHOnV3xlGwYt7nx2G5DWYqUu1BXv4yWHPOoiH2yx3fxX0OajgKGBwiMbadRNUuAUFPRM90f+bzG2y22ssHctDV/U6sXOa9ljNgpAx703Q3WIFleSRozto7ByNAdRFwWR0RGGV4l0btJXM7JpnrYcVC24dB0tJ3HVWuD0ZcwOM1zTL0wwc0hTezLHvI+f6bHSzsFGcCWIlc03KSoMjK1XENNL4dtDmSFI1DQCGgq09c2Bc3Je3Ci6XJHu+FP1F1pTnRzevv2WP8FSBJiTXpmJXdm6evB7V1Xxj4QlzQDvmHLRpBOL6PSttxf1Dc0IwC6BfZRN5g0dNmItNlS2pcY1MtZLxD5zpj",
           "contentTopic":"ABC",

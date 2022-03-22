@@ -83,7 +83,10 @@ build-example-chat-2:
 build-example-filter2:
 	cd examples/filter2 && $(MAKE)
 
-build-example: build-example-basic2 build-example-chat-2 build-example-filter2
+build-example-c-bindings:
+	cd examples/c-bindings && $(MAKE)
+
+build-example: build-example-basic2 build-example-chat-2 build-example-filter2 build-example-c-bindings
 
 static-library: ##@cross-compile Build go-waku as static library for current platform
 	mkdir -p ./build/lib
