@@ -34,7 +34,6 @@ func createHost(t *testing.T) (host.Host, int, *ecdsa.PrivateKey) {
 	require.NoError(t, err)
 
 	host, err := libp2p.New(
-		context.Background(),
 		libp2p.ListenAddrs(sourceMultiAddr),
 		libp2p.Identity(sPrivKey),
 	)

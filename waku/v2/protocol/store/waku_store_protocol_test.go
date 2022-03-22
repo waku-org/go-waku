@@ -17,7 +17,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
@@ -33,7 +33,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
-	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	// Simulate a message has been received via relay protocol
@@ -63,7 +63,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	host1, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	s1 := NewWakuStore(host1, nil, nil, 0, 0, tests.Logger())
@@ -85,7 +85,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	s1.MsgC <- protocol.NewEnvelope(msg4, pubsubTopic1)
 	s1.MsgC <- protocol.NewEnvelope(msg5, pubsubTopic1)
 
-	host2, err := libp2p.New(ctx, libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)

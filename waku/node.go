@@ -128,22 +128,25 @@ func Execute(options Options) {
 			}
 		}
 
-		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr, options.EnableWS, options.WSPort))
-	}
-
-	if options.EnableWS {
-		wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", options.WSAddress, options.WSPort))
-		nodeOpts = append(nodeOpts, node.WithMultiaddress([]multiaddr.Multiaddr{wsMa}))
-	}
-
-	if options.ShowAddresses {
-		printListeningAddresses(ctx, nodeOpts, options)
-		return
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr, options.Websocket.Enable, options.Websocket.Secure, options.Websocket.Port))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
 	if options.AdvertiseAddress == "" {
 		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
+	}
+
+	if options.Websocket.Enable {
+		nodeOpts = append(nodeOpts, node.WithWebsockets(options.Websocket.Address, options.Websocket.Port))
+	}
+
+	if options.Websocket.Secure {
+		nodeOpts = append(nodeOpts, node.WithSecureWebsockets(options.Websocket.Address, options.Websocket.Port, options.Websocket.CertPath, options.Websocket.KeyPath))
+	}
+
+	if options.ShowAddresses {
+		printListeningAddresses(ctx, nodeOpts, options)
+		return
 	}
 
 	if options.UseDB {
@@ -419,8 +422,6 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 }
 
 func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption, options Options) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	params := new(node.WakuNodeParameters)
 	for _, opt := range nodeOpts {
 		err := opt(params)
@@ -440,7 +441,7 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		libp2pOpts = append(libp2pOpts, libp2p.AddrsFactory(addrFactory))
 	}
 
-	h, err := libp2p.New(ctx, libp2pOpts...)
+	h, err := libp2p.New(libp2pOpts...)
 	if err != nil {
 		panic(err)
 	}

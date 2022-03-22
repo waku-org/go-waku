@@ -94,14 +94,20 @@ type RPCServerOptions struct {
 	Address string
 }
 
+type WSOptions struct {
+	Enable   bool
+	Port     int
+	Address  string
+	Secure   bool
+	KeyPath  string
+	CertPath string
+}
+
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
 	Port             int
 	Address          string
-	EnableWS         bool
-	WSPort           int
-	WSAddress        string
 	NodeKey          string
 	KeyFile          string
 	GenerateKey      bool
@@ -114,6 +120,7 @@ type Options struct {
 	ShowAddresses    bool
 	LogLevel         string
 
+	Websocket        WSOptions
 	Relay            RelayOptions
 	Store            StoreOptions
 	Swap             SwapOptions
