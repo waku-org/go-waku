@@ -86,7 +86,6 @@ build-example-filter2:
 build-example: build-example-basic2 build-example-chat-2 build-example-filter2
 
 static-library: ##@cross-compile Build go-waku as static library for current platform
-	mkdir -p ./build/lib
 	@echo "Building static library..."
 	go build \
 		-buildmode=c-archive \
@@ -96,7 +95,6 @@ static-library: ##@cross-compile Build go-waku as static library for current pla
 	@ls -la ./build/lib/libgowaku.*
 
 dynamic-library: ##@cross-compile Build status-go as shared library for current platform
-	mkdir -p ./build/lib
 	@echo "Building shared library..."
 	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) go build \
 		-buildmode=c-shared \
