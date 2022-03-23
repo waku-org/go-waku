@@ -29,6 +29,15 @@ docker build -t go-waku:latest .
 docker run go-waku:latest --help
 ```
 
+#### Building on windows
+
+Windows requires the following tools to be installed
+- git bash  (which is installed as part of [Git](https://git-scm.com/downloads))
+- [chocolatey](https://chocolatey.org/install)
+- [make](https://community.chocolatey.org/packages/make)
+- [mingw](https://community.chocolatey.org/packages/mingw)
+- [go](https://go.dev/doc/install)
+
 ## Library
 ```
 go get github.com/status-im/go-waku
@@ -85,6 +94,13 @@ To enable the git hooks:
 ```bash
 git config core.hooksPath hooks
 ```
+
+## Bugs, Questions & Features
+
+If you encounter any bug or would like to propose new features, feel free to [open an issue](https://github.com/status-im/go-waku/issues/new/).
+
+For more general discussion, help and latest news,  join **#go-waku** on [Vac Discord](https://discord.com/channels/864066763682218004/865466710924460034) or [Telegram](https://t.me/vacp2p).
+
 
 ## License
 Licensed and distributed under either of
