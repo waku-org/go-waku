@@ -29,23 +29,21 @@ var mobileSignalHandler MobileSignalHandler
 
 // SignalEnvelope is a general signal sent upward from node to app
 type SignalEnvelope struct {
-	NodeID int         `json:"nodeId"`
-	Type   string      `json:"type"`
-	Event  interface{} `json:"event"`
+	Type  string      `json:"type"`
+	Event interface{} `json:"event"`
 }
 
 // NewEnvelope creates new envlope of given type and event payload.
-func NewEnvelope(nodeId int, typ string, event interface{}) *SignalEnvelope {
+func NewEnvelope(signalType string, event interface{}) *SignalEnvelope {
 	return &SignalEnvelope{
-		NodeID: nodeId,
-		Type:   typ,
-		Event:  event,
+		Type:  signalType,
+		Event: event,
 	}
 }
 
 // send sends application signal (in JSON) upwards to application (via default notification handler)
-func send(node int, typ string, event interface{}) {
-	signal := NewEnvelope(node, typ, event)
+func send(signalType string, event interface{}) {
+	signal := NewEnvelope(signalType, event)
 	data, err := json.Marshal(&signal)
 	if err != nil {
 		fmt.Println("marshal signal error", err)
