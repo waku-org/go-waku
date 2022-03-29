@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -197,6 +196,7 @@ func (w *WakuNode) onAddrChange() {
 			continue
 		}
 		ip := net.ParseIP(ipStr)
+
 		if !ip.IsLoopback() && !ip.IsUnspecified() {
 			if w.opts.enableDiscV5 {
 				err := w.discoveryV5.UpdateAddr(ip)
@@ -458,24 +458,8 @@ func (w *WakuNode) mountDiscV5() error {
 		discV5Options = append(discV5Options, discv5.WithAdvertiseAddr(*w.opts.advertiseAddr))
 	}
 
-	addr := w.ListenAddresses()[0]
-
-	ipStr, err := addr.ValueForProtocol(ma.P_IP4)
-	if err != nil {
-		return err
-	}
-
-	portStr, err := addr.ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		return err
-	}
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return err
-	}
-
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), net.ParseIP(ipStr), port, w.opts.privKey, w.wakuFlag, w.log, discV5Options...)
+	var err error
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.ListenAddresses(), w.opts.privKey, w.wakuFlag, w.log, discV5Options...)
 
 	return err
 }

@@ -66,7 +66,7 @@ type WakuConfig struct {
 	NodeKey           *string `json:"nodeKey,omitempty"`
 	KeepAliveInterval *int    `json:"keepAliveInterval,omitempty"`
 	EnableRelay       *bool   `json:"relay"`
-	MinPeersToPublish *int    `json:"minPeersToPublish`
+	MinPeersToPublish *int    `json:"minPeersToPublish"`
 }
 
 var DefaultHost = "0.0.0.0"

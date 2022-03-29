@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -45,22 +44,22 @@ func createHost(t *testing.T) (host.Host, int, *ecdsa.PrivateKey) {
 func TestDiscV5(t *testing.T) {
 	// Host1 <-> Host2 <-> Host3
 
-	host1, tcpPort1, prvKey1 := createHost(t)
+	host1, _, prvKey1 := createHost(t)
 	udpPort1, err := tests.FindFreePort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	d1, err := NewDiscoveryV5(host1, net.IPv4(127, 0, 0, 1), tcpPort1, prvKey1, utils.NewWakuEnrBitfield(true, true, true, true), tests.Logger(), WithUDPPort(udpPort1))
+	d1, err := NewDiscoveryV5(host1, host1.Addrs(), prvKey1, utils.NewWakuEnrBitfield(true, true, true, true), tests.Logger(), WithUDPPort(udpPort1))
 	require.NoError(t, err)
 
-	host2, tcpPort2, prvKey2 := createHost(t)
+	host2, _, prvKey2 := createHost(t)
 	udpPort2, err := tests.FindFreePort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	d2, err := NewDiscoveryV5(host2, net.IPv4(127, 0, 0, 1), tcpPort2, prvKey2, utils.NewWakuEnrBitfield(true, true, true, true), tests.Logger(), WithUDPPort(udpPort2), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	d2, err := NewDiscoveryV5(host2, host2.Addrs(), prvKey2, utils.NewWakuEnrBitfield(true, true, true, true), tests.Logger(), WithUDPPort(udpPort2), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
 	require.NoError(t, err)
 
-	host3, tcpPort3, prvKey3 := createHost(t)
+	host3, _, prvKey3 := createHost(t)
 	udpPort3, err := tests.FindFreePort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	d3, err := NewDiscoveryV5(host3, net.IPv4(127, 0, 0, 1), tcpPort3, prvKey3, utils.NewWakuEnrBitfield(true, true, true, true), tests.Logger(), WithUDPPort(udpPort3), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	d3, err := NewDiscoveryV5(host3, host3.Addrs(), prvKey3, utils.NewWakuEnrBitfield(true, true, true, true), tests.Logger(), WithUDPPort(udpPort3), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 
 	defer d1.Stop()
