@@ -5,10 +5,6 @@ import (
 	"encoding/json"
 )
 
-var errToCodeMap = map[error]int{
-	//transactions.ErrInvalidTxSender: codeErrInvalidTxSender,
-}
-
 type JSONResponse struct {
 	Error  *string     `json:"error,omitempty"`
 	Result interface{} `json:"result"`
