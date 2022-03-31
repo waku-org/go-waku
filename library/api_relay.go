@@ -3,12 +3,9 @@ package main
 import (
 	"C"
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
@@ -37,7 +34,7 @@ func waku_relay_enough_peers(topic *C.char) *C.char {
 	return prepareJSONResponse(wakuNode.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil)
 }
 
-func relay_publish(msg pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
+func relayPublish(msg pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
 	if wakuNode == nil {
 		return "", ErrWakuNodeNotReady
 	}
@@ -61,15 +58,12 @@ func relay_publish(msg pb.WakuMessage, pubsubTopic string, ms int) (string, erro
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned
 func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int) *C.char {
-	var msg pb.WakuMessage
-	err := json.Unmarshal([]byte(C.GoString(messageJSON)), &msg)
+	msg, err := wakuMessage(C.GoString(messageJSON))
 	if err != nil {
 		return makeJSONResponse(err)
 	}
 
-	msg.Version = 0
-
-	hash, err := relay_publish(msg, getTopic(topic), int(ms))
+	hash, err := relayPublish(msg, getTopic(topic), int(ms))
 	return prepareJSONResponse(hash, err)
 }
 
@@ -78,50 +72,14 @@ func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int) *C.char {
 // publicKey must be a hex string prefixed with "0x" containing a valid secp256k1 public key.
 // optionalSigningKey is an optional hex string prefixed with "0x" containing a valid secp256k1 private key for signing the message. Use NULL otherwise
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
-// (in milliseconds) is reached, or an error will be returned. 
+// (in milliseconds) is reached, or an error will be returned.
 func waku_relay_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, publicKey *C.char, optionalSigningKey *C.char, ms C.int) *C.char {
-	var msg pb.WakuMessage
-	err := json.Unmarshal([]byte(C.GoString(messageJSON)), &msg)
+	msg, err := wakuMessageAsymmetricEncoding(C.GoString(messageJSON), C.GoString(publicKey), C.GoString(optionalSigningKey))
 	if err != nil {
 		return makeJSONResponse(err)
 	}
 
-	payload := node.Payload{
-		Data: msg.Payload,
-		Key: &node.KeyInfo{
-			Kind: node.Asymmetric,
-		},
-	}
-
-	keyBytes, err := hexutil.Decode(C.GoString(publicKey))
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	payload.Key.PubKey, err = unmarshalPubkey(keyBytes)
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	if optionalSigningKey != nil {
-		signingKeyBytes, err := hexutil.Decode(C.GoString(optionalSigningKey))
-		if err != nil {
-			return makeJSONResponse(err)
-		}
-
-		payload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
-		if err != nil {
-			return makeJSONResponse(err)
-		}
-	}
-
-	msg.Version = 1
-	msg.Payload, err = payload.Encode(1)
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	hash, err := relay_publish(msg, getTopic(topic), int(ms))
+	hash, err := relayPublish(msg, getTopic(topic), int(ms))
 
 	return prepareJSONResponse(hash, err)
 }
@@ -131,45 +89,14 @@ func waku_relay_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, publi
 // publicKey must be a hex string prefixed with "0x" containing a 32 bytes symmetric key
 // optionalSigningKey is an optional hex string prefixed with "0x" containing a valid secp256k1 private key for signing the message. Use NULL otherwise
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
-// (in milliseconds) is reached, or an error will be returned. 
+// (in milliseconds) is reached, or an error will be returned.
 func waku_relay_publish_enc_symmetric(messageJSON *C.char, topic *C.char, symmetricKey *C.char, optionalSigningKey *C.char, ms C.int) *C.char {
-	var msg pb.WakuMessage
-	err := json.Unmarshal([]byte(C.GoString(messageJSON)), &msg)
+	msg, err := wakuMessageSymmetricEncoding(C.GoString(messageJSON), C.GoString(symmetricKey), C.GoString(optionalSigningKey))
 	if err != nil {
 		return makeJSONResponse(err)
 	}
 
-	payload := node.Payload{
-		Data: msg.Payload,
-		Key: &node.KeyInfo{
-			Kind: node.Symmetric,
-		},
-	}
-
-	payload.Key.SymKey, err = hexutil.Decode(C.GoString(symmetricKey))
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	if optionalSigningKey != nil {
-		signingKeyBytes, err := hexutil.Decode(C.GoString(optionalSigningKey))
-		if err != nil {
-			return makeJSONResponse(err)
-		}
-
-		payload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
-		if err != nil {
-			return makeJSONResponse(err)
-		}
-	}
-
-	msg.Version = 1
-	msg.Payload, err = payload.Encode(1)
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	hash, err := relay_publish(msg, getTopic(topic), int(ms))
+	hash, err := relayPublish(msg, getTopic(topic), int(ms))
 
 	return prepareJSONResponse(hash, err)
 }

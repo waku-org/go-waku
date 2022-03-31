@@ -81,11 +81,11 @@ int main(int argc, char *argv[])
   char *nodePeerID = utils_get_str(response);
   printf("PeerID: %s\n", nodePeerID);
 
-  /*
+  
   response =  waku_connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS", 0); // Connect to a node
   if (isError(response))
     return 1;
-  */
+  
 
   response = waku_relay_subscribe(NULL);
   if (isError(response))
@@ -105,8 +105,8 @@ int main(int argc, char *argv[])
     free(contentTopic);
 
 
-
-    response = waku_relay_publish_enc_asymmetric(wakuMsg, NULL, bobPubKey, alicePrivKey, 0); // Broadcast a message encrypting it with Bob's PubK, and signing it with Alice PrivK
+    response = waku_relay_publish_enc_asymmetric(wakuMsg, NULL, bobPubKey, alicePrivKey, 0); // Broadcast via waku relay a message encrypting it with Bob's PubK, and signing it with Alice PrivK
+    // response = waku_lightpush_publish_enc_asymmetric(wakuMsg, NULL, NULL, bobPubKey, alicePrivKey, 0); // Broadcast via waku lightpush a message encrypting it with Bob's PubK, and signing it with Alice PrivK
     if (isError(response))
       return 1;
     

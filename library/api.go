@@ -492,9 +492,3 @@ func waku_utils_free(data *C.char) {
 
 // TODO:
 // connected/disconnected
-// dns discovery
-// getFastestPeer(protocol)
-// getRandomPeer(protocol)
-// func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *pb.WakuMessage, topic string, peer, requestId nil) ([]byte, error) {
-// func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *pb.WakuMessage, peer, requestId nil) ([]byte, error) {
-// func (query)
