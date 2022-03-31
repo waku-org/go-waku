@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -195,13 +196,31 @@ func (w *WakuNode) onAddrChange() {
 			w.log.Error(fmt.Sprintf("could not extract ip from ma %s: %s", m, err.Error()))
 			continue
 		}
-		ip := net.ParseIP(ipStr)
 
-		if !ip.IsLoopback() && !ip.IsUnspecified() {
+		portStr, err := m.ValueForProtocol(ma.P_TCP)
+		if err != nil {
+			w.log.Error(fmt.Sprintf("could not extract port from ma %s: %s", m, err.Error()))
+			continue
+		}
+
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			w.log.Error(fmt.Sprintf("could not convert port to int: %s", err.Error()))
+			continue
+		}
+
+		fmt.Println("ADDR: ", m, ipStr, port)
+
+		addr := &net.TCPAddr{
+			IP:   net.ParseIP(ipStr),
+			Port: port,
+		}
+
+		if !addr.IP.IsLoopback() && !addr.IP.IsUnspecified() {
 			if w.opts.enableDiscV5 {
-				err := w.discoveryV5.UpdateAddr(ip)
+				err := w.discoveryV5.UpdateAddr(addr)
 				if err != nil {
-					w.log.Error(fmt.Sprintf("could not update DiscV5 address with IP %s: %s", ip, err.Error()))
+					w.log.Error(fmt.Sprintf("could not update DiscV5 address with IP %s:%d %s", addr.IP, addr.Port, err.Error()))
 					continue
 				}
 			}

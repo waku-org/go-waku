@@ -43,6 +43,12 @@ type DiscoveryV5 struct {
 	wg *sync.WaitGroup
 
 	peerCache peerCache
+
+	// Used for those weird cases where updateAddress
+	// receives the same external address twice both with the original port
+	// and the nat port. Ideally this atribute should be removed by doing
+	// hole punching before starting waku
+	ogTCPPort int
 }
 
 type peerCache struct {
@@ -145,7 +151,8 @@ func NewDiscoveryV5(host host.Host, addresses []ma.Multiaddr, priv *ecdsa.Privat
 			IP:   net.IPv4zero,
 			Port: params.udpPort,
 		},
-		log: logger,
+		log:       logger,
+		ogTCPPort: ipAddr.Port,
 	}, nil
 }
 
@@ -241,7 +248,7 @@ func (d *DiscoveryV5) Stop() {
 	d.wg.Wait()
 }
 
-func (d *DiscoveryV5) UpdateAddr(addr net.IP) error {
+func (d *DiscoveryV5) UpdateAddr(addr *net.TCPAddr) error {
 	if !d.params.autoUpdate {
 		return nil
 	}
@@ -249,18 +256,21 @@ func (d *DiscoveryV5) UpdateAddr(addr net.IP) error {
 	d.Lock()
 	defer d.Unlock()
 
-	if addr.IsUnspecified() || d.localnode.Node().IP().Equal(addr) {
+	// TODO: This code is not elegant and should be improved
+
+	if !isExternal(addr) && !isExternal(&net.TCPAddr{IP: d.localnode.Node().IP()}) {
+		if !((d.localnode.Node().IP().IsLoopback() && isPrivate(addr)) || (isPrivate(&net.TCPAddr{IP: d.localnode.Node().IP()}) && isExternal(addr))) {
+			return nil
+		}
+	}
+
+	if addr.IP.IsUnspecified() || (d.localnode.Node().IP().Equal(addr.IP) && addr.Port == d.ogTCPPort) {
 		return nil
 	}
 
-	// TODO: improve this logic to determine if an address should be replaced or not
-	if !((d.localnode.Node().IP().IsLoopback() && isPrivate(&net.TCPAddr{IP: addr})) ||
-		(isPrivate(&net.TCPAddr{IP: d.localnode.Node().IP()}) && isExternal(&net.TCPAddr{IP: addr}))) {
-		return nil
-	}
-
-	d.localnode.SetStaticIP(addr)
-	d.log.Info(fmt.Sprintf("Updated Discovery V5 node IP: %s", d.localnode.Node().IP()))
+	d.localnode.SetStaticIP(addr.IP)
+	d.localnode.Set(enr.TCP(uint16(addr.Port))) // lgtm [go/incorrect-integer-conversion]
+	d.log.Info(fmt.Sprintf("Updated Discovery V5 node: %s:%d", d.localnode.Node().IP(), d.localnode.Node().TCP()))
 	d.log.Info("Discovery V5 ", d.localnode.Node())
 
 	return nil
