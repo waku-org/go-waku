@@ -85,7 +85,17 @@ int main(int argc, char *argv[])
   response =  waku_connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS", 0); // Connect to a node
   if (isError(response))
     return 1;
+
   
+  /*
+  // To see a store query in action:
+  char query[1000];
+  sprintf(query, "{\"pubsubTopic\":\"%s\", \"pagingOptions\":{\"pageSize\": 40, \"forward\":false}}", waku_default_pubsub_topic());
+  response = waku_store_query(query, NULL, 0);
+  if (isError(response))
+    return 1;
+  printf("%s\n",response);
+  */
 
   response = waku_relay_subscribe(NULL);
   if (isError(response))
