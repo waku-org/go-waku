@@ -43,10 +43,10 @@ namespace Waku
 
             return result;
         }
-        internal static T HandleResponse<T>(IntPtr ptr, string errNoValue) where T : struct, IComparable
+        internal static T HandleResponse<T>(IntPtr ptr, string errNoValue) where T : struct
         {
             string strResponse = PtrToStringUtf8(ptr);
-
+            
             JsonResponse<T?>? response = JsonSerializer.Deserialize<JsonResponse<T?>>(strResponse);
 
             if (response == null) throw new Exception("unknown waku error");
@@ -104,6 +104,21 @@ namespace Waku
             string strResponse = PtrToStringUtf8(ptr);
 
             JsonResponse<IList<T>>? response = JsonSerializer.Deserialize<JsonResponse<IList<T>>>(strResponse);
+
+            if (response == null) throw new Exception("unknown waku error");
+
+            if (response.error != null) throw new Exception(response.error);
+
+            if (response.result == null) throw new Exception(errNoValue);
+
+            return response.result;
+        }
+
+        internal static StoreResponse HandleStoreResponse(IntPtr ptr, string errNoValue)
+        {
+            string strResponse = PtrToStringUtf8(ptr);
+            Console.WriteLine(strResponse);
+            JsonResponse<StoreResponse>? response = JsonSerializer.Deserialize<JsonResponse<StoreResponse>>(strResponse);
 
             if (response == null) throw new Exception("unknown waku error");
 

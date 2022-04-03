@@ -112,6 +112,10 @@ func getConfig(configJSON *C.char) (WakuConfig, error) {
 // This function will return a nodeID which should be used in all calls from this API that require
 // interacting with the node.
 func waku_new(configJSON *C.char) *C.char {
+	if wakuNode != nil {
+		return makeJSONResponse(errors.New("go-waku already initialized. stop it first"))
+	}
+
 	config, err := getConfig(configJSON)
 	if err != nil {
 		return makeJSONResponse(err)

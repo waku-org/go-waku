@@ -52,6 +52,7 @@ type StoreMessagesReply struct {
 //			"digest": ...,
 //			"receiverTime": ...,
 //			"senderTime": ...,
+//			"pubsubTopic" ...,
 //      }
 //		"forward": true, // sort order
 //  }

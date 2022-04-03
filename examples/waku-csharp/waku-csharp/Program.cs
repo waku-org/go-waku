@@ -54,6 +54,12 @@ try
         Console.WriteLine(">>> Protocols: " + String.Join(", ", peer.protocols.ToArray()));
         Console.WriteLine(">>> Addresses: " + String.Join(", ", peer.addrs.ToArray()));
     }
+
+    Waku.StoreQuery q = new();
+    q.pubsubTopic = Waku.Utils.DefaultPubsubTopic();
+    q.pagingOptions = new(3, null, false);
+    Waku.StoreResponse response = node.StoreQuery(q);
+    Console.WriteLine(">>> Retrieved " + response.messages.Count + " messages from store");
 }
 catch (Exception ex)
 {

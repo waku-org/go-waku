@@ -23,7 +23,7 @@ namespace Waku
     {
         public byte[] payload { get; set; } = new byte[0];
         public string contentTopic { get; set; } = "";
-        public int? version { get; set; }
+        public int version { get; set; } = 0;
         public long? timestamp { get; set; }
     }
 
@@ -65,6 +65,51 @@ namespace Waku
     {
         [JsonPropertyName("event")]
         public MessageEventData data { get; set; } = new();
+    }
+
+    public class ContentFilter
+    {
+        public ContentFilter(string contentTopic)
+        {
+            this.contentTopic = contentTopic;
+        }
+        public string contentTopic { get; set; } = "";
+    }
+    
+    public class Cursor
+    {
+        public byte[] digest { get; set; } = new byte[0];
+        public string pubsubTopic { get; set; } = Utils.DefaultPubsubTopic();
+        public long receiverTime { get; set; } = 0;
+        public long senderTime { get; set; } = 0;
+    }
+
+    public class PagingOptions
+    {
+        public PagingOptions(int pageSize, Cursor? cursor, bool forward)
+        {
+            this.pageSize = pageSize;
+            this.cursor = cursor;
+            this.forward = forward;
+        }
+        public int pageSize { get; set; } = 100;
+        public Cursor? cursor { get; set; } = new();
+        public bool forward { get; set; } = true;
+    }
+
+    public class StoreQuery
+    {
+        public string? pubsubTopic { get; set; } = Utils.DefaultPubsubTopic();
+        public long? startTime { get; set; }
+        public long? endTime { get; set; }
+        public IList<ContentFilter>? contentFilters { get; set; }
+        public PagingOptions? pagingOptions { get; set; }
+    }
+
+    public class StoreResponse
+    {
+        public IList<Message> messages { get; set; } = new List<Message>();
+        public PagingOptions? pagingInfo { get; set; }
     }
 
     public class Node
@@ -312,11 +357,11 @@ namespace Waku
         /// <summary>
         /// Publish a message encrypted with a 32 bytes symmetric key using waku relay.
         /// </summary>
-        /// <param name="msg"></param>
-        /// <param name="symmetricKey"></param>
-        /// <param name="optionalSigningKey"></param>
-        /// <param name="topic"></param>
-        /// <param name="ms"></param>
+        /// <param name="msg">Message to broadcast</param>
+        /// <param name="symmetricKey">32 byte hex string containing a symmetric key</param>
+        /// <param name="optionalSigningKey">Optional secp256k1 private key for signing the message</param>
+        /// <param name="topic">Pubsub topic. Set to `null` to use the default pubsub topic</param>
+        /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
         /// <returns></returns>
         public string RelayPublishEncodeSymmetric(Message msg, string symmetricKey, string? optionalSigningKey = null, string? topic = null, int ms = 0)
         {
@@ -348,7 +393,7 @@ namespace Waku
         /// Decode a waku message using an asymmetric key
         /// </summary>
         /// <param name="msg">Message to decode</param>
-        /// <param name="symmetricKey">Secp256k1 private key used to decode the message</param>
+        /// <param name="privateKey">Secp256k1 private key used to decode the message</param>
         /// <returns>DecodedPayload containing the decrypted message, padding, public key and signature (if available)</returns>
         public DecodedPayload RelayPublishDecodeAsymmetric(Message msg, string privateKey)
         {
@@ -387,6 +432,7 @@ namespace Waku
 
         [DllImport(Constants.dllName)]
         internal static extern IntPtr waku_relay_unsubscribe(string? topic);
+
         /// <summary>
         /// Closes the pubsub subscription to a pubsub topic.
         /// </summary>
@@ -399,11 +445,36 @@ namespace Waku
 
         [DllImport(Constants.dllName)]
         internal static extern IntPtr waku_peers();
+
+        /// <summary>
+        /// Get Peers
+        /// </summary>
+        /// <returns>Retrieve list of peers and their supported protocols</returns>
         public IList<Peer> Peers()
         {
             IntPtr ptr = waku_peers();
             return Response.HandleListResponse<Peer>(ptr, "could not obtain the peers");
         }
+
+        [DllImport(Constants.dllName)]
+        internal static extern IntPtr waku_store_query(string queryJSON, string? peerID, int ms);
+        /// <summary>
+        /// Query message history
+        /// </summary>
+        /// <param name="query">Query</param>
+        /// <param name="peerID">PeerID to ask the history from. Use NULL to automatically select a peer</param>
+        /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        /// <returns>Response containing the messages and cursor for pagination. Use the cursor in further queries to retrieve more results</returns>
+        public StoreResponse StoreQuery(StoreQuery query, string? peerID = null, int ms = 0)
+        {
+            string queryJSON = JsonSerializer.Serialize(query);
+            IntPtr ptr = waku_store_query(queryJSON, peerID, ms);
+
+            return Response.HandleStoreResponse(ptr, "could not extract query response");
+        }
+
+
+
     }
 }
 
