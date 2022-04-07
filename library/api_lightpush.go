@@ -3,46 +3,8 @@ package main
 import (
 	"C"
 
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	mobile "github.com/status-im/go-waku/mobile"
 )
-import (
-	"context"
-	"time"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
-)
-
-func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms int) (string, error) {
-	if wakuNode == nil {
-		return "", ErrWakuNodeNotReady
-	}
-
-	var ctx context.Context
-	var cancel context.CancelFunc
-
-	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
-		defer cancel()
-	} else {
-		ctx = context.Background()
-	}
-
-	var lpOptions []lightpush.LightPushOption
-	if peerID != "" {
-		p, err := peer.Decode(peerID)
-		if err != nil {
-			return "", err
-		}
-		lpOptions = append(lpOptions, lightpush.WithPeer(p))
-	} else {
-		lpOptions = append(lpOptions, lightpush.WithAutomaticPeerSelection(wakuNode.Host()))
-	}
-
-	hash, err := wakuNode.Lightpush().PublishToTopic(ctx, &msg, pubsubTopic, lpOptions...)
-	return hexutil.Encode(hash), err
-}
 
 //export waku_lightpush_publish
 // Publish a message using waku lightpush. Use NULL for topic to use the default pubsub topic..
@@ -50,13 +12,8 @@ func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms 
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned
 func waku_lightpush_publish(messageJSON *C.char, topic *C.char, peerID *C.char, ms C.int) *C.char {
-	msg, err := wakuMessage(C.GoString(messageJSON))
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	hash, err := lightpushPublish(msg, getTopic(topic), C.GoString(peerID), int(ms))
-	return prepareJSONResponse(hash, err)
+	response := mobile.LightpushPublish(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), int(ms))
+	return C.CString(response)
 }
 
 //export waku_lightpush_publish_enc_asymmetric
@@ -67,14 +24,8 @@ func waku_lightpush_publish(messageJSON *C.char, topic *C.char, peerID *C.char, 
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned.
 func waku_lightpush_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, peerID *C.char, publicKey *C.char, optionalSigningKey *C.char, ms C.int) *C.char {
-	msg, err := wakuMessageAsymmetricEncoding(C.GoString(messageJSON), C.GoString(publicKey), C.GoString(optionalSigningKey))
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	hash, err := lightpushPublish(msg, getTopic(topic), C.GoString(peerID), int(ms))
-
-	return prepareJSONResponse(hash, err)
+	response := mobile.LightpushPublishEncodeAsymmetric(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), C.GoString(publicKey), C.GoString(optionalSigningKey), int(ms))
+	return C.CString(response)
 }
 
 //export waku_lightpush_publish_enc_symmetric
@@ -85,12 +36,6 @@ func waku_lightpush_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, p
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned.
 func waku_lightpush_publish_enc_symmetric(messageJSON *C.char, topic *C.char, peerID *C.char, symmetricKey *C.char, optionalSigningKey *C.char, ms C.int) *C.char {
-	msg, err := wakuMessageSymmetricEncoding(C.GoString(messageJSON), C.GoString(symmetricKey), C.GoString(optionalSigningKey))
-	if err != nil {
-		return makeJSONResponse(err)
-	}
-
-	hash, err := lightpushPublish(msg, getTopic(topic), C.GoString(peerID), int(ms))
-
-	return prepareJSONResponse(hash, err)
+	response := mobile.LightpushPublishEncodeSymmetric(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), C.GoString(symmetricKey), C.GoString(optionalSigningKey), int(ms))
+	return C.CString(response)
 }

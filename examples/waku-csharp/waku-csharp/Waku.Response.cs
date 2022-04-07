@@ -43,6 +43,7 @@ namespace Waku
 
             return result;
         }
+        
         internal static T HandleResponse<T>(IntPtr ptr, string errNoValue) where T : struct
         {
             string strResponse = PtrToStringUtf8(ptr);

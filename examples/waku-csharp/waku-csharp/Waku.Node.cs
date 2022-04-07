@@ -12,6 +12,7 @@ namespace Waku
         public string? nodeKey { get; set; }
         public int? keepAliveInterval { get; set; }
         public bool? relay { get; set; }
+        public int? minPeersToPublish {get; set; }
     }
 
     public enum EventType
@@ -45,16 +46,12 @@ namespace Waku
 
     public class Event
     {
-        public int nodeId { get; set; }
-
         public EventType type { get; set; } = EventType.Unknown;
     }
 
     public class MessageEventData
     {
         public string messageID { get; set; } = "";
-
-        public string subscriptionID { get; set; } = "";
 
         public string pubsubTopic { get; set; } = Utils.DefaultPubsubTopic();
 
@@ -194,10 +191,14 @@ namespace Waku
         internal static extern IntPtr waku_start();
 
         /// <summary>
-        /// Initialize a go-waku node mounting all the protocols that were enabled during the waku node initialization.
+        /// Initialize a go-waku node mounting all the protocols that were enabled during the waku node instantiation.
         /// </summary>
         public void Start()
         {
+            if(_running) {
+                return
+            }
+
             IntPtr ptr = waku_start();
             Response.HandleResponse(ptr);
 
@@ -212,6 +213,10 @@ namespace Waku
         /// </summary>
         public void Stop()
         {
+            if(!_running) {
+                return
+            }
+            
             IntPtr ptr = waku_stop();
             Response.HandleResponse(ptr);
 
@@ -379,7 +384,7 @@ namespace Waku
         /// <param name="msg">Message to decode</param>
         /// <param name="symmetricKey">Symmetric key used to decode the message</param>
         /// <returns>DecodedPayload containing the decrypted message, padding, public key and signature (if available)</returns>
-        public DecodedPayload RelayPublishDecodeSymmetric(Message msg, string symmetricKey)
+        public DecodedPayload DecodeSymmetric(Message msg, string symmetricKey)
         {
             string jsonMsg = JsonSerializer.Serialize(msg);
             IntPtr ptr = waku_decode_symmetric(jsonMsg, symmetricKey);
@@ -395,7 +400,7 @@ namespace Waku
         /// <param name="msg">Message to decode</param>
         /// <param name="privateKey">Secp256k1 private key used to decode the message</param>
         /// <returns>DecodedPayload containing the decrypted message, padding, public key and signature (if available)</returns>
-        public DecodedPayload RelayPublishDecodeAsymmetric(Message msg, string privateKey)
+        public DecodedPayload DecodeAsymmetric(Message msg, string privateKey)
         {
             string jsonMsg = JsonSerializer.Serialize(msg);
             IntPtr ptr = waku_decode_asymmetric(jsonMsg, privateKey);

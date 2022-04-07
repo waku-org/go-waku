@@ -1,13 +1,14 @@
-package main
+package gowaku
 
 /*
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
-
 extern bool StatusServiceSignalEvent(const char *jsonEvent);
 extern void SetEventCallback(void *cb);
 */
 import "C"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -27,15 +28,15 @@ type MobileSignalHandler func([]byte)
 // storing the current mobile signal handler here
 var mobileSignalHandler MobileSignalHandler
 
-// SignalEnvelope is a general signal sent upward from node to app
-type SignalEnvelope struct {
+// signalEnvelope is a general signal sent upward from node to app
+type signalEnvelope struct {
 	Type  string      `json:"type"`
 	Event interface{} `json:"event"`
 }
 
 // NewEnvelope creates new envlope of given type and event payload.
-func NewEnvelope(signalType string, event interface{}) *SignalEnvelope {
-	return &SignalEnvelope{
+func newEnvelope(signalType string, event interface{}) *signalEnvelope {
+	return &signalEnvelope{
 		Type:  signalType,
 		Event: event,
 	}
@@ -43,7 +44,8 @@ func NewEnvelope(signalType string, event interface{}) *SignalEnvelope {
 
 // send sends application signal (in JSON) upwards to application (via default notification handler)
 func send(signalType string, event interface{}) {
-	signal := NewEnvelope(signalType, event)
+
+	signal := newEnvelope(signalType, event)
 	data, err := json.Marshal(&signal)
 	if err != nil {
 		fmt.Println("marshal signal error", err)
@@ -71,6 +73,6 @@ func SetMobileSignalHandler(handler SignalHandler) {
 	}
 }
 
-func setEventCallback(cb unsafe.Pointer) {
+func SetEventCallback(cb unsafe.Pointer) {
 	C.SetEventCallback(cb)
 }
