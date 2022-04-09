@@ -5,6 +5,8 @@ import com.example.waku.events.EventHandler
 import com.example.waku.events.EventType
 import com.example.waku.events.MessageEvent
 import com.example.waku.messages.Message
+import com.example.waku.store.StoreQuery
+import com.example.waku.store.StoreResponse
 import gowaku.Gowaku
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -148,6 +150,15 @@ fun Node.disconnect(peerID: String) {
 }
 
 /**
+ * Subscribe to a WakuRelay topic to receive messages
+ * @param topic Pubsub topic to subscribe to. Use NULL for subscribing to the default pubsub topic
+ */
+fun Node.relaySubscribe(topic: String? = null) {
+    val response = Gowaku.relaySubscribe(topic)
+    handleResponse(response)
+}
+
+/**
  * Publish a message using waku relay
  * @param msg Message to broadcast
  * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
@@ -162,12 +173,18 @@ fun Node.relayPublish(msg: Message, topic: String? = null, ms: Long = 0): String
 }
 
 /**
- * Subscribe to a WakuRelay topic to receive messages
- * @param topic Pubsub topic to subscribe to. Use NULL for subscribing to the default pubsub topic
+ * Publish a message using waku lightpush
+ * @param msg Message to broadcast
+ * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param peerID ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
+ * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
+ *           (in milliseconds) is reached, or an error will be returned
+ * @return message id
  */
-fun Node.relaySubscribe(topic: String? = null) {
-    val response = Gowaku.relaySubscribe(topic)
-    handleResponse(response)
+fun Node.lightpushPublish(msg: Message, topic: String? = null, peerID: String? = null, ms: Long = 0): String {
+    val jsonMsg = Json.encodeToString(msg)
+    val response = Gowaku.lightpushPublish(jsonMsg, topic, peerID, ms)
+    return handleResponse<String>(response)
 }
 
 /**
@@ -194,7 +211,32 @@ fun Node.relayPublishEncodeAsymmetric(
 }
 
 /**
- * Publish a message encrypted with an secp256k1 public key using waku relay
+ * Publish a message encrypted with an secp256k1 public key using waku lightpush
+ * @param msg Message to broadcast
+ * @param publicKey Secp256k1 public key
+ * @param optionalSigningKey Optional secp256k1 private key for signing the message
+ * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param peerID ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
+ * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
+ *           (in milliseconds) is reached, or an error will be returned
+ * @return message id
+ */
+fun Node.lightpushPublishEncodeAsymmetric(
+    msg: Message,
+    publicKey: String,
+    optionalSigningKey: String? = null,
+    topic: String? = null,
+    peerID: String? = null,
+    ms: Long = 0
+): String {
+    val jsonMsg = Json.encodeToString(msg)
+    val response =
+        Gowaku.lightpushPublishEncodeAsymmetric(jsonMsg, topic, peerID, publicKey, optionalSigningKey, ms)
+    return handleResponse<String>(response)
+}
+
+/**
+ * Publish a message encrypted with a 32 byte symmetric key using waku relay
  * @param msg Message to broadcast
  * @param symmetricKey 32 byte hex string containing a symmetric key
  * @param optionalSigningKey Optional secp256k1 private key for signing the message
@@ -213,6 +255,31 @@ fun Node.relayPublishEncodeSymmetric(
     val jsonMsg = Json.encodeToString(msg)
     val response =
         Gowaku.relayPublishEncodeSymmetric(jsonMsg, topic, symmetricKey, optionalSigningKey, ms)
+    return handleResponse<String>(response)
+}
+
+/**
+ * Publish a message encrypted with a 32 byte symmetric key using waku lightpush
+ * @param msg Message to broadcast
+ * @param symmetricKey 32 byte hex string containing a symmetric key
+ * @param optionalSigningKey Optional secp256k1 private key for signing the message
+ * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param peerID ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
+ * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
+ *           (in milliseconds) is reached, or an error will be returned
+ * @return message id
+ */
+fun Node.lightpushPublishEncodeSymmetric(
+    msg: Message,
+    symmetricKey: String,
+    optionalSigningKey: String? = null,
+    topic: String? = null,
+    peerID: String? = null,
+    ms: Long = 0
+): String {
+    val jsonMsg = Json.encodeToString(msg)
+    val response =
+        Gowaku.lightpushPublishEncodeSymmetric(jsonMsg, topic, peerID, symmetricKey, optionalSigningKey, ms)
     return handleResponse<String>(response)
 }
 
@@ -244,22 +311,16 @@ fun Node.peers(): List<Peer> {
     return handleResponse<List<Peer>>(response)
 }
 
-/*
-
-
-    /// <summary>
-    /// Query message history
-    /// </summary>
-    /// <param name="query">Query</param>
-    /// <param name="peerID">PeerID to ask the history from. Use NULL to automatically select a peer</param>
-    /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
-    /// <returns>Response containing the messages and cursor for pagination. Use the cursor in further queries to retrieve more results</returns>
-    public StoreResponse StoreQuery(StoreQuery query, string? peerID = null, int ms = 0)
-    {
-        string queryJSON = JsonSerializer.Serialize(query);
-        IntPtr ptr = waku_store_query(queryJSON, peerID, ms);
-
-        return Response.HandleStoreResponse(ptr, "could not extract query response");
-    }
-
-*/
+/**
+ * Query message history
+ * @param query Query
+ * @param peerID PeerID to ask the history from. Use NULL to automatically select a peer
+ * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
+ *           (in milliseconds) is reached, or an error will be returned
+ * @return Response containing the messages and cursor for pagination. Use the cursor in further queries to retrieve more results
+ */
+fun Node.storeQuery(query: StoreQuery, peerID: String?, ms: Long = 0): StoreResponse{
+    val queryJSON = Json.encodeToString(query)
+    val response = Gowaku.storeQuery(queryJSON, peerID, ms)
+    return handleResponse<StoreResponse>(response)
+}

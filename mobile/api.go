@@ -35,8 +35,6 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func main() {}
-
 type wakuConfig struct {
 	Host              *string `json:"host,omitempty"`
 	Port              *int    `json:"port,omitempty"`

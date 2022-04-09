@@ -6,12 +6,8 @@ package main
 */
 import "C"
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"errors"
 	"unsafe"
 
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	mobile "github.com/status-im/go-waku/mobile"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 )
@@ -132,14 +128,6 @@ func waku_set_event_callback(cb unsafe.Pointer) {
 func waku_peers() *C.char {
 	response := mobile.Peers()
 	return C.CString(response)
-}
-
-func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {
-	x, y := elliptic.Unmarshal(secp256k1.S256(), pub)
-	if x == nil {
-		return ecdsa.PublicKey{}, errors.New("invalid public key")
-	}
-	return ecdsa.PublicKey{Curve: secp256k1.S256(), X: x, Y: y}, nil
 }
 
 //export waku_decode_symmetric

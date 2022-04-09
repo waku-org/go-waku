@@ -336,6 +336,23 @@ namespace Waku
             return Response.HandleResponse(ptr, "could not obtain the message id");
         }
 
+        [DllImport(Constants.dllName)]
+        internal static extern IntPtr waku_lightpush_publish(string messageJSON, string? topic, string? peerID, int ms);
+
+        /// <summary>
+        ///  Publish a message using waku lightpush.
+        /// </summary>
+        /// <param name="msg">Message to broadcast</param>
+        /// <param name="topic">Pubsub topic. Set to `null` to use the default pubsub topic</param>
+        /// <param name="peerID">ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node</param>
+        /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        /// <returns></returns>
+        public string LightpushPublish(Message msg, string? topic = null, string? peerID = null, int ms = 0)
+        {
+            string jsonMsg = JsonSerializer.Serialize(msg);
+            IntPtr ptr = waku_lightpush_publish(jsonMsg, topic, peerID, ms);
+            return Response.HandleResponse(ptr, "could not obtain the message id");
+        }
 
         [DllImport(Constants.dllName)]
         internal static extern IntPtr waku_relay_publish_enc_asymmetric(string messageJSON, string? topic, string publicKey, string? optionalSigningKey, int ms);
@@ -357,6 +374,26 @@ namespace Waku
         }
 
         [DllImport(Constants.dllName)]
+        internal static extern IntPtr waku_lightpush_publish_enc_asymmetric(string messageJSON, string? topic, string? peerID, string publicKey, string? optionalSigningKey, int ms);
+
+        /// <summary>
+        /// Publish a message encrypted with an secp256k1 public key using waku lightpush.
+        /// </summary>
+        /// <param name="msg">Message to broadcast</param>
+        /// <param name="publicKey">Secp256k1 public key</param>
+        /// <param name="optionalSigningKey">Optional secp256k1 private key for signing the message</param>
+        /// <param name="topic">Pubsub topic. Set to `null` to use the default pubsub topic</param>
+        /// <param name="peerID">ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node</param>
+        /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        /// <returns></returns>
+        public string LightpushPublishEncodeAsymmetric(Message msg, string publicKey, string? optionalSigningKey = null, string? topic = null, string? peerID = null, int ms = 0)
+        {
+            string jsonMsg = JsonSerializer.Serialize(msg);
+            IntPtr ptr = waku_lightpush_publish_enc_asymmetric(jsonMsg, topic, peerID, publicKey, optionalSigningKey, ms);
+            return Response.HandleResponse(ptr, "could not obtain the message id");
+        }
+
+        [DllImport(Constants.dllName)]
         internal static extern IntPtr waku_relay_publish_enc_symmetric(string messageJSON, string? topic, string symmetricKey, string? optionalSigningKey, int ms);
 
         /// <summary>
@@ -372,6 +409,26 @@ namespace Waku
         {
             string jsonMsg = JsonSerializer.Serialize(msg);
             IntPtr ptr = waku_relay_publish_enc_symmetric(jsonMsg, topic, symmetricKey, optionalSigningKey, ms);
+            return Response.HandleResponse(ptr, "could not obtain the message id");
+        }
+
+        [DllImport(Constants.dllName)]
+        internal static extern IntPtr waku_lightpush_publish_enc_symmetric(string messageJSON, string? topic, string? peerID, string symmetricKey, string? optionalSigningKey, int ms);
+
+        /// <summary>
+        /// Publish a message encrypted with a 32 bytes symmetric key using waku lightpush.
+        /// </summary>
+        /// <param name="msg">Message to broadcast</param>
+        /// <param name="symmetricKey">32 byte hex string containing a symmetric key</param>
+        /// <param name="optionalSigningKey">Optional secp256k1 private key for signing the message</param>
+        /// <param name="topic">Pubsub topic. Set to `null` to use the default pubsub topic</param>
+        /// <param name="peerID">ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node</param>
+        /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        /// <returns></returns>
+        public string RelayPublishEncodeSymmetric(Message msg, string symmetricKey, string? optionalSigningKey = null, string? topic = null, string? peerID = null, int ms = 0)
+        {
+            string jsonMsg = JsonSerializer.Serialize(msg);
+            IntPtr ptr = waku_lightpush_publish_enc_symmetric(jsonMsg, topic, peerID, symmetricKey, optionalSigningKey, ms);
             return Response.HandleResponse(ptr, "could not obtain the message id");
         }
 
