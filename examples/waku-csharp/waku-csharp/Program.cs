@@ -23,7 +23,7 @@ void SignalHandler(Waku.Event evt)
     if (evt.type == Waku.EventType.Message)
     {
         Waku.MessageEvent msgEvt = (Waku.MessageEvent)evt; // Downcast to specific event type to access the event data
-        Waku.DecodedPayload decodedPayload = node.RelayPublishDecodeAsymmetric(msgEvt.data.wakuMessage, bobPrivKey);
+        Waku.DecodedPayload decodedPayload = node.DecodeAsymmetric(msgEvt.data.wakuMessage, bobPrivKey);
 
         string message = Encoding.UTF8.GetString(decodedPayload.data);
         Console.WriteLine(">>> Message: " + message + " from: " + decodedPayload.pubkey);

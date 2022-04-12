@@ -1,6 +1,7 @@
+//go:build darwin && cgo
 // +build darwin,cgo
 
-package main
+package gowaku
 
 /*
 #cgo CFLAGS: -x objective-c

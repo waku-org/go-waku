@@ -7,9 +7,10 @@ nodekey
 *.dll
 *.so
 *.dylib
+*.aar
+*.jar
 
 # output binaries
-main
 go-waku
 
 # Test binary, built with `go test -c`

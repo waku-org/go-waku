@@ -88,7 +88,7 @@ build-example-c-bindings:
 
 build-example: build-example-basic2 build-example-chat-2 build-example-filter2 build-example-c-bindings
 
-static-library: ##@cross-compile Build go-waku as static library for current platform
+static-library:
 	@echo "Building static library..."
 	go build \
 		-buildmode=c-archive \
@@ -97,7 +97,7 @@ static-library: ##@cross-compile Build go-waku as static library for current pla
 	@echo "Static library built:"
 	@ls -la ./build/lib/libgowaku.*
 
-dynamic-library: ##@cross-compile Build status-go as shared library for current platform
+dynamic-library:
 	@echo "Building shared library..."
 	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) go build \
 		-buildmode=c-shared \
@@ -111,3 +111,9 @@ ifeq ($(detected_OS),Linux)
 endif
 	@echo "Shared library built:"
 	@ls -la ./build/lib/libgowaku.*
+
+mobile-android:
+	gomobile init && \
+	gomobile bind -target=android -ldflags="-s -w" -o ./build/lib/gowaku.aar ./mobile
+	@echo "Android library built:"
+	@ls -la ./build/lib/*.aar ./build/lib/*.jar
