@@ -6,7 +6,7 @@ CC_PREFIX       	:= github.com/status-im/go-waku
 
 SHELL := bash # the shell used internally by Make
 
-.PHONY: all build lint test coverage build-example static-library dynamic-library test-c test-c-template
+.PHONY: all build lint test coverage build-example static-library dynamic-library test-c test-c-template mobile-android mobile-ios
 
 ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
  detected_OS := Windows
@@ -122,3 +122,9 @@ mobile-android:
 	gomobile bind -target=android -ldflags="-s -w" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
+
+mobile-ios:
+	gomobile init && \
+	gomobile bind -target=ios -ldflags="-s -w" -o ./build/lib/Gowaku.xcframework ./mobile
+	@echo "IOS library built:"
+	@ls -la ./build/lib/*.xcframework
