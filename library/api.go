@@ -27,8 +27,6 @@ func main() {}
 // - nodeKey: secp256k1 private key. Default random
 // - keepAliveInterval: interval in seconds to ping all peers
 // - relay: Enable WakuRelay. Default `true`
-// This function will return a nodeID which should be used in all calls from this API that require
-// interacting with the node.
 func waku_new(configJSON *C.char) *C.char {
 	response := mobile.NewNode(C.GoString(configJSON))
 	return C.CString(response)

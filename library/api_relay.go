@@ -47,17 +47,16 @@ func waku_relay_publish_enc_symmetric(messageJSON *C.char, topic *C.char, symmet
 
 //export waku_relay_subscribe
 // Subscribe to a WakuRelay topic. Set the topic to NULL to subscribe
-// to the default topic. Returns a json response containing the subscription ID
-// or an error message. When a message is received, a "message" is emitted containing
-// the message, pubsub topic, and nodeID in which the message was received
+// to the default topic. Returns a json response. When a message is received, 
+// a "message" event is emitted containing the message and pubsub topic in which 
+// the message was received
 func waku_relay_subscribe(topic *C.char) *C.char {
 	response := mobile.RelaySubscribe(C.GoString(topic))
 	return C.CString(response)
 }
 
 //export waku_relay_unsubscribe
-// Closes the pubsub subscription to a pubsub topic. Existing subscriptions
-// will not be closed, but they will stop receiving messages
+// Closes the pubsub subscription to a pubsub topic
 func waku_relay_unsubscribe(topic *C.char) *C.char {
 	response := mobile.RelayUnsubscribe(C.GoString(topic))
 	return C.CString(response)

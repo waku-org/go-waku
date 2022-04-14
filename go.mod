@@ -2,6 +2,8 @@ module github.com/status-im/go-waku
 
 go 1.15
 
+replace github.com/raulk/go-watchdog v1.2.0 => github.com/status-im/go-watchdog v1.2.0-ios-nolibproc
+
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
