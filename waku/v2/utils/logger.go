@@ -8,6 +8,7 @@ import (
 var log *zap.Logger = nil
 var atom = zap.NewAtomicLevel()
 
+// SetLogLevel sets a custom log level
 func SetLogLevel(level string) error {
 	lvl := zapcore.InfoLevel // zero value
 	err := lvl.Set(level)
@@ -18,6 +19,7 @@ func SetLogLevel(level string) error {
 	return nil
 }
 
+// Logger creates a zap.Logger with some reasonable defaults
 func Logger() *zap.Logger {
 	if log == nil {
 		cfg := zap.Config{

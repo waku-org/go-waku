@@ -24,7 +24,7 @@ func newRunnerService(broadcaster v2.Broadcaster, adder Adder) *runnerService {
 
 func (r *runnerService) Start() {
 	r.ch = make(chan *protocol.Envelope, 1024)
-	r.broadcaster.Register(r.ch)
+	r.broadcaster.Register(nil, r.ch)
 
 	for {
 		select {
@@ -38,6 +38,6 @@ func (r *runnerService) Start() {
 
 func (r *runnerService) Stop() {
 	r.quit <- true
-	r.broadcaster.Unregister(r.ch)
+	r.broadcaster.Unregister(nil, r.ch)
 	close(r.ch)
 }

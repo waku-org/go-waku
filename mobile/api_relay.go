@@ -89,7 +89,7 @@ func RelaySubscribe(topic string) string {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	subscription, ok := subscriptions[topicToSubscribe]
+	_, ok := subscriptions[topicToSubscribe]
 	if ok {
 		return makeJSONResponse(nil)
 	}
@@ -101,11 +101,11 @@ func RelaySubscribe(topic string) string {
 
 	subscriptions[topicToSubscribe] = subscription
 
-	go func() {
+	go func(subscription *relay.Subscription) {
 		for envelope := range subscription.C {
 			send("message", toSubscriptionMessage(envelope))
 		}
-	}()
+	}(subscription)
 
 	return makeJSONResponse(nil)
 }

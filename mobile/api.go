@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/libp2p/go-libp2p-core/peer"
-	p2pproto "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
@@ -195,7 +194,7 @@ func AddPeer(address string, protocolID string) string {
 		return makeJSONResponse(err)
 	}
 
-	peerID, err := wakuNode.AddPeer(ma, p2pproto.ID(protocolID))
+	peerID, err := wakuNode.AddPeer(ma, protocolID)
 	return prepareJSONResponse(peerID, err)
 }
 

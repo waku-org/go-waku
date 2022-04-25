@@ -18,7 +18,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
-	p2pproto "github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ws "github.com/libp2p/go-ws-transport"
 	ma "github.com/multiformats/go-multiaddr"
@@ -90,6 +89,7 @@ func defaultStoreFactory(w *WakuNode) store.Store {
 	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log)
 }
 
+// New is used to instantiate a WakuNode using a set of WakuNodeOptions
 func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	params := new(WakuNodeParameters)
 
@@ -279,6 +279,7 @@ func (w *WakuNode) checkForAddressChanges() {
 	}
 }
 
+// Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start() error {
 	w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
 		swap.WithMode(w.opts.swapMode),
@@ -336,17 +337,18 @@ func (w *WakuNode) Start() error {
 	// Subscribe store to topic
 	if w.opts.storeMsgs {
 		w.log.Info("Subscribing store to broadcaster")
-		w.bcaster.Register(w.store.MessageChannel())
+		w.bcaster.Register(nil, w.store.MessageChannel())
 	}
 
 	if w.filter != nil {
 		w.log.Info("Subscribing filter to broadcaster")
-		w.bcaster.Register(w.filter.MsgC)
+		w.bcaster.Register(nil, w.filter.MsgC)
 	}
 
 	return nil
 }
 
+// Stop stops the WakuNode and closess all connections to the host
 func (w *WakuNode) Stop() {
 	defer w.cancel()
 
@@ -377,14 +379,17 @@ func (w *WakuNode) Stop() {
 	w.wg.Wait()
 }
 
+// Host returns the libp2p Host used by the WakuNode
 func (w *WakuNode) Host() host.Host {
 	return w.host
 }
 
+// ID returns the base58 encoded ID from the host
 func (w *WakuNode) ID() string {
 	return w.host.ID().Pretty()
 }
 
+// ListenAddresses returns all the multiaddresses used by the host
 func (w *WakuNode) ListenAddresses() []ma.Multiaddr {
 	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", w.host.ID().Pretty()))
 	var result []ma.Multiaddr
@@ -394,30 +399,39 @@ func (w *WakuNode) ListenAddresses() []ma.Multiaddr {
 	return result
 }
 
+// Relay is used to access any operation related to Waku Relay protocol
 func (w *WakuNode) Relay() *relay.WakuRelay {
 	return w.relay
 }
 
+// Store is used to access any operation related to Waku Store protocol
 func (w *WakuNode) Store() store.Store {
 	return w.store
 }
 
+// Filter is used to access any operation related to Waku Filter protocol
 func (w *WakuNode) Filter() *filter.WakuFilter {
 	return w.filter
 }
 
+// Lightpush is used to access any operation related to Waku Lightpush protocol
 func (w *WakuNode) Lightpush() *lightpush.WakuLightPush {
 	return w.lightPush
 }
 
+// DiscV5 is used to access any operation related to DiscoveryV5
 func (w *WakuNode) DiscV5() *discv5.DiscoveryV5 {
 	return w.discoveryV5
 }
 
+// Broadcaster is used to access the message broadcaster that is used to push
+// messages to different protocols
 func (w *WakuNode) Broadcaster() v2.Broadcaster {
 	return w.bcaster
 }
 
+// Publish will attempt to publish a message via WakuRelay if there are enough
+// peers available, otherwise it will attempt to publish via Lightpush protocol
 func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 	if !w.opts.enableLightPush && !w.opts.enableRelay {
 		return errors.New("cannot publish message, relay and lightpush are disabled")
@@ -456,7 +470,7 @@ func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option)
 		if err != nil {
 			return err
 		}
-		w.Broadcaster().Unregister(sub.C)
+		w.Broadcaster().Unregister(&relay.DefaultWakuTopic, sub.C)
 	}
 
 	// TODO: rlnRelay
@@ -532,10 +546,10 @@ func (w *WakuNode) startStore() {
 	}
 }
 
-func (w *WakuNode) addPeer(info *peer.AddrInfo, protocolID p2pproto.ID) error {
+func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...string) error {
 	w.log.Info(fmt.Sprintf("Adding peer %s to peerstore", info.ID.Pretty()))
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
-	err := w.host.Peerstore().AddProtocols(info.ID, string(protocolID))
+	err := w.host.Peerstore().AddProtocols(info.ID, protocols...)
 	if err != nil {
 		return err
 	}
@@ -543,15 +557,17 @@ func (w *WakuNode) addPeer(info *peer.AddrInfo, protocolID p2pproto.ID) error {
 	return nil
 }
 
-func (w *WakuNode) AddPeer(address ma.Multiaddr, protocolID p2pproto.ID) (*peer.ID, error) {
+// AddPeer is used to add a peer and the protocols it support to the node peerstore
+func (w *WakuNode) AddPeer(address ma.Multiaddr, protocols ...string) (*peer.ID, error) {
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
 		return nil, err
 	}
 
-	return &info.ID, w.addPeer(info, protocolID)
+	return &info.ID, w.addPeer(info, protocols...)
 }
 
+// DialPeerWithMultiAddress is used to connect to a peer using a multiaddress
 func (w *WakuNode) DialPeerWithMultiAddress(ctx context.Context, address ma.Multiaddr) error {
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
@@ -561,6 +577,7 @@ func (w *WakuNode) DialPeerWithMultiAddress(ctx context.Context, address ma.Mult
 	return w.connect(ctx, *info)
 }
 
+// DialPeer is used to connect to a peer using a string containing a multiaddress
 func (w *WakuNode) DialPeer(ctx context.Context, address string) error {
 	p, err := ma.NewMultiaddr(address)
 	if err != nil {
@@ -585,11 +602,13 @@ func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	return nil
 }
 
+// DialPeerByID is used to connect to an already known peer
 func (w *WakuNode) DialPeerByID(ctx context.Context, peerID peer.ID) error {
 	info := w.host.Peerstore().PeerInfo(peerID)
 	return w.connect(ctx, info)
 }
 
+// ClosePeerByAddress is used to disconnect from a peer using its multiaddress
 func (w *WakuNode) ClosePeerByAddress(address string) error {
 	p, err := ma.NewMultiaddr(address)
 	if err != nil {
@@ -605,6 +624,7 @@ func (w *WakuNode) ClosePeerByAddress(address string) error {
 	return w.ClosePeerById(info.ID)
 }
 
+// ClosePeerById is used to close a connection to a peer
 func (w *WakuNode) ClosePeerById(id peer.ID) error {
 	err := w.host.Network().ClosePeer(id)
 	if err != nil {
@@ -613,10 +633,12 @@ func (w *WakuNode) ClosePeerById(id peer.ID) error {
 	return nil
 }
 
+// PeerCount return the number of connected peers
 func (w *WakuNode) PeerCount() int {
 	return len(w.host.Network().Peers())
 }
 
+// PeerStats returns a list of peers and the protocols supported by them
 func (w *WakuNode) PeerStats() PeerStats {
 	p := make(PeerStats)
 	for _, peerID := range w.host.Network().Peers() {
@@ -629,6 +651,7 @@ func (w *WakuNode) PeerStats() PeerStats {
 	return p
 }
 
+// Peers return the list of peers, addresses, protocols supported and connection status
 func (w *WakuNode) Peers() ([]*Peer, error) {
 	var peers []*Peer
 	for _, peerId := range w.host.Peerstore().Peers() {

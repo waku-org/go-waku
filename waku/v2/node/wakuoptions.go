@@ -103,6 +103,7 @@ func (w WakuNodeParameters) Identity() config.Option {
 	return libp2p.Identity(*w.GetPrivKey())
 }
 
+// AddressFactory returns the address factory used by the node's host
 func (w WakuNodeParameters) AddressFactory() basichost.AddrsFactory {
 	return w.addressFactory
 }
@@ -173,6 +174,7 @@ func WithPrivateKey(privKey *ecdsa.PrivateKey) WakuNodeOption {
 	}
 }
 
+// GetPrivKey returns the private key used in the node
 func (w *WakuNodeParameters) GetPrivKey() *crypto.PrivKey {
 	privKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(w.privKey))
 	return &privKey
@@ -259,6 +261,8 @@ func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
 	}
 }
 
+// WithWakuStoreFactory is used to replace the default WakuStore with a custom
+// implementation that implements the store.Store interface
 func WithWakuStoreFactory(factory storeFactory) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.storeFactory = factory
@@ -326,6 +330,7 @@ func WithConnectionStatusChannel(connStatus chan ConnStatus) WakuNodeOption {
 	}
 }
 
+// WithWebsockets is a WakuNodeOption used to enable websockets support
 func WithWebsockets(address string, port int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableWS = true
@@ -341,6 +346,7 @@ func WithWebsockets(address string, port int) WakuNodeOption {
 	}
 }
 
+// WithSecureWebsockets is a WakuNodeOption used to enable secure websockets support
 func WithSecureWebsockets(address string, port int, certPath string, keyPath string) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableWSS = true

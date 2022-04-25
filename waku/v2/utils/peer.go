@@ -13,8 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// ErrNoPeersAvailable is emitted when no suitable peers are found for
+// some protocol
 var ErrNoPeersAvailable = errors.New("no suitable peers found")
-var PingServiceNotAvailable = errors.New("ping service not available")
 
 // SelectPeer is used to return a random peer that supports a given protocol.
 func SelectPeer(host host.Host, protocolId string, log *zap.SugaredLogger) (*peer.ID, error) {
@@ -50,6 +51,7 @@ type pingResult struct {
 	rtt time.Duration
 }
 
+// SelectPeerWithLowestRTT will select a peer that supports a specific protocol with the lowest reply time
 func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId string, log *zap.SugaredLogger) (*peer.ID, error) {
 	var peers peer.IDSlice
 	for _, peer := range host.Peerstore().Peers() {
@@ -104,9 +106,9 @@ func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId str
 		}
 		if min == nil {
 			return nil, ErrNoPeersAvailable
-		} else {
-			return &min.p, nil
 		}
+
+		return &min.p, nil
 	case <-ctx.Done():
 		return nil, ErrNoPeersAvailable
 	}
