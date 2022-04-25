@@ -25,7 +25,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p/config"
 
-	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
@@ -216,10 +215,10 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
-	addPeers(wakuNode, options.Rendezvous.Nodes.Value(), rendezvous.RendezvousID_v001)
-	addPeers(wakuNode, options.Store.Nodes.Value(), store.StoreID_v20beta4)
-	addPeers(wakuNode, options.LightPush.Nodes.Value(), lightpush.LightPushID_v20beta1)
-	addPeers(wakuNode, options.Filter.Nodes.Value(), filter.FilterID_v20beta1)
+	addPeers(wakuNode, options.Rendezvous.Nodes.Value(), string(rendezvous.RendezvousID_v001))
+	addPeers(wakuNode, options.Store.Nodes.Value(), string(store.StoreID_v20beta4))
+	addPeers(wakuNode, options.LightPush.Nodes.Value(), string(lightpush.LightPushID_v20beta1))
+	addPeers(wakuNode, options.Filter.Nodes.Value(), string(filter.FilterID_v20beta1))
 
 	if err = wakuNode.Start(); err != nil {
 		utils.Logger().Fatal(fmt.Errorf("could not start waku node, %w", err).Error())
@@ -237,9 +236,10 @@ func Execute(options Options) {
 
 	if options.Relay.Enable {
 		for _, nodeTopic := range options.Relay.Topics.Value() {
+			nodeTopic := nodeTopic
 			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
-			wakuNode.Broadcaster().Unregister(sub.C)
+			wakuNode.Broadcaster().Unregister(&nodeTopic, sub.C)
 		}
 	}
 
@@ -307,7 +307,7 @@ func Execute(options Options) {
 	}
 }
 
-func addPeers(wakuNode *node.WakuNode, addresses []string, protocol protocol.ID) {
+func addPeers(wakuNode *node.WakuNode, addresses []string, protocols ...string) {
 	for _, addrString := range addresses {
 		if addrString == "" {
 			continue
@@ -316,7 +316,7 @@ func addPeers(wakuNode *node.WakuNode, addresses []string, protocol protocol.ID)
 		addr, err := multiaddr.NewMultiaddr(addrString)
 		failOnErr(err, "invalid multiaddress")
 
-		_, err = wakuNode.AddPeer(addr, protocol)
+		_, err = wakuNode.AddPeer(addr, protocols...)
 		failOnErr(err, "error adding peer")
 	}
 }

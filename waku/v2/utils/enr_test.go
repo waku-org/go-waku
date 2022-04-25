@@ -19,7 +19,7 @@ func TestEnodeToMultiAddr(t *testing.T) {
 
 	parsedNode := enode.MustParse(enr)
 	expectedMultiAddr := "/ip4/134.209.139.210/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ"
-	actualMultiAddr, err := EnodeToMultiAddr(parsedNode)
+	actualMultiAddr, err := enodeToMultiAddr(parsedNode)
 	require.NoError(t, err)
 	require.Equal(t, expectedMultiAddr, actualMultiAddr.String())
 }
@@ -41,7 +41,7 @@ func TestGetENRandIP(t *testing.T) {
 	require.Equal(t, hostAddr, resTCPAddr)
 
 	parsedNode := enode.MustParse(node.String())
-	resMultiaddress, err := EnodeToMultiAddr(parsedNode)
+	resMultiaddress, err := enodeToMultiAddr(parsedNode)
 	require.NoError(t, err)
 	require.Equal(t, ogMultiaddress.String(), resMultiaddress.String())
 }

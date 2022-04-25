@@ -9,25 +9,24 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-type DnsDiscoveryParameters struct {
+type dnsDiscoveryParameters struct {
 	nameserver string
 }
 
-type DnsDiscoveryOption func(*DnsDiscoveryParameters)
+type DnsDiscoveryOption func(*dnsDiscoveryParameters)
 
 // WithMultiaddress is a WakuNodeOption that configures libp2p to listen on a list of multiaddresses
 func WithNameserver(nameserver string) DnsDiscoveryOption {
-	return func(params *DnsDiscoveryParameters) {
+	return func(params *dnsDiscoveryParameters) {
 		params.nameserver = nameserver
 	}
 }
 
-// RetrieveNodes returns a list of multiaddress given a url to a DNS discoverable
-// ENR tree
+// RetrieveNodes returns a list of multiaddress given a url to a DNS discoverable ENR tree
 func RetrieveNodes(ctx context.Context, url string, opts ...DnsDiscoveryOption) ([]ma.Multiaddr, error) {
 	var multiAddrs []ma.Multiaddr
 
-	params := new(DnsDiscoveryParameters)
+	params := new(dnsDiscoveryParameters)
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -42,12 +41,12 @@ func RetrieveNodes(ctx context.Context, url string, opts ...DnsDiscoveryOption) 
 	}
 
 	for _, node := range tree.Nodes() {
-		m, err := utils.EnodeToMultiAddr(node)
+		m, err := utils.Multiaddress(node)
 		if err != nil {
 			return nil, err
 		}
 
-		multiAddrs = append(multiAddrs, m)
+		multiAddrs = append(multiAddrs, m...)
 	}
 
 	return multiAddrs, nil

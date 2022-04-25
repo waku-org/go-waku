@@ -46,11 +46,11 @@ func (s *WakuSwap) sendCheque(peerId string) {
 
 func (s *WakuSwap) applyPolicy(peerId string) {
 	if s.Accounting[peerId] <= s.params.disconnectThreshold {
-		s.log.Warnf("Disconnect threshhold has been reached for %s at %d", peerId, s.Accounting[peerId])
+		s.log.Warnf("Disconnect threshold has been reached for %s at %d", peerId, s.Accounting[peerId])
 	}
 
 	if s.Accounting[peerId] >= s.params.paymentThreshold {
-		s.log.Warnf("Disconnect threshhold has been reached for %s at %d", peerId, s.Accounting[peerId])
+		s.log.Warnf("Disconnect threshold has been reached for %s at %d", peerId, s.Accounting[peerId])
 		if s.params.mode != HardMode {
 			s.sendCheque(peerId)
 		}

@@ -117,7 +117,7 @@ func waku_default_pubsub_topic() *C.char {
 
 //export waku_set_event_callback
 // Register callback to act as signal handler and receive application signal
-// (in JSON) which are used o react to asyncronous events in waku. The function
+// (in JSON) which are used o react to asynchronous events in waku. The function
 // signature for the callback should be `void myCallback(char* signalJSON)`
 func waku_set_event_callback(cb unsafe.Pointer) {
 	mobile.SetEventCallback(cb)

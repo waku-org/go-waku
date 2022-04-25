@@ -46,7 +46,7 @@ type DiscoveryV5 struct {
 
 	// Used for those weird cases where updateAddress
 	// receives the same external address twice both with the original port
-	// and the nat port. Ideally this atribute should be removed by doing
+	// and the nat port. Ideally this attribute should be removed by doing
 	// hole punching before starting waku
 	ogTCPPort int
 }

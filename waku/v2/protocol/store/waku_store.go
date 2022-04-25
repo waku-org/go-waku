@@ -34,10 +34,19 @@ const StoreID_v20beta4 = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta4")
 const MaxPageSize = 100
 
 var (
-	ErrNoPeersAvailable      = errors.New("no suitable remote peers")
-	ErrInvalidId             = errors.New("invalid request id")
+	// ErrNoPeersAvailable is returned when there are no store peers in the peer store
+	// that could be used to retrieve message history
+	ErrNoPeersAvailable = errors.New("no suitable remote peers")
+
+	// ErrInvalidId is returned when no RequestID is given
+	ErrInvalidId = errors.New("invalid request id")
+
+	// ErrFailedToResumeHistory is returned when the node attempted to retrieve historic
+	// messages to fill its own message history but for some reason it failed
 	ErrFailedToResumeHistory = errors.New("failed to resume the history")
-	ErrFailedQuery           = errors.New("failed to resolve the query")
+
+	// ErrFailedQuery is emitted when the query fails to return results
+	ErrFailedQuery = errors.New("failed to resolve the query")
 )
 
 func minOf(vars ...int) int {

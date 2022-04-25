@@ -9,7 +9,6 @@ import (
 
 // Adapted from https://github.com/dustin/go-broadcast/commit/f664265f5a662fb4d1df7f3533b1e8d0e0277120
 // by Dustin Sallings (c) 2013, which was released under MIT license
-
 func TestBroadcast(t *testing.T) {
 	wg := sync.WaitGroup{}
 
@@ -20,12 +19,10 @@ func TestBroadcast(t *testing.T) {
 		wg.Add(1)
 
 		cch := make(chan *protocol.Envelope)
-
-		b.Register(cch)
-
+		b.Register(nil, cch)
 		go func() {
 			defer wg.Done()
-			defer b.Unregister(cch)
+			defer b.Unregister(nil, cch)
 			<-cch
 		}()
 
@@ -47,13 +44,13 @@ func TestBroadcastWait(t *testing.T) {
 		wg.Add(1)
 
 		cch := make(chan *protocol.Envelope)
-		<-b.WaitRegister(cch)
+		<-b.WaitRegister(nil, cch)
 
 		go func() {
 			defer wg.Done()
 
 			<-cch
-			<-b.WaitUnregister(cch)
+			<-b.WaitUnregister(nil, cch)
 		}()
 
 	}
@@ -66,6 +63,7 @@ func TestBroadcastWait(t *testing.T) {
 
 func TestBroadcastCleanup(t *testing.T) {
 	b := NewBroadcaster(100)
-	b.Register(make(chan *protocol.Envelope))
+	topic := "test"
+	b.Register(&topic, make(chan *protocol.Envelope))
 	b.Close()
 }

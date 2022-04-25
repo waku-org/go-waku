@@ -228,7 +228,7 @@ func (w *WakuRelay) SubscribeToTopic(ctx context.Context, topic string) (*Subscr
 	w.subscriptions[topic] = append(w.subscriptions[topic], subscription)
 
 	if w.bcaster != nil {
-		w.bcaster.Register(subscription.C)
+		w.bcaster.Register(&topic, subscription.C)
 	}
 
 	go w.subscribeToTopic(topic, subscription, sub)
@@ -300,7 +300,7 @@ func (w *WakuRelay) subscribeToTopic(t string, subscription *Subscription, sub *
 	for {
 		select {
 		case <-subscription.quit:
-			func() {
+			func(topic string) {
 				subscription.Lock()
 				defer subscription.Unlock()
 
@@ -309,11 +309,11 @@ func (w *WakuRelay) subscribeToTopic(t string, subscription *Subscription, sub *
 				}
 				subscription.closed = true
 				if w.bcaster != nil {
-					<-w.bcaster.WaitUnregister(subscription.C) // Remove from broadcast list
+					<-w.bcaster.WaitUnregister(&topic, subscription.C) // Remove from broadcast list
 				}
 
 				close(subscription.C)
-			}()
+			}(t)
 			// TODO: if there are no more relay subscriptions, close the pubsub subscription
 		case msg := <-subChannel:
 			if msg == nil {

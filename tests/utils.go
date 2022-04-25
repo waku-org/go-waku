@@ -28,10 +28,12 @@ func Logger() *zap.SugaredLogger {
 	return log
 }
 
+// GetHostAddress returns the first listen address used by a host
 func GetHostAddress(ha host.Host) ma.Multiaddr {
 	return ha.Addrs()[0]
 }
 
+// FindFreePort returns an available port number
 func FindFreePort(t *testing.T, host string, maxAttempts int) (int, error) {
 	t.Helper()
 
@@ -61,6 +63,7 @@ func FindFreePort(t *testing.T, host string, maxAttempts int) (int, error) {
 	return 0, fmt.Errorf("no free port found")
 }
 
+// MakeHost creates a Libp2p host with a random key on a specific port
 func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, error) {
 	// Creates a new RSA key pair for this host.
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, randomness)
@@ -80,10 +83,12 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 	)
 }
 
+// CreateWakuMessage creates a WakuMessage protobuffer with default values and a custom contenttopic and timestamp
 func CreateWakuMessage(contentTopic string, timestamp int64) *pb.WakuMessage {
 	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
 }
 
+// RandomHex returns a random hex string of n bytes
 func RandomHex(n int) (string, error) {
 	bytes := make([]byte, n)
 	if _, err := rand.Read(bytes); err != nil {

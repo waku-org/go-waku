@@ -295,5 +295,5 @@ func addPeer(wakuNode *node.WakuNode, addr string, protocol protocol.ID) (*peer.
 		return nil, err
 	}
 
-	return wakuNode.AddPeer(ma, protocol)
+	return wakuNode.AddPeer(ma, string(protocol))
 }
