@@ -22,7 +22,8 @@ func main() {
 				Destination: &options.Port,
 			},
 			&cli.StringFlag{
-				Name:        "address",
+				Name:        "listen-address",
+				Aliases:     []string{"address"},
 				Value:       "0.0.0.0",
 				Usage:       "Listening address",
 				Destination: &options.Address,
@@ -140,7 +141,8 @@ func main() {
 				Destination: &options.Relay.Topics,
 			},
 			&cli.BoolFlag{
-				Name:        "peer-exchange",
+				Name:        "relay-peer-exchange",
+				Aliases:     []string{"peer-exchange"},
 				Value:       true,
 				Usage:       "Enable GossipSub Peer Exchange",
 				Destination: &options.Relay.PeerExchange,
