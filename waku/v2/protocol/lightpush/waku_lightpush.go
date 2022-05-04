@@ -35,6 +35,7 @@ type WakuLightPush struct {
 	started bool
 }
 
+// NewWakuRelay returns a new instance of Waku Lightpush struct
 func NewWakuLightPush(ctx context.Context, h host.Host, relay *relay.WakuRelay, log *zap.SugaredLogger) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay
@@ -45,6 +46,7 @@ func NewWakuLightPush(ctx context.Context, h host.Host, relay *relay.WakuRelay, 
 	return wakuLP
 }
 
+// Start inits the lighpush protocol
 func (wakuLP *WakuLightPush) Start() error {
 	if wakuLP.IsClientOnly() {
 		return errors.New("relay is required, without it, it is only a client and cannot be started")
@@ -57,6 +59,7 @@ func (wakuLP *WakuLightPush) Start() error {
 	return nil
 }
 
+// IsClientOnly determines if this node supports relaying messages for other lightpush clients
 func (wakuLp *WakuLightPush) IsClientOnly() bool {
 	return wakuLp.relay == nil
 }
@@ -189,15 +192,18 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, o
 	return pushResponseRPC.Response, nil
 }
 
+// IsStarted returns if the lightpush protocol has been mounted or not
 func (wakuLP *WakuLightPush) IsStarted() bool {
 	return wakuLP.started
 }
 
+// Stop unmounts the lightpush protocol
 func (wakuLP *WakuLightPush) Stop() {
 	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
 	wakuLP.started = false
 }
 
+// PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
 func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *pb.WakuMessage, topic string, opts ...LightPushOption) ([]byte, error) {
 	if message == nil {
 		return nil, errors.New("message can't be null")
@@ -220,6 +226,7 @@ func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *pb.Wak
 	}
 }
 
+// Publish is used to broadcast a WakuMessage to the default waku pubsub topic via lightpush protocol
 func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *pb.WakuMessage, opts ...LightPushOption) ([]byte, error) {
 	return wakuLP.PublishToTopic(ctx, message, relay.DefaultWakuTopic, opts...)
 }
