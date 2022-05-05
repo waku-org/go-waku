@@ -127,6 +127,12 @@ func (d *DBStore) cleanOlderRecords() error {
 		}
 	}
 
+	// reduce the size of the DB file after the delete operation. See: https://www.sqlite.org/lang_vacuum.html
+	_, err := d.db.Exec("VACUUM")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
