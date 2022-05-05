@@ -21,3 +21,10 @@ func (d *DebugService) GetV1Info(r *http.Request, args *InfoArgs, reply *InfoRep
 	reply.Version = "2.0"
 	return nil
 }
+
+type VersionResponse string
+
+func (d *DebugService) GetV1Version(r *http.Request, args *InfoArgs, reply *VersionResponse) error {
+	*reply = VersionResponse(node.GitCommit)
+	return nil
+}

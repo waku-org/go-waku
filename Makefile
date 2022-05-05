@@ -29,12 +29,17 @@ else
  GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,-soname,libgowaku.so.0"
 endif
 
+GIT_COMMIT = $(shell git rev-parse --short HEAD)
+
+BUILD_FLAGS ?= $(shell echo "-ldflags='\
+	-X github.com/status-im/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT)'")
+
 all: build
 
 deps: lint-install
 
 build:
-	go build -o build/waku waku.go
+	go build $(BUILD_FLAGS) -o build/waku waku.go
 
 vendor:
 	go mod tidy
@@ -114,6 +119,6 @@ endif
 
 mobile-android:
 	gomobile init && \
-	gomobile bind -target=android -ldflags="-s -w" -o ./build/lib/gowaku.aar ./mobile
+	gomobile bind -target=android -ldflags="-s -w" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
