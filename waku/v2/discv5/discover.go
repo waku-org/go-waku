@@ -213,7 +213,7 @@ func (d *DiscoveryV5) listen() error {
 	d.listener = listener
 
 	d.log.Info(fmt.Sprintf("Started Discovery V5 at %s:%d, advertising IP: %s:%d", d.udpAddr.IP, d.udpAddr.Port, d.localnode.Node().IP(), d.localnode.Node().TCP()))
-	d.log.Info("Discv5: discoverable ENR", d.localnode.Node())
+	d.log.Info("Discv5: discoverable ENR ", d.localnode.Node())
 
 	return nil
 }

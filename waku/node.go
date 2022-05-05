@@ -199,6 +199,22 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
+	var discoveredNodes []dnsdisc.DiscoveredNode
+	if options.DNSDiscovery.Enable {
+		if options.DNSDiscovery.URL != "" {
+			utils.Logger().Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
+			nodes, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
+			if err != nil {
+				utils.Logger().Warn("dns discovery error ", zap.Error(err))
+			} else {
+				utils.Logger().Info("found dns entries ", zap.Any("qty", len(nodes)))
+				discoveredNodes = nodes
+			}
+		} else {
+			utils.Logger().Fatal("DNS discovery URL is required")
+		}
+	}
+
 	if options.DiscV5.Enable {
 		var bootnodes []*enode.Node
 		for _, addr := range options.DiscV5.Nodes.Value() {
@@ -208,6 +224,13 @@ func Execute(options Options) {
 			}
 			bootnodes = append(bootnodes, bootnode)
 		}
+
+		for _, n := range discoveredNodes {
+			if n.ENR != nil {
+				bootnodes = append(bootnodes, n.ENR)
+			}
+		}
+
 		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
@@ -252,27 +275,18 @@ func Execute(options Options) {
 		}(n)
 	}
 
-	if options.DNSDiscovery.Enable {
-		if options.DNSDiscovery.URL != "" {
-			utils.Logger().Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
-			multiaddresses, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
-			if err != nil {
-				utils.Logger().Warn("dns discovery error ", zap.Error(err))
-			} else {
-				utils.Logger().Info("found dns entries ", zap.Any("multiaddresses", multiaddresses))
-				for _, m := range multiaddresses {
-					go func(ctx context.Context, m multiaddr.Multiaddr) {
-						ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
-						defer cancel()
-						err = wakuNode.DialPeerWithMultiAddress(ctx, m)
-						if err != nil {
-							utils.Logger().Error("error dialing peer ", zap.Error(err))
-						}
-					}(ctx, m)
-				}
+	if len(discoveredNodes) != 0 {
+		for _, n := range discoveredNodes {
+			for _, m := range n.Addresses {
+				go func(ctx context.Context, m multiaddr.Multiaddr) {
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+					defer cancel()
+					err = wakuNode.DialPeerWithMultiAddress(ctx, m)
+					if err != nil {
+						utils.Logger().Error("error dialing peer ", zap.Error(err))
+					}
+				}(ctx, m)
 			}
-		} else {
-			utils.Logger().Fatal("DNS discovery URL is required")
 		}
 	}
 
