@@ -235,7 +235,7 @@ func (w *WakuNode) logAddress(addr ma.Multiaddr) {
 		if err != nil {
 			w.log.Error("could not obtain ENR record from multiaddress", err)
 		} else {
-			w.log.Info(fmt.Sprintf("ENR for IP %s:  %s", ip, enr))
+			w.log.Info(fmt.Sprintf("DNS: discoverable ENR for IP %s:  %s", ip, enr))
 		}
 	}
 }
@@ -281,6 +281,8 @@ func (w *WakuNode) checkForAddressChanges() {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start() error {
+	w.log.Info("Version details ", "commit=", GitCommit)
+
 	w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
 		swap.WithMode(w.opts.swapMode),
 		swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
