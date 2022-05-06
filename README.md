@@ -52,7 +52,8 @@ make dynamic-library
 ## Tutorials and documentation
 - [Receive and send messages using Waku Relay](docs/relay.md)
 - [Send messages using Waku Lightpush](docs/lightpush.md)
-- [Encoding and decoding Waku Messages](docs/encoding.md)
+- [Encrypting and decrypting Waku Messages](docs/encoding.md)
+- [Retrieve message history using Waku Store](docs/store.md)
 - [C Bindings](library/README.md)
 
 ## Examples

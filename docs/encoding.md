@@ -1,4 +1,4 @@
-Encoding and decoding Waku Messages
+Encrypting and decrypting Waku Messages
 ===
 
 The Waku Message format provides an easy way to encrypt messages using symmetric or asymmetric encryption. The encryption comes with several handy design requirements: confidentiality, authenticity and integrity. You can find more details about Waku Message Payload Encryption in 26/WAKU-PAYLOAD.
