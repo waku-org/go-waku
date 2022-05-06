@@ -20,9 +20,10 @@ type WakuRpc struct {
 	relayService   *RelayService
 	filterService  *FilterService
 	privateService *PrivateService
+	adminService   *AdminService
 }
 
-func NewWakuRpc(node *node.WakuNode, address string, port int, log *zap.SugaredLogger) *WakuRpc {
+func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, log *zap.SugaredLogger) *WakuRpc {
 	wrpc := new(WakuRpc)
 	wrpc.log = log.Named("rpc")
 
@@ -46,9 +47,13 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, log *zap.SugaredL
 		wrpc.log.Error(err)
 	}
 
-	err = s.RegisterService(&AdminService{node, log.Named("admin")}, "Admin")
-	if err != nil {
-		wrpc.log.Error(err)
+	if enableAdmin {
+		adminService := &AdminService{node, log.Named("admin")}
+		err = s.RegisterService(adminService, "Admin")
+		if err != nil {
+			wrpc.log.Error(err)
+		}
+		wrpc.adminService = adminService
 	}
 
 	filterService := NewFilterService(node, log)
@@ -57,10 +62,13 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, log *zap.SugaredL
 		wrpc.log.Error(err)
 	}
 
-	privateService := NewPrivateService(node, log)
-	err = s.RegisterService(privateService, "Private")
-	if err != nil {
-		wrpc.log.Error(err)
+	if enablePrivate {
+		privateService := NewPrivateService(node, log)
+		err = s.RegisterService(privateService, "Private")
+		if err != nil {
+			wrpc.log.Error(err)
+		}
+		wrpc.privateService = privateService
 	}
 
 	mux := http.NewServeMux()
@@ -86,7 +94,6 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, log *zap.SugaredL
 	wrpc.server = server
 	wrpc.relayService = relayService
 	wrpc.filterService = filterService
-	wrpc.privateService = privateService
 
 	return wrpc
 }

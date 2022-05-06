@@ -324,6 +324,18 @@ func main() {
 				Usage:       "Listening address of the rpc server",
 				Destination: &options.RPCServer.Address,
 			},
+			&cli.BoolFlag{
+				Name:        "rpc-admin",
+				Value:       false,
+				Usage:       "Enable access to JSON-RPC Admin API",
+				Destination: &options.RPCServer.Admin,
+			},
+			&cli.BoolFlag{
+				Name:        "rpc-private",
+				Value:       false,
+				Usage:       "Enable access to JSON-RPC Private API",
+				Destination: &options.RPCServer.Private,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			// for go-libp2p loggers

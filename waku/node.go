@@ -291,7 +291,7 @@ func Execute(options Options) {
 
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, utils.Logger())
+		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, utils.Logger())
 		rpcServer.Start()
 	}
 

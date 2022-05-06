@@ -92,6 +92,8 @@ type RPCServerOptions struct {
 	Enable  bool
 	Port    int
 	Address string
+	Admin   bool
+	Private bool
 }
 
 type WSOptions struct {
