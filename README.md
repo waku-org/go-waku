@@ -49,6 +49,13 @@ make static-library
 make dynamic-library
 ```
 
+## Mobile libraries
+Requires [`gomobile`](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile)
+```
+make mobile-android
+make mobile-ios
+```
+
 ## Tutorials and documentation
 - [Receive and send messages using Waku Relay](docs/relay.md)
 - [Send messages using Waku Lightpush](docs/lightpush.md)
