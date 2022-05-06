@@ -31,7 +31,7 @@ func waku_lightpush_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, p
 //export waku_lightpush_publish_enc_symmetric
 // Publish a message encrypted with a 32 bytes symmetric key using waku relay. Use NULL for topic to use the default pubsub topic.
 // peerID should contain the ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
-// publicKey must be a hex string prefixed with "0x" containing a 32 bytes symmetric key
+// symmetricKey must be a hex string prefixed with "0x" containing a 32 bytes symmetric key
 // optionalSigningKey is an optional hex string prefixed with "0x" containing a valid secp256k1 private key for signing the message. Use NULL otherwise
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned.

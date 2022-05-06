@@ -27,6 +27,7 @@ func main() {}
 // - nodeKey: secp256k1 private key. Default random
 // - keepAliveInterval: interval in seconds to ping all peers
 // - relay: Enable WakuRelay. Default `true`
+// - minPeersToPublish: The minimum number of peers required on a topic to allow broadcasting a message. Default `0`
 func waku_new(configJSON *C.char) *C.char {
 	response := mobile.NewNode(C.GoString(configJSON))
 	return C.CString(response)
@@ -114,8 +115,8 @@ func waku_default_pubsub_topic() *C.char {
 }
 
 //export waku_set_event_callback
-// Register callback to act as signal handler and receive application signal
-// (in JSON) which are used o react to asynchronous events in waku. The function
+// Register callback to act as signal handler and receive application signals
+// (in JSON) which are used to react to asynchronous events in waku. The function
 // signature for the callback should be `void myCallback(char* signalJSON)`
 func waku_set_event_callback(cb unsafe.Pointer) {
 	mobile.SetEventCallback(cb)

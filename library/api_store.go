@@ -29,7 +29,8 @@ import (
 //		"forward": true, // sort order
 //  }
 // }
-// peerID should contain the ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
+// If the message length is greater than 0, this function should be executed again, setting  the `cursor` attribute with the cursor returned in the response
+// peerID should contain the ID of a peer supporting the store protocol. Use NULL to automatically select a node
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned
 func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int) *C.char {
