@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-FROM golang:1.16-alpine as builder
+FROM golang:1.17-alpine as builder
 
 # Get build tools and required header files
 RUN apk add --no-cache build-base
@@ -26,8 +26,8 @@ LABEL commit=$GIT_COMMIT
 # color, nocolor, json
 ENV GOLOG_LOG_FMT=nocolor
 
-# go-waku default port
-EXPOSE 9000
+# go-waku default ports
+EXPOSE 9000 30303 60000 60001 8008 8009
 
 COPY --from=builder /app/build/waku /usr/bin/waku
 
