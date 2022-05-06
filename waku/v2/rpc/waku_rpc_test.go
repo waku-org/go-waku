@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +14,7 @@ func TestWakuRpc(t *testing.T) {
 	n, err := node.New(context.Background(), options)
 	require.NoError(t, err)
 
-	rpc := NewWakuRpc(n, "127.0.0.1", 8080, tests.Logger())
+	rpc := NewWakuRpc(n, "127.0.0.1", 8080, utils.Logger())
 	require.NotNil(t, rpc.server)
 	require.Equal(t, rpc.server.Addr, "127.0.0.1:8080")
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,7 @@ func makeAdminService(t *testing.T) *AdminService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return &AdminService{n, tests.Logger()}
+	return &AdminService{n, utils.Logger()}
 }
 
 func TestV1Peers(t *testing.T) {
@@ -32,7 +33,7 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, tests.Logger())
+	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, utils.Logger())
 	require.NoError(t, err)
 	defer relay.Stop()
 

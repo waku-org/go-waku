@@ -29,7 +29,7 @@ func SelectPeer(host host.Host, protocolId string, log *zap.SugaredLogger) (*pee
 	for _, peer := range host.Peerstore().Peers() {
 		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)
 		if err != nil {
-			log.Error("error obtaining the protocols supported by peers", err)
+			log.Error("error obtaining the protocols supported by peers", zap.Error(err))
 			return nil, err
 		}
 
@@ -57,7 +57,7 @@ func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId str
 	for _, peer := range host.Peerstore().Peers() {
 		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)
 		if err != nil {
-			log.Error("error obtaining the protocols supported by peers", err)
+			log.Error("error obtaining the protocols supported by peers", zap.Error(err))
 			return nil, err
 		}
 

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +19,7 @@ func makeRelayService(t *testing.T) *RelayService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return NewRelayService(n, tests.Logger())
+	return NewRelayService(n, utils.Logger())
 }
 
 func TestPostV1Message(t *testing.T) {

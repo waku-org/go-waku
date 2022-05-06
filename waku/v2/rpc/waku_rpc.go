@@ -41,7 +41,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, log *zap.SugaredL
 		wrpc.log.Error(err)
 	}
 
-	err = s.RegisterService(&StoreService{node, log.Named("store")}, "Store")
+	err = s.RegisterService(&StoreService{node, log}, "Store")
 	if err != nil {
 		wrpc.log.Error(err)
 	}

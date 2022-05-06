@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +16,7 @@ func makePrivateService(t *testing.T) *PrivateService {
 	err = n.Start()
 	require.NoError(t, err)
 
-	return NewPrivateService(n, tests.Logger())
+	return NewPrivateService(n, utils.Logger())
 }
 
 func TestGetV1SymmetricKey(t *testing.T) {

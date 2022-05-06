@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +15,7 @@ func makeStoreService(t *testing.T) *StoreService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return &StoreService{n, tests.Logger()}
+	return &StoreService{n, utils.Logger()}
 }
 
 func TestStoreGetV1Messages(t *testing.T) {

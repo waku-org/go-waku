@@ -33,14 +33,14 @@ func TestSelectPeer(t *testing.T) {
 	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 
 	// No peers with selected protocol
-	_, err = SelectPeer(h1, proto, tests.Logger())
+	_, err = SelectPeer(h1, proto, Logger())
 	require.Error(t, ErrNoPeersAvailable, err)
 
 	// Peers with selected protocol
 	_ = h1.Peerstore().AddProtocols(h2.ID(), proto)
 	_ = h1.Peerstore().AddProtocols(h3.ID(), proto)
 
-	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, tests.Logger())
+	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, Logger())
 	require.NoError(t, err)
 
 }
@@ -69,13 +69,13 @@ func TestSelectPeerWithLowestRTT(t *testing.T) {
 	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 
 	// No peers with selected protocol
-	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, tests.Logger())
+	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, Logger())
 	require.Error(t, ErrNoPeersAvailable, err)
 
 	// Peers with selected protocol
 	_ = h1.Peerstore().AddProtocols(h2.ID(), proto)
 	_ = h1.Peerstore().AddProtocols(h3.ID(), proto)
 
-	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, tests.Logger())
+	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, Logger())
 	require.NoError(t, err)
 }

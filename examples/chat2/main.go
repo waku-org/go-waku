@@ -173,19 +173,21 @@ func main() {
 
 		if enableDiscovery && dnsDiscoveryUrl != "" {
 			ui.displayMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
-			multiaddresses, err := dnsdisc.RetrieveNodes(ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(dnsDiscoveryNameServer))
+			nodes, err := dnsdisc.RetrieveNodes(ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(dnsDiscoveryNameServer))
 			if err != nil {
 				ui.displayMessage("DNS discovery error: " + err.Error())
 			} else {
-				for _, m := range multiaddresses {
-					go func(ctx context.Context, m multiaddr.Multiaddr) {
-						ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
-						defer cancel()
-						err = wakuNode.DialPeerWithMultiAddress(ctx, m)
-						if err != nil {
-							ui.displayMessage("error dialing peer: " + err.Error())
-						}
-					}(ctx, m)
+				for _, n := range nodes {
+					for _, m := range n.Addresses {
+						go func(ctx context.Context, m multiaddr.Multiaddr) {
+							ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+							defer cancel()
+							err = wakuNode.DialPeerWithMultiAddress(ctx, m)
+							if err != nil {
+								ui.displayMessage("error dialing peer: " + err.Error())
+							}
+						}(ctx, m)
+					}
 				}
 			}
 		}

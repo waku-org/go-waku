@@ -3,12 +3,12 @@ package swap
 import (
 	"testing"
 
-	"github.com/status-im/go-waku/tests"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSwapCreditDebit(t *testing.T) {
-	swap := NewWakuSwap(tests.Logger(), []SwapOption{
+	swap := NewWakuSwap(utils.Logger(), []SwapOption{
 		WithMode(SoftMode),
 		WithThreshold(0, 0),
 	}...)

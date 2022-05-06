@@ -12,6 +12,7 @@ import (
 	"github.com/status-im/go-waku/tests"
 	v2 "github.com/status-im/go-waku/waku/v2"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*rel
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host, broadcaster, 0, tests.Logger())
+	relay, err := relay.NewWakuRelay(context.Background(), host, broadcaster, 0, utils.Logger())
 	require.NoError(t, err)
 
 	sub, err := relay.SubscribeToTopic(context.Background(), topic)
@@ -38,7 +39,7 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	filter, _ := NewWakuFilter(context.Background(), host, false, tests.Logger())
+	filter, _ := NewWakuFilter(context.Background(), host, false, utils.Logger())
 
 	return filter, host
 }
@@ -68,7 +69,7 @@ func TestWakuFilter(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter, _ := NewWakuFilter(ctx, host2, true, tests.Logger())
+	node2Filter, _ := NewWakuFilter(ctx, host2, true, utils.Logger())
 	broadcaster.Register(&testTopic, node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
@@ -153,7 +154,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter, _ := NewWakuFilter(ctx, host2, true, tests.Logger(), WithTimeout(3*time.Second))
+	node2Filter, _ := NewWakuFilter(ctx, host2, true, utils.Logger(), WithTimeout(3*time.Second))
 	broadcaster.Register(&testTopic, node2Filter.MsgC)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)

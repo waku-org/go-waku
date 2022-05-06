@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/status-im/go-waku/tests"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +27,7 @@ func TestLightPushOption(t *testing.T) {
 
 	params := new(LightPushParameters)
 	params.host = host
-	params.log = tests.Logger()
+	params.log = utils.Logger()
 
 	for _, opt := range options {
 		opt(params)

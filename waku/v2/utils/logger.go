@@ -20,7 +20,7 @@ func SetLogLevel(level string) error {
 }
 
 // Logger creates a zap.Logger with some reasonable defaults
-func Logger() *zap.Logger {
+func Logger() *zap.SugaredLogger {
 	if log == nil {
 		cfg := zap.Config{
 			Encoding:         "console",
@@ -45,5 +45,5 @@ func Logger() *zap.Logger {
 
 		log = logger.Named("gowaku")
 	}
-	return log
+	return log.Sugar()
 }
