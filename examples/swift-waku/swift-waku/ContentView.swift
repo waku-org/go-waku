@@ -2,8 +2,6 @@
 //  ContentView.swift
 //  swift-waku
 //
-//  Created by Richard Ramos on 11/4/22.
-//
 
 import SwiftUI
 import Gowaku
