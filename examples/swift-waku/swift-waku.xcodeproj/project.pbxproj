@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		791190E528047A5900A81D4A /* Gowaku.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 791190E328047A4500A81D4A /* Gowaku.xcframework */; };
+		797CFE202828077C00D0B7E7 /* WakuNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797CFE1F2828077C00D0B7E7 /* WakuNode.swift */; };
+		797CFE2428285C3100D0B7E7 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797CFE2328285C3100D0B7E7 /* Config.swift */; };
+		797CFE2628285C5500D0B7E7 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797CFE2528285C5500D0B7E7 /* Message.swift */; };
+		797CFE2828285C7300D0B7E7 /* DecodedPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797CFE2728285C7300D0B7E7 /* DecodedPayload.swift */; };
+		797CFE2C28285CA700D0B7E7 /* JsonResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797CFE2B28285CA700D0B7E7 /* JsonResult.swift */; };
+		797CFE3028285CDE00D0B7E7 /* Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = 797CFE2F28285CDE00D0B7E7 /* Response.swift */; };
 		798FB3D028046F7F00937EDF /* swift_wakuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798FB3CF28046F7F00937EDF /* swift_wakuApp.swift */; };
 		798FB3D228046F7F00937EDF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798FB3D128046F7F00937EDF /* ContentView.swift */; };
 		798FB3D428046F8200937EDF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 798FB3D328046F8200937EDF /* Assets.xcassets */; };
@@ -16,6 +22,12 @@
 
 /* Begin PBXFileReference section */
 		791190E328047A4500A81D4A /* Gowaku.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Gowaku.xcframework; sourceTree = "<group>"; };
+		797CFE1F2828077C00D0B7E7 /* WakuNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakuNode.swift; sourceTree = "<group>"; };
+		797CFE2328285C3100D0B7E7 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		797CFE2528285C5500D0B7E7 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		797CFE2728285C7300D0B7E7 /* DecodedPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodedPayload.swift; sourceTree = "<group>"; };
+		797CFE2B28285CA700D0B7E7 /* JsonResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JsonResult.swift; sourceTree = "<group>"; };
+		797CFE2F28285CDE00D0B7E7 /* Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Response.swift; sourceTree = "<group>"; };
 		798FB3CC28046F7F00937EDF /* swift-waku.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "swift-waku.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		798FB3CF28046F7F00937EDF /* swift_wakuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = swift_wakuApp.swift; sourceTree = "<group>"; };
 		798FB3D128046F7F00937EDF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -67,6 +79,12 @@
 				798FB3D128046F7F00937EDF /* ContentView.swift */,
 				798FB3D328046F8200937EDF /* Assets.xcassets */,
 				798FB3D528046F8200937EDF /* Preview Content */,
+				797CFE1F2828077C00D0B7E7 /* WakuNode.swift */,
+				797CFE2328285C3100D0B7E7 /* Config.swift */,
+				797CFE2528285C5500D0B7E7 /* Message.swift */,
+				797CFE2728285C7300D0B7E7 /* DecodedPayload.swift */,
+				797CFE2B28285CA700D0B7E7 /* JsonResult.swift */,
+				797CFE2F28285CDE00D0B7E7 /* Response.swift */,
 			);
 			path = "swift-waku";
 			sourceTree = "<group>";
@@ -149,8 +167,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				797CFE3028285CDE00D0B7E7 /* Response.swift in Sources */,
+				797CFE202828077C00D0B7E7 /* WakuNode.swift in Sources */,
+				797CFE2428285C3100D0B7E7 /* Config.swift in Sources */,
+				797CFE2628285C5500D0B7E7 /* Message.swift in Sources */,
+				797CFE2828285C7300D0B7E7 /* DecodedPayload.swift in Sources */,
 				798FB3D228046F7F00937EDF /* ContentView.swift in Sources */,
 				798FB3D028046F7F00937EDF /* swift_wakuApp.swift in Sources */,
+				797CFE2C28285CA700D0B7E7 /* JsonResult.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
