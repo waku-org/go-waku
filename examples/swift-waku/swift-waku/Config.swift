@@ -7,7 +7,7 @@ import Foundation
 
 class Config: Codable {
     var host: String? = nil;
-    var result: Int? = nil;
+    var port: Int? = nil;
     var advertiseAddr: String? = nil;
     var nodeKey: String? = nil;
     var keepAliveInterval: Int? = nil;
