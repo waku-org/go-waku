@@ -151,9 +151,9 @@ fun Node.disconnect(peerID: String) {
 
 /**
  * Subscribe to a WakuRelay topic to receive messages
- * @param topic Pubsub topic to subscribe to. Use NULL for subscribing to the default pubsub topic
+ * @param topic Pubsub topic to subscribe to. Use "" for subscribing to the default pubsub topic
  */
-fun Node.relaySubscribe(topic: String? = null) {
+fun Node.relaySubscribe(topic: String = "") {
     val response = Gowaku.relaySubscribe(topic)
     handleResponse(response)
 }
@@ -161,12 +161,12 @@ fun Node.relaySubscribe(topic: String? = null) {
 /**
  * Publish a message using waku relay
  * @param msg Message to broadcast
- * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param topic Pubsub topic. Set to "" to use the default pubsub topic
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return message id
  */
-fun Node.relayPublish(msg: Message, topic: String? = null, ms: Long = 0): String {
+fun Node.relayPublish(msg: Message, topic: String = "", ms: Long = 0): String {
     val jsonMsg = Json.encodeToString(msg)
     val response = Gowaku.relayPublish(jsonMsg, topic, ms)
     return handleResponse<String>(response)
@@ -175,13 +175,13 @@ fun Node.relayPublish(msg: Message, topic: String? = null, ms: Long = 0): String
 /**
  * Publish a message using waku lightpush
  * @param msg Message to broadcast
- * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
- * @param peerID ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
+ * @param topic Pubsub topic. Set to "" to use the default pubsub topic
+ * @param peerID ID of a peer supporting the lightpush protocol. Use "" to automatically select a node
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return message id
  */
-fun Node.lightpushPublish(msg: Message, topic: String? = null, peerID: String? = null, ms: Long = 0): String {
+fun Node.lightpushPublish(msg: Message, topic: String = "", peerID: String = "", ms: Long = 0): String {
     val jsonMsg = Json.encodeToString(msg)
     val response = Gowaku.lightpushPublish(jsonMsg, topic, peerID, ms)
     return handleResponse<String>(response)
@@ -192,7 +192,7 @@ fun Node.lightpushPublish(msg: Message, topic: String? = null, peerID: String? =
  * @param msg Message to broadcast
  * @param publicKey Secp256k1 public key
  * @param optionalSigningKey Optional secp256k1 private key for signing the message
- * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param topic Pubsub topic. Set to "" to use the default pubsub topic
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return message id
@@ -200,8 +200,8 @@ fun Node.lightpushPublish(msg: Message, topic: String? = null, peerID: String? =
 fun Node.relayPublishEncodeAsymmetric(
     msg: Message,
     publicKey: String,
-    optionalSigningKey: String? = null,
-    topic: String? = null,
+    optionalSigningKey: String = "",
+    topic: String = "",
     ms: Long = 0
 ): String {
     val jsonMsg = Json.encodeToString(msg)
@@ -215,7 +215,7 @@ fun Node.relayPublishEncodeAsymmetric(
  * @param msg Message to broadcast
  * @param publicKey Secp256k1 public key
  * @param optionalSigningKey Optional secp256k1 private key for signing the message
- * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param topic Pubsub topic. Set to "" to use the default pubsub topic
  * @param peerID ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
@@ -224,9 +224,9 @@ fun Node.relayPublishEncodeAsymmetric(
 fun Node.lightpushPublishEncodeAsymmetric(
     msg: Message,
     publicKey: String,
-    optionalSigningKey: String? = null,
-    topic: String? = null,
-    peerID: String? = null,
+    optionalSigningKey: String = "",
+    topic: String = "",
+    peerID: String = "",
     ms: Long = 0
 ): String {
     val jsonMsg = Json.encodeToString(msg)
@@ -240,7 +240,7 @@ fun Node.lightpushPublishEncodeAsymmetric(
  * @param msg Message to broadcast
  * @param symmetricKey 32 byte hex string containing a symmetric key
  * @param optionalSigningKey Optional secp256k1 private key for signing the message
- * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
+ * @param topic Pubsub topic. Set to "" to use the default pubsub topic
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return message id
@@ -248,8 +248,8 @@ fun Node.lightpushPublishEncodeAsymmetric(
 fun Node.relayPublishEncodeSymmetric(
     msg: Message,
     symmetricKey: String,
-    optionalSigningKey: String? = null,
-    topic: String? = null,
+    optionalSigningKey: String = "",
+    topic: String = "",
     ms: Long = 0
 ): String {
     val jsonMsg = Json.encodeToString(msg)
@@ -263,8 +263,8 @@ fun Node.relayPublishEncodeSymmetric(
  * @param msg Message to broadcast
  * @param symmetricKey 32 byte hex string containing a symmetric key
  * @param optionalSigningKey Optional secp256k1 private key for signing the message
- * @param topic Pubsub topic. Set to `null` to use the default pubsub topic
- * @param peerID ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
+ * @param topic Pubsub topic. Set to "" to use the default pubsub topic
+ * @param peerID ID of a peer supporting the lightpush protocol. Use "" to automatically select a node
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return message id
@@ -272,9 +272,9 @@ fun Node.relayPublishEncodeSymmetric(
 fun Node.lightpushPublishEncodeSymmetric(
     msg: Message,
     symmetricKey: String,
-    optionalSigningKey: String? = null,
-    topic: String? = null,
-    peerID: String? = null,
+    optionalSigningKey: String = "",
+    topic: String = "",
+    peerID: String = "",
     ms: Long = 0
 ): String {
     val jsonMsg = Json.encodeToString(msg)
@@ -285,19 +285,19 @@ fun Node.lightpushPublishEncodeSymmetric(
 
 /**
  * Determine if there are enough peers to publish a message on a topic
- * @param topic pubsub topic to verify. Use NULL to verify the number of peers in the default pubsub topic
+ * @param topic pubsub topic to verify. Use "" to verify the number of peers in the default pubsub topic
  * @return boolean indicating if there are enough peers or not
  */
-fun Node.relayEnoughPeers(topic: String? = null): Boolean {
+fun Node.relayEnoughPeers(topic: String = ""): Boolean {
     val response = Gowaku.relayEnoughPeers(topic)
     return handleResponse<Boolean>(response)
 }
 
 /**
  * Closes the pubsub subscription to a pubsub topic
- * @param topic Pubsub topic to unsubscribe. Use NULL for unsubscribe from the default pubsub topic
+ * @param topic Pubsub topic to unsubscribe. Use "" for unsubscribe from the default pubsub topic
  */
-fun Node.relayUnsubscribe(topic: String? = null) {
+fun Node.relayUnsubscribe(topic: String = "") {
     val response = Gowaku.relayUnsubscribe(topic)
     handleResponse(response)
 }
@@ -314,12 +314,12 @@ fun Node.peers(): List<Peer> {
 /**
  * Query message history
  * @param query Query
- * @param peerID PeerID to ask the history from. Use NULL to automatically select a peer
+ * @param peerID PeerID to ask the history from. Use "" to automatically select a peer
  * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return Response containing the messages and cursor for pagination. Use the cursor in further queries to retrieve more results
  */
-fun Node.storeQuery(query: StoreQuery, peerID: String?, ms: Long = 0): StoreResponse{
+fun Node.storeQuery(query: StoreQuery, peerID: String = "", ms: Long = 0): StoreResponse{
     val queryJSON = Json.encodeToString(query)
     val response = Gowaku.storeQuery(queryJSON, peerID, ms)
     return handleResponse<StoreResponse>(response)

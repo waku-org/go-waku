@@ -95,12 +95,12 @@ class WakuNode {
         try handleResponse(response)
     }
 
-    func relaySubscribe(_ topic: String? = nil) throws {
+    func relaySubscribe(_ topic: String = "") throws {
         let response = GowakuRelaySubscribe(topic)
         try handleResponse(response)
     }
 
-    func relayPublish(_ msg: Message, _ topic: String? = nil, _ ms: Int = 0) throws -> String {
+    func relayPublish(_ msg: Message, _ topic: String = "", _ ms: Int = 0) throws -> String {
         let jsonEncoder = JSONEncoder()
         let jsonData = try! jsonEncoder.encode(msg)
         let jsonMsg = String(data: jsonData, encoding: String.Encoding.utf8)
@@ -108,7 +108,7 @@ class WakuNode {
         return try handleResponse(response)
     }
     
-    func lightpushPublish(_ msg: Message, _ topic: String? = nil, _ peerID: String? = nil, _ ms: Int = 0) throws -> String {
+    func lightpushPublish(_ msg: Message, _ topic: String = "", _ peerID: String = "", _ ms: Int = 0) throws -> String {
         let jsonEncoder = JSONEncoder()
         let jsonData = try! jsonEncoder.encode(msg)
         let jsonMsg = String(data: jsonData, encoding: String.Encoding.utf8)
@@ -119,8 +119,8 @@ class WakuNode {
     func relayPublishEncodeAsymmetric(
         _ msg: Message,
         _ publicKey: String,
-        _ optionalSigningKey: String? = nil,
-        _ topic: String? = nil,
+        _ optionalSigningKey: String = "",
+        _ topic: String = "",
         _ ms: Int = 0
     ) throws -> String {
         let jsonEncoder = JSONEncoder()
@@ -133,9 +133,9 @@ class WakuNode {
     func lightpushPublishEncodeAsymmetric(
         _ msg: Message,
         _ publicKey: String,
-        _ optionalSigningKey: String? = nil,
-        _ topic: String? = nil,
-        _ peerID: String? = nil,
+        _ optionalSigningKey: String = "",
+        _ topic: String = "",
+        _ peerID: String = "",
         _ ms: Int = 0
     ) throws -> String {
         let jsonEncoder = JSONEncoder()
@@ -148,8 +148,8 @@ class WakuNode {
     func relayPublishEncodeSymmetric(
         msg: Message,
         symmetricKey: String,
-        optionalSigningKey: String? = nil,
-        topic: String? = nil,
+        optionalSigningKey: String = "",
+        topic: String = "",
         ms: Int = 0
     ) throws -> String {
         let jsonEncoder = JSONEncoder()
@@ -162,9 +162,9 @@ class WakuNode {
     func lightpushPublishEncodeSymmetric(
         _ msg: Message,
         _ symmetricKey: String,
-        _ optionalSigningKey: String? = nil,
-        _ topic: String? = nil,
-        _ peerID: String? = nil,
+        _ optionalSigningKey: String = "",
+        _ topic: String = "",
+        _ peerID: String = "",
         _ ms: Int = 0
     ) throws -> String {
         let jsonEncoder = JSONEncoder()
@@ -174,12 +174,12 @@ class WakuNode {
         return try handleResponse(response)
     }
 
-    func relayEnoughPeers(_ topic: String? = nil) throws -> Bool {
+    func relayEnoughPeers(_ topic: String = "") throws -> Bool {
         let response = GowakuRelayEnoughPeers(topic)
         return try handleResponse(response)
     }
 
-    func relayUnsubscribe(_ topic: String? = nil) throws {
+    func relayUnsubscribe(_ topic: String = "") throws {
         let response = GowakuRelayUnsubscribe(topic)
         try handleResponse(response)
     }
