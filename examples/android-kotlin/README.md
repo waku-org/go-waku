@@ -20,7 +20,7 @@ export ANDROID_HOME=/path/to/android/sdk/
 make mobile-android
 
 # Copy the jar into `libs/` folder
-cp ./build/lib/gowaku.jar ./examples/android-kotlin/app/libs/.
+cp ./build/lib/gowaku.aar ./examples/android-kotlin/app/libs/.
 ```
 
 Open the project in Android Studio and run the example app.

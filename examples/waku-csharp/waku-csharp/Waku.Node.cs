@@ -33,7 +33,7 @@ namespace Waku
         public string? pubkey { get; set; }
         public string? signature { get; set; }
         public byte[] data { get; set; } = new byte[0];
-        public string? padding { get; set; }
+        public byte[] padding { get; set; } = new byte[0];
     }
 
     public class Peer

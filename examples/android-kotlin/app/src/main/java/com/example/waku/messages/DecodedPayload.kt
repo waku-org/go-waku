@@ -8,5 +8,5 @@ data class DecodedPayload(
     val pubkey: String?,
     val signature: String?,
     @Serializable(with = ByteArrayBase64Serializer::class) val data: ByteArray,
-    val padding: String?
+    @Serializable(with = ByteArrayBase64Serializer::class) val padding: ByteArray,
 )
