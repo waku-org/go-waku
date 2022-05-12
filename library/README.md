@@ -32,7 +32,6 @@ All the API functions return a `JSONResponse` unless specified otherwise. `JSONR
 Asynchronous events require a callback to be registered. An example of an asynchronous event that might be emitted is receiving a message. When an event is emitted, this callback will be triggered receiving a json string with the following format:
 ```js
 {
-	"nodeId": 0, // go-waku node that emitted the signal
 	"type": "message", // type of signal being emitted. Currently only "message" is available
 	"event": ... // format depends on the type of signal. In the case of "message", a waku message can be expected here
 }
@@ -324,7 +323,7 @@ Subscribe to a WakuRelay topic to receive messages.
 
 
 **Returns**
-`JSONResponse` with a subscription ID. An `error` message otherwise
+`JSONResponse` with a null result. An `error` message otherwise
 
 **Events**
 When a message is received, a ``"message"` event` is emitted containing the message, and pubsub topic in which the message was received. Here's an example event that could be received:
@@ -481,28 +480,64 @@ Query historic messages using waku store protocol.
 }
 ```
 
+## Decrypting messages
 
+### `extern char* waku_decode_symmetric(char* messageJSON, char* symmetricKey)`
+Decrypt a message using a symmetric key
 
+**Parameters**
+1. `char* messageJSON`: json string containing the [Waku Message](https://rfc.vac.dev/spec/14/)
+    ```js
+    {
+        "payload":"...", // encrypted payload encoded in base64.
+        "contentTopic: "...",
+        "version": 1,
+        "timestamp": 1647963508000000000 // Unix timestamp in nanoseconds
+    }
+    ```
+2. `char* symmetricKey`: 32 byte symmetric key
 
+**Returns**
+`JSONResponse` containing a `DecodedPayload`. An `error` message otherwise
+```js
+{
+  "result": {
+    "pubkey": "0x......", // pubkey that signed the message (optional)
+    "signature": "0x....", // message signature (optional)
+    "data": "...", // decrypted message payload encoded in base64
+    "padding": "...", // base64 encoded padding
+  }
+}
 
+```
 
+### `extern char* waku_decode_asymmetric(char* messageJSON, char* privateKey)`
+Decrypt a message using a secp256k1 private key 
 
+**Parameters**
+1. `char* messageJSON`: json string containing the [Waku Message](https://rfc.vac.dev/spec/14/)
+    ```js
+    {
+        "payload":"...", // encrypted payload encoded in base64.
+        "contentTopic: "...",
+        "version": 1,
+        "timestamp": 1647963508000000000 // Unix timestamp in nanoseconds
+    }
+    ```
+2. `char* privateKey`: secp256k1 private key 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+**Returns**
+`JSONResponse` containing a `DecodedPayload`. An `error` message otherwise
+```js
+{
+  "result": {
+    "pubkey": "0x......", // pubkey that signed the message (optional)
+    "signature": "0x....", // message signature (optional)
+    "data": "...", // decrypted message payload encoded in base64
+    "padding": "...", // base64 encoded padding
+  }
+}
+```
 
 ## Waku Message Utils
 
