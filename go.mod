@@ -31,5 +31,6 @@ require (
 	github.com/urfave/cli/v2 v2.4.0
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.21.0
+	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )

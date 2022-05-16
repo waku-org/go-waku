@@ -19,6 +19,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -187,9 +188,11 @@ func (wf *WakuFilter) FilterListener() {
 	handle := func(envelope *protocol.Envelope) error { // async
 		msg := envelope.Message()
 		topic := envelope.PubsubTopic()
+		g, _ := errgroup.WithContext(context.Background())
 		// Each subscriber is a light node that earlier on invoked
 		// a FilterRequest on this node
 		for subscriber := range wf.subscribers.Items() {
+			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
 			if subscriber.filter.Topic != "" && subscriber.filter.Topic != topic {
 				wf.log.Info("Subscriber's filter pubsubTopic does not match message topic", subscriber.filter.Topic, topic)
 				continue
@@ -200,15 +203,20 @@ func (wf *WakuFilter) FilterListener() {
 					wf.log.Info("found matching contentTopic ", filter, msg)
 					// Do a message push to light node
 					wf.log.Info("pushing messages to light node: ", subscriber.peer)
-					if err := wf.pushMessage(subscriber, msg); err != nil {
+					g.Go(func() (err error) {
+						err = wf.pushMessage(subscriber, msg)
+						if err != nil {
+							wf.log.Error(err)
+						}
 						return err
-					}
-
+					})
+					// Break if we have found a match
+					break
 				}
 			}
 		}
 
-		return nil
+		return g.Wait()
 	}
 
 	for m := range wf.MsgC {
