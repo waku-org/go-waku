@@ -188,7 +188,7 @@ func (wf *WakuFilter) FilterListener() {
 	handle := func(envelope *protocol.Envelope) error { // async
 		msg := envelope.Message()
 		topic := envelope.PubsubTopic()
-		g, _ := errgroup.WithContext(context.Background())
+		g := new(errgroup.Group)
 		// Each subscriber is a light node that earlier on invoked
 		// a FilterRequest on this node
 		for subscriber := range wf.subscribers.Items() {
