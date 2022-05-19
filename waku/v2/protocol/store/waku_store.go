@@ -491,7 +491,7 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // to request the message history
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), params.s.log)
+		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), params.s.log.Desugar())
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -774,7 +774,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	}
 
 	if len(peerList) == 0 {
-		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta4), store.log)
+		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta4), store.log.Desugar())
 		if err != nil {
 			store.log.Info("Error selecting peer: ", err)
 			return -1, ErrNoPeersAvailable

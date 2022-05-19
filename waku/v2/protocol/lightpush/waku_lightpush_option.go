@@ -27,7 +27,7 @@ func WithPeer(p peer.ID) LightPushOption {
 
 func WithAutomaticPeerSelection(host host.Host) LightPushOption {
 	return func(params *LightPushParameters) {
-		p, err := utils.SelectPeer(host, string(LightPushID_v20beta1), params.log)
+		p, err := utils.SelectPeer(host, string(LightPushID_v20beta1), params.log.Desugar())
 		if err == nil {
 			params.selectedPeer = *p
 		} else {

@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
@@ -33,12 +34,12 @@ type ConnStatus struct {
 type ConnectionNotifier struct {
 	h              host.Host
 	ctx            context.Context
-	log            *zap.SugaredLogger
+	log            *zap.Logger
 	DisconnectChan chan peer.ID
 	quit           chan struct{}
 }
 
-func NewConnectionNotifier(ctx context.Context, h host.Host, log *zap.SugaredLogger) ConnectionNotifier {
+func NewConnectionNotifier(ctx context.Context, h host.Host, log *zap.Logger) ConnectionNotifier {
 	return ConnectionNotifier{
 		h:              h,
 		ctx:            ctx,
@@ -117,7 +118,7 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 	for _, peer := range w.host.Network().Peers() {
 		protocols, err := w.host.Peerstore().GetProtocols(peer)
 		if err != nil {
-			w.log.Warn(fmt.Errorf("could not read peer %s protocols", peer))
+			w.log.Warn("reading peer protocols", logging.HostID("peer", peer), zap.Error(err))
 		}
 
 		for _, protocol := range protocols {
