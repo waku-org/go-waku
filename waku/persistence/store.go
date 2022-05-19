@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -100,7 +101,10 @@ func (d *DBStore) createTable() error {
 		payload BLOB,
 		version INTEGER NOT NULL DEFAULT 0,
 		CONSTRAINT messageIndex PRIMARY KEY (senderTimestamp, id, pubsubTopic)
-	) WITHOUT ROWID;`
+	) WITHOUT ROWID;
+	
+	CREATE INDEX IF NOT EXISTS message_senderTimestamp ON message(senderTimestamp);
+	CREATE INDEX IF NOT EXISTS message_receiverTimestamp ON message(receiverTimestamp);`
 	_, err := d.db.Exec(sqlStmt)
 	if err != nil {
 		return err
@@ -120,7 +124,7 @@ func (d *DBStore) cleanOlderRecords() error {
 
 	// Limit number of records to a max N
 	if d.maxMessages > 0 {
-		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC LIMIT -1 OFFSET 5)`
+		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC LIMIT -1 OFFSET ?)`
 		_, err := d.db.Exec(sqlStmt, d.maxMessages)
 		if err != nil {
 			return err
@@ -157,6 +161,12 @@ func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMess
 
 // Returns all the stored WakuMessages
 func (d *DBStore) GetAll() ([]StoredMessage, error) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		d.log.Info(fmt.Sprintf("Loading records from the DB took %s", elapsed))
+	}()
+
 	rows, err := d.db.Query("SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY senderTimestamp ASC")
 	if err != nil {
 		return nil, err
@@ -195,6 +205,8 @@ func (d *DBStore) GetAll() ([]StoredMessage, error) {
 
 		result = append(result, record)
 	}
+
+	d.log.Info(fmt.Sprintf("DB returned %d records", len(result)))
 
 	err = rows.Err()
 	if err != nil {

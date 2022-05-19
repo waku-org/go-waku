@@ -305,6 +305,12 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 		return
 	}
 
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		store.log.Info(fmt.Sprintf("Store initialization took %s", elapsed))
+	}()
+
 	storedMessages, err := (store.msgProvider).GetAll()
 	if err != nil {
 		store.log.Error("could not load DBProvider messages", err)
@@ -319,9 +325,11 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 		}
 
 		_ = store.addToMessageQueue(storedMessage.PubsubTopic, idx, storedMessage.Message)
-
-		metrics.RecordMessage(ctx, "stored", store.messageQueue.Length())
 	}
+
+	metrics.RecordMessage(ctx, "stored", store.messageQueue.Length())
+
+	store.log.Info(fmt.Sprintf("%d messages available in waku store", store.messageQueue.Length()))
 }
 
 func (store *WakuStore) addToMessageQueue(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) error {
