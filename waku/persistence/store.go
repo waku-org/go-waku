@@ -113,28 +113,30 @@ func (d *DBStore) createTable() error {
 }
 
 func (d *DBStore) cleanOlderRecords() error {
+	d.log.Debug("Cleaning older records...")
+
 	// Delete older messages
 	if d.maxDuration > 0 {
+		start := time.Now()
 		sqlStmt := `DELETE FROM message WHERE receiverTimestamp < ?`
 		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(time.Now().Add(-d.maxDuration)))
 		if err != nil {
 			return err
 		}
+		elapsed := time.Since(start)
+		d.log.Debug(fmt.Sprintf("Deleting older records from the DB took %s", elapsed))
 	}
 
 	// Limit number of records to a max N
 	if d.maxMessages > 0 {
+		start := time.Now()
 		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC LIMIT -1 OFFSET ?)`
 		_, err := d.db.Exec(sqlStmt, d.maxMessages)
 		if err != nil {
 			return err
 		}
-	}
-
-	// reduce the size of the DB file after the delete operation. See: https://www.sqlite.org/lang_vacuum.html
-	_, err := d.db.Exec("VACUUM")
-	if err != nil {
-		return err
+		elapsed := time.Since(start)
+		d.log.Debug(fmt.Sprintf("Deleting excess records from the DB took %s", elapsed))
 	}
 
 	return nil
