@@ -44,7 +44,6 @@ import (
 
 func failOnErr(err error, msg string) {
 	if err != nil {
-
 		utils.Logger().Fatal(msg, zap.Error(err))
 	}
 }
@@ -97,6 +96,7 @@ func Execute(options Options) {
 
 	ctx := context.Background()
 	logger := utils.Logger()
+
 	var metricsServer *metrics.Server
 	if options.Metrics.Enable {
 		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
