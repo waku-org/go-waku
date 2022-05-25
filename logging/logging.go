@@ -19,9 +19,9 @@ import (
 )
 
 // List of multiaddrs
-
 type multiaddrs []multiaddr.Multiaddr
 
+// MultiAddrs creates a field with an array of multiaddrs
 func MultiAddrs(key string, addrs ...multiaddr.Multiaddr) zapcore.Field {
 	return zap.Array(key, multiaddrs(addrs))
 }
@@ -33,20 +33,20 @@ func (addrs multiaddrs) MarshalLogArray(encoder zapcore.ArrayEncoder) error {
 	return nil
 }
 
-// Host ID
-
+// Host ID/Peer ID
 type hostID peer.ID
 
+// HostID creates a field for a peer.ID
 func HostID(key string, id peer.ID) zapcore.Field {
 	return zap.Stringer(key, hostID(id))
 }
 
 func (id hostID) String() string { return peer.Encode(peer.ID(id)) }
 
-// Time - looks like Waku is using Microsecond Unix Time
-
+// Time - Waku uses Microsecond Unix Time
 type timestamp int64
 
+// Time creates a field for Waku time value
 func Time(key string, time int64) zapcore.Field {
 	return zap.Stringer(key, timestamp(time))
 }
@@ -56,9 +56,11 @@ func (t timestamp) String() string {
 }
 
 // History Query Filters
-
 type historyFilters []*pb.ContentFilter
 
+// Filters creates a field with an array of history query filters.
+// The assumption is that log entries won't have more than one of these,
+// so the field key/name is hardcoded to be "filters" to promote consistency.
 func Filters(filters []*pb.ContentFilter) zapcore.Field {
 	return zap.Array("filters", historyFilters(filters))
 }
@@ -71,10 +73,12 @@ func (filters historyFilters) MarshalLogArray(encoder zapcore.ArrayEncoder) erro
 }
 
 // History Paging Info
-
+// Probably too detailed for normal log levels, but useful for debugging.
+// Also a good example of nested object value.
 type pagingInfo pb.PagingInfo
 type index pb.Index
 
+// PagingInfo creates a field with history query paging info.
 func PagingInfo(pi *pb.PagingInfo) zapcore.Field {
 	return zap.Object("paging_info", (*pagingInfo)(pi))
 }
@@ -95,17 +99,11 @@ func (i *index) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 	return nil
 }
 
-// Wallet Address
-
-func WalletAddress(address string) zapcore.Field {
-	return zap.String("wallet_address", address)
-}
-
 // Hex encoded bytes
-
 type hexBytes []byte
 
-func Bytes(key string, bytes []byte) zap.Field {
+// HexBytes creates a field for a byte slice that should be emitted as hex encoded string.
+func HexBytes(key string, bytes []byte) zap.Field {
 	return zap.Stringer(key, hexBytes(bytes))
 }
 

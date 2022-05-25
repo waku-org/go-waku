@@ -23,12 +23,14 @@ import (
 	"github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/config"
 
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
@@ -83,6 +85,11 @@ func Execute(options Options) {
 	prvKey, err := getPrivKey(options)
 	failOnErr(err, "nodekey error")
 
+	p2pPrvKey := libp2pcrypto.Secp256k1PrivateKey(*prvKey)
+	id, err := peer.IDFromPublicKey((&p2pPrvKey).GetPublic())
+	failOnErr(err, "deriving peer ID from private key")
+	logger := utils.Logger().With(logging.HostID("node", id))
+
 	if options.DBPath == "" && options.UseDB {
 		failOnErr(errors.New("dbpath can't be null"), "")
 	}
@@ -95,7 +102,6 @@ func Execute(options Options) {
 	}
 
 	ctx := context.Background()
-	logger := utils.Logger()
 
 	var metricsServer *metrics.Server
 	if options.Metrics.Enable {

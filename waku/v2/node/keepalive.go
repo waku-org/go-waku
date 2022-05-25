@@ -72,7 +72,7 @@ func (w *WakuNode) pingPeer(peer peer.ID) {
 	if w.keepAliveFails[peer] > maxAllowedPingFailures && w.host.Network().Connectedness(peer) == network.Connected {
 		log.Info("disconnecting peer")
 		if err := w.host.Network().ClosePeer(peer); err != nil {
-			log.Debug("Could not close conn to peer", zap.Error(err))
+			log.Debug("closing conn to peer", zap.Error(err))
 		}
 		w.keepAliveFails[peer] = 0
 	}

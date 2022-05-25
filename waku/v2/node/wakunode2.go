@@ -446,11 +446,11 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 			if !w.lightPush.IsStarted() {
 				err = errors.New("not enought peers for relay and lightpush is not yet started")
 			} else {
-				w.log.Debug("publishing message via lightpush", logging.Bytes("hash", hash))
+				w.log.Debug("publishing message via lightpush", logging.HexBytes("hash", hash))
 				_, err = w.Lightpush().Publish(ctx, msg)
 			}
 		} else {
-			w.log.Debug("publishing message via relay", logging.Bytes("hash", hash))
+			w.log.Debug("publishing message via relay", logging.HexBytes("hash", hash))
 			_, err = w.Relay().Publish(ctx, msg)
 		}
 
