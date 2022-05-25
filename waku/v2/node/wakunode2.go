@@ -85,13 +85,6 @@ type WakuNode struct {
 	storeFactory storeFactory
 }
 
-<<<<<<< HEAD
-=======
-func defaultFilterFactory(w *WakuNode) (filter.Protocol, error) {
-	return filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.log.Sugar(), w.opts.filterOpts...)
-}
-
->>>>>>> 914d852 (rebase fixes)
 func defaultStoreFactory(w *WakuNode) store.Store {
 	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log.Sugar())
 }

@@ -38,7 +38,7 @@ func WithAutomaticPeerSelection(host host.Host) LightPushOption {
 
 func WithFastestPeerSelection(ctx context.Context) LightPushOption {
 	return func(params *LightPushParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(LightPushID_v20beta1), params.log)
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(LightPushID_v20beta1), params.log.Desugar())
 		if err == nil {
 			params.selectedPeer = *p
 		} else {

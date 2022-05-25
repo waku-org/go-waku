@@ -37,7 +37,7 @@ func TestKeepAlive(t *testing.T) {
 		host:           host1,
 		ctx:            ctx2,
 		wg:             wg,
-		log:            utils.Logger().Desugar(),
+		log:            utils.Logger(),
 		keepAliveMutex: sync.Mutex{},
 		keepAliveFails: make(map[peer.ID]int),
 	}

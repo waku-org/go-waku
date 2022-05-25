@@ -502,7 +502,7 @@ func WithAutomaticPeerSelection() HistoryRequestOption {
 
 func WithFastestPeerSelection(ctx context.Context) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), params.s.log)
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), params.s.log.Desugar())
 		if err == nil {
 			params.selectedPeer = *p
 		} else {

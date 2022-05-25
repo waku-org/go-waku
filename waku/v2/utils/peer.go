@@ -53,7 +53,7 @@ type pingResult struct {
 }
 
 // SelectPeerWithLowestRTT will select a peer that supports a specific protocol with the lowest reply time
-func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId string, log *zap.SugaredLogger) (*peer.ID, error) {
+func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolId string, log *zap.Logger) (*peer.ID, error) {
 	var peers peer.IDSlice
 	for _, peer := range host.Peerstore().Peers() {
 		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)

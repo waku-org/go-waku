@@ -33,7 +33,7 @@ func TestSelectPeer(t *testing.T) {
 	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 
 	// No peers with selected protocol
-	_, err = SelectPeer(h1, proto, Logger().Desugar())
+	_, err = SelectPeer(h1, proto, Logger())
 	require.Error(t, ErrNoPeersAvailable, err)
 
 	// Peers with selected protocol
