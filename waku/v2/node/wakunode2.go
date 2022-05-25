@@ -227,15 +227,15 @@ func (w *WakuNode) onAddrChange() {
 }
 
 func (w *WakuNode) logAddress(addr ma.Multiaddr) {
-	log := w.log.With(logging.MultiAddrs("multiaddr", addr))
+	logger := w.log.With(logging.MultiAddrs("multiaddr", addr))
 
 	// TODO: make this optional depending on DNS Disc being enabled
 	if w.opts.privKey != nil {
 		enr, ip, err := utils.GetENRandIP(addr, w.wakuFlag, w.opts.privKey)
 		if err != nil {
-			log.Error("obtaining ENR record from multiaddress", zap.Error(err))
+			logger.Error("obtaining ENR record from multiaddress", zap.Error(err))
 		} else {
-			log.Info("listening", zap.Stringer("ENR", enr), zap.Stringer("ip", ip))
+			logger.Info("listening", zap.Stringer("ENR", enr), zap.Stringer("ip", ip))
 		}
 	}
 }

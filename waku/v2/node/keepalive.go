@@ -53,26 +53,26 @@ func (w *WakuNode) pingPeer(peer peer.ID) {
 	ctx, cancel := context.WithTimeout(w.ctx, 3*time.Second)
 	defer cancel()
 
-	log := w.log.With(logging.HostID("peer", peer))
-	log.Debug("pinging")
+	logger := w.log.With(logging.HostID("peer", peer))
+	logger.Debug("pinging")
 	pr := ping.Ping(ctx, w.host, peer)
 	select {
 	case res := <-pr:
 		if res.Error != nil {
 			w.keepAliveFails[peer]++
-			log.Debug("could not ping", zap.Error(res.Error))
+			logger.Debug("could not ping", zap.Error(res.Error))
 		} else {
 			w.keepAliveFails[peer] = 0
 		}
 	case <-ctx.Done():
 		w.keepAliveFails[peer]++
-		log.Debug("could not ping (context done)", zap.Error(ctx.Err()))
+		logger.Debug("could not ping (context done)", zap.Error(ctx.Err()))
 	}
 
 	if w.keepAliveFails[peer] > maxAllowedPingFailures && w.host.Network().Connectedness(peer) == network.Connected {
-		log.Info("disconnecting peer")
+		logger.Info("disconnecting peer")
 		if err := w.host.Network().ClosePeer(peer); err != nil {
-			log.Debug("closing conn to peer", zap.Error(err))
+			logger.Debug("closing conn to peer", zap.Error(err))
 		}
 		w.keepAliveFails[peer] = 0
 	}
