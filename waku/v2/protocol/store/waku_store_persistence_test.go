@@ -1,12 +1,8 @@
 package store
 
 import (
-	"context"
-	"database/sql"
 	"testing"
 
-	"github.com/status-im/go-waku/waku/persistence"
-	"github.com/status-im/go-waku/waku/persistence/sqlite"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
@@ -14,19 +10,9 @@ import (
 )
 
 func TestStorePersistence(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	db := MemoryDB(t)
 
-	var db *sql.DB
-	db, err := sqlite.NewDB(":memory:")
-	require.NoError(t, err)
-
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db))
-	require.NoError(t, err)
-
-	s1 := NewWakuStore(nil, nil, dbStore, 0, 0, utils.Logger())
-	s1.fetchDBRecords(ctx)
-	require.Len(t, s1.messageQueue.messages, 0)
+	s1 := NewWakuStore(nil, nil, db, 0, 0, utils.Logger())
 
 	defaultPubSubTopic := "test"
 	defaultContentTopic := "1"
@@ -37,14 +23,14 @@ func TestStorePersistence(t *testing.T) {
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
-	_ = s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
+	_ = s1.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), defaultPubSubTopic))
 
-	s2 := NewWakuStore(nil, nil, dbStore, 0, 0, utils.Logger())
-	s2.fetchDBRecords(ctx)
-	require.Len(t, s2.messageQueue.messages, 1)
-	require.Equal(t, msg, s2.messageQueue.messages[0].msg)
+	allMsgs, err := db.GetAll()
+	require.NoError(t, err)
+	require.Len(t, allMsgs, 1)
+	require.Equal(t, msg, allMsgs[0].Message)
 
 	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
-	err = s1.storeMessage(protocol.NewEnvelope(msg, defaultPubSubTopic))
-	require.ErrorIs(t, err, ErrDuplicatedMessage)
+	err = s1.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), defaultPubSubTopic))
+	require.Error(t, err)
 }

@@ -1,4 +1,6 @@
 *.db
+*.db-shm
+*.db-wal
 nodekey
 
 # Binaries for programs and plugins

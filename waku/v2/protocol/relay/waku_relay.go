@@ -20,6 +20,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	waku_proto "github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
@@ -337,7 +338,7 @@ func (w *WakuRelay) subscribeToTopic(t string, subscription *Subscription, sub *
 				return
 			}
 
-			envelope := waku_proto.NewEnvelope(wakuMessage, string(t))
+			envelope := waku_proto.NewEnvelope(wakuMessage, utils.GetUnixEpoch(), string(t))
 
 			if w.bcaster != nil {
 				w.bcaster.Submit(envelope)

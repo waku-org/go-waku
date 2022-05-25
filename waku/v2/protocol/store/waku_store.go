@@ -1,13 +1,10 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"math"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -49,157 +46,68 @@ var (
 	ErrFailedQuery = errors.New("failed to resolve the query")
 )
 
-func minOf(vars ...int) int {
-	min := vars[0]
-
-	for _, i := range vars {
-		if min > i {
-			min = i
+func findMessages(query *pb.HistoryQuery, msgProvider MessageProvider) ([]*pb.WakuMessage, *pb.PagingInfo, error) {
+	if query.PagingInfo == nil {
+		query.PagingInfo = &pb.PagingInfo{
+			Direction: pb.PagingInfo_FORWARD,
 		}
 	}
 
-	return min
-}
-
-func paginateWithIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []IndexedWakuMessage, resPagingInfo *pb.PagingInfo) {
-	if pinfo == nil {
-		pinfo = new(pb.PagingInfo)
+	if query.PagingInfo.PageSize == 0 || query.PagingInfo.PageSize > uint64(MaxPageSize) {
+		query.PagingInfo.PageSize = MaxPageSize
 	}
 
-	// takes list, and performs paging based on pinfo
-	// returns the page i.e, a sequence of IndexedWakuMessage and the new paging info to be used for the next paging request
-	cursor := pinfo.Cursor
-	pageSize := pinfo.PageSize
-	dir := pinfo.Direction
-
-	if len(list) == 0 { // no pagination is needed for an empty list
-		return list, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+	queryResult, err := msgProvider.Query(query)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if pageSize == 0 {
-		pageSize = MaxPageSize
+	if len(queryResult) == 0 { // no pagination is needed for an empty list
+		newPagingInfo := &pb.PagingInfo{PageSize: 0, Cursor: query.PagingInfo.Cursor, Direction: query.PagingInfo.Direction}
+		return nil, newPagingInfo, nil
 	}
 
-	msgList := make([]IndexedWakuMessage, len(list))
-	_ = copy(msgList, list) // makes a copy of the list
+	lastMsgIdx := len(queryResult) - 1
+	newCursor := protocol.NewEnvelope(queryResult[lastMsgIdx].Message, queryResult[lastMsgIdx].ReceiverTime, queryResult[lastMsgIdx].PubsubTopic).Index()
 
-	sort.Slice(msgList, func(i, j int) bool { // sorts msgList based on the custom comparison proc indexedWakuMessageComparison
-		return indexedWakuMessageComparison(msgList[i], msgList[j]) == -1
-	})
-
-	initQuery := false
-	if cursor == nil {
-		initQuery = true // an empty cursor means it is an initial query
-		switch dir {
-		case pb.PagingInfo_FORWARD:
-			cursor = list[0].index // perform paging from the beginning of the list
-		case pb.PagingInfo_BACKWARD:
-			cursor = list[len(list)-1].index // perform paging from the end of the list
-		}
+	newPagingInfo := &pb.PagingInfo{PageSize: query.PagingInfo.PageSize, Cursor: newCursor, Direction: query.PagingInfo.Direction}
+	if newPagingInfo.PageSize > uint64(len(queryResult)) {
+		newPagingInfo.PageSize = uint64(len(queryResult))
 	}
 
-	foundIndex := findIndex(msgList, cursor)
-	if foundIndex == -1 { // the cursor is not valid
-		return nil, &pb.PagingInfo{PageSize: 0, Cursor: pinfo.Cursor, Direction: pinfo.Direction}
+	resultMessages := make([]*pb.WakuMessage, len(queryResult))
+	for i := range queryResult {
+		resultMessages[i] = queryResult[i].Message
 	}
 
-	var retrievedPageSize, s, e int
-	var newCursor *pb.Index // to be returned as part of the new paging info
-	switch dir {
-	case pb.PagingInfo_FORWARD: // forward pagination
-		remainingMessages := len(msgList) - foundIndex - 1
-		if initQuery {
-			remainingMessages = remainingMessages + 1
-			foundIndex = foundIndex - 1
-		}
-		// the number of queried messages cannot exceed the MaxPageSize and the total remaining messages i.e., msgList.len-foundIndex
-		retrievedPageSize = minOf(int(pageSize), MaxPageSize, remainingMessages)
-		s = foundIndex + 1 // non inclusive
-		e = foundIndex + retrievedPageSize
-		newCursor = msgList[e].index // the new cursor points to the end of the page
-	case pb.PagingInfo_BACKWARD: // backward pagination
-		remainingMessages := foundIndex
-		if initQuery {
-			remainingMessages = remainingMessages + 1
-			foundIndex = foundIndex + 1
-		}
-		// the number of queried messages cannot exceed the MaxPageSize and the total remaining messages i.e., foundIndex-0
-		retrievedPageSize = minOf(int(pageSize), MaxPageSize, remainingMessages)
-		s = foundIndex - retrievedPageSize
-		e = foundIndex - 1
-		newCursor = msgList[s].index // the new cursor points to the beginning of the page
-	}
-
-	// retrieve the messages
-	for i := s; i <= e; i++ {
-		resMessages = append(resMessages, msgList[i])
-	}
-	resPagingInfo = &pb.PagingInfo{PageSize: uint64(retrievedPageSize), Cursor: newCursor, Direction: pinfo.Direction}
-
-	return
-}
-
-func paginateWithoutIndex(list []IndexedWakuMessage, pinfo *pb.PagingInfo) (resMessages []*pb.WakuMessage, resPinfo *pb.PagingInfo) {
-	// takes list, and performs paging based on pinfo
-	// returns the page i.e, a sequence of WakuMessage and the new paging info to be used for the next paging request
-	indexedData, updatedPagingInfo := paginateWithIndex(list, pinfo)
-	for _, indexedMsg := range indexedData {
-		resMessages = append(resMessages, indexedMsg.msg)
-	}
-	resPinfo = updatedPagingInfo
-	return
+	return resultMessages, newPagingInfo, nil
 }
 
 func (store *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse {
 	result := new(pb.HistoryResponse)
-	// data holds IndexedWakuMessage whose topics match the query
-	var data []IndexedWakuMessage
-	for indexedMsg := range store.messageQueue.Messages() {
-		// temporal filtering
-		// check whether the history query contains a time filter
-		if query.StartTime != 0 && query.EndTime != 0 {
-			if indexedMsg.msg.Timestamp < query.StartTime || indexedMsg.msg.Timestamp > query.EndTime {
-				continue
-			}
-		}
 
-		// filter based on content filters
-		// an empty list of contentFilters means no content filter is requested
-		if len(query.ContentFilters) != 0 {
-			match := false
-			for _, cf := range query.ContentFilters {
-				if cf.ContentTopic == indexedMsg.msg.ContentTopic {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue
-			}
+	messages, newPagingInfo, err := findMessages(query, store.msgProvider)
+	if err != nil {
+		if err == persistence.ErrInvalidCursor {
+			result.Error = pb.HistoryResponse_INVALID_CURSOR
+		} else {
+			// TODO: return error in pb.HistoryResponse
+			store.log.Error("obtaining messages from db", zap.Error(err))
 		}
-
-		// filter based on pubsub topic
-		// an empty pubsub topic means no pubsub topic filter is requested
-		if query.PubsubTopic != "" {
-			if indexedMsg.pubsubTopic != query.PubsubTopic {
-				continue
-			}
-		}
-
-		// Some criteria matched
-		data = append(data, indexedMsg)
 	}
 
-	result.Messages, result.PagingInfo = paginateWithoutIndex(data, query.PagingInfo)
+	result.Messages = messages
+	result.PagingInfo = newPagingInfo
 	return result
 }
 
 type MessageProvider interface {
 	GetAll() ([]persistence.StoredMessage, error)
-	Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMessage) error
+	Query(query *pb.HistoryQuery) ([]persistence.StoredMessage, error)
+	Put(env *protocol.Envelope) error
+	MostRecentTimestamp() (int64, error)
 	Stop()
 }
-
 type Query struct {
 	Topic         string
 	ContentTopics []string
@@ -228,12 +136,6 @@ func (r *Result) Query() *pb.HistoryQuery {
 	return r.query
 }
 
-type IndexedWakuMessage struct {
-	msg         *pb.WakuMessage
-	index       *pb.Index
-	pubsubTopic string
-}
-
 type WakuStore struct {
 	ctx  context.Context
 	MsgC chan *protocol.Envelope
@@ -243,10 +145,9 @@ type WakuStore struct {
 
 	started bool
 
-	messageQueue *MessageQueue
-	msgProvider  MessageProvider
-	h            host.Host
-	swap         *swap.WakuSwap
+	msgProvider MessageProvider
+	h           host.Host
+	swap        *swap.WakuSwap
 }
 
 type Store interface {
@@ -266,7 +167,6 @@ func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNum
 	wakuStore.swap = swap
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.log = log.Named("store")
-	wakuStore.messageQueue = NewMessageQueue(maxNumberOfMessages, maxRetentionDuration)
 	return wakuStore
 }
 
@@ -281,6 +181,11 @@ func (store *WakuStore) Start(ctx context.Context) {
 		return
 	}
 
+	if store.msgProvider == nil {
+		store.log.Info("Store protocol started (no message provider)")
+		return
+	}
+
 	store.started = true
 	store.ctx = ctx
 	store.MsgC = make(chan *protocol.Envelope, 1024)
@@ -290,78 +195,17 @@ func (store *WakuStore) Start(ctx context.Context) {
 	store.wg.Add(1)
 	go store.storeIncomingMessages(ctx)
 
-	if store.msgProvider == nil {
-		store.log.Info("Store protocol started (no message provider)")
-		return
-	}
-
-	store.fetchDBRecords(ctx)
-
 	store.log.Info("Store protocol started")
 }
 
-func (store *WakuStore) fetchDBRecords(ctx context.Context) {
-	if store.msgProvider == nil {
-		return
-	}
-
-	start := time.Now()
-	defer func() {
-		elapsed := time.Since(start)
-		store.log.Info("Store initialization complete",
-			zap.Duration("duration", elapsed),
-			zap.Int("messages", store.messageQueue.Length()))
-	}()
-
-	storedMessages, err := (store.msgProvider).GetAll()
-	if err != nil {
-		store.log.Error("loading DBProvider messages", zap.Error(err))
-		metrics.RecordStoreError(ctx, "store_load_failure")
-		return
-	}
-
-	for _, storedMessage := range storedMessages {
-		idx := &pb.Index{
-			Digest:       storedMessage.ID,
-			ReceiverTime: storedMessage.ReceiverTime,
-		}
-
-		_ = store.addToMessageQueue(storedMessage.PubsubTopic, idx, storedMessage.Message)
-	}
-
-	metrics.RecordMessage(ctx, "stored", store.messageQueue.Length())
-}
-
-func (store *WakuStore) addToMessageQueue(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) error {
-	return store.messageQueue.Push(IndexedWakuMessage{msg: msg, index: idx, pubsubTopic: pubsubTopic})
-}
-
 func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
-	index, err := computeIndex(env)
-	if err != nil {
-		store.log.Error("creating message index", zap.Error(err))
-		return err
-	}
-
-	err = store.addToMessageQueue(env.PubsubTopic(), index, env.Message())
-	if err == ErrDuplicatedMessage {
-		return err
-	}
-
-	if store.msgProvider == nil {
-		metrics.RecordMessage(store.ctx, "stored", store.messageQueue.Length())
-		return err
-	}
-
-	// TODO: Move this to a separate go routine if DB writes becomes a bottleneck
-	err = store.msgProvider.Put(index, env.PubsubTopic(), env.Message()) // Should the index be stored?
+	err := store.msgProvider.Put(env)
 	if err != nil {
 		store.log.Error("storing message", zap.Error(err))
 		metrics.RecordStoreError(store.ctx, "store_failure")
 		return err
 	}
 
-	metrics.RecordMessage(store.ctx, "stored", store.messageQueue.Length())
 	return nil
 }
 
@@ -404,72 +248,6 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	} else {
 		logger.Info("response sent")
 	}
-}
-
-func computeIndex(env *protocol.Envelope) (*pb.Index, error) {
-	return &pb.Index{
-		Digest:       env.Hash(),
-		ReceiverTime: utils.GetUnixEpoch(),
-		SenderTime:   env.Message().Timestamp,
-		PubsubTopic:  env.PubsubTopic(),
-	}, nil
-}
-
-func indexComparison(x, y *pb.Index) int {
-	// compares x and y
-	// returns 0 if they are equal
-	// returns -1 if x < y
-	// returns 1 if x > y
-
-	var timecmp int = 0
-
-	if x.SenderTime != 0 && y.SenderTime != 0 {
-		if x.SenderTime > y.SenderTime {
-			timecmp = 1
-		} else if x.SenderTime < y.SenderTime {
-			timecmp = -1
-		}
-	}
-	if timecmp != 0 {
-		return timecmp // timestamp has a higher priority for comparison
-	}
-
-	digestcm := bytes.Compare(x.Digest, y.Digest)
-	if digestcm != 0 {
-		return digestcm
-	}
-
-	pubsubTopicCmp := strings.Compare(x.PubsubTopic, y.PubsubTopic)
-	if pubsubTopicCmp != 0 {
-		return pubsubTopicCmp
-	}
-
-	// receiverTimestamp (a fallback only if senderTimestamp unset on either side, and all other fields unequal)
-	if x.ReceiverTime > y.ReceiverTime {
-		timecmp = 1
-	} else if x.ReceiverTime < y.ReceiverTime {
-		timecmp = -1
-	}
-	return timecmp
-}
-
-func indexedWakuMessageComparison(x, y IndexedWakuMessage) int {
-	// compares x and y
-	// returns 0 if they are equal
-	// returns -1 if x < y
-	// returns 1 if x > y
-	return indexComparison(x.index, y.index)
-}
-
-func findIndex(msgList []IndexedWakuMessage, index *pb.Index) int {
-	// returns the position of an IndexedWakuMessage in msgList whose index value matches the given index
-	// returns -1 if no match is found
-	for i, indexedWakuMessage := range msgList {
-		if bytes.Equal(indexedWakuMessage.index.Digest, index.Digest) && indexedWakuMessage.index.SenderTime == index.SenderTime && indexedWakuMessage.index.PubsubTopic == index.PubsubTopic {
-			return i
-		}
-	}
-	return -1
 }
 
 type HistoryRequestParameters struct {
@@ -591,7 +369,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		return nil, err
 	}
 
-	metrics.RecordMessage(ctx, "retrieved", store.messageQueue.Length())
+	metrics.RecordMessage(ctx, "retrieved", len(historyResponseRPC.Response.Messages))
 
 	return historyResponseRPC.Response, nil
 }
@@ -661,23 +439,23 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 // specify the cursor and pagination order and max number of results
 func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 	q := &pb.HistoryQuery{
-		PubsubTopic:    r.query.PubsubTopic,
-		ContentFilters: r.query.ContentFilters,
-		StartTime:      r.query.StartTime,
-		EndTime:        r.query.EndTime,
+		PubsubTopic:    r.Query().PubsubTopic,
+		ContentFilters: r.Query().ContentFilters,
+		StartTime:      r.Query().StartTime,
+		EndTime:        r.Query().EndTime,
 		PagingInfo: &pb.PagingInfo{
-			PageSize:  r.query.PagingInfo.PageSize,
-			Direction: r.query.PagingInfo.Direction,
+			PageSize:  r.Query().PagingInfo.PageSize,
+			Direction: r.Query().PagingInfo.Direction,
 			Cursor: &pb.Index{
-				Digest:       r.cursor.Digest,
-				ReceiverTime: r.cursor.ReceiverTime,
-				SenderTime:   r.cursor.SenderTime,
-				PubsubTopic:  r.cursor.PubsubTopic,
+				Digest:       r.Cursor().Digest,
+				ReceiverTime: r.Cursor().ReceiverTime,
+				SenderTime:   r.Cursor().SenderTime,
+				PubsubTopic:  r.Cursor().PubsubTopic,
 			},
 		},
 	}
 
-	response, err := store.queryFrom(ctx, q, r.peerId, protocol.GenerateRequestId())
+	response, err := store.queryFrom(ctx, q, r.PeerID(), protocol.GenerateRequestId())
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +468,7 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 		Messages: response.Messages,
 		cursor:   response.PagingInfo.Cursor,
 		query:    q,
-		peerId:   r.peerId,
+		peerId:   r.PeerID(),
 	}, nil
 }
 
@@ -732,14 +510,8 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 	return nil, ErrFailedQuery
 }
 
-func (store *WakuStore) findLastSeen() int64 {
-	var lastSeenTime int64 = 0
-	for imsg := range store.messageQueue.Messages() {
-		if imsg.msg.Timestamp > lastSeenTime {
-			lastSeenTime = imsg.msg.Timestamp
-		}
-	}
-	return lastSeenTime
+func (store *WakuStore) findLastSeen() (int64, error) {
+	return store.msgProvider.MostRecentTimestamp()
 }
 
 func max(x, y int64) int64 {
@@ -763,7 +535,10 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	}
 
 	currentTime := utils.GetUnixEpoch()
-	lastSeenTime := store.findLastSeen()
+	lastSeenTime, err := store.findLastSeen()
+	if err != nil {
+		return 0, err
+	}
 
 	var offset int64 = int64(20 * time.Nanosecond)
 	currentTime = currentTime + offset
@@ -797,7 +572,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 	msgCount := 0
 	for _, msg := range messages {
-		if err = store.storeMessage(protocol.NewEnvelope(msg, pubsubTopic)); err == nil {
+		if err = store.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic)); err == nil {
 			msgCount++
 		}
 	}

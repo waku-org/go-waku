@@ -112,7 +112,7 @@ func TestWakuLightPush(t *testing.T) {
 	// Checking that msg hash is correct
 	hash, err := client.PublishToTopic(ctx, msg2, testTopic)
 	require.NoError(t, err)
-	require.Equal(t, protocol.NewEnvelope(msg2, string(testTopic)).Hash(), hash)
+	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(testTopic)).Hash(), hash)
 	wg.Wait()
 }
 

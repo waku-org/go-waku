@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/status-im/go-waku/waku/persistence"
+	"github.com/status-im/go-waku/waku/persistence/sqlite"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,6 +65,11 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node2.Start()
 	require.NoError(t, err)
 
+	db, err := sqlite.NewDB(":memory:")
+	require.NoError(t, err)
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db))
+	require.NoError(t, err)
+
 	// Node3: Relay + Store
 	hostAddr3, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
@@ -69,6 +77,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 		WithHostAddress(hostAddr3),
 		WithWakuRelay(),
 		WithWakuStore(false, false),
+		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)
 	err = node3.Start()

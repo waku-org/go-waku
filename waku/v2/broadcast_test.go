@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 // Adapted from https://github.com/dustin/go-broadcast/commit/f664265f5a662fb4d1df7f3533b1e8d0e0277120
@@ -28,7 +30,7 @@ func TestBroadcast(t *testing.T) {
 
 	}
 
-	env := new(protocol.Envelope)
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
 	b.Submit(env)
 
 	wg.Wait()
@@ -55,7 +57,7 @@ func TestBroadcastWait(t *testing.T) {
 
 	}
 
-	env := new(protocol.Envelope)
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
 	b.Submit(env)
 
 	wg.Wait()
