@@ -1,17 +1,18 @@
 # Logging Style Guide
 
-The goal of the style described here is to yield logs that are amenable to searching and aggregating. Structured logging is the best foundation for this outcome. The log entries should be consistent and predictable to support efficiency and high fidelity of search results.
+The goal of the style described here is to yield logs that are amenable to searching and aggregating. Structured logging is the best foundation for that. The log entries should be consistent and predictable to support search efficiency and high fidelity of search results. This style puts forward guidelines that promote this outcome.
 
 ## Log messages
 
 * Messages should be fixed strings, never interpolate values into the messages. Use log entry fields for values.
-
 
 * Message strings should be consistent identification of what action/event was/is happening. Consistent messages makes searching the logs and aggregating correlated events easier.
 
 * Error messages should look like any other log messages. No need to say "x failed", the log level and error field are sufficient indication of failure.
 
 ## Log entry fields
+
+* Adding fields to log entries is not free, but the fields are the discriminators that allow distinguishing similar log entries from each other. Insufficient field structure will makes it more difficult to find the entries you are looking for.
 
 * Create/Use field helpers for commonly used field value types (see logging.go). It promotes consistent formatting and allows changing it easily in one place.
 
