@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -59,13 +58,13 @@ func (c ConnectionNotifier) ListenClose(n network.Network, m ma.Multiaddr) {
 
 // Connected is called when a connection is opened
 func (c ConnectionNotifier) Connected(n network.Network, cc network.Conn) {
-	c.log.Info(fmt.Sprintf("Peer %s connected", cc.RemotePeer()))
+	c.log.Info("peer connected", logging.HostID("peer", cc.RemotePeer()))
 	stats.Record(c.ctx, metrics.Peers.M(1))
 }
 
 // Disconnected is called when a connection closed
 func (c ConnectionNotifier) Disconnected(n network.Network, cc network.Conn) {
-	c.log.Info(fmt.Sprintf("Peer %s disconnected", cc.RemotePeer()))
+	c.log.Info("peer disconnected", logging.HostID("peer", cc.RemotePeer()))
 	stats.Record(c.ctx, metrics.Peers.M(-1))
 	c.DisconnectChan <- cc.RemotePeer()
 }

@@ -199,13 +199,13 @@ func (w *WakuNode) onAddrChange() {
 
 		portStr, err := m.ValueForProtocol(ma.P_TCP)
 		if err != nil {
-			w.log.Error(fmt.Sprintf("could not extract port from ma %s: %s", m, err.Error()))
+			w.log.Error("extracting port from ma", logging.MultiAddrs("ma", m), zap.Error(err))
 			continue
 		}
 
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			w.log.Error(fmt.Sprintf("could not convert port to int: %s", err.Error()))
+			w.log.Error("converting port to int", zap.Error(err))
 			continue
 		}
 
@@ -549,7 +549,7 @@ func (w *WakuNode) startStore() {
 }
 
 func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...string) error {
-	w.log.Info(fmt.Sprintf("Adding peer %s to peerstore", info.ID.Pretty()))
+	w.log.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
 	err := w.host.Peerstore().AddProtocols(info.ID, protocols...)
 	if err != nil {
