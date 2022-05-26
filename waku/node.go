@@ -299,6 +299,8 @@ func Execute(options Options) {
 		rpcServer.Start()
 	}
 
+	utils.Logger().Info("Node setup complete")
+
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)

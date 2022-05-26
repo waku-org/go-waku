@@ -72,7 +72,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/jsonrpc", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		s.ServeHTTP(w, r)
 		wrpc.log.Infof("RPC request at %s took %s", r.URL.Path, time.Since(t))
