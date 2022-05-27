@@ -218,7 +218,7 @@ func (w *WakuNode) onAddrChange() {
 			if w.opts.enableDiscV5 {
 				err := w.discoveryV5.UpdateAddr(addr)
 				if err != nil {
-					w.log.Error("updating DiscV5 address with IP", zap.Stringer("ip", addr.IP), zap.Int("port", addr.Port), zap.Error(err))
+					w.log.Error("updating DiscV5 address with IP", zap.Stringer("address", addr), zap.Error(err))
 					continue
 				}
 			}
@@ -235,7 +235,7 @@ func (w *WakuNode) logAddress(addr ma.Multiaddr) {
 		if err != nil {
 			logger.Error("obtaining ENR record from multiaddress", zap.Error(err))
 		} else {
-			logger.Info("listening", zap.Stringer("ENR", enr), zap.Stringer("ip", ip))
+			logger.Info("listening", logging.ENode("enr", enr), zap.Stringer("ip", ip))
 		}
 	}
 }
@@ -492,7 +492,7 @@ func (w *WakuNode) mountDiscV5() error {
 	}
 
 	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.ListenAddresses(), w.opts.privKey, w.wakuFlag, w.log.Sugar(), discV5Options...)
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.ListenAddresses(), w.opts.privKey, w.wakuFlag, w.log, discV5Options...)
 
 	return err
 }

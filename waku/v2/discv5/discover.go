@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
 	"math"
 	"math/rand"
 	"net"
@@ -20,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-discover/discover"
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -38,7 +38,7 @@ type DiscoveryV5 struct {
 	NAT       nat.Interface
 	quit      chan struct{}
 
-	log *zap.SugaredLogger
+	log *zap.Logger
 
 	wg *sync.WaitGroup
 
@@ -101,7 +101,7 @@ func DefaultOptions() []DiscoveryV5Option {
 	}
 }
 
-func NewDiscoveryV5(host host.Host, addresses []ma.Multiaddr, priv *ecdsa.PrivateKey, wakuFlags utils.WakuEnrBitfield, log *zap.SugaredLogger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
+func NewDiscoveryV5(host host.Host, addresses []ma.Multiaddr, priv *ecdsa.PrivateKey, wakuFlags utils.WakuEnrBitfield, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
 	params := new(discV5Parameters)
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
@@ -156,7 +156,7 @@ func NewDiscoveryV5(host host.Host, addresses []ma.Multiaddr, priv *ecdsa.Privat
 	}, nil
 }
 
-func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP, log *zap.SugaredLogger) (*enode.LocalNode, error) {
+func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP, log *zap.Logger) (*enode.LocalNode, error) {
 	db, err := enode.OpenDB("")
 	if err != nil {
 		return nil, err
@@ -170,13 +170,13 @@ func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, waku
 	if udpPort > 0 && udpPort <= math.MaxUint16 {
 		localnode.Set(enr.UDP(uint16(udpPort))) // lgtm [go/incorrect-integer-conversion]
 	} else {
-		log.Error("could not set udpPort ", zap.Int("port", udpPort))
+		log.Error("setting udpPort", zap.Int("port", udpPort))
 	}
 
 	if ipAddr.Port > 0 && ipAddr.Port <= math.MaxUint16 {
 		localnode.Set(enr.TCP(uint16(ipAddr.Port))) // lgtm [go/incorrect-integer-conversion]
 	} else {
-		log.Error("could not set tcpPort ", zap.Int("port", ipAddr.Port))
+		log.Error("setting tcpPort", zap.Int("port", ipAddr.Port))
 	}
 
 	if advertiseAddr != nil {
@@ -212,8 +212,10 @@ func (d *DiscoveryV5) listen() error {
 
 	d.listener = listener
 
-	d.log.Info(fmt.Sprintf("Started Discovery V5 at %s:%d, advertising IP: %s:%d", d.udpAddr.IP, d.udpAddr.Port, d.localnode.Node().IP(), d.localnode.Node().TCP()))
-	d.log.Info("Discv5: discoverable ENR ", d.localnode.Node())
+	d.log.Info("started Discovery V5",
+		zap.Stringer("listening", d.udpAddr),
+		logging.TCPAddr("advertising", d.localnode.Node().IP(), d.localnode.Node().TCP()))
+	d.log.Info("Discovery V5: discoverable ENR ", logging.ENode("node", d.localnode.Node()))
 
 	return nil
 }
@@ -243,7 +245,7 @@ func (d *DiscoveryV5) Stop() {
 	d.listener.Close()
 	d.listener = nil
 
-	d.log.Info("Stopped Discovery V5")
+	d.log.Info("stopped Discovery V5")
 
 	d.wg.Wait()
 }
@@ -270,8 +272,8 @@ func (d *DiscoveryV5) UpdateAddr(addr *net.TCPAddr) error {
 
 	d.localnode.SetStaticIP(addr.IP)
 	d.localnode.Set(enr.TCP(uint16(addr.Port))) // lgtm [go/incorrect-integer-conversion]
-	d.log.Info(fmt.Sprintf("Updated Discovery V5 node: %s:%d", d.localnode.Node().IP(), d.localnode.Node().TCP()))
-	d.log.Info("Discovery V5 ", d.localnode.Node())
+	d.log.Info("updated Discovery V5 node address", logging.TCPAddr("address", d.localnode.Node().IP(), d.localnode.Node().TCP()))
+	d.log.Info("Discovery V5", logging.ENode("node", d.localnode.Node()))
 
 	return nil
 }
@@ -298,7 +300,7 @@ func hasTCPPort(node *enode.Node) bool {
 	enrTCP := new(enr.TCP)
 	if err := node.Record().Load(enr.WithEntry(enrTCP.ENRKey(), enrTCP)); err != nil {
 		if !enr.IsNotFound(err) {
-			utils.Logger().Named("discv5").Error("could not retrieve port for enr ", zap.Any("node", node))
+			utils.Logger().Named("discv5").Error("retrieving port for enr", logging.ENode("node", node))
 		}
 		return false
 	}
@@ -319,7 +321,7 @@ func evaluateNode(node *enode.Node) bool {
 	_, err := utils.EnodeToPeerInfo(node)
 
 	if err != nil {
-		utils.Logger().Named("discv5").Error("could not obtain peer info from enode:", zap.Error(err))
+		utils.Logger().Named("discv5").Error("obtaining peer info from enode", logging.ENode("node", node), zap.Error(err))
 		return false
 	}
 
@@ -358,13 +360,13 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 
 		addresses, err := utils.Multiaddress(iterator.Node())
 		if err != nil {
-			d.log.Error(err)
+			d.log.Error("extracting multiaddrs from enr", zap.Error(err))
 			continue
 		}
 
 		peerAddrs, err := peer.AddrInfosFromP2pAddrs(addresses...)
 		if err != nil {
-			d.log.Error(err)
+			d.log.Error("converting multiaddrs to addrinfos", zap.Error(err))
 			continue
 		}
 
