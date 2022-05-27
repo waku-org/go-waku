@@ -322,7 +322,7 @@ func (w *WakuNode) Start() error {
 		return err
 	}
 
-	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay, w.log.Sugar())
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay, w.log)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(); err != nil {
 			return err
