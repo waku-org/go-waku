@@ -10,7 +10,7 @@ import (
 )
 
 func TestStartAndStopMetricsServer(t *testing.T) {
-	server := NewMetricsServer("0.0.0.0", 9876, utils.Logger().Sugar())
+	server := NewMetricsServer("0.0.0.0", 9876, utils.Logger())
 
 	go func() {
 		time.Sleep(1 * time.Second)

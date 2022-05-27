@@ -16,11 +16,11 @@ import (
 // Server runs and controls a HTTP pprof interface.
 type Server struct {
 	server *http.Server
-	log    *zap.SugaredLogger
+	log    *zap.Logger
 }
 
 // NewMetricsServer creates a prometheus server on a particular interface and port
-func NewMetricsServer(address string, port int, log *zap.SugaredLogger) *Server {
+func NewMetricsServer(address string, port int, log *zap.Logger) *Server {
 	p := Server{
 		log: log.Named("metrics"),
 	}
@@ -32,12 +32,12 @@ func NewMetricsServer(address string, port int, log *zap.SugaredLogger) *Server 
 
 	pe, err := prometheus.NewExporter(prometheus.Options{})
 	if err != nil {
-		p.log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
+		p.log.Fatal("creating Prometheus stats exporter", zap.Error(err))
 	}
 
 	view.RegisterExporter(pe)
 
-	p.log.Info(fmt.Sprintf("Starting server at  %s:%d", address, port))
+	p.log.Info("starting server", zap.String("address", address), zap.Int("port", port))
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", pe)
 
@@ -58,7 +58,7 @@ func NewMetricsServer(address string, port int, log *zap.SugaredLogger) *Server 
 		metrics.PeersView,
 		metrics.DialsView,
 	); err != nil {
-		p.log.Fatalf("Failed to register views: %v", err)
+		p.log.Fatal("registering views", zap.Error(err))
 	}
 
 	p.server = &http.Server{
@@ -71,14 +71,14 @@ func NewMetricsServer(address string, port int, log *zap.SugaredLogger) *Server 
 
 // Start executes the HTTP server in the background.
 func (p *Server) Start() {
-	p.log.Info("server stopped ", p.server.ListenAndServe())
+	p.log.Info("server stopped ", zap.Error(p.server.ListenAndServe()))
 }
 
 // Stop shuts down the prometheus server
 func (p *Server) Stop(ctx context.Context) error {
 	err := p.server.Shutdown(ctx)
 	if err != nil {
-		p.log.Error("error while stopping server", err)
+		p.log.Error("stopping server", zap.Error(err))
 		return err
 	}
 

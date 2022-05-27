@@ -105,7 +105,7 @@ func Execute(options Options) {
 
 	var metricsServer *metrics.Server
 	if options.Metrics.Enable {
-		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger.Sugar())
+		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
 		go metricsServer.Start()
 	}
 
