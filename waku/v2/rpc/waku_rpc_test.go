@@ -14,7 +14,7 @@ func TestWakuRpc(t *testing.T) {
 	n, err := node.New(context.Background(), options)
 	require.NoError(t, err)
 
-	rpc := NewWakuRpc(n, "127.0.0.1", 8080, true, true, utils.Logger().Sugar())
+	rpc := NewWakuRpc(n, "127.0.0.1", 8080, true, true, utils.Logger())
 	require.NotNil(t, rpc.server)
 	require.Equal(t, rpc.server.Addr, "127.0.0.1:8080")
 }

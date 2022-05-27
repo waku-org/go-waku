@@ -24,7 +24,7 @@ func makeAdminService(t *testing.T) *AdminService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return &AdminService{n, utils.Logger().Sugar()}
+	return &AdminService{n, utils.Logger()}
 }
 
 func TestV1Peers(t *testing.T) {
