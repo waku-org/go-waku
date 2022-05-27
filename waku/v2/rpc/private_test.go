@@ -16,7 +16,7 @@ func makePrivateService(t *testing.T) *PrivateService {
 	err = n.Start()
 	require.NoError(t, err)
 
-	return NewPrivateService(n, utils.Logger())
+	return NewPrivateService(n, utils.Logger().Sugar())
 }
 
 func TestGetV1SymmetricKey(t *testing.T) {

@@ -2,12 +2,12 @@ package node
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
@@ -33,12 +33,12 @@ type ConnStatus struct {
 type ConnectionNotifier struct {
 	h              host.Host
 	ctx            context.Context
-	log            *zap.SugaredLogger
+	log            *zap.Logger
 	DisconnectChan chan peer.ID
 	quit           chan struct{}
 }
 
-func NewConnectionNotifier(ctx context.Context, h host.Host, log *zap.SugaredLogger) ConnectionNotifier {
+func NewConnectionNotifier(ctx context.Context, h host.Host, log *zap.Logger) ConnectionNotifier {
 	return ConnectionNotifier{
 		h:              h,
 		ctx:            ctx,
@@ -58,13 +58,13 @@ func (c ConnectionNotifier) ListenClose(n network.Network, m ma.Multiaddr) {
 
 // Connected is called when a connection is opened
 func (c ConnectionNotifier) Connected(n network.Network, cc network.Conn) {
-	c.log.Info(fmt.Sprintf("Peer %s connected", cc.RemotePeer()))
+	c.log.Info("peer connected", logging.HostID("peer", cc.RemotePeer()))
 	stats.Record(c.ctx, metrics.Peers.M(1))
 }
 
 // Disconnected is called when a connection closed
 func (c ConnectionNotifier) Disconnected(n network.Network, cc network.Conn) {
-	c.log.Info(fmt.Sprintf("Peer %s disconnected", cc.RemotePeer()))
+	c.log.Info("peer disconnected", logging.HostID("peer", cc.RemotePeer()))
 	stats.Record(c.ctx, metrics.Peers.M(-1))
 	c.DisconnectChan <- cc.RemotePeer()
 }
@@ -117,7 +117,7 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 	for _, peer := range w.host.Network().Peers() {
 		protocols, err := w.host.Peerstore().GetProtocols(peer)
 		if err != nil {
-			w.log.Warn(fmt.Errorf("could not read peer %s protocols", peer))
+			w.log.Warn("reading peer protocols", logging.HostID("peer", peer), zap.Error(err))
 		}
 
 		for _, protocol := range protocols {

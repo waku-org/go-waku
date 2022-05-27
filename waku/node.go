@@ -23,12 +23,14 @@ import (
 	"github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/config"
 
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
@@ -44,9 +46,6 @@ import (
 
 func failOnErr(err error, msg string) {
 	if err != nil {
-		if msg != "" {
-			msg = msg + ": "
-		}
 		utils.Logger().Fatal(msg, zap.Error(err))
 	}
 }
@@ -86,6 +85,11 @@ func Execute(options Options) {
 	prvKey, err := getPrivKey(options)
 	failOnErr(err, "nodekey error")
 
+	p2pPrvKey := libp2pcrypto.Secp256k1PrivateKey(*prvKey)
+	id, err := peer.IDFromPublicKey((&p2pPrvKey).GetPublic())
+	failOnErr(err, "deriving peer ID from private key")
+	logger := utils.Logger().With(logging.HostID("node", id))
+
 	if options.DBPath == "" && options.UseDB {
 		failOnErr(errors.New("dbpath can't be null"), "")
 	}
@@ -101,12 +105,12 @@ func Execute(options Options) {
 
 	var metricsServer *metrics.Server
 	if options.Metrics.Enable {
-		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, utils.Logger())
+		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger.Sugar())
 		go metricsServer.Start()
 	}
 
 	nodeOpts := []node.WakuNodeOption{
-		node.WithLogger(utils.Logger().Desugar()),
+		node.WithLogger(logger),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
@@ -186,7 +190,7 @@ func Execute(options Options) {
 	if options.Store.Enable {
 		nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
 		if options.UseDB {
-			dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
+			dbStore, err := persistence.NewDBStore(logger.Sugar(), persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		} else {
@@ -205,16 +209,16 @@ func Execute(options Options) {
 	var discoveredNodes []dnsdisc.DiscoveredNode
 	if options.DNSDiscovery.Enable {
 		if options.DNSDiscovery.URL != "" {
-			utils.Logger().Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
+			logger.Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
 			nodes, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
 			if err != nil {
-				utils.Logger().Warn("dns discovery error ", zap.Error(err))
+				logger.Warn("dns discovery error ", zap.Error(err))
 			} else {
-				utils.Logger().Info("found dns entries ", zap.Any("qty", len(nodes)))
+				logger.Info("found dns entries ", zap.Any("qty", len(nodes)))
 				discoveredNodes = nodes
 			}
 		} else {
-			utils.Logger().Fatal("DNS discovery URL is required")
+			logger.Fatal("DNS discovery URL is required")
 		}
 	}
 
@@ -223,7 +227,7 @@ func Execute(options Options) {
 		for _, addr := range options.DiscV5.Nodes.Value() {
 			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
 			if err != nil {
-				utils.Logger().Fatal("could not parse enr: ", zap.Error(err))
+				logger.Fatal("parsing ENR", zap.Error(err))
 			}
 			bootnodes = append(bootnodes, bootnode)
 		}
@@ -247,12 +251,12 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.Filter.Nodes.Value(), string(filter.FilterID_v20beta1))
 
 	if err = wakuNode.Start(); err != nil {
-		utils.Logger().Fatal(fmt.Errorf("could not start waku node, %w", err).Error())
+		logger.Fatal("starting waku node", zap.Error(err))
 	}
 
 	if options.DiscV5.Enable {
 		if err = wakuNode.DiscV5().Start(); err != nil {
-			utils.Logger().Fatal(fmt.Errorf("could not start discovery v5, %w", err).Error())
+			logger.Fatal("starting discovery v5", zap.Error(err))
 		}
 	}
 
@@ -273,7 +277,7 @@ func Execute(options Options) {
 		go func(node string) {
 			err = wakuNode.DialPeer(ctx, node)
 			if err != nil {
-				utils.Logger().Error("error dialing peer ", zap.Error(err))
+				logger.Error("dialing peer", zap.Error(err))
 			}
 		}(n)
 	}
@@ -286,7 +290,7 @@ func Execute(options Options) {
 					defer cancel()
 					err = wakuNode.DialPeerWithMultiAddress(ctx, m)
 					if err != nil {
-						utils.Logger().Error("error dialing peer ", zap.Error(err))
+						logger.Error("dialing peer ", zap.Error(err))
 					}
 				}(ctx, m)
 			}
@@ -295,7 +299,7 @@ func Execute(options Options) {
 
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, utils.Logger())
+		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, logger.Sugar())
 		rpcServer.Start()
 	}
 
@@ -305,7 +309,7 @@ func Execute(options Options) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
-	utils.Logger().Info("Received signal, shutting down...")
+	logger.Info("Received signal, shutting down...")
 
 	// shut the node down
 	wakuNode.Stop()

@@ -40,7 +40,7 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 
 func WithAutomaticPeerSelection() FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		p, err := utils.SelectPeer(params.host, string(FilterID_v20beta1), params.log)
+		p, err := utils.SelectPeer(params.host, string(FilterID_v20beta1), params.log.Desugar())
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -51,7 +51,7 @@ func WithAutomaticPeerSelection() FilterSubscribeOption {
 
 func WithFastestPeerSelection(ctx context.Context) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(FilterID_v20beta1), params.log)
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(FilterID_v20beta1), params.log.Desugar())
 		if err == nil {
 			params.selectedPeer = *p
 		} else {

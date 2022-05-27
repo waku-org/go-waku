@@ -47,7 +47,7 @@ type WakuNodeParameters struct {
 	wssPort   int
 	tlsConfig *tls.Config
 
-	logger *zap.SugaredLogger
+	logger *zap.Logger
 
 	enableRelay      bool
 	enableFilter     bool
@@ -92,7 +92,7 @@ type WakuNodeOption func(*WakuNodeParameters) error
 
 // Default options used in the libp2p node
 var DefaultWakuNodeOptions = []WakuNodeOption{
-	WithLogger(utils.Logger().Desugar()),
+	WithLogger(utils.Logger()),
 	WithWakuRelay(),
 }
 
@@ -114,7 +114,7 @@ func (w WakuNodeParameters) AddressFactory() basichost.AddrsFactory {
 // WithLogger is a WakuNodeOption that adds a custom logger
 func WithLogger(l *zap.Logger) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.logger = l.Sugar()
+		params.logger = l
 		return nil
 	}
 }

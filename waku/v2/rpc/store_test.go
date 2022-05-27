@@ -15,7 +15,7 @@ func makeStoreService(t *testing.T) *StoreService {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-	return &StoreService{n, utils.Logger()}
+	return &StoreService{n, utils.Logger().Sugar()}
 }
 
 func TestStoreGetV1Messages(t *testing.T) {

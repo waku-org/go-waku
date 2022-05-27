@@ -25,7 +25,7 @@ func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscri
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10), 0, utils.Logger())
+	relay, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10), 0, utils.Logger().Sugar())
 	require.NoError(t, err)
 
 	sub, err := relay.SubscribeToTopic(context.Background(), topic)
@@ -56,7 +56,7 @@ func TestWakuLightPush(t *testing.T) {
 	defer sub2.Unsubscribe()
 
 	ctx := context.Background()
-	lightPushNode2 := NewWakuLightPush(ctx, host2, node2, utils.Logger())
+	lightPushNode2 := NewWakuLightPush(ctx, host2, node2, utils.Logger().Sugar())
 	err := lightPushNode2.Start()
 	require.NoError(t, err)
 	defer lightPushNode2.Stop()
@@ -66,7 +66,7 @@ func TestWakuLightPush(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(ctx, clientHost, nil, utils.Logger())
+	client := NewWakuLightPush(ctx, clientHost, nil, utils.Logger().Sugar())
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(relay.WakuRelayID_v200))
@@ -122,7 +122,7 @@ func TestWakuLightPushStartWithoutRelay(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(ctx, clientHost, nil, utils.Logger())
+	client := NewWakuLightPush(ctx, clientHost, nil, utils.Logger().Sugar())
 	err = client.Start()
 
 	require.Errorf(t, err, "relay is required")
@@ -136,7 +136,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(ctx, clientHost, nil, utils.Logger())
+	client := NewWakuLightPush(ctx, clientHost, nil, utils.Logger().Sugar())
 
 	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", 0), testTopic)
 	require.Errorf(t, err, "no suitable remote peers")
