@@ -283,7 +283,7 @@ func (w *WakuNode) checkForAddressChanges() {
 func (w *WakuNode) Start() error {
 	w.log.Info("Version details ", zap.String("commit", GitCommit))
 
-	w.swap = swap.NewWakuSwap(w.log.Sugar(), []swap.SwapOption{
+	w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
 		swap.WithMode(w.opts.swapMode),
 		swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
 	}...)

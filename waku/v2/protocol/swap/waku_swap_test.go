@@ -8,7 +8,7 @@ import (
 )
 
 func TestSwapCreditDebit(t *testing.T) {
-	swap := NewWakuSwap(utils.Logger().Sugar(), []SwapOption{
+	swap := NewWakuSwap(utils.Logger(), []SwapOption{
 		WithMode(SoftMode),
 		WithThreshold(0, 0),
 	}...)
