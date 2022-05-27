@@ -462,7 +462,7 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 
 func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option) error {
 	var err error
-	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.log.Sugar(), opts...)
+	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.log, opts...)
 	if err != nil {
 		return err
 	}
