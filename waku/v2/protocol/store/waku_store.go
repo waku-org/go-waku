@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"github.com/libp2p/go-msgio/protoio"
 	"go.uber.org/zap"
 
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/metrics"
 	"github.com/status-im/go-waku/waku/v2/protocol"
@@ -239,7 +239,7 @@ type WakuStore struct {
 	MsgC chan *protocol.Envelope
 	wg   *sync.WaitGroup
 
-	log *zap.SugaredLogger
+	log *zap.Logger
 
 	started bool
 
@@ -259,7 +259,7 @@ type Store interface {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration, log *zap.SugaredLogger) *WakuStore {
+func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration, log *zap.Logger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.h = host
@@ -308,12 +308,14 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		store.log.Info(fmt.Sprintf("Store initialization took %s", elapsed))
+		store.log.Info("Store initialization complete",
+			zap.Duration("duration", elapsed),
+			zap.Int("messages", store.messageQueue.Length()))
 	}()
 
 	storedMessages, err := (store.msgProvider).GetAll()
 	if err != nil {
-		store.log.Error("could not load DBProvider messages", err)
+		store.log.Error("loading DBProvider messages", zap.Error(err))
 		metrics.RecordStoreError(ctx, "store_load_failure")
 		return
 	}
@@ -328,8 +330,6 @@ func (store *WakuStore) fetchDBRecords(ctx context.Context) {
 	}
 
 	metrics.RecordMessage(ctx, "stored", store.messageQueue.Length())
-
-	store.log.Info(fmt.Sprintf("%d messages available in waku store", store.messageQueue.Length()))
 }
 
 func (store *WakuStore) addToMessageQueue(pubsubTopic string, idx *pb.Index, msg *pb.WakuMessage) error {
@@ -339,7 +339,7 @@ func (store *WakuStore) addToMessageQueue(pubsubTopic string, idx *pb.Index, msg
 func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
 	index, err := computeIndex(env)
 	if err != nil {
-		store.log.Error("could not calculate message index", err)
+		store.log.Error("creating message index", zap.Error(err))
 		return err
 	}
 
@@ -356,7 +356,7 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
 	// TODO: Move this to a separate go routine if DB writes becomes a bottleneck
 	err = store.msgProvider.Put(index, env.PubsubTopic(), env.Message()) // Should the index be stored?
 	if err != nil {
-		store.log.Error("could not store message", err)
+		store.log.Error("storing message", zap.Error(err))
 		metrics.RecordStoreError(store.ctx, "store_failure")
 		return err
 	}
@@ -374,7 +374,7 @@ func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
 
 func (store *WakuStore) onRequest(s network.Stream) {
 	defer s.Close()
-
+	logger := store.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
 	historyRPCRequest := &pb.HistoryRPC{}
 
 	writer := protoio.NewDelimitedWriter(s)
@@ -382,23 +382,27 @@ func (store *WakuStore) onRequest(s network.Stream) {
 
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
-		store.log.Error("error reading request", err)
+		logger.Error("reading request", zap.Error(err))
 		metrics.RecordStoreError(store.ctx, "decodeRPCFailure")
 		return
 	}
-
-	store.log.Info(fmt.Sprintf("%s: Received query from %s", s.Conn().LocalPeer(), s.Conn().RemotePeer()))
+	logger = logger.With(zap.String("id", historyRPCRequest.RequestId))
+	if query := historyRPCRequest.Query; query != nil {
+		logger = logger.With(logging.Filters(query.GetContentFilters()))
+	}
+	logger.Info("received query")
 
 	historyResponseRPC := &pb.HistoryRPC{}
 	historyResponseRPC.RequestId = historyRPCRequest.RequestId
 	historyResponseRPC.Response = store.FindMessages(historyRPCRequest.Query)
 
+	logger = logger.With(zap.Int("messages", len(historyResponseRPC.Response.Messages)))
 	err = writer.WriteMsg(historyResponseRPC)
 	if err != nil {
-		store.log.Error("error writing response", err)
+		logger.Error("writing response", zap.Error(err), logging.PagingInfo(historyResponseRPC.Response.PagingInfo))
 		_ = s.Reset()
 	} else {
-		store.log.Info(fmt.Sprintf("%s: Response sent  to %s", s.Conn().LocalPeer().String(), s.Conn().RemotePeer().String()))
+		logger.Info("response sent")
 	}
 }
 
@@ -491,22 +495,22 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // to request the message history
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), params.s.log.Desugar())
+		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), params.s.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
-			params.s.log.Info("Error selecting peer: ", err)
+			params.s.log.Info("selecting peer", zap.Error(err))
 		}
 	}
 }
 
 func WithFastestPeerSelection(ctx context.Context) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), params.s.log.Desugar())
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), params.s.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
-			params.s.log.Info("Error selecting peer: ", err)
+			params.s.log.Info("selecting peer", zap.Error(err))
 		}
 	}
 }
@@ -547,17 +551,19 @@ func DefaultOptions() []HistoryRequestOption {
 }
 
 func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestId []byte) (*pb.HistoryResponse, error) {
-	store.log.Info(fmt.Sprintf("Querying message history with peer %s", selectedPeer))
+	logger := store.log.With(logging.HostID("peer", selectedPeer))
+	logger.Info("querying message history")
 
 	// We connect first so dns4 addresses are resolved (NewStream does not do it)
 	err := store.h.Connect(ctx, store.h.Peerstore().PeerInfo(selectedPeer))
 	if err != nil {
+		logger.Error("connecting to peer", zap.Error(err))
 		return nil, err
 	}
 
 	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta4)
 	if err != nil {
-		store.log.Error("Failed to connect to remote peer", err)
+		logger.Error("creating stream to peer", zap.Error(err))
 		return nil, err
 	}
 
@@ -573,14 +579,14 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 
 	err = writer.WriteMsg(historyRequest)
 	if err != nil {
-		store.log.Error("could not write request", err)
+		logger.Error("writing request", zap.Error(err))
 		return nil, err
 	}
 
 	historyResponseRPC := &pb.HistoryRPC{}
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
-		store.log.Error("could not read response", err)
+		logger.Error("reading response", zap.Error(err))
 		metrics.RecordStoreError(store.ctx, "decodeRPCFailure")
 		return nil, err
 	}
@@ -705,7 +711,7 @@ func (store *WakuStore) queryLoop(ctx context.Context, query *pb.HistoryQuery, c
 				resultChan <- result
 				return
 			}
-			store.log.Error(fmt.Errorf("resume history with peer %s failed: %w", peer, err))
+			store.log.Error("resuming history", logging.HostID("peer", peer), zap.Error(err))
 		}()
 	}
 
@@ -774,9 +780,9 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 	}
 
 	if len(peerList) == 0 {
-		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta4), store.log.Desugar())
+		p, err := utils.SelectPeer(store.h, string(StoreID_v20beta4), store.log)
 		if err != nil {
-			store.log.Info("Error selecting peer: ", err)
+			store.log.Info("selecting peer", zap.Error(err))
 			return -1, ErrNoPeersAvailable
 		}
 
@@ -785,7 +791,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 	messages, err := store.queryLoop(ctx, rpc, peerList)
 	if err != nil {
-		store.log.Error("failed to resume history", err)
+		store.log.Error("resuming history", zap.Error(err))
 		return -1, ErrFailedToResumeHistory
 	}
 
@@ -796,7 +802,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 		}
 	}
 
-	store.log.Info("Retrieved messages since the last online time: ", len(messages))
+	store.log.Info("retrieved messages since the last online time", zap.Int("messages", len(messages)))
 
 	return msgCount, nil
 }
