@@ -2,7 +2,6 @@ package persistence
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -20,7 +19,7 @@ type MessageProvider interface {
 type DBStore struct {
 	MessageProvider
 	db  *sql.DB
-	log *zap.SugaredLogger
+	log *zap.Logger
 
 	maxMessages int
 	maxDuration time.Duration
@@ -67,7 +66,7 @@ func WithRetentionPolicy(maxMessages int, maxDuration time.Duration) DBOption {
 // Creates a new DB store using the db specified via options.
 // It will create a messages table if it does not exist and
 // clean up records according to the retention policy used
-func NewDBStore(log *zap.SugaredLogger, options ...DBOption) (*DBStore, error) {
+func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 	result := new(DBStore)
 	result.log = log.Named("dbstore")
 
@@ -124,7 +123,7 @@ func (d *DBStore) cleanOlderRecords() error {
 			return err
 		}
 		elapsed := time.Since(start)
-		d.log.Debug(fmt.Sprintf("Deleting older records from the DB took %s", elapsed))
+		d.log.Debug("deleting older records from the DB", zap.Duration("duration", elapsed))
 	}
 
 	// Limit number of records to a max N
@@ -136,7 +135,7 @@ func (d *DBStore) cleanOlderRecords() error {
 			return err
 		}
 		elapsed := time.Since(start)
-		d.log.Debug(fmt.Sprintf("Deleting excess records from the DB took %s", elapsed))
+		d.log.Debug("deleting excess records from the DB", zap.Duration("duration", elapsed))
 	}
 
 	return nil
@@ -166,7 +165,7 @@ func (d *DBStore) GetAll() ([]StoredMessage, error) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		d.log.Info(fmt.Sprintf("Loading records from the DB took %s", elapsed))
+		d.log.Info("loading records from the DB", zap.Duration("duration", elapsed))
 	}()
 
 	rows, err := d.db.Query("SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version FROM message ORDER BY senderTimestamp ASC")
@@ -189,7 +188,7 @@ func (d *DBStore) GetAll() ([]StoredMessage, error) {
 
 		err = rows.Scan(&id, &receiverTimestamp, &senderTimestamp, &contentTopic, &pubsubTopic, &payload, &version)
 		if err != nil {
-			d.log.Fatal(err)
+			d.log.Fatal("scanning next row", zap.Error(err))
 		}
 
 		msg := new(pb.WakuMessage)
@@ -208,7 +207,7 @@ func (d *DBStore) GetAll() ([]StoredMessage, error) {
 		result = append(result, record)
 	}
 
-	d.log.Info(fmt.Sprintf("DB returned %d records", len(result)))
+	d.log.Info("DB returned records", zap.Int("count", len(result)))
 
 	err = rows.Err()
 	if err != nil {

@@ -21,7 +21,7 @@ func TestStorePersistence(t *testing.T) {
 	db, err := sqlite.NewDB(":memory:")
 	require.NoError(t, err)
 
-	dbStore, err := persistence.NewDBStore(utils.Logger().Sugar(), persistence.WithDB(db))
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db))
 	require.NoError(t, err)
 
 	s1 := NewWakuStore(nil, nil, dbStore, 0, 0, utils.Logger().Sugar())
