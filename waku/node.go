@@ -85,8 +85,8 @@ func Execute(options Options) {
 	prvKey, err := getPrivKey(options)
 	failOnErr(err, "nodekey error")
 
-	p2pPrvKey := libp2pcrypto.Secp256k1PrivateKey(*prvKey)
-	id, err := peer.IDFromPublicKey((&p2pPrvKey).GetPublic())
+	p2pPrvKey := utils.EcdsaPrivKeyToSecp256k1PrivKey(prvKey)
+	id, err := peer.IDFromPublicKey(p2pPrvKey.GetPublic())
 	failOnErr(err, "deriving peer ID from private key")
 	logger := utils.Logger().With(logging.HostID("node", id))
 
@@ -361,10 +361,12 @@ func loadPrivateKeyFromFile(path string) (*ecdsa.PrivateKey, error) {
 		return nil, err
 	}
 
-	privKey := (*ecdsa.PrivateKey)(p.(*libp2pcrypto.Secp256k1PrivateKey))
-	privKey.Curve = crypto.S256()
+	pBytes, err := p.Raw()
+	if err != nil {
+		return nil, err
+	}
 
-	return privKey, nil
+	return crypto.ToECDSA(pBytes)
 }
 
 func checkForPrivateKeyFile(path string, overwrite bool) error {
@@ -387,12 +389,7 @@ func generatePrivateKey() ([]byte, error) {
 		return nil, err
 	}
 
-	privKey := libp2pcrypto.PrivKey((*libp2pcrypto.Secp256k1PrivateKey)(key))
-
-	b, err := privKey.Raw()
-	if err != nil {
-		return nil, err
-	}
+	b := key.D.Bytes()
 
 	output := make([]byte, hex.EncodedLen(len(b)))
 	hex.Encode(output, b)

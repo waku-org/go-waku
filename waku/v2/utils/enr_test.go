@@ -7,7 +7,6 @@ import (
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
@@ -26,8 +25,8 @@ func TestEnodeToMultiAddr(t *testing.T) {
 
 func TestGetENRandIP(t *testing.T) {
 	key, _ := gcrypto.GenerateKey()
-	privKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(key))
-	id, _ := peer.IDFromPublicKey(privKey.GetPublic())
+	pubKey := EcdsaPubKeyToSecp256k1PublicKey(&key.PublicKey)
+	id, _ := peer.IDFromPublicKey(pubKey)
 
 	hostAddr := &net.TCPAddr{IP: net.ParseIP("192.168.0.1"), Port: 9999}
 	hostMultiAddr, _ := manet.FromNetAddr(hostAddr)
@@ -48,8 +47,8 @@ func TestGetENRandIP(t *testing.T) {
 
 func TestMultiaddr(t *testing.T) {
 	key, _ := gcrypto.GenerateKey()
-	privKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(key))
-	id, _ := peer.IDFromPublicKey(privKey.GetPublic())
+	pubKey := EcdsaPubKeyToSecp256k1PublicKey(&key.PublicKey)
+	id, _ := peer.IDFromPublicKey(pubKey)
 	ogMultiaddress, _ := ma.NewMultiaddr("/ip4/10.0.0.241/tcp/60001/ws/p2p/" + id.Pretty())
 	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
 

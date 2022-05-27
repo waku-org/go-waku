@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
@@ -144,7 +143,7 @@ func GetENRandIP(addr ma.Multiaddr, wakuFlags WakuEnrBitfield, privK *ecdsa.Priv
 
 // EnodeToMultiaddress converts an enode into a multiaddress
 func enodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
-	pubKey := (*crypto.Secp256k1PublicKey)(node.Pubkey())
+	pubKey := EcdsaPubKeyToSecp256k1PublicKey(node.Pubkey())
 	peerID, err := peer.IDFromPublicKey(pubKey)
 	if err != nil {
 		return nil, err
@@ -155,7 +154,7 @@ func enodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
 
 // Multiaddress is used to extract all the multiaddresses that are part of a ENR record
 func Multiaddress(node *enode.Node) ([]ma.Multiaddr, error) {
-	pubKey := (*crypto.Secp256k1PublicKey)(node.Pubkey())
+	pubKey := EcdsaPubKeyToSecp256k1PublicKey(node.Pubkey())
 	peerID, err := peer.IDFromPublicKey(pubKey)
 	if err != nil {
 		return nil, err

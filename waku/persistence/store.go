@@ -174,7 +174,10 @@ func (d *DBStore) checkForOlderRecords(t time.Duration) {
 		case <-d.quit:
 			return
 		case <-ticker.C:
-			d.cleanOlderRecords()
+			err := d.cleanOlderRecords()
+			if err != nil {
+				d.log.Error("cleaning older records", zap.Error(err))
+			}
 		}
 	}
 }

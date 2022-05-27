@@ -10,13 +10,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	quic "github.com/libp2p/go-libp2p-quic-transport"
 	"github.com/libp2p/go-libp2p/config"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
-	"github.com/libp2p/go-tcp-transport"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
@@ -212,7 +212,7 @@ func WithPrivateKey(privKey *ecdsa.PrivateKey) WakuNodeOption {
 
 // GetPrivKey returns the private key used in the node
 func (w *WakuNodeParameters) GetPrivKey() *crypto.PrivKey {
-	privKey := crypto.PrivKey((*crypto.Secp256k1PrivateKey)(w.privKey))
+	privKey := crypto.PrivKey(utils.EcdsaPrivKeyToSecp256k1PrivKey(w.privKey))
 	return &privKey
 }
 
