@@ -48,7 +48,7 @@ func Test5000(t *testing.T) {
 	maxMsgs := 5000
 	maxMsgBytes := int2Bytes(maxMsgs)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	hostAddr1, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
