@@ -45,7 +45,7 @@ func TestFilterSubscription(t *testing.T) {
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	_, _ = filter.NewWakuFilter(context.Background(), host, false, utils.Logger().Sugar())
+	_, _ = filter.NewWakuFilter(context.Background(), host, false, utils.Logger())
 
 	d := makeFilterService(t)
 	defer d.node.Stop()
