@@ -23,8 +23,6 @@ func genRandomTimestamp(now int64, last30d int64) int64 {
 	return rand.Int63n(last30d) + now
 }
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
 func genRandomContentTopic(n int) string {
 	topics := []string{"topic1", "topic2", "topic3", "topic4", "topic5"}
 	i := n % 5
@@ -70,6 +68,10 @@ func main() {
 		fmt.Println("Inserting ", N, " records in ", dbName)
 
 		db, err := newdb(dbName)
+		if err != nil {
+			panic(err)
+		}
+
 		query := "INSERT INTO message (id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?, ?)"
 
 		err = createTable(db)

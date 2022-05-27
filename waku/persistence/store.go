@@ -158,6 +158,11 @@ func (d *DBStore) Put(cursor *pb.Index, pubsubTopic string, message *pb.WakuMess
 		return err
 	}
 
+	err = stmt.Close()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
