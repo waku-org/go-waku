@@ -363,6 +363,10 @@ func main() {
 				return err
 			}
 
+			// Set encoding for logs (console, json, ...)
+			// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
+			utils.InitLogger(options.LogEncoding)
+
 			waku.Execute(options)
 			return nil
 		},

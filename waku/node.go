@@ -72,10 +72,6 @@ func freePort() (int, error) {
 
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
-	if options.LogEncoding != "" {
-		utils.InitLogger(options.LogEncoding)
-	}
-
 	if options.GenerateKey {
 		if err := writePrivateKeyToFile(options.KeyFile, options.Overwrite); err != nil {
 			failOnErr(err, "nodekey error")
