@@ -14,7 +14,7 @@ type LightPushParameters struct {
 	host         host.Host
 	selectedPeer peer.ID
 	requestId    []byte
-	log          *zap.SugaredLogger
+	log          *zap.Logger
 }
 
 type LightPushOption func(*LightPushParameters)
@@ -27,22 +27,22 @@ func WithPeer(p peer.ID) LightPushOption {
 
 func WithAutomaticPeerSelection(host host.Host) LightPushOption {
 	return func(params *LightPushParameters) {
-		p, err := utils.SelectPeer(host, string(LightPushID_v20beta1), params.log.Desugar())
+		p, err := utils.SelectPeer(host, string(LightPushID_v20beta1), params.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
-			params.log.Info("Error selecting peer: ", err)
+			params.log.Info("selecting peer", zap.Error(err))
 		}
 	}
 }
 
 func WithFastestPeerSelection(ctx context.Context) LightPushOption {
 	return func(params *LightPushParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(LightPushID_v20beta1), params.log.Desugar())
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(LightPushID_v20beta1), params.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
-			params.log.Info("Error selecting peer: ", err)
+			params.log.Info("selecting peer", zap.Error(err))
 		}
 	}
 }

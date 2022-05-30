@@ -11,7 +11,7 @@ import (
 
 type StoreService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 }
 
 // cursor       *pb.Index
@@ -56,7 +56,7 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 		options...,
 	)
 	if err != nil {
-		s.log.Error("Error querying messages:", zap.Error(err))
+		s.log.Error("querying messages", zap.Error(err))
 		reply.Error = err.Error()
 		return nil
 	}

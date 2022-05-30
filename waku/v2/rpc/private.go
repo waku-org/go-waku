@@ -16,7 +16,7 @@ import (
 
 type PrivateService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 
 	symmetricMessages      map[string][]*pb.WakuMessage
 	symmetricMessagesMutex sync.RWMutex
@@ -56,7 +56,7 @@ type AsymmetricMessagesArgs struct {
 	PrivateKey string `json:"privateKey"`
 }
 
-func NewPrivateService(node *node.WakuNode, log *zap.SugaredLogger) *PrivateService {
+func NewPrivateService(node *node.WakuNode, log *zap.Logger) *PrivateService {
 	return &PrivateService{
 		node:               node,
 		symmetricMessages:  make(map[string][]*pb.WakuMessage),

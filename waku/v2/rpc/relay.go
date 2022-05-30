@@ -14,7 +14,7 @@ import (
 type RelayService struct {
 	node *node.WakuNode
 
-	log *zap.SugaredLogger
+	log *zap.Logger
 
 	messages      map[string][]*pb.WakuMessage
 	messagesMutex sync.RWMutex
@@ -35,7 +35,7 @@ type TopicArgs struct {
 	Topic string `json:"topic,omitempty"`
 }
 
-func NewRelayService(node *node.WakuNode, log *zap.SugaredLogger) *RelayService {
+func NewRelayService(node *node.WakuNode, log *zap.Logger) *RelayService {
 	s := &RelayService{
 		node:     node,
 		log:      log.Named("relay"),
@@ -73,7 +73,7 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 		_, err = r.node.Relay().PublishToTopic(req.Context(), &args.Message, args.Topic)
 	}
 	if err != nil {
-		r.log.Error("Error publishing message: ", err)
+		r.log.Error("publishing message", zap.Error(err))
 		reply.Success = false
 		reply.Error = err.Error()
 	} else {
@@ -93,7 +93,7 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 			_, err = r.node.Relay().SubscribeToTopic(ctx, topic)
 		}
 		if err != nil {
-			r.log.Error("Error subscribing to topic:", topic, "err:", err)
+			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
 			reply.Success = false
 			reply.Error = err.Error()
 			return nil
@@ -109,7 +109,7 @@ func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs,
 	for _, topic := range args.Topics {
 		err := r.node.Relay().Unsubscribe(ctx, topic)
 		if err != nil {
-			r.log.Error("Error unsubscribing from topic", topic, "err:", err)
+			r.log.Error("unsubscribing from topic", zap.String("topic", topic), zap.Error(err))
 			reply.Success = false
 			reply.Error = err.Error()
 			return nil

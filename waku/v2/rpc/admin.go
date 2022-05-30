@@ -15,7 +15,7 @@ import (
 
 type AdminService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 }
 
 type GetPeersArgs struct {
@@ -39,7 +39,7 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 	for _, peer := range args.Peers {
 		addr, err := ma.NewMultiaddr(peer)
 		if err != nil {
-			a.log.Error("Error building multiaddr", zap.Error(err))
+			a.log.Error("building multiaddr", zap.Error(err))
 			reply.Success = false
 			reply.Error = err.Error()
 			return nil
@@ -47,7 +47,7 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 
 		err = a.node.DialPeerWithMultiAddress(req.Context(), addr)
 		if err != nil {
-			a.log.Error("Error dialing peers", zap.Error(err))
+			a.log.Error("dialing peers", zap.Error(err))
 			reply.Success = false
 			reply.Error = err.Error()
 			return nil
@@ -65,7 +65,7 @@ func isWakuProtocol(protocol string) bool {
 func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *PeersReply) error {
 	peers, err := a.node.Peers()
 	if err != nil {
-		a.log.Error("Error getting peers", zap.Error(err))
+		a.log.Error("getting peers", zap.Error(err))
 		return nil
 	}
 	for _, peer := range peers {

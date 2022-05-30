@@ -14,7 +14,7 @@ import (
 
 type FilterService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 
 	messages      map[string][]*pb.WakuMessage
 	messagesMutex sync.RWMutex
@@ -31,7 +31,7 @@ type ContentTopicArgs struct {
 	ContentTopic string `json:"contentTopic,omitempty"`
 }
 
-func NewFilterService(node *node.WakuNode, log *zap.SugaredLogger) *FilterService {
+func NewFilterService(node *node.WakuNode, log *zap.Logger) *FilterService {
 	s := &FilterService{
 		node:     node,
 		log:      log.Named("filter"),
@@ -80,7 +80,7 @@ func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterConten
 		filter.WithAutomaticPeerSelection(),
 	)
 	if err != nil {
-		f.log.Error("Error subscribing to topic:", args.Topic, "err:", err)
+		f.log.Error("subscribing to topic", zap.String("topic", args.Topic), zap.Error(err))
 		reply.Success = false
 		reply.Error = err.Error()
 		return nil
@@ -98,7 +98,7 @@ func (f *FilterService) DeleteV1Subscription(req *http.Request, args *FilterCont
 		makeContentFilter(args),
 	)
 	if err != nil {
-		f.log.Error("Error unsubscribing to topic:", args.Topic, "err:", err)
+		f.log.Error("unsubscribing from topic", zap.String("topic", args.Topic), zap.Error(err))
 		reply.Success = false
 		reply.Error = err.Error()
 		return nil

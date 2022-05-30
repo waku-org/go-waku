@@ -8,9 +8,11 @@
 package logging
 
 import (
+	"net"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -109,4 +111,19 @@ func HexBytes(key string, bytes []byte) zap.Field {
 
 func (bytes hexBytes) String() string {
 	return hexutil.Encode(bytes)
+}
+
+// ENode creates a field for ENR node.
+func ENode(key string, node *enode.Node) zap.Field {
+	return zap.Stringer(key, node)
+}
+
+// TCPAddr creates a field for TCP v4/v6 address and port
+func TCPAddr(key string, ip net.IP, port int) zap.Field {
+	return zap.Stringer(key, &net.TCPAddr{IP: ip, Port: port})
+}
+
+// UDPAddr creates a field for UDP v4/v6 address and port
+func UDPAddr(key string, ip net.IP, port int) zap.Field {
+	return zap.Stringer(key, &net.UDPAddr{IP: ip, Port: port})
 }

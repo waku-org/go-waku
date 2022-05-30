@@ -86,7 +86,7 @@ type WakuNode struct {
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
-	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log.Sugar())
+	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log)
 }
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
@@ -218,7 +218,7 @@ func (w *WakuNode) onAddrChange() {
 			if w.opts.enableDiscV5 {
 				err := w.discoveryV5.UpdateAddr(addr)
 				if err != nil {
-					w.log.Error("updating DiscV5 address with IP", zap.Stringer("ip", addr.IP), zap.Int("port", addr.Port), zap.Error(err))
+					w.log.Error("updating DiscV5 address with IP", zap.Stringer("address", addr), zap.Error(err))
 					continue
 				}
 			}
@@ -235,7 +235,7 @@ func (w *WakuNode) logAddress(addr ma.Multiaddr) {
 		if err != nil {
 			logger.Error("obtaining ENR record from multiaddress", zap.Error(err))
 		} else {
-			logger.Info("listening", zap.Stringer("ENR", enr), zap.Stringer("ip", ip))
+			logger.Info("listening", logging.ENode("enr", enr), zap.Stringer("ip", ip))
 		}
 	}
 }
@@ -283,7 +283,7 @@ func (w *WakuNode) checkForAddressChanges() {
 func (w *WakuNode) Start() error {
 	w.log.Info("Version details ", zap.String("commit", GitCommit))
 
-	w.swap = swap.NewWakuSwap(w.log.Sugar(), []swap.SwapOption{
+	w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
 		swap.WithMode(w.opts.swapMode),
 		swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
 	}...)
@@ -294,7 +294,7 @@ func (w *WakuNode) Start() error {
 	}
 
 	if w.opts.enableFilter {
-		filter, err := filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.log.Sugar(), w.opts.filterOpts...)
+		filter, err := filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.log, w.opts.filterOpts...)
 		if err != nil {
 			return err
 		}
@@ -322,7 +322,7 @@ func (w *WakuNode) Start() error {
 		return err
 	}
 
-	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay, w.log.Sugar())
+	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay, w.log)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(); err != nil {
 			return err
@@ -462,7 +462,7 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 
 func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option) error {
 	var err error
-	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.log.Sugar(), opts...)
+	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.log, opts...)
 	if err != nil {
 		return err
 	}
@@ -492,7 +492,7 @@ func (w *WakuNode) mountDiscV5() error {
 	}
 
 	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.ListenAddresses(), w.opts.privKey, w.wakuFlag, w.log.Sugar(), discV5Options...)
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.ListenAddresses(), w.opts.privKey, w.wakuFlag, w.log, discV5Options...)
 
 	return err
 }

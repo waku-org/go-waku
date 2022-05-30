@@ -9,24 +9,14 @@ import (
 	"net"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"go.uber.org/zap"
 )
-
-var log *zap.SugaredLogger = nil
-
-func Logger() *zap.SugaredLogger {
-	if log == nil {
-		l, _ := zap.NewDevelopment()
-		log = l.Sugar()
-	}
-	return log
-}
 
 // GetHostAddress returns the first listen address used by a host
 func GetHostAddress(ha host.Host) ma.Multiaddr {
