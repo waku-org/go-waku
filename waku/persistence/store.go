@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/status-im/go-waku/waku/persistence/migrations"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
@@ -116,7 +117,7 @@ func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 		return nil, fmt.Errorf("unable to set journal_mode to WAL. actual mode %s", mode)
 	}
 
-	err = result.createTable()
+	err = migrations.Migrate(result.db)
 	if err != nil {
 		return nil, err
 	}
@@ -130,27 +131,6 @@ func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 	go result.checkForOlderRecords(10 * time.Second) // is 10s okay?
 
 	return result, nil
-}
-
-func (d *DBStore) createTable() error {
-	sqlStmt := `CREATE TABLE IF NOT EXISTS message (
-		id BLOB,
-		receiverTimestamp INTEGER NOT NULL,
-		senderTimestamp INTEGER NOT NULL,
-		contentTopic BLOB NOT NULL,
-		pubsubTopic BLOB NOT NULL,
-		payload BLOB,
-		version INTEGER NOT NULL DEFAULT 0,
-		CONSTRAINT messageIndex PRIMARY KEY (id, pubsubTopic)
-	) WITHOUT ROWID;
-	
-	CREATE INDEX IF NOT EXISTS message_senderTimestamp ON message(senderTimestamp);
-	CREATE INDEX IF NOT EXISTS message_receiverTimestamp ON message(receiverTimestamp);`
-	_, err := d.db.Exec(sqlStmt)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (d *DBStore) cleanOlderRecords() error {

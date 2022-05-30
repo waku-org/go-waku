@@ -67,6 +67,7 @@ test-ci: _before-cc test _after-cc
 
 generate:
 	go generate ./waku/v2/protocol/pb/generate.go
+	go generate ./waku/persistence/migrations/sql
 
 coverage:
 	go test  -count 1 -coverprofile=coverage.out ./...
