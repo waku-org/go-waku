@@ -95,10 +95,15 @@ func Execute(options Options) {
 	}
 
 	var db *sql.DB
-
 	if options.UseDB {
 		db, err = sqlite.NewDB(options.DBPath)
 		failOnErr(err, "Could not connect to DB")
+		logger.Debug("using database: ", zap.String("path", options.DBPath))
+
+	} else {
+		db, err = sqlite.NewDB(":memory:")
+		failOnErr(err, "Could not create in-memory DB")
+		logger.Debug("using in-memory database")
 	}
 
 	ctx := context.Background()
@@ -189,13 +194,9 @@ func Execute(options Options) {
 
 	if options.Store.Enable {
 		nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
-		if options.UseDB {
-			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
-			failOnErr(err, "DBStore")
-			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
-		} else {
-			nodeOpts = append(nodeOpts, node.WithMessageProvider(nil))
-		}
+		dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
+		failOnErr(err, "DBStore")
+		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 	}
 
 	if options.LightPush.Enable {
@@ -303,7 +304,7 @@ func Execute(options Options) {
 		rpcServer.Start()
 	}
 
-	utils.Logger().Info("Node setup complete")
+	logger.Info("Node setup complete")
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)

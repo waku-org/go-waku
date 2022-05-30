@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -17,7 +18,6 @@ import (
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/libp2p/go-tcp-transport"
 	"github.com/multiformats/go-multiaddr"
-	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
@@ -36,7 +36,7 @@ type WakuNodeParameters struct {
 	hostAddr       *net.TCPAddr
 	dns4Domain     string
 	advertiseAddr  *net.IP
-	multiAddr      []ma.Multiaddr
+	multiAddr      []multiaddr.Multiaddr
 	addressFactory basichost.AddrsFactory
 	privKey        *ecdsa.PrivateKey
 	libP2POpts     []libp2p.Option
@@ -97,7 +97,7 @@ var DefaultWakuNodeOptions = []WakuNodeOption{
 }
 
 // MultiAddresses return the list of multiaddresses configured in the node
-func (w WakuNodeParameters) MultiAddresses() []ma.Multiaddr {
+func (w WakuNodeParameters) MultiAddresses() []multiaddr.Multiaddr {
 	return w.multiAddr
 }
 
@@ -124,24 +124,24 @@ func WithDns4Domain(dns4Domain string) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.dns4Domain = dns4Domain
 
-		params.addressFactory = func([]ma.Multiaddr) []ma.Multiaddr {
+		params.addressFactory = func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
 			var result []multiaddr.Multiaddr
 
-			hostAddrMA, err := ma.NewMultiaddr("/dns4/" + params.dns4Domain)
+			hostAddrMA, err := multiaddr.NewMultiaddr("/dns4/" + params.dns4Domain)
 			if err != nil {
 				panic(fmt.Sprintf("invalid dns4 address: %s", err.Error()))
 			}
 
-			tcp, _ := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d", params.hostAddr.Port))
+			tcp, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%d", params.hostAddr.Port))
 
 			result = append(result, hostAddrMA.Encapsulate(tcp))
 
 			if params.enableWS || params.enableWSS {
 				if params.enableWSS {
-					wss, _ := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d/wss", params.wssPort))
+					wss, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%d/wss", params.wssPort))
 					result = append(result, hostAddrMA.Encapsulate(wss))
 				} else {
-					ws, _ := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d/ws", params.wsPort))
+					ws, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%d/ws", params.wsPort))
 					result = append(result, hostAddrMA.Encapsulate(ws))
 				}
 			}
@@ -176,7 +176,7 @@ func WithAdvertiseAddress(address *net.TCPAddr) WakuNodeOption {
 			return err
 		}
 
-		params.addressFactory = func([]ma.Multiaddr) []ma.Multiaddr {
+		params.addressFactory = func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
 			var result []multiaddr.Multiaddr
 			result = append(result, advertiseAddress)
 			if params.enableWS || params.enableWSS {
@@ -195,7 +195,7 @@ func WithAdvertiseAddress(address *net.TCPAddr) WakuNodeOption {
 }
 
 // WithMultiaddress is a WakuNodeOption that configures libp2p to listen on a list of multiaddresses
-func WithMultiaddress(addresses []ma.Multiaddr) WakuNodeOption {
+func WithMultiaddress(addresses []multiaddr.Multiaddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.multiAddr = append(params.multiAddr, addresses...)
 		return nil
@@ -334,6 +334,9 @@ func WithWakuStoreAndRetentionPolicy(shouldResume bool, maxDuration time.Duratio
 // used to store and retrieve persisted messages
 func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
+		if s == nil {
+			return errors.New("message provider can't be nil")
+		}
 		params.messageProvider = s
 		return nil
 	}

@@ -4,12 +4,14 @@ import (
 	"testing"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEnvelope(t *testing.T) {
 	e := NewEnvelope(
 		&pb.WakuMessage{ContentTopic: "ContentTopic"},
+		utils.GetUnixEpoch(),
 		"test",
 	)
 

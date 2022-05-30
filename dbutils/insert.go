@@ -9,9 +9,12 @@ import (
 
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 
+	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
+
+const secondsMonth = int64(30 * time.Hour * 24)
 
 func genRandomBytes(size int) (blk []byte, err error) {
 	blk = make([]byte, size)
@@ -19,8 +22,8 @@ func genRandomBytes(size int) (blk []byte, err error) {
 	return
 }
 
-func genRandomTimestamp(now int64, last30d int64) int64 {
-	return rand.Int63n(last30d) + now
+func genRandomTimestamp(t30daysAgo int64) int64 {
+	return rand.Int63n(secondsMonth) + t30daysAgo
 }
 
 func genRandomContentTopic(n int) string {
@@ -38,7 +41,10 @@ func newdb(path string) (*sql.DB, error) {
 }
 
 func createTable(db *sql.DB) error {
-	sqlStmt := `CREATE TABLE IF NOT EXISTS message (
+	sqlStmt := `
+	PRAGMA journal_mode=WAL;
+	
+	CREATE TABLE IF NOT EXISTS message (
 		id BLOB,
 		receiverTimestamp INTEGER NOT NULL,
 		senderTimestamp INTEGER NOT NULL,
@@ -46,7 +52,7 @@ func createTable(db *sql.DB) error {
 		pubsubTopic BLOB NOT NULL,
 		payload BLOB,
 		version INTEGER NOT NULL DEFAULT 0,
-		CONSTRAINT messageIndex PRIMARY KEY (senderTimestamp, id, pubsubTopic)
+		CONSTRAINT messageIndex PRIMARY KEY (id, pubsubTopic)
 	) WITHOUT ROWID;
 	
 	CREATE INDEX IF NOT EXISTS message_senderTimestamp ON message(senderTimestamp);
@@ -71,6 +77,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		defer db.Close()
 
 		query := "INSERT INTO message (id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?, ?)"
 
@@ -89,8 +96,7 @@ func main() {
 			panic(err)
 		}
 
-		last30d := time.Now().UnixNano() - time.Now().Add(-30*time.Hour*24).UnixNano()
-		now := time.Now().Add(-1 * time.Minute).UnixNano()
+		t30daysAgo := time.Now().UnixNano() - secondsMonth
 		pubsubTopic := protocol.DefaultPubsubTopic().String()
 		for i := 1; i <= N; i++ {
 
@@ -123,16 +129,14 @@ func main() {
 			msg := pb.WakuMessage{
 				Version:      0,
 				ContentTopic: genRandomContentTopic(i),
-				Timestamp:    genRandomTimestamp(now, last30d),
+				Timestamp:    genRandomTimestamp(t30daysAgo),
 				Payload:      randPayload,
 			}
 
-			hash, err := msg.Hash()
-			if err != nil {
-				panic(err)
-			}
+			envelope := protocol.NewEnvelope(&msg, msg.Timestamp, pubsubTopic)
+			dbKey := persistence.NewDBKey(uint64(msg.Timestamp), pubsubTopic, envelope.Index().Digest)
 
-			_, err = stmt.Exec(hash, msg.Timestamp, msg.Timestamp, msg.ContentTopic, pubsubTopic, msg.Payload, msg.Version)
+			_, err = stmt.Exec(dbKey.Bytes(), msg.Timestamp, msg.Timestamp, msg.ContentTopic, pubsubTopic, msg.Payload, msg.Version)
 			if err != nil {
 				panic(err)
 			}
