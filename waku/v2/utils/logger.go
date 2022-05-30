@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -46,7 +48,7 @@ func InitLogger(encoding string) {
 
 	logger, err := cfg.Build()
 	if err != nil {
-		panic("could not create logger")
+		panic(fmt.Errorf("could not create logger: %s", err.Error()))
 	}
 
 	log = logger.Named("gowaku")
