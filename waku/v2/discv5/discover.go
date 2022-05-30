@@ -215,7 +215,7 @@ func (d *DiscoveryV5) listen() error {
 	d.log.Info("started Discovery V5",
 		zap.Stringer("listening", d.udpAddr),
 		logging.TCPAddr("advertising", d.localnode.Node().IP(), d.localnode.Node().TCP()))
-	d.log.Info("Discovery V5: discoverable ENR ", logging.ENode("node", d.localnode.Node()))
+	d.log.Info("Discovery V5: discoverable ENR ", logging.ENode("enr", d.localnode.Node()))
 
 	return nil
 }
@@ -273,7 +273,7 @@ func (d *DiscoveryV5) UpdateAddr(addr *net.TCPAddr) error {
 	d.localnode.SetStaticIP(addr.IP)
 	d.localnode.Set(enr.TCP(uint16(addr.Port))) // lgtm [go/incorrect-integer-conversion]
 	d.log.Info("updated Discovery V5 node address", logging.TCPAddr("address", d.localnode.Node().IP(), d.localnode.Node().TCP()))
-	d.log.Info("Discovery V5", logging.ENode("node", d.localnode.Node()))
+	d.log.Info("Discovery V5", logging.ENode("enr", d.localnode.Node()))
 
 	return nil
 }
@@ -300,7 +300,7 @@ func hasTCPPort(node *enode.Node) bool {
 	enrTCP := new(enr.TCP)
 	if err := node.Record().Load(enr.WithEntry(enrTCP.ENRKey(), enrTCP)); err != nil {
 		if !enr.IsNotFound(err) {
-			utils.Logger().Named("discv5").Error("retrieving port for enr", logging.ENode("node", node))
+			utils.Logger().Named("discv5").Error("retrieving port for enr", logging.ENode("enr", node))
 		}
 		return false
 	}
@@ -321,7 +321,7 @@ func evaluateNode(node *enode.Node) bool {
 	_, err := utils.EnodeToPeerInfo(node)
 
 	if err != nil {
-		utils.Logger().Named("discv5").Error("obtaining peer info from enode", logging.ENode("node", node), zap.Error(err))
+		utils.Logger().Named("discv5").Error("obtaining peer info from enode", logging.ENode("enr", node), zap.Error(err))
 		return false
 	}
 
