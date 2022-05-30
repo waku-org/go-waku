@@ -22,28 +22,32 @@ func SetLogLevel(level string) error {
 // Logger creates a zap.Logger with some reasonable defaults
 func Logger() *zap.Logger {
 	if log == nil {
-		cfg := zap.Config{
-			Encoding:         "console",
-			Level:            atom,
-			OutputPaths:      []string{"stderr"},
-			ErrorOutputPaths: []string{"stderr"},
-			EncoderConfig: zapcore.EncoderConfig{
-				MessageKey:   "message",
-				LevelKey:     "level",
-				EncodeLevel:  zapcore.CapitalLevelEncoder,
-				TimeKey:      "time",
-				EncodeTime:   zapcore.ISO8601TimeEncoder,
-				NameKey:      "caller",
-				EncodeCaller: zapcore.ShortCallerEncoder,
-			},
-		}
-
-		logger, err := cfg.Build()
-		if err != nil {
-			panic("could not create logger")
-		}
-
-		log = logger.Named("gowaku")
+		InitLogger("console")
 	}
 	return log
+}
+
+func InitLogger(encoding string) {
+	cfg := zap.Config{
+		Encoding:         encoding,
+		Level:            atom,
+		OutputPaths:      []string{"stderr"},
+		ErrorOutputPaths: []string{"stderr"},
+		EncoderConfig: zapcore.EncoderConfig{
+			MessageKey:   "message",
+			LevelKey:     "level",
+			EncodeLevel:  zapcore.CapitalLevelEncoder,
+			TimeKey:      "time",
+			EncodeTime:   zapcore.ISO8601TimeEncoder,
+			NameKey:      "caller",
+			EncodeCaller: zapcore.ShortCallerEncoder,
+		},
+	}
+
+	logger, err := cfg.Build()
+	if err != nil {
+		panic("could not create logger")
+	}
+
+	log = logger.Named("gowaku")
 }

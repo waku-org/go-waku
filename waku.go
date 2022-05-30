@@ -135,6 +135,12 @@ func main() {
 				Usage:       "Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms.",
 				Destination: &options.LogLevel,
 			},
+			&cli.StringFlag{
+				Name:        "log-encoding",
+				Value:       "console",
+				Usage:       "Define the encoding used for the logs: console, json",
+				Destination: &options.LogEncoding,
+			},
 			&cli.BoolFlag{
 				Name:        "relay",
 				Value:       true,
