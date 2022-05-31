@@ -14,11 +14,13 @@ type InfoArgs struct {
 }
 
 type InfoReply struct {
-	Version string `json:"version,omitempty"`
+	ListenAddresses []string `json:"listenAddresses,omitempty"`
 }
 
 func (d *DebugService) GetV1Info(r *http.Request, args *InfoArgs, reply *InfoReply) error {
-	reply.Version = "2.0"
+	for _, addr := range d.node.ListenAddresses() {
+		reply.ListenAddresses = append(reply.ListenAddresses, addr.String())
+	}
 	return nil
 }
 

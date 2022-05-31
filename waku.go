@@ -111,6 +111,11 @@ func main() {
 				Usage:       "Use SQLiteDB to persist information",
 				Destination: &options.UseDB,
 			},
+			&cli.BoolFlag{
+				Name:        "persist-messages",
+				Usage:       "Enable message persistence",
+				Destination: &options.Store.PersistMessages,
+			},
 			&cli.StringFlag{
 				Name:        "db-path",
 				Aliases:     []string{"dbpath"},

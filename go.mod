@@ -36,6 +36,8 @@ require (
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 )
 
+require golang.org/x/text v0.3.7
+
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
