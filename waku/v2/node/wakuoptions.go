@@ -14,6 +14,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/config"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	"github.com/libp2p/go-libp2p/p2p/muxer/mplex"
+	"github.com/libp2p/go-libp2p/p2p/muxer/yamux"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
@@ -416,6 +418,10 @@ var DefaultLibP2POptions = []libp2p.Option{
 		libp2p.Transport(tcp.NewTCPTransport),
 		libp2p.Transport(quic.NewTransport),
 	), libp2p.UserAgent(clientId),
+	libp2p.ChainOptions(
+		libp2p.Muxer("/yamux/1.0.0", yamux.DefaultTransport),
+		libp2p.Muxer("/mplex/6.7.0", mplex.DefaultTransport),
+	),
 	libp2p.EnableNATService(),
 	libp2p.ConnectionManager(newConnManager(200, 300, connmgr.WithGracePeriod(0))),
 }
