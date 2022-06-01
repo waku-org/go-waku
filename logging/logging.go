@@ -54,7 +54,7 @@ func Time(key string, time int64) zapcore.Field {
 }
 
 func (t timestamp) String() string {
-	return time.UnixMicro(int64(t)).Format(time.RFC3339)
+	return time.Unix(0, int64(t)).Format(time.RFC3339)
 }
 
 // History Query Filters
@@ -96,8 +96,8 @@ func (pi *pagingInfo) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 
 func (i *index) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
 	encoder.AddBinary("digest", i.Digest)
-	encoder.AddTime("sent", time.UnixMicro(i.SenderTime))
-	encoder.AddTime("received", time.UnixMicro(i.ReceiverTime))
+	encoder.AddTime("sent", time.Unix(0, i.SenderTime))
+	encoder.AddTime("received", time.Unix(0, i.ReceiverTime))
 	return nil
 }
 
