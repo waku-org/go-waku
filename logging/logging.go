@@ -45,7 +45,7 @@ func HostID(key string, id peer.ID) zapcore.Field {
 
 func (id hostID) String() string { return peer.Encode(peer.ID(id)) }
 
-// Time - Waku uses Microsecond Unix Time
+// Time - Waku uses Nanosecond Unix Time
 type timestamp int64
 
 // Time creates a field for Waku time value
