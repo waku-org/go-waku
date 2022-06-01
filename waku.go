@@ -117,6 +117,11 @@ func main() {
 				Destination: &options.Store.PersistMessages,
 			},
 			&cli.StringFlag{
+				Name:        "nat",
+				Usage:       "TODO",
+				Destination: &options.NAT,
+			},
+			&cli.StringFlag{
 				Name:        "db-path",
 				Aliases:     []string{"dbpath"},
 				Value:       "./store.db",

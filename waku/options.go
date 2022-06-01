@@ -124,6 +124,7 @@ type Options struct {
 	ShowAddresses    bool
 	LogLevel         string
 	LogEncoding      string
+	NAT              string
 
 	Websocket        WSOptions
 	Relay            RelayOptions
