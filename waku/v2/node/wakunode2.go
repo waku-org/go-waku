@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"go.uber.org/zap"
 
@@ -58,6 +58,8 @@ type WakuNode struct {
 	store      store.Store
 	swap       *swap.WakuSwap
 	wakuFlag   utils.WakuEnrBitfield
+
+	localNode *enode.LocalNode
 
 	addrChan chan ma.Multiaddr
 
@@ -191,52 +193,8 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 func (w *WakuNode) onAddrChange() {
 	for m := range w.addrChan {
-		ipStr, err := m.ValueForProtocol(ma.P_IP4)
-		if err != nil {
-			w.log.Error("extracting ip from ma", logging.MultiAddrs("ma", m), zap.Error(err))
-			continue
-		}
-
-		portStr, err := m.ValueForProtocol(ma.P_TCP)
-		if err != nil {
-			w.log.Error("extracting port from ma", logging.MultiAddrs("ma", m), zap.Error(err))
-			continue
-		}
-
-		port, err := strconv.Atoi(portStr)
-		if err != nil {
-			w.log.Error("converting port to int", zap.Error(err))
-			continue
-		}
-
-		addr := &net.TCPAddr{
-			IP:   net.ParseIP(ipStr),
-			Port: port,
-		}
-
-		if !addr.IP.IsLoopback() && !addr.IP.IsUnspecified() {
-			if w.opts.enableDiscV5 {
-				err := w.discoveryV5.UpdateAddr(addr)
-				if err != nil {
-					w.log.Error("updating DiscV5 address with IP", zap.Stringer("address", addr), zap.Error(err))
-					continue
-				}
-			}
-		}
-	}
-}
-
-func (w *WakuNode) logAddress(addr ma.Multiaddr) {
-	logger := w.log.With(logging.MultiAddrs("multiaddr", addr))
-
-	// TODO: make this optional depending on DNS Disc being enabled
-	if w.opts.privKey != nil {
-		enr, ip, err := utils.GetENRandIP(addr, w.wakuFlag, w.opts.privKey)
-		if err != nil {
-			logger.Error("obtaining ENR record from multiaddress", zap.Error(err))
-		} else {
-			logger.Info("listening", logging.ENode("enr", enr), zap.Stringer("ip", ip))
-		}
+		_ = m
+		// TODO: determine if still needed. Otherwise remove
 	}
 }
 
@@ -251,29 +209,27 @@ func (w *WakuNode) checkForAddressChanges() {
 		case <-w.quit:
 			return
 		case <-first:
-			for _, addr := range addrs {
-				w.logAddress(addr)
-			}
+			w.log.Info("listening", logging.MultiAddrs("multiaddr", addrs...))
 		case <-w.addressChangesSub.Out():
 			newAddrs := w.ListenAddresses()
-			print := false
+			diff := false
 			if len(addrs) != len(newAddrs) {
-				print = true
+				diff = true
 			} else {
 				for i := range newAddrs {
 					if addrs[i].String() != newAddrs[i].String() {
-						print = true
+						diff = true
 						break
 					}
 				}
 			}
-			if print {
+			if diff {
 				addrs = newAddrs
-				w.log.Warn("Change in host multiaddresses")
-				for _, addr := range newAddrs {
+				w.log.Info("listening addresses update received", logging.MultiAddrs("multiaddr", addrs...))
+				for _, addr := range addrs {
 					w.addrChan <- addr
-					w.logAddress(addr)
 				}
+				_ = w.setupENR(addrs)
 			}
 		}
 	}
@@ -307,7 +263,12 @@ func (w *WakuNode) Start() error {
 	}
 
 	if w.opts.enableDiscV5 {
-		err := w.mountDiscV5()
+		err := w.setupENR(w.ListenAddresses())
+		if err != nil {
+			return err
+		}
+
+		err = w.mountDiscV5()
 		if err != nil {
 			return err
 		}
@@ -401,6 +362,11 @@ func (w *WakuNode) ListenAddresses() []ma.Multiaddr {
 	return result
 }
 
+// ENR returns the ENR address of the node
+func (w *WakuNode) ENR() *enode.Node {
+	return w.localNode.Node()
+}
+
 // Relay is used to access any operation related to Waku Relay protocol
 func (w *WakuNode) Relay() *relay.WakuRelay {
 	return w.relay
@@ -492,7 +458,7 @@ func (w *WakuNode) mountDiscV5() error {
 	}
 
 	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.ListenAddresses(), w.opts.privKey, w.wakuFlag, w.log, discV5Options...)
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.opts.privKey, w.localNode, w.log, discV5Options...)
 
 	return err
 }
