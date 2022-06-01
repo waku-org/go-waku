@@ -122,6 +122,7 @@ type Options struct {
 	AdvertiseAddress string
 	ShowAddresses    bool
 	LogLevel         string
+	LogEncoding      string
 
 	Websocket        WSOptions
 	Relay            RelayOptions
