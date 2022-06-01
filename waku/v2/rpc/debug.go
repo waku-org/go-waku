@@ -14,10 +14,12 @@ type InfoArgs struct {
 }
 
 type InfoReply struct {
+	ENRUri          string   `json:"enrUri,omitempty"`
 	ListenAddresses []string `json:"listenAddresses,omitempty"`
 }
 
 func (d *DebugService) GetV1Info(r *http.Request, args *InfoArgs, reply *InfoReply) error {
+	reply.ENRUri = d.node.ENR().String()
 	for _, addr := range d.node.ListenAddresses() {
 		reply.ListenAddresses = append(reply.ListenAddresses, addr.String())
 	}
