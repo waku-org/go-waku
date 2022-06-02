@@ -94,6 +94,7 @@ func (wakuLP *WakuLightPush) onRequest(s network.Stream) {
 			_, err := wakuLP.relay.PublishToTopic(wakuLP.ctx, message, pubSubTopic)
 
 			if err != nil {
+				logger.Error("publishing message", zap.Error(err))
 				response.IsSuccess = false
 				response.Info = "Could not publish message"
 			} else {
