@@ -262,13 +262,13 @@ func (w *WakuNode) Start() error {
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(rendezvous, w.opts.rendezvousOpts...))
 	}
 
-	if w.opts.enableDiscV5 {
-		err := w.setupENR(w.ListenAddresses())
-		if err != nil {
-			return err
-		}
+	err := w.setupENR(w.ListenAddresses())
+	if err != nil {
+		return err
+	}
 
-		err = w.mountDiscV5()
+	if w.opts.enableDiscV5 {
+		err := w.mountDiscV5()
 		if err != nil {
 			return err
 		}
@@ -278,7 +278,7 @@ func (w *WakuNode) Start() error {
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.discoveryV5, w.opts.discV5Opts...))
 	}
 
-	err := w.mountRelay(w.opts.minRelayPeersToPublish, w.opts.wOpts...)
+	err = w.mountRelay(w.opts.minRelayPeersToPublish, w.opts.wOpts...)
 	if err != nil {
 		return err
 	}
