@@ -12,6 +12,8 @@ nodekey
 *.aar
 *.jar
 
+pkg/*
+
 # output binaries
 go-waku
 
