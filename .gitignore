@@ -53,6 +53,8 @@ Gowaku.xcframework
 # Icon must end with two \r
 Icon
 
+# Nix
+result
 
 # Thumbnails
 ._*

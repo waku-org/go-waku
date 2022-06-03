@@ -21,6 +21,19 @@ make
 # See the available command line options with
 ./build/waku --help
 ```
+#### Nix
+You can build Waku v2 node using [Nix](https://nixos.org/) [Flakes](https://nixos.wiki/wiki/Flakes):
+```sh
+nix build github:waku-org/go-waku
+```
+Or build the library using:
+```
+nix build github:waku-org/go-waku#library
+```
+To start a shell with build dependencies use:
+```
+nix develop
+```
 
 #### Docker
 ```
