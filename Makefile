@@ -31,8 +31,8 @@ else
  GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,-soname,libgowaku.so.0"
 endif
 
-GIT_COMMIT = $(shell git rev-parse --short HEAD)
-VERSION = $(shell cat ./VERSION)
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
+VERSION ?= $(shell cat ./VERSION)
 UID := $(shell id -u)
 GID := $(shell id -g)
 
