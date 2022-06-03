@@ -6,6 +6,8 @@ CC_PREFIX       	:= github.com/status-im/go-waku
 
 SHELL := bash # the shell used internally by Make
 
+GOBIN ?= $(shell which go)
+
 .PHONY: all build lint test coverage build-example static-library dynamic-library test-c test-c-template mobile-android mobile-ios
 
 ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
@@ -39,23 +41,23 @@ all: build
 deps: lint-install
 
 build:
-	go build $(BUILD_FLAGS) -o build/waku waku.go
+	${GOBIN} build $(BUILD_FLAGS) -o build/waku waku.go
 
 vendor:
-	go mod tidy
+	${GOBIN} mod tidy
 
 lint-install:
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		bash -s -- -b $(shell go env GOPATH)/bin v1.41.1
+		bash -s -- -b $(shell ${GOBIN} env GOPATH)/bin v1.41.1
 
 lint:
 	@echo "lint"
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
 test:
-	go test ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
+	${GOBIN} test ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
 	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
-	go tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
+	${GOBIN} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 
 _before-cc:
 	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter before-build
@@ -66,12 +68,12 @@ _after-cc:
 test-ci: _before-cc test _after-cc
 
 generate:
-	go generate ./waku/v2/protocol/pb/generate.go
-	go generate ./waku/persistence/migrations/sql
+	${GOBIN} generate ./waku/v2/protocol/pb/generate.go
+	${GOBIN} generate ./waku/persistence/migrations/sql
 
 coverage:
-	go test  -count 1 -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o=coverage.html
+	${GOBIN} test  -count 1 -coverprofile=coverage.out ./...
+	${GOBIN} tool cover -html=coverage.out -o=coverage.html
 
 # build a docker image for the fleet
 docker-image: DOCKER_IMAGE_TAG ?= latest
@@ -96,7 +98,7 @@ build-example: build-example-basic2 build-example-chat-2 build-example-filter2 b
 
 static-library:
 	@echo "Building static library..."
-	go build \
+	${GOBIN} build \
 		-buildmode=c-archive \
 		-o ./build/lib/libgowaku.a \
 		./library/
@@ -105,7 +107,7 @@ static-library:
 
 dynamic-library:
 	@echo "Building shared library..."
-	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) go build \
+	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) ${GOBIN} build \
 		-buildmode=c-shared \
 		-o ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT) \
 		./library/
