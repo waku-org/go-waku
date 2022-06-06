@@ -134,10 +134,13 @@ mobile-ios:
 	@echo "IOS library built:"
 	@ls -la ./build/lib/*.xcframework
 
-install-xtools: ##@install Install Miscellaneous Go Tools
+install-xtools:
 	go install golang.org/x/tools/...@latest
 
 install-gomobile: install-xtools
-install-gomobile: ##@install Go Mobile Build Tools
+install-gomobile:
 	go install golang.org/x/mobile/cmd/gomobile@latest
 
+build-linux-pkg:
+	./scripts/linux/docker-run.sh
+	ls -la ./build/*.rpm ./build/*.deb
