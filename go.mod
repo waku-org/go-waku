@@ -6,6 +6,8 @@ replace github.com/raulk/go-watchdog v1.2.0 => github.com/status-im/go-watchdog 
 
 replace github.com/ethereum/go-ethereum v1.10.18 => github.com/status-im/go-ethereum v1.10.4-status.2
 
+replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
+
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3
@@ -36,7 +38,10 @@ require (
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 )
 
-require golang.org/x/text v0.3.7
+require (
+	github.com/flynn/noise v1.0.0
+	golang.org/x/text v0.3.7
+)
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -53,7 +58,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/elastic/gosigar v0.14.1 // indirect
-	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-kit/log v0.1.0 // indirect
@@ -145,7 +149,6 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
-	golang.org/x/mobile v0.0.0-20220518205345-8578da9835fd // indirect
 	golang.org/x/mod v0.5.0 // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
