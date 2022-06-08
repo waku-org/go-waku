@@ -1,10 +1,11 @@
 library 'status-jenkins-lib@v1.3.3'
 
 pipeline {
-  agent { label 'linux && x86_64' }
+  agent { label 'linux && x86_64 && go-1.18' }
 
   options {
     timestamps()
+    disableConcurrentBuilds()
     /* Prevent Jenkins jobs from running forever */
     timeout(time: 30, unit: 'MINUTES')
     /* Go requires a certain directory structure */
@@ -21,7 +22,7 @@ pipeline {
 
   environment {
     BUILD_PLATFORM   = 'android'
-
+    CC="gcc-10"
     /* Other stuff */
     TARGET   = 'android'
     REPO   = "${env.WORKSPACE}/src/github.com/status-im/go-waku"
@@ -31,8 +32,8 @@ pipeline {
     ANDROID_HOME     = '/usr/lib/android-sdk'
     ANDROID_SDK_ROOT = '/usr/lib/android-sdk'
     /* gomobile requires a specific NDK version */
-    ANDROID_NDK      = "${env.NDK_GOMOBILE}"
-    ANDROID_NDK_HOME = "${env.NDK_GOMOBILE}"
+    ANDROID_NDK      = "/opt/android-ndk-r23c"
+    ANDROID_NDK_HOME = "/opt/android-ndk-r23c"
   }
 
   stages {
@@ -50,6 +51,7 @@ pipeline {
     } } } }
 
     stage('Build') { steps { dir(env.REPO) {
+      sh 'make mobile-android || true'
       sh 'make mobile-android'
       dir('build/lib') {
         sh 'tar -czvf gowaku-android.tar.gz gowaku.aar gowaku-sources.jar'

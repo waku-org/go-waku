@@ -140,6 +140,8 @@ install-xtools:
 install-gomobile: install-xtools
 install-gomobile:
 	go install golang.org/x/mobile/cmd/gomobile@latest
+	go install golang.org/x/mobile/cmd/gobind@latest
+
 
 build-linux-pkg:
 	./scripts/linux/docker-run.sh
