@@ -36,6 +36,17 @@ func (sub *Subscribers) Append(s Subscriber) int {
 	return len(sub.subscribers)
 }
 
+func (subs *Subscribers) SubscriberHasContentTopic(sub Subscriber, topic string) bool {
+	subs.Lock()
+	defer subs.Unlock()
+	for _, filter := range sub.filter.ContentFilters {
+		if filter.ContentTopic == topic {
+			return true
+		}
+	}
+	return false
+}
+
 func (sub *Subscribers) Items() <-chan Subscriber {
 	c := make(chan Subscriber)
 
@@ -57,6 +68,13 @@ func (sub *Subscribers) Length() int {
 	defer sub.RUnlock()
 
 	return len(sub.subscribers)
+}
+
+func (sub *Subscribers) IsFailedPeer(peerID peer.ID) bool {
+	sub.Lock()
+	defer sub.Unlock()
+	_, ok := sub.failedPeers[peerID]
+	return ok
 }
 
 func (sub *Subscribers) FlagAsSuccess(peerID peer.ID) {

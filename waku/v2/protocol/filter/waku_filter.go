@@ -199,21 +199,17 @@ func (wf *WakuFilter) FilterListener() {
 				continue
 			}
 
-			for _, filter := range subscriber.filter.ContentFilters {
-				if msg.ContentTopic == filter.ContentTopic {
-					logger.Info("found matching content topic", zap.Stringer("filter", filter))
-					// Do a message push to light node
-					logger.Info("pushing message to light node")
-					g.Go(func() (err error) {
-						err = wf.pushMessage(subscriber, msg)
-						if err != nil {
-							logger.Error("pushing message", zap.Error(err))
-						}
-						return err
-					})
-					// Break if we have found a match
-					break
-				}
+			if wf.subscribers.SubscriberHasContentTopic(subscriber, msg.ContentTopic) {
+				logger.Info("found matching content topic", zap.String("contentTopic", msg.ContentTopic))
+				// Do a message push to light node
+				logger.Info("pushing message to light node")
+				g.Go(func() (err error) {
+					err = wf.pushMessage(subscriber, msg)
+					if err != nil {
+						logger.Error("pushing message", zap.Error(err))
+					}
+					return err
+				})
 			}
 		}
 
