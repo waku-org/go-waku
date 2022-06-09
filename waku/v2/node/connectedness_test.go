@@ -13,6 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func goCheckConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {
+	goCheckConnectedness(t, wg, connStatusChan, clientNode, node, nodeShouldBeConnected, shouldBeOnline, shouldHaveHistory, expectedPeers)
+}
+
 func checkConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {
 	defer wg.Done()
 
@@ -84,36 +88,31 @@ func TestConnectionStatusChanges(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go checkConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
 
 	err = node1.DialPeer(ctx, node2.ListenAddresses()[0].String())
 	require.NoError(t, err)
 
 	wg.Wait()
 
-	wg.Add(1)
-	go checkConnectedness(t, &wg, connStatusChan, node1, node3, true, true, true, 2)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node3, true, true, true, 2)
 
 	err = node1.DialPeer(ctx, node3.ListenAddresses()[0].String())
 	require.NoError(t, err)
 
-	wg.Add(1)
-	go checkConnectedness(t, &wg, connStatusChan, node1, node3, false, true, false, 1)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node3, false, true, false, 1)
 
 	node3.Stop()
 
 	wg.Wait()
 
-	wg.Add(1)
-	go checkConnectedness(t, &wg, connStatusChan, node1, node2, false, false, false, 0)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node2, false, false, false, 0)
 
 	err = node1.ClosePeerById(node2.Host().ID())
 	require.NoError(t, err)
 	wg.Wait()
 
-	wg.Add(1)
-	go checkConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
 
 	err = node1.DialPeerByID(ctx, node2.Host().ID())
 	require.NoError(t, err)
