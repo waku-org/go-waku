@@ -23,18 +23,21 @@ in buildGoModule {
   proxyVendor = true;
 
   ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
-  ANDROID_NDK_ROOT = "${androidSdk}/libexec/android-sdk/ndk-bundle";
-  ANDROID_NDK_HOME = "${androidSdk}/libexec/android-sdk/ndk-bundle";
-  #GOMOBILE = pkgs.gomobile;
-  #GOHOSTARCH = "amd64";
-  #GO111MODULE = "off";
+  GO111MODULE = "off";
+  GOMOBILE = gomobile;
+
+  shellHook = ''
+    env | grep -E '^(ANDROID|GO)'
+  '';
 
   buildPhase = ''
+    runHook shellHook
+    unset GOARCH
     gomobile bind -x \
       -target=android/arm64 \
       -androidapi=23 \
       -ldflags="-s -w" \
-      -o ./build/lib/Gowaku.xcframework \
+      -o ./build/lib/gowaku.aar \
       ./mobile
   '';
 
