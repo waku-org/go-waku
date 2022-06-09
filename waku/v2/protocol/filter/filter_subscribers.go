@@ -37,8 +37,8 @@ func (sub *Subscribers) Append(s Subscriber) int {
 }
 
 func (subs *Subscribers) SubscriberHasContentTopic(sub Subscriber, topic string) bool {
-	subs.Lock()
-	defer subs.Unlock()
+	subs.RLock()
+	defer subs.RUnlock()
 	for _, filter := range sub.filter.ContentFilters {
 		if filter.ContentTopic == topic {
 			return true
@@ -71,8 +71,8 @@ func (sub *Subscribers) Length() int {
 }
 
 func (sub *Subscribers) IsFailedPeer(peerID peer.ID) bool {
-	sub.Lock()
-	defer sub.Unlock()
+	sub.RLock()
+	defer sub.RUnlock()
 	_, ok := sub.failedPeers[peerID]
 	return ok
 }
