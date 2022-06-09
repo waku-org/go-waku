@@ -6,8 +6,8 @@ import (
 	mrand "math/rand"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/status-im/go-waku/go-ethereum/common/hexutil"
+	"github.com/status-im/go-waku/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 

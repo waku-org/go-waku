@@ -12,8 +12,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/ecies"
+	"github.com/status-im/go-waku/go-ethereum/crypto"
+	"github.com/status-im/go-waku/go-ethereum/crypto/ecies"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 

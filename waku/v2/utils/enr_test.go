@@ -5,11 +5,11 @@ import (
 	"net"
 	"testing"
 
-	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
+	gcrypto "github.com/status-im/go-waku/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 

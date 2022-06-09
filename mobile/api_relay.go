@@ -6,7 +6,7 @@ import (
 
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/status-im/go-waku/common/hexutil"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"

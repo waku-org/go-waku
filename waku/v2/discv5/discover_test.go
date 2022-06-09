@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/multiformats/go-multiaddr"
+	gcrypto "github.com/status-im/go-waku/go-ethereum/crypto"
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"

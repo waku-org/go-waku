@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/status-im/go-waku/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/status-im/go-waku/waku/v2/node"

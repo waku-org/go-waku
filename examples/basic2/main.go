@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
+	"github.com/status-im/go-waku/go-ethereum/crypto"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
