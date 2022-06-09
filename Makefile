@@ -135,13 +135,11 @@ mobile-ios:
 	@ls -la ./build/lib/*.xcframework
 
 install-xtools:
-	go install golang.org/x/tools/...@latest
+	go install golang.org/x/tools/...@v0.1.10
 
 install-gomobile: install-xtools
-install-gomobile:
-	go install golang.org/x/mobile/cmd/gomobile@latest
-	go install golang.org/x/mobile/cmd/gobind@latest
-
+	go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20220518205345-8578da9835fd
+	go install golang.org/x/mobile/cmd/gobind@v0.0.0-20220518205345-8578da9835fd
 
 build-linux-pkg:
 	./scripts/linux/docker-run.sh
