@@ -127,20 +127,21 @@ func TestFilterGetV1Messages(t *testing.T) {
 	// Wait for the message to be received
 	time.Sleep(1 * time.Second)
 
-	var messagesReply MessagesReply
+	var messagesReply1 MessagesReply
 	err = serviceB.GetV1Messages(
 		makeRequest(t),
 		&ContentTopicArgs{"ct"},
-		&messagesReply,
+		&messagesReply1,
 	)
 	require.NoError(t, err)
-	require.Len(t, messagesReply.Messages, 1)
+	require.Len(t, messagesReply1, 1)
 
+	var messagesReply2 MessagesReply
 	err = serviceB.GetV1Messages(
 		makeRequest(t),
 		&ContentTopicArgs{"ct"},
-		&messagesReply,
+		&messagesReply2,
 	)
 	require.NoError(t, err)
-	require.Len(t, messagesReply.Messages, 0)
+	require.Len(t, messagesReply2, 0)
 }

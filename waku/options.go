@@ -53,6 +53,7 @@ type LightpushOptions struct {
 // node and provide message history to nodes that ask for it.
 type StoreOptions struct {
 	Enable               bool
+	PersistMessages      bool
 	ShouldResume         bool
 	RetentionMaxDays     int
 	RetentionMaxMessages int
@@ -123,6 +124,7 @@ type Options struct {
 	ShowAddresses    bool
 	LogLevel         string
 	LogEncoding      string
+	NAT              string
 
 	Websocket        WSOptions
 	Relay            RelayOptions

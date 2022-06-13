@@ -111,6 +111,16 @@ func main() {
 				Usage:       "Use SQLiteDB to persist information",
 				Destination: &options.UseDB,
 			},
+			&cli.BoolFlag{
+				Name:        "persist-messages",
+				Usage:       "Enable message persistence",
+				Destination: &options.Store.PersistMessages,
+			},
+			&cli.StringFlag{
+				Name:        "nat",
+				Usage:       "TODO - Not implemented yet.", // This was added so js-waku test don't fail
+				Destination: &options.NAT,
+			},
 			&cli.StringFlag{
 				Name:        "db-path",
 				Aliases:     []string{"dbpath"},

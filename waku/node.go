@@ -193,10 +193,14 @@ func Execute(options Options) {
 	}
 
 	if options.Store.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
-		dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
-		failOnErr(err, "DBStore")
-		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+		if options.Store.PersistMessages {
+			nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
+			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
+			failOnErr(err, "DBStore")
+			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+		} else {
+			nodeOpts = append(nodeOpts, node.WithWakuStore(false, false))
+		}
 	}
 
 	if options.LightPush.Enable {

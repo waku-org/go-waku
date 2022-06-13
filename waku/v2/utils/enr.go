@@ -111,7 +111,7 @@ func GetENRandIP(addr ma.Multiaddr, wakuFlags WakuEnrBitfield, privK *ecdsa.Priv
 
 	p2pAddr, err := ma.NewMultiaddr("/p2p/" + p2p)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not create p2p addr: %w", err)
+		return nil, nil, fmt.Errorf("could not create p2p addr: %w", err)
 	}
 
 	var fieldRaw []byte
