@@ -69,12 +69,12 @@ var (
 		Measure:     LightpushErrors,
 		Description: "The distribution of the lightpush protocol errors",
 		Aggregation: view.Count(),
-		TagKeys:     []tag.Key{KeyType},
+		TagKeys:     []tag.Key{ErrorType},
 	}
 )
 
 func RecordLightpushError(ctx context.Context, tagType string) {
-	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(tag.Key(ErrorType), tagType)}, LightpushErrors.M(1)); err != nil {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(ErrorType, tagType)}, LightpushErrors.M(1)); err != nil {
 		utils.Logger().Error("failed to record with tags", zap.Error(err))
 	}
 }
