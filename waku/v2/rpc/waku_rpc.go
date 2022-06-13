@@ -88,6 +88,9 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 	server.RegisterOnShutdown(func() {
 		filterService.Stop()
 		relayService.Stop()
+		if wrpc.privateService != nil {
+			wrpc.privateService.Stop()
+		}
 	})
 
 	wrpc.node = node
@@ -101,6 +104,9 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 func (r *WakuRpc) Start() {
 	go r.relayService.Start()
 	go r.filterService.Start()
+	if r.privateService != nil {
+		go r.privateService.Start()
+	}
 	go func() {
 		_ = r.server.ListenAndServe()
 	}()

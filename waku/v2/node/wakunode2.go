@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"go.uber.org/zap"
@@ -95,17 +96,22 @@ func defaultStoreFactory(w *WakuNode) store.Store {
 func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	params := new(WakuNodeParameters)
 
-	ctx, cancel := context.WithCancel(ctx)
-
 	params.libP2POpts = DefaultLibP2POptions
 
 	opts = append(DefaultWakuNodeOptions, opts...)
 	for _, opt := range opts {
 		err := opt(params)
 		if err != nil {
-			cancel()
 			return nil, err
 		}
+	}
+
+	if params.privKey == nil {
+		prvKey, err := crypto.GenerateKey()
+		if err != nil {
+			return nil, err
+		}
+		params.privKey = prvKey
 	}
 
 	if params.enableWSS {
@@ -118,7 +124,6 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	if params.hostAddr == nil {
 		err := WithHostAddress(&net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 0})(params)
 		if err != nil {
-			cancel()
 			return nil, err
 		}
 	}
@@ -126,9 +131,7 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 		params.libP2POpts = append(params.libP2POpts, libp2p.ListenAddrs(params.multiAddr...))
 	}
 
-	if params.privKey != nil {
-		params.libP2POpts = append(params.libP2POpts, params.Identity())
-	}
+	params.libP2POpts = append(params.libP2POpts, params.Identity())
 
 	if params.addressFactory != nil {
 		params.libP2POpts = append(params.libP2POpts, libp2p.AddrsFactory(params.addressFactory))
@@ -136,9 +139,10 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 	host, err := libp2p.New(params.libP2POpts...)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
 
 	w := new(WakuNode)
 	w.bcaster = v2.NewBroadcaster(1024)

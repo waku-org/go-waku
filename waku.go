@@ -118,7 +118,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:        "nat",
-				Usage:       "TODO",
+				Usage:       "TODO - Not implemented yet.", // This was added so js-waku test don't fail
 				Destination: &options.NAT,
 			},
 			&cli.StringFlag{
