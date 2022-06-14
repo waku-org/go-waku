@@ -215,7 +215,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	require.False(t, node2Filter.subscribers.IsFailedPeer(host1.ID())) // Failed peer has been removed
 
-	for subscriber := range node2Filter.subscribers.Items() {
+	for subscriber := range node2Filter.subscribers.Items(nil) {
 		if subscriber.peer == node1.h.ID() {
 			require.Fail(t, "Subscriber should not exist")
 		}
