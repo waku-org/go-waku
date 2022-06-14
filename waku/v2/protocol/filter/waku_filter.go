@@ -189,7 +189,7 @@ func (wf *WakuFilter) FilterListener() {
 		g := new(errgroup.Group)
 		// Each subscriber is a light node that earlier on invoked
 		// a FilterRequest on this node
-		for subscriber := range wf.subscribers.Items() {
+		for subscriber := range wf.subscribers.Items(&(msg.ContentTopic)) {
 			logger := logger.With(logging.HostID("subscriber", subscriber.peer))
 			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
 			if subscriber.filter.Topic != "" && subscriber.filter.Topic != topic {
@@ -199,18 +199,15 @@ func (wf *WakuFilter) FilterListener() {
 				continue
 			}
 
-			if wf.subscribers.SubscriberHasContentTopic(subscriber, msg.ContentTopic) {
-				logger.Info("found matching content topic", zap.String("contentTopic", msg.ContentTopic))
-				// Do a message push to light node
-				logger.Info("pushing message to light node")
-				g.Go(func() (err error) {
-					err = wf.pushMessage(subscriber, msg)
-					if err != nil {
-						logger.Error("pushing message", zap.Error(err))
-					}
-					return err
-				})
-			}
+			// Do a message push to light node
+			logger.Info("pushing message to light node", zap.String("contentTopic", msg.ContentTopic))
+			g.Go(func() (err error) {
+				err = wf.pushMessage(subscriber, msg)
+				if err != nil {
+					logger.Error("pushing message", zap.Error(err))
+				}
+				return err
+			})
 		}
 
 		return g.Wait()
