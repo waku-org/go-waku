@@ -32,7 +32,7 @@ func TestPostV1Message(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 }
 
 func TestRelaySubscription(t *testing.T) {
@@ -47,7 +47,7 @@ func TestRelaySubscription(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	err = d.DeleteV1Subscription(
 		makeRequest(t),
@@ -55,7 +55,7 @@ func TestRelaySubscription(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 }
 
 func TestRelayGetV1Messages(t *testing.T) {
@@ -87,7 +87,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
@@ -103,7 +103,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	// Wait for the message to be received
 	time.Sleep(1 * time.Second)

@@ -121,9 +121,7 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 
 	err = node.EncodeWakuMessage(msg, keyInfo)
 	if err != nil {
-		reply.Error = err.Error()
-		reply.Success = false
-		return nil
+		return err
 	}
 
 	topic := args.Topic
@@ -133,12 +131,10 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 
 	_, err = p.node.Relay().PublishToTopic(req.Context(), msg, topic)
 	if err != nil {
-		reply.Error = err.Error()
-		reply.Success = false
-		return nil
+		return err
 	}
 
-	reply.Success = true
+	*reply = true
 	return nil
 }
 
@@ -177,7 +173,6 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 	}
 
 	*reply = true
-
 	return nil
 }
 

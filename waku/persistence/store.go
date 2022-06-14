@@ -221,7 +221,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) ([]StoredMessage, error) {
 	sqlQuery := `SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version 
 					 FROM message 
 					 %s
-					 ORDER BY senderTimestamp %s, pubsubTopic, id
+					 ORDER BY senderTimestamp %s, pubsubTopic, id %s
 					 LIMIT ?`
 
 	var conditions []string
@@ -291,7 +291,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) ([]StoredMessage, error) {
 		orderDirection = "DESC"
 	}
 
-	sqlQuery = fmt.Sprintf(sqlQuery, conditionStr, orderDirection)
+	sqlQuery = fmt.Sprintf(sqlQuery, conditionStr, orderDirection, orderDirection)
 
 	stmt, err := d.db.Prepare(sqlQuery)
 	if err != nil {

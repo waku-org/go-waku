@@ -1,13 +1,10 @@
 package rpc
 
-type SuccessReply struct {
-	Success bool   `json:"success,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
+type SuccessReply = bool
 
 type Empty struct {
 }
 
-type MessagesReply []*RPCWakuMessage
+type MessagesReply = []*RPCWakuMessage
 
-type RelayMessagesReply []*RPCWakuRelayMessage
+type RelayMessagesReply = []*RPCWakuRelayMessage

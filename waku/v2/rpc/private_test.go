@@ -65,7 +65,7 @@ func TestPostV1SymmetricMessage(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 }
 
 func TestPostV1AsymmetricMessage(t *testing.T) {
@@ -106,7 +106,7 @@ func TestGetV1SymmetricMessages(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	time.Sleep(500 * time.Millisecond)
 

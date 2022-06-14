@@ -40,21 +40,17 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 		addr, err := ma.NewMultiaddr(peer)
 		if err != nil {
 			a.log.Error("building multiaddr", zap.Error(err))
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			return err
 		}
 
 		err = a.node.DialPeerWithMultiAddress(req.Context(), addr)
 		if err != nil {
 			a.log.Error("dialing peers", zap.Error(err))
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			return err
 		}
 	}
 
-	reply.Success = true
+	*reply = true
 	return nil
 }
 

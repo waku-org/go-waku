@@ -85,11 +85,10 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	}
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
-		reply.Success = false
-		reply.Error = err.Error()
-	} else {
-		reply.Success = true
+		return err
 	}
+
+	*reply = true
 	return nil
 }
 
@@ -108,13 +107,12 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 		}
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			return err
 		}
 		r.messages[topic] = make([]*pb.WakuMessage, 0)
 	}
-	reply.Success = true
+
+	*reply = true
 	return nil
 }
 
@@ -124,14 +122,13 @@ func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs,
 		err := r.node.Relay().Unsubscribe(ctx, topic)
 		if err != nil {
 			r.log.Error("unsubscribing from topic", zap.String("topic", topic), zap.Error(err))
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			return err
 		}
 
 		delete(r.messages, topic)
 	}
-	reply.Success = true
+
+	*reply = true
 	return nil
 }
 

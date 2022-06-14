@@ -81,14 +81,13 @@ func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterConten
 	)
 	if err != nil {
 		f.log.Error("subscribing to topic", zap.String("topic", args.Topic), zap.Error(err))
-		reply.Success = false
-		reply.Error = err.Error()
-		return nil
+		return err
 	}
 	for _, contentFilter := range args.ContentFilters {
 		f.messages[contentFilter.ContentTopic] = make([]*pb.WakuMessage, 0)
 	}
-	reply.Success = true
+
+	*reply = true
 	return nil
 }
 
@@ -99,15 +98,13 @@ func (f *FilterService) DeleteV1Subscription(req *http.Request, args *FilterCont
 	)
 	if err != nil {
 		f.log.Error("unsubscribing from topic", zap.String("topic", args.Topic), zap.Error(err))
-		reply.Success = false
-		reply.Error = err.Error()
-		return nil
+		return err
 	}
 	for _, contentFilter := range args.ContentFilters {
 		delete(f.messages, contentFilter.ContentTopic)
 	}
 
-	reply.Success = true
+	*reply = true
 	return nil
 }
 
