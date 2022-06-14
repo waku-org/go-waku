@@ -14,6 +14,15 @@ type Subscriber struct {
 	filter    pb.FilterRequest // @TODO MAKE THIS A SEQUENCE AGAIN?
 }
 
+func (sub Subscriber) HasContentTopic(topic string) bool {
+	for _, filter := range sub.filter.ContentFilters {
+		if filter.ContentTopic == topic {
+			return true
+		}
+	}
+	return false
+}
+
 type Subscribers struct {
 	sync.RWMutex
 	subscribers []Subscriber
@@ -36,25 +45,16 @@ func (sub *Subscribers) Append(s Subscriber) int {
 	return len(sub.subscribers)
 }
 
-func (subs *Subscribers) SubscriberHasContentTopic(sub Subscriber, topic string) bool {
-	subs.RLock()
-	defer subs.RUnlock()
-	for _, filter := range sub.filter.ContentFilters {
-		if filter.ContentTopic == topic {
-			return true
-		}
-	}
-	return false
-}
-
-func (sub *Subscribers) Items() <-chan Subscriber {
+func (sub *Subscribers) Items(topic *string) <-chan Subscriber {
 	c := make(chan Subscriber)
 
 	f := func() {
 		sub.RLock()
 		defer sub.RUnlock()
-		for _, value := range sub.subscribers {
-			c <- value
+		for _, s := range sub.subscribers {
+			if topic == nil || s.HasContentTopic(*topic) {
+				c <- s
+			}
 		}
 		close(c)
 	}
