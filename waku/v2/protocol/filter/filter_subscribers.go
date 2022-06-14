@@ -15,6 +15,10 @@ type Subscriber struct {
 }
 
 func (sub Subscriber) HasContentTopic(topic string) bool {
+	if len(sub.filter.ContentFilters) == 0 {
+		return true // When the subscriber has no specific ContentTopic filter
+	}
+
 	for _, filter := range sub.filter.ContentFilters {
 		if filter.ContentTopic == topic {
 			return true
@@ -45,14 +49,14 @@ func (sub *Subscribers) Append(s Subscriber) int {
 	return len(sub.subscribers)
 }
 
-func (sub *Subscribers) Items(topic *string) <-chan Subscriber {
+func (sub *Subscribers) Items(contentTopic *string) <-chan Subscriber {
 	c := make(chan Subscriber)
 
 	f := func() {
 		sub.RLock()
 		defer sub.RUnlock()
 		for _, s := range sub.subscribers {
-			if topic == nil || s.HasContentTopic(*topic) {
+			if contentTopic == nil || s.HasContentTopic(*contentTopic) {
 				c <- s
 			}
 		}

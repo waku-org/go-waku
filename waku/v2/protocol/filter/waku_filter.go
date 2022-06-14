@@ -184,7 +184,7 @@ func (wf *WakuFilter) FilterListener() {
 	// on the full node in context of Waku2-Filter
 	handle := func(envelope *protocol.Envelope) error { // async
 		msg := envelope.Message()
-		topic := envelope.PubsubTopic()
+		pubsubTopic := envelope.PubsubTopic()
 		logger := wf.log.With(zap.Stringer("message", msg))
 		g := new(errgroup.Group)
 		// Each subscriber is a light node that earlier on invoked
@@ -192,10 +192,10 @@ func (wf *WakuFilter) FilterListener() {
 		for subscriber := range wf.subscribers.Items(&(msg.ContentTopic)) {
 			logger := logger.With(logging.HostID("subscriber", subscriber.peer))
 			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
-			if subscriber.filter.Topic != "" && subscriber.filter.Topic != topic {
+			if subscriber.filter.Topic != "" && subscriber.filter.Topic != pubsubTopic {
 				logger.Info("pubsub topic mismatch",
 					zap.String("subscriberTopic", subscriber.filter.Topic),
-					zap.String("messageTopic", topic))
+					zap.String("messageTopic", pubsubTopic))
 				continue
 			}
 
