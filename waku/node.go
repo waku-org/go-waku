@@ -160,17 +160,24 @@ func Execute(options Options) {
 		return
 	}
 
+	if options.Version {
+		fmt.Printf("version / git commit hash: %s(%s)\n", node.Version, node.GitCommit)
+		return
+	}
+
 	if options.UseDB {
-		// Create persistent peerstore
-		queries, err := sqlite.NewQueries("peerstore", db)
-		failOnErr(err, "Peerstore")
+		if options.PersistPeers {
+			// Create persistent peerstore
+			queries, err := sqlite.NewQueries("peerstore", db)
+			failOnErr(err, "Peerstore")
 
-		datastore := dssql.NewDatastore(db, queries)
-		opts := pstoreds.DefaultOpts()
-		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
-		failOnErr(err, "Peerstore")
+			datastore := dssql.NewDatastore(db, queries)
+			opts := pstoreds.DefaultOpts()
+			peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
+			failOnErr(err, "Peerstore")
 
-		libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+			libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+		}
 	}
 
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
@@ -194,8 +201,8 @@ func Execute(options Options) {
 
 	if options.Store.Enable {
 		if options.Store.PersistMessages {
-			nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
-			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
+			nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxSecondsDuration(), options.Store.RetentionMaxMessages))
+			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxSecondsDuration()))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		} else {

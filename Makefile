@@ -32,9 +32,11 @@ else
 endif
 
 GIT_COMMIT = $(shell git rev-parse --short HEAD)
+VERSION = $(shell cat ./VERSION)
 
 BUILD_FLAGS ?= $(shell echo "-ldflags='\
-	-X github.com/status-im/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT)'")
+	-X github.com/status-im/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT) \
+	-X github.com/status-im/go-waku/waku/v2/node.Version=$(VERSION)'")
 
 all: build
 

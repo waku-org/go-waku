@@ -241,12 +241,14 @@ func (w *WakuNode) checkForAddressChanges() {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start() error {
-	w.log.Info("Version details ", zap.String("commit", GitCommit))
+	w.log.Info("Version details ", zap.String("commit", GitCommit), zap.String("version", Version))
 
-	w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
-		swap.WithMode(w.opts.swapMode),
-		swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
-	}...)
+	if w.opts.enableSwap {
+		w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
+			swap.WithMode(w.opts.swapMode),
+			swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
+		}...)
+	}
 
 	w.store = w.storeFactory(w)
 	if w.opts.enableStore {

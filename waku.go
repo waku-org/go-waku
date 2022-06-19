@@ -108,6 +108,7 @@ func main() {
 			},
 			&cli.BoolFlag{
 				Name:        "use-db",
+				Aliases:     []string{"sqlite-store"},
 				Usage:       "Use SQLiteDB to persist information",
 				Destination: &options.UseDB,
 			},
@@ -115,11 +116,19 @@ func main() {
 				Name:        "persist-messages",
 				Usage:       "Enable message persistence",
 				Destination: &options.Store.PersistMessages,
+				Value:       false,
+			},
+			&cli.BoolFlag{
+				Name:        "persist-peers",
+				Usage:       "Enable peer persistence",
+				Destination: &options.PersistPeers,
+				Value:       false,
 			},
 			&cli.StringFlag{
-				Name:        "nat",
-				Usage:       "TODO - Not implemented yet.", // This was added so js-waku test don't fail
-				Destination: &options.NAT,
+				Name:        "nat", // This was added so js-waku test don't fail
+				Usage:       "TODO: Not implemented yet. Specify method to use for determining public address: any, none ('any' will attempt upnp/pmp)",
+				Value:       "any",
+				Destination: &options.NAT, // TODO: accept none,any,upnp,extaddr
 			},
 			&cli.StringFlag{
 				Name:        "db-path",
@@ -145,6 +154,12 @@ func main() {
 				Usage:       "Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms.",
 				Destination: &options.LogLevel,
 			},
+			&cli.BoolFlag{
+				Name:        "version",
+				Value:       false,
+				Usage:       "prints the version",
+				Destination: &options.Version,
+			},
 			&cli.StringFlag{
 				Name:        "log-encoding",
 				Value:       "console",
@@ -165,7 +180,7 @@ func main() {
 			&cli.BoolFlag{
 				Name:        "relay-peer-exchange",
 				Aliases:     []string{"peer-exchange"},
-				Value:       true,
+				Value:       false,
 				Usage:       "Enable GossipSub Peer Exchange",
 				Destination: &options.Relay.PeerExchange,
 			},
@@ -186,10 +201,10 @@ func main() {
 				Destination: &options.Store.ShouldResume,
 			},
 			&cli.IntFlag{
-				Name:        "store-days",
-				Value:       30,
-				Usage:       "maximum number of days before a message is removed from the store",
-				Destination: &options.Store.RetentionMaxDays,
+				Name:        "store-seconds",
+				Value:       (86400 * 30), // 30 days
+				Usage:       "maximum number of seconds before a message is removed from the store",
+				Destination: &options.Store.RetentionMaxSeconds,
 			},
 			&cli.IntFlag{
 				Name:        "store-capacity",
@@ -201,6 +216,12 @@ func main() {
 				Name:        "storenode",
 				Usage:       "Multiaddr of a peer that supports store protocol. Option may be repeated",
 				Destination: &options.Store.Nodes,
+			},
+			&cli.BoolFlag{
+				Name:        "swap",
+				Usage:       "Enable swap protocol",
+				Value:       false,
+				Destination: &options.Swap.Enable,
 			},
 			&cli.IntFlag{
 				Name:        "swap-mode",
@@ -336,7 +357,7 @@ func main() {
 			},
 			&cli.IntFlag{
 				Name:        "rpc-port",
-				Value:       8009,
+				Value:       8545,
 				Usage:       "Listening port of the rpc server",
 				Destination: &options.RPCServer.Port,
 			},

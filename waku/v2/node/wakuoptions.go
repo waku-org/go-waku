@@ -60,6 +60,7 @@ type WakuNodeParameters struct {
 	minRelayPeersToPublish int
 
 	enableStore     bool
+	enableSwap      bool
 	shouldResume    bool
 	storeMsgs       bool
 	messageProvider store.MessageProvider
@@ -312,6 +313,7 @@ func WithWakuStoreFactory(factory storeFactory) WakuNodeOption {
 // WithWakuSwap set the option of the Waku V2 Swap protocol
 func WithWakuSwap(mode int, disconnectThreshold, paymentThreshold int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
+		params.enableSwap = true
 		params.swapMode = mode
 		params.swapDisconnectThreshold = disconnectThreshold
 		params.swapPaymentThreshold = paymentThreshold

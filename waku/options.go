@@ -55,20 +55,21 @@ type StoreOptions struct {
 	Enable               bool
 	PersistMessages      bool
 	ShouldResume         bool
-	RetentionMaxDays     int
+	RetentionMaxSeconds  int
 	RetentionMaxMessages int
 	Nodes                cli.StringSlice
 }
 
 // SwapOptions are settings used for configuring the swap protocol
 type SwapOptions struct {
+	Enable              bool
 	Mode                int
 	PaymentThreshold    int
 	DisconnectThreshold int
 }
 
-func (s *StoreOptions) RetentionMaxDaysDuration() time.Duration {
-	return time.Duration(s.RetentionMaxDays) * time.Hour * 24
+func (s *StoreOptions) RetentionMaxSecondsDuration() time.Duration {
+	return time.Duration(s.RetentionMaxSeconds) * time.Second
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery
@@ -121,10 +122,12 @@ type Options struct {
 	UseDB            bool
 	DBPath           string
 	AdvertiseAddress string
+	Version          bool
 	ShowAddresses    bool
 	LogLevel         string
 	LogEncoding      string
 	NAT              string
+	PersistPeers     bool
 
 	Websocket        WSOptions
 	Relay            RelayOptions
