@@ -124,7 +124,7 @@ endif
 
 mobile-android:
 	gomobile init && \
-	gomobile bind -target=android -ldflags="-s -w" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
+	gomobile bind -v -target=android -ldflags="-s -w" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 
@@ -133,3 +133,14 @@ mobile-ios:
 	gomobile bind -target=ios -ldflags="-s -w" -o ./build/lib/Gowaku.xcframework ./mobile
 	@echo "IOS library built:"
 	@ls -la ./build/lib/*.xcframework
+
+install-xtools:
+	go install golang.org/x/tools/...@v0.1.10
+
+install-gomobile: install-xtools
+	go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20220518205345-8578da9835fd
+	go install golang.org/x/mobile/cmd/gobind@v0.0.0-20220518205345-8578da9835fd
+
+build-linux-pkg:
+	./scripts/linux/docker-run.sh
+	ls -la ./build/*.rpm ./build/*.deb

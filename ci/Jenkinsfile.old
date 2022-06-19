@@ -1,0 +1,51 @@
+pipeline {
+  agent {
+    label 'linux'
+  }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(
+      numToKeepStr: '10',
+      daysToKeepStr: '30',
+    ))
+  }
+
+  environment {
+    GOPATH = "${env.HOME}/go"
+    PATH   = "${env.PATH}:${env.GOPATH}/bin"
+  }
+
+  stages {
+    stage('Deps') {
+      steps { sh 'make deps' }
+    }
+
+    stage('Lint') {
+      steps { sh 'make lint' }
+    }
+
+    stage('Test') {
+      steps { sh 'make test-ci' }
+    }
+
+    stage('Build example') {
+      steps { sh 'make build-example' }
+    }
+
+    stage('Build go-mobile') {
+      parallel {
+        stage('Linux') { steps { script {
+          linux = jenkins.Build('go-waku/platforms/linux')
+        } } }
+        stage('MacOS') { steps { script {
+          macos = jenkins.Build('go-waku/platforms/macos')
+        } } }
+      }
+    }
+  }
+  post {
+    always { cleanWs() }
+  }
+}
