@@ -254,6 +254,16 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
+	if options.RLNRelay.Enable {
+		if !options.Relay.Enable {
+			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")
+		}
+
+		if !options.RLNRelay.Dynamic {
+			nodeOpts = append(nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipIndex)))
+		}
+	}
+
 	wakuNode, err := node.New(ctx, nodeOpts...)
 
 	failOnErr(err, "Wakunode")

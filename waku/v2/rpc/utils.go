@@ -14,20 +14,29 @@ type HexBytes []byte
 // ByteArray is marshalled to a uint8 array
 type ByteArray []byte
 
+type RateLimitProof struct {
+	Proof      HexBytes `json:"proof,omitempty"`
+	MerkleRoot HexBytes `json:"merkle_root,omitempty"`
+	Epoch      HexBytes `json:"epoch,omitempty"`
+	ShareX     HexBytes `json:"share_x,omitempty"`
+	ShareY     HexBytes `json:"share_y,omitempty"`
+	Nullifier  HexBytes `json:"nullifier,omitempty"`
+}
+
 type RPCWakuMessage struct {
-	Payload      ByteArray `json:"payload,omitempty"`
-	ContentTopic string    `json:"contentTopic,omitempty"`
-	Version      uint32    `json:"version"`
-	Timestamp    int64     `json:"timestamp,omitempty"`
-	Proof        HexBytes  `json:"proof,omitempty"`
+	Payload        ByteArray       `json:"payload,omitempty"`
+	ContentTopic   string          `json:"contentTopic,omitempty"`
+	Version        uint32          `json:"version"`
+	Timestamp      int64           `json:"timestamp,omitempty"`
+	RateLimitProof *RateLimitProof `json:"rateLimitProof,omitempty"`
 }
 
 type RPCWakuRelayMessage struct {
-	Payload      HexBytes `json:"payload,omitempty"`
-	ContentTopic string   `json:"contentTopic,omitempty"`
-	Timestamp    int64    `json:"timestamp,omitempty"`
-	Proof        HexBytes `json:"proof,omitempty"`
-	Version      uint32   `json:"version"`
+	Payload        HexBytes        `json:"payload,omitempty"`
+	ContentTopic   string          `json:"contentTopic,omitempty"`
+	Timestamp      int64           `json:"timestamp,omitempty"`
+	RateLimitProof *RateLimitProof `json:"rateLimitProof,omitempty"`
+	Version        uint32          `json:"version"`
 }
 
 func ProtoWakuMessageToRPCWakuMessage(input *pb.WakuMessage) *RPCWakuMessage {
@@ -35,13 +44,25 @@ func ProtoWakuMessageToRPCWakuMessage(input *pb.WakuMessage) *RPCWakuMessage {
 		return nil
 	}
 
-	return &RPCWakuMessage{
+	rpcWakuMsg := &RPCWakuMessage{
 		Payload:      input.Payload,
 		ContentTopic: input.ContentTopic,
 		Version:      input.Version,
 		Timestamp:    input.Timestamp,
-		Proof:        input.Proof,
 	}
+
+	if input.RateLimitProof != nil {
+		rpcWakuMsg.RateLimitProof = &RateLimitProof{
+			Proof:      input.RateLimitProof.Proof,
+			MerkleRoot: input.RateLimitProof.MerkleRoot,
+			Epoch:      input.RateLimitProof.Epoch,
+			ShareX:     input.RateLimitProof.ShareX,
+			ShareY:     input.RateLimitProof.ShareY,
+			Nullifier:  input.RateLimitProof.Nullifier,
+		}
+	}
+
+	return rpcWakuMsg
 }
 
 func (r *RPCWakuMessage) toProto() *pb.WakuMessage {
@@ -49,13 +70,25 @@ func (r *RPCWakuMessage) toProto() *pb.WakuMessage {
 		return nil
 	}
 
-	return &pb.WakuMessage{
+	msg := &pb.WakuMessage{
 		Payload:      r.Payload,
 		ContentTopic: r.ContentTopic,
 		Version:      r.Version,
 		Timestamp:    r.Timestamp,
-		Proof:        r.Proof,
 	}
+
+	if r.RateLimitProof != nil {
+		msg.RateLimitProof = &pb.RateLimitProof{
+			Proof:      r.RateLimitProof.Proof,
+			MerkleRoot: r.RateLimitProof.MerkleRoot,
+			Epoch:      r.RateLimitProof.Epoch,
+			ShareX:     r.RateLimitProof.ShareX,
+			ShareY:     r.RateLimitProof.ShareY,
+			Nullifier:  r.RateLimitProof.Nullifier,
+		}
+	}
+
+	return msg
 }
 
 func (u HexBytes) MarshalJSON() ([]byte, error) {
@@ -89,12 +122,24 @@ func ProtoWakuMessageToRPCWakuRelayMessage(input *pb.WakuMessage) *RPCWakuRelayM
 		return nil
 	}
 
-	return &RPCWakuRelayMessage{
+	rpcMsg := &RPCWakuRelayMessage{
 		Payload:      input.Payload,
 		ContentTopic: input.ContentTopic,
 		Timestamp:    input.Timestamp,
-		Proof:        input.Proof,
 	}
+
+	if input.RateLimitProof != nil {
+		rpcMsg.RateLimitProof = &RateLimitProof{
+			Proof:      input.RateLimitProof.Proof,
+			MerkleRoot: input.RateLimitProof.MerkleRoot,
+			Epoch:      input.RateLimitProof.Epoch,
+			ShareX:     input.RateLimitProof.ShareX,
+			ShareY:     input.RateLimitProof.ShareY,
+			Nullifier:  input.RateLimitProof.Nullifier,
+		}
+	}
+
+	return rpcMsg
 }
 
 func (r *RPCWakuRelayMessage) toProto() *pb.WakuMessage {
@@ -102,12 +147,24 @@ func (r *RPCWakuRelayMessage) toProto() *pb.WakuMessage {
 		return nil
 	}
 
-	return &pb.WakuMessage{
+	msg := &pb.WakuMessage{
 		Payload:      r.Payload,
 		ContentTopic: r.ContentTopic,
 		Timestamp:    r.Timestamp,
-		Proof:        r.Proof,
 	}
+
+	if r.RateLimitProof != nil {
+		msg.RateLimitProof = &pb.RateLimitProof{
+			Proof:      r.RateLimitProof.Proof,
+			MerkleRoot: r.RateLimitProof.MerkleRoot,
+			Epoch:      r.RateLimitProof.Epoch,
+			ShareX:     r.RateLimitProof.ShareX,
+			ShareY:     r.RateLimitProof.ShareY,
+			Nullifier:  r.RateLimitProof.Nullifier,
+		}
+	}
+
+	return msg
 }
 
 func (h ByteArray) MarshalText() ([]byte, error) {
