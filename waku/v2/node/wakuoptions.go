@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/decanus/go-rln/rln"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -81,6 +82,12 @@ type WakuNodeParameters struct {
 	discV5bootnodes  []*enode.Node
 	discV5Opts       []pubsub.DiscoverOpt
 	discV5autoUpdate bool
+
+	enableRLN            bool
+	rlnRelayMemIndex     rln.MembershipIndex
+	rlnRelayPubsubTopic  string
+	rlnRelayContentTopic string
+	rlnRelayDynamic      bool
 
 	keepAliveInterval time.Duration
 
@@ -403,6 +410,17 @@ func WithSecureWebsockets(address string, port int, certPath string, keyPath str
 			Certificates: []tls.Certificate{certificate},
 		}
 
+		return nil
+	}
+}
+
+func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex rln.MembershipIndex) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableRLN = true
+		params.rlnRelayDynamic = false
+		params.rlnRelayMemIndex = memberIndex
+		params.rlnRelayPubsubTopic = pubsubTopic
+		params.rlnRelayContentTopic = contentTopic
 		return nil
 	}
 }

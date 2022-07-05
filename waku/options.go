@@ -39,6 +39,19 @@ type RelayOptions struct {
 	MinRelayPeersToPublish int
 }
 
+type RLNRelayOptions struct {
+	Enable                    bool
+	MembershipIndex           int
+	PubsubTopic               string
+	ContentTopic              string
+	Dynamic                   bool
+	IDKey                     string
+	IDCommitment              string
+	ETHAccount                string
+	ETHClientAddress          string
+	MembershipContractAddress string
+}
+
 // FilterOptions are settings used to enable filter protocol. This is a protocol
 // that enables subscribing to messages that a peer receives. This is a more
 // lightweight version of WakuRelay specifically designed for bandwidth
@@ -161,6 +174,7 @@ type Options struct {
 	Swap             SwapOptions
 	Filter           FilterOptions
 	LightPush        LightpushOptions
+	RLNRelay         RLNRelayOptions
 	DiscV5           DiscV5Options
 	Rendezvous       RendezvousOptions
 	RendezvousServer RendezvousServerOptions
