@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -23,6 +24,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
 
+	r "github.com/decanus/go-rln/rln"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/try"
@@ -33,8 +35,10 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/protocol/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/protocol/swap"
+
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
@@ -58,6 +62,7 @@ type WakuNode struct {
 	rendezvous *rendezvous.RendezvousService
 	store      store.Store
 	swap       *swap.WakuSwap
+	rlnRelay   *rln.WakuRLNRelay
 	wakuFlag   utils.WakuEnrBitfield
 
 	localNode *enode.LocalNode
@@ -289,6 +294,13 @@ func (w *WakuNode) Start() error {
 		return err
 	}
 
+	if w.opts.enableRLN {
+		err = w.mountRlnRelay()
+		if err != nil {
+			return err
+		}
+	}
+
 	w.lightPush = lightpush.NewWakuLightPush(w.ctx, w.host, w.relay, w.log)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(); err != nil {
@@ -376,6 +388,11 @@ func (w *WakuNode) ENR() *enode.Node {
 // Relay is used to access any operation related to Waku Relay protocol
 func (w *WakuNode) Relay() *relay.WakuRelay {
 	return w.relay
+}
+
+// RLNRelay is used to access any operation related to Waku RLN protocol
+func (w *WakuNode) RLNRelay() *rln.WakuRLNRelay {
+	return w.rlnRelay
 }
 
 // Store is used to access any operation related to Waku Store protocol
@@ -644,4 +661,64 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 		})
 	}
 	return peers, nil
+}
+
+func (w *WakuNode) mountRlnRelay() error {
+	// check whether inputs are provided
+	// relay protocol is the prerequisite of rln-relay
+	if w.Relay() == nil {
+		return errors.New("relay protocol is required")
+	}
+
+	// check whether the pubsub topic is supported at the relay level
+	topicFound := false
+	for _, t := range w.Relay().Topics() {
+		if t == w.opts.rlnRelayPubsubTopic {
+			topicFound = true
+			break
+		}
+	}
+
+	if !topicFound {
+		return errors.New("relay protocol does not support the configured pubsub topic")
+	}
+
+	if !w.opts.rlnRelayDynamic {
+		w.log.Info("setting up waku-rln-relay in off-chain mode... ")
+		// set up rln relay inputs
+		groupKeys, memKeyPair, memIndex, err := rln.StaticSetup(w.opts.rlnRelayMemIndex)
+		if err != nil {
+			return err
+		}
+
+		// mount rlnrelay in off-chain mode with a static group of users
+		wakuRLNRelay, err := rln.RlnRelayStatic(w.relay, groupKeys, memKeyPair, memIndex, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, nil, w.log)
+		if err != nil {
+			return err
+		}
+
+		w.log.Info("membership id key", zap.String("IDKey", hex.EncodeToString(memKeyPair.IDKey[:])))
+		w.log.Info("membership id commitment key", zap.String("IDCommitment", hex.EncodeToString(memKeyPair.IDCommitment[:])))
+
+		// check the correct construction of the tree by comparing the calculated root against the expected root
+		// no error should happen as it is already captured in the unit tests
+
+		root, err := wakuRLNRelay.RLN.GetMerkleRoot()
+		if err != nil {
+			return err
+		}
+
+		expectedRoot := r.STATIC_GROUP_MERKLE_ROOT
+		if hex.EncodeToString(root[:]) != expectedRoot {
+			return errors.New("root mismatch: something went wrong not in Merkle tree construction")
+		}
+
+		w.rlnRelay = wakuRLNRelay
+
+		w.log.Info("the calculated root", zap.String("root", hex.EncodeToString(root[:])))
+		w.log.Info("mounted waku RLN relay", zap.String("pubsubTopic", w.opts.rlnRelayPubsubTopic), zap.String("contentTopic", w.opts.rlnRelayContentTopic))
+	} else {
+		return errors.New("TODO: not implemented yet")
+	}
+	return nil
 }

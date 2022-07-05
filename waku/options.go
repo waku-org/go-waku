@@ -30,6 +30,19 @@ type RelayOptions struct {
 	MinRelayPeersToPublish int
 }
 
+type RLNRelayOptions struct {
+	Enable                    bool
+	MembershipIndex           int
+	PubsubTopic               string
+	ContentTopic              string
+	Dynamic                   bool
+	IDKey                     string
+	IDCommitment              string
+	ETHAccount                string
+	ETHClientAddress          string
+	MembershipContractAddress string
+}
+
 type FilterOptions struct {
 	Enable          bool
 	DisableFullNode bool
@@ -135,6 +148,7 @@ type Options struct {
 	Swap             SwapOptions
 	Filter           FilterOptions
 	LightPush        LightpushOptions
+	RLNRelay         RLNRelayOptions
 	DiscV5           DiscV5Options
 	Rendezvous       RendezvousOptions
 	RendezvousServer RendezvousServerOptions

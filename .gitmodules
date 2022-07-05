@@ -1,0 +1,3 @@
+[submodule "third-party/go-rln"]
+	path = third-party/go-rln
+	url = git@github.com:status-im/go-rln.git

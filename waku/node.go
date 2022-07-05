@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/decanus/go-rln/rln"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
@@ -251,6 +252,16 @@ func Execute(options Options) {
 		}
 
 		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
+	}
+
+	if options.RLNRelay.Enable {
+		if !options.Relay.Enable {
+			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")
+		}
+
+		if !options.RLNRelay.Dynamic {
+			nodeOpts = append(nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipIndex)))
+		}
 	}
 
 	wakuNode, err := node.New(ctx, nodeOpts...)
