@@ -6,6 +6,8 @@ replace github.com/status-im/go-waku => ../..
 
 replace github.com/ethereum/go-ethereum v1.10.18 => github.com/status-im/go-ethereum v1.10.4-status.2
 
+replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
+
 require (
 	github.com/ethereum/go-ethereum v1.10.20
 	github.com/ipfs/go-log v1.0.5
@@ -109,6 +111,7 @@ require (
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e // indirect
+	github.com/status-im/go-rln v0.0.7 // indirect
 	github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7 // indirect

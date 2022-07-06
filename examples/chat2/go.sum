@@ -526,7 +526,6 @@ github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021/go.
 github.com/envoyproxy/go-control-plane v0.10.1/go.mod h1:AY7fTTXNdv/aJ2O5jwpxAPOWUZ7hQAEvzN5Pf27BkQQ=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E9/baC+qXE/TeeyBRzgJDws=
-github.com/ethereum/go-ethereum v1.9.5/go.mod h1:PwpWDrCLZrV+tfrhqqF6kPknbISMHaJv9Ln3kPCZLwY=
 github.com/ethereum/go-ethereum v1.10.16/go.mod h1:Anj6cxczl+AHy63o4X9O8yWNHuN5wMpfb8MAnHkWn7Y=
 github.com/ethereum/go-ethereum v1.10.20 h1:75IW830ClSS40yrQC1ZCMZCt5I+zU16oqId2SiQwdQ4=
 github.com/ethereum/go-ethereum v1.10.20/go.mod h1:LWUN82TCHGpxB3En5HVmLLzPD7YSrEUFmFfN1nKkVN0=
@@ -1671,8 +1670,8 @@ github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5q
 github.com/src-d/envconfig v1.0.0/go.mod h1:Q9YQZ7BKITldTBnoxsE5gOeB5y66RyPXeue/R4aaNBc=
 github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e h1:fDm8hqKGFy8LMNV8zedT3W+QYVPVDfb0F9Fr7fVf9rQ=
 github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e/go.mod h1:u1s0ACIlweIjmJrgXyljRPSOflZLaS6ezb044+92W3c=
-github.com/status-im/go-rln v0.0.6 h1:/9IKDEIJAUEpIRDNP65/mSfHGjpAxPfghKFb1U2O99o=
-github.com/status-im/go-rln v0.0.6/go.mod h1:X8j1STGa0vtbvZ4AZibPmk9cCI4FafO0+6zhaomgfNI=
+github.com/status-im/go-rln v0.0.7 h1:YhP0iCQIT9C6jGEE5VW2Z7ene1Du0XhQ6JAzgFC3u/8=
+github.com/status-im/go-rln v0.0.7/go.mod h1:t8Bf4nNAuQh9VlEiz/rgFVtEz7sjEfcd62MIuEnZn8U=
 github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432 h1:cbNFU38iimo9fY4B7CdF/fvIF6tNPJIZjBbpfmW2EY4=
 github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432/go.mod h1:A8t3i0CUGtXCA0aiLsP7iyikmk/KaD/2XVvNJqGCU20=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=

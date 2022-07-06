@@ -3,7 +3,7 @@ package rln
 import (
 	"errors"
 
-	r "github.com/decanus/go-rln/rln"
+	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
