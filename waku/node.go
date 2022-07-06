@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
+	"github.com/status-im/go-rln/rln"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
