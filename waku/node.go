@@ -260,7 +260,7 @@ func Execute(options Options) {
 		}
 
 		if !options.RLNRelay.Dynamic {
-			nodeOpts = append(nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipIndex)))
+			nodeOpts = append(nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipIndex), nil))
 		}
 	}
 
