@@ -32,11 +32,12 @@ type Chat struct {
 	useV1Payload bool
 	useLightPush bool
 	nick         string
+	spamChan     chan *wpb.WakuMessage
 }
 
 // NewChat tries to subscribe to the PubSub topic for the room name, returning
 // a ChatRoom on success.
-func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload bool, useLightPush bool, nickname string) (*Chat, error) {
+func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload bool, useLightPush bool, nickname string, spamChan chan *wpb.WakuMessage) (*Chat, error) {
 	// join the default waku topic and subscribe to it
 
 	chat := &Chat{
@@ -47,6 +48,7 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 		useV1Payload: useV1Payload,
 		useLightPush: useLightPush,
 		Messages:     make(chan *pb.Chat2Message, 1024),
+		spamChan:     spamChan,
 	}
 
 	if useLightPush {
@@ -70,6 +72,8 @@ func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic
 
 	// start reading messages from the subscription in a loop
 	go chat.readLoop()
+
+	go chat.readSpamMessages()
 
 	return chat, nil
 }
@@ -95,7 +99,8 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	}
 
 	var version uint32
-	var timestamp int64 = utils.GetUnixEpoch()
+	var t = time.Now()
+	var timestamp int64 = utils.GetUnixEpochFrom(t)
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 
 	if cr.useV1Payload { // Use WakuV1 encryption
@@ -123,6 +128,15 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 		Timestamp:    timestamp,
 	}
 
+	if cr.node.RLNRelay() != nil {
+		// for future version when we support more than one rln protected content topic,
+		// we should check the message content topic as well
+		err = cr.node.RLNRelay().AppendRLNProof(wakuMsg, t)
+		if err != nil {
+			return err
+		}
+	}
+
 	if cr.useLightPush {
 		_, err = cr.node.Lightpush().Publish(ctx, wakuMsg)
 
@@ -134,38 +148,56 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	return err
 }
 
-func (cr *Chat) decodeMessage(wakumsg *wpb.WakuMessage) {
+func DecodeMessage(useV1Payload bool, contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
-	if cr.useV1Payload { // Use WakuV1 encryption
+	if useV1Payload { // Use WakuV1 encryption
 		keyInfo.Kind = node.Symmetric
-		keyInfo.SymKey = generateSymKey(cr.contentTopic)
+		keyInfo.SymKey = generateSymKey(contentTopic)
 	} else {
 		keyInfo.Kind = node.None
 	}
 
 	payload, err := node.DecodePayload(wakumsg, keyInfo)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	msg := &pb.Chat2Message{}
 	if err := proto.Unmarshal(payload.Data, msg); err != nil {
-		return
+		return nil, err
 	}
 
-	// send valid messages onto the Messages channel
-	cr.Messages <- msg
+	return msg, nil
 }
 
 // readLoop pulls messages from the pubsub topic and pushes them onto the Messages channel.
 func (cr *Chat) readLoop() {
 	for value := range cr.C {
-		cr.decodeMessage(value.Message())
+		msg, err := DecodeMessage(cr.useV1Payload, cr.contentTopic, value.Message())
+		if err == nil {
+			// send valid messages onto the Messages channel
+			cr.Messages <- msg
+		}
+	}
+}
+
+// readSpam prints messages that are spam (to demonstrate RLN functionality)
+func (cr *Chat) readSpamMessages() {
+	for value := range cr.C {
+		msg, err := DecodeMessage(cr.useV1Payload, cr.contentTopic, value.Message())
+		if err == nil {
+			msg.Payload = append([]byte("Spam message received and discarded: "), msg.Payload...)
+			cr.Messages <- msg
+		}
 	}
 }
 
 func (cr *Chat) displayMessages(messages []*wpb.WakuMessage) {
 	for _, msg := range messages {
-		cr.decodeMessage(msg)
+		msg, err := DecodeMessage(cr.useV1Payload, cr.contentTopic, msg)
+		if err == nil {
+			// send valid messages onto the Messages channel
+			cr.Messages <- msg
+		}
 	}
 }

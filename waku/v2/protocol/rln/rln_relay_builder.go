@@ -53,12 +53,16 @@ func RlnRelayStatic(
 		pubsubTopic:       pubsubTopic,
 		contentTopic:      contentTopic,
 		log:               log,
+		nullifierLog:      make(map[r.Epoch][]r.ProofMetadata),
 	}
 
 	// adds a topic validator for the supplied pubsub topic at the relay protocol
 	// messages published on this pubsub topic will be relayed upon a successful validation, otherwise they will be dropped
 	// the topic validator checks for the correct non-spamming proof of the message
-	rlnPeer.addValidator(relay, pubsubTopic, contentTopic, spamHandler)
+	err = rlnPeer.addValidator(relay, pubsubTopic, contentTopic, spamHandler)
+	if err != nil {
+		return nil, err
+	}
 
 	log.Info("rln relay topic validator mounted", zap.String("pubsubTopic", pubsubTopic), zap.String("contentTopic", contentTopic))
 
