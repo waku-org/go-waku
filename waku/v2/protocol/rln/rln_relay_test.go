@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	r "github.com/decanus/go-rln/rln"
+	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
