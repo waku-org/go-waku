@@ -19,8 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// the rln-relay epoch length in seconds
-
 // the maximum clock difference between peers in seconds
 const MAX_CLOCK_GAP_SECONDS = 20
 
@@ -272,7 +270,7 @@ func (r *WakuRLNRelay) addValidator(
 	relay *relay.WakuRelay,
 	pubsubTopic string,
 	contentTopic string,
-	spamHandler SpamHandler) {
+	spamHandler SpamHandler) error {
 	validator := func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		r.log.Debug("rln-relay topic validator called")
 
@@ -345,7 +343,7 @@ func (r *WakuRLNRelay) addValidator(
 		}
 	}
 
-	relay.PubSub().RegisterTopicValidator(pubsubTopic, validator)
+	return relay.PubSub().RegisterTopicValidator(pubsubTopic, validator)
 }
 
 func toMembershipKeyPairs(groupKeys [][]string) ([]r.MembershipKeyPair, error) {

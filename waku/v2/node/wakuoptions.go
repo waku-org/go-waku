@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/decanus/go-rln/rln"
+	r "github.com/decanus/go-rln/rln"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -24,6 +24,7 @@ import (
 	manet "github.com/multiformats/go-multiaddr/net"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
+	"github.com/status-im/go-waku/waku/v2/protocol/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -84,10 +85,11 @@ type WakuNodeParameters struct {
 	discV5autoUpdate bool
 
 	enableRLN            bool
-	rlnRelayMemIndex     rln.MembershipIndex
+	rlnRelayMemIndex     r.MembershipIndex
 	rlnRelayPubsubTopic  string
 	rlnRelayContentTopic string
 	rlnRelayDynamic      bool
+	rlnSpamHandler       rln.SpamHandler
 
 	keepAliveInterval time.Duration
 
@@ -421,13 +423,14 @@ func WithSecureWebsockets(address string, port int, certPath string, keyPath str
 	}
 }
 
-func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex rln.MembershipIndex) WakuNodeOption {
+func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, spamHandler rln.SpamHandler) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRLN = true
 		params.rlnRelayDynamic = false
 		params.rlnRelayMemIndex = memberIndex
 		params.rlnRelayPubsubTopic = pubsubTopic
 		params.rlnRelayContentTopic = contentTopic
+		params.rlnSpamHandler = spamHandler
 		return nil
 	}
 }

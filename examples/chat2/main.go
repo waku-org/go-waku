@@ -13,6 +13,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/decanus/go-rln/rln"
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -25,10 +26,11 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 )
 
-var DefaultContentTopic string = wakuprotocol.NewContentTopic("toy-chat", 2, "huilong", "proto").String()
+var DefaultContentTopic string = wakuprotocol.NewContentTopic("toy-chat", 2, "luzhou", "proto").String()
 
 func main() {
 	mrand.Seed(time.Now().UTC().UnixNano())
@@ -65,6 +67,11 @@ func main() {
 	dnsDiscoveryUrlFlag := flag.String("dns-discovery-url", "", "URL for DNS node list in format 'enrtree://<key>@<fqdn>'")
 	dnsDiscoveryNameServerFlag := flag.String("dns-discovery-nameserver", "", "DNS name server IP to query (empty to use system default)")
 
+	rlnRelayFlag := flag.Bool("rln-relay", false, "enable spam protection through rln-relay")
+	rlnRelayMemIndexFlag := flag.Int("rln-relay-membership-index", 0, "(experimental) the index of node in the rln-relay group: a value between 0-99 inclusive")
+	rlnRelayContentTopicFlag := flag.String("rln-relay-content-topic", "/toy-chat/2/luzhou/proto", "the content topic for which rln-relay gets enabled")
+	rlnRelayPubsubTopicFlag := flag.String("rln-relay-pubsub-topic", "/waku/2/default-waku/proto", "the pubsub topic for which rln-relay gets enabled")
+
 	flag.Parse()
 
 	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
@@ -97,6 +104,15 @@ func main() {
 
 	if *relayFlag {
 		opts = append(opts, node.WithWakuRelay())
+	}
+
+	spamChan := make(chan *pb.WakuMessage, 100)
+	if *rlnRelayFlag {
+		spamHandler := func(message *pb.WakuMessage) error {
+			spamChan <- message
+			return nil
+		}
+		opts = append(opts, node.WithStaticRLNRelay(*rlnRelayPubsubTopicFlag, *rlnRelayContentTopicFlag, rln.MembershipIndex(*rlnRelayMemIndexFlag), spamHandler))
 	}
 
 	if *filterFlag {
@@ -133,7 +149,7 @@ func main() {
 	}
 
 	// join the chat
-	chat, err := NewChat(ctx, wakuNode, wakuNode.Host().ID(), *contentTopicFlag, *payloadV1Flag, *lightPushFlag, nick)
+	chat, err := NewChat(ctx, wakuNode, wakuNode.Host().ID(), *contentTopicFlag, *payloadV1Flag, *lightPushFlag, nick, spamChan)
 	if err != nil {
 		panic(err)
 	}
