@@ -19,6 +19,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// the rln-relay epoch length in seconds
+
+// the maximum clock difference between peers in seconds
+const MAX_CLOCK_GAP_SECONDS = 20
+
+// maximum allowed gap between the epochs of messages' RateLimitProofs
+const MAX_EPOCH_GAP = int64(MAX_CLOCK_GAP_SECONDS / r.EPOCH_UNIT_SECONDS)
+
 type WakuRLNRelay struct {
 	membershipKeyPair r.MembershipKeyPair
 
@@ -156,7 +164,7 @@ func (rln *WakuRLNRelay) UpdateLog(msg *pb.WakuMessage) (bool, error) {
 	return true, nil
 }
 
-func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time.Duration) (MessageValidationResult, error) {
+func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time.Time) (MessageValidationResult, error) {
 	// validate the supplied `msg` based on the waku-rln-relay routing protocol i.e.,
 	// the `msg`'s epoch is within MAX_EPOCH_GAP of the current epoch
 	// the `msg` has valid rate limit proof
@@ -179,15 +187,18 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	}
 
 	msgProof := ToRateLimitProof(msg)
+	if msgProof == nil {
+		// message does not contain a proof
+		rln.log.Debug("invalid message: message does not contain a proof")
+		return MessageValidationResult_Invalid, nil
+	}
 
-	// calculate the gaps
+	// calculate the gaps and validate the epoch
 	gap := r.Diff(epoch, msgProof.Epoch)
-
-	// validate the epoch
-	if int64(math.Abs(float64(gap))) >= r.MAX_EPOCH_GAP {
+	if int64(math.Abs(float64(gap))) >= MAX_EPOCH_GAP {
 		// message's epoch is too old or too ahead
 		// accept messages whose epoch is within +-MAX_EPOCH_GAP from the current epoch
-		//debug "invalid message: epoch gap exceeds a threshold", gap = gap, payload = string.fromBytes(msg.payload)
+		rln.log.Debug("invalid message: epoch gap exceeds a threshold", zap.Int64("gap", gap))
 		return MessageValidationResult_Invalid, nil
 	}
 
@@ -196,18 +207,19 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	input := append(msg.Payload, contentTopicBytes...)
 	if !rln.RLN.Verify(input, *msgProof) {
 		// invalid proof
-		//debug "invalid message: invalid proof", payload = string.fromBytes(msg.payload)
+		rln.log.Debug("invalid message: invalid proof")
 		return MessageValidationResult_Invalid, nil
 	}
 
 	// check if double messaging has happened
 	hasDup, err := rln.HasDuplicate(msg)
 	if err != nil {
+		rln.log.Debug("validation error", zap.Error(err))
 		return MessageValidationResult_Unknown, err
 	}
 
 	if hasDup {
-		// debug "invalid message: message is a spam", payload = string.fromBytes(msg.payload)
+		rln.log.Debug("spam received")
 		return MessageValidationResult_Spam, nil
 	}
 
@@ -219,11 +231,11 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 		return MessageValidationResult_Unknown, err
 	}
 
-	//debug "message is valid", payload = string.fromBytes(msg.payload)
+	rln.log.Debug("message is valid")
 	return MessageValidationResult_Valid, nil
 }
 
-func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Duration) error {
+func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error {
 	// returns error if it could not create and append a `RateLimitProof` to the supplied `msg`
 	// `senderEpochTime` indicates the number of seconds passed since Unix epoch. The fractional part holds sub-seconds.
 	// The `epoch` field of `RateLimitProof` is derived from the provided `senderEpochTime` (using `calcEpoch()`)
@@ -367,7 +379,7 @@ func toRLNSignal(wakuMessage *pb.WakuMessage) []byte {
 }
 
 func ToRateLimitProof(msg *pb.WakuMessage) *r.RateLimitProof {
-	if msg == nil {
+	if msg == nil || msg.RateLimitProof == nil {
 		return nil
 	}
 

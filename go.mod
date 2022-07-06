@@ -8,7 +8,7 @@ replace github.com/ethereum/go-ethereum v1.10.18 => github.com/status-im/go-ethe
 
 replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
 
-replace github.com/decanus/go-rln => github.com/status-im/go-rln v0.0.4
+replace github.com/decanus/go-rln => github.com/status-im/go-rln v0.0.6
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1

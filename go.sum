@@ -1687,8 +1687,8 @@ github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5q
 github.com/src-d/envconfig v1.0.0/go.mod h1:Q9YQZ7BKITldTBnoxsE5gOeB5y66RyPXeue/R4aaNBc=
 github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e h1:fDm8hqKGFy8LMNV8zedT3W+QYVPVDfb0F9Fr7fVf9rQ=
 github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e/go.mod h1:u1s0ACIlweIjmJrgXyljRPSOflZLaS6ezb044+92W3c=
-github.com/status-im/go-rln v0.0.4 h1:AiBngoSSy2DI98EgTZquWqNHrRcAScC34UM36TpiPMw=
-github.com/status-im/go-rln v0.0.4/go.mod h1:X8j1STGa0vtbvZ4AZibPmk9cCI4FafO0+6zhaomgfNI=
+github.com/status-im/go-rln v0.0.6 h1:/9IKDEIJAUEpIRDNP65/mSfHGjpAxPfghKFb1U2O99o=
+github.com/status-im/go-rln v0.0.6/go.mod h1:X8j1STGa0vtbvZ4AZibPmk9cCI4FafO0+6zhaomgfNI=
 github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432 h1:cbNFU38iimo9fY4B7CdF/fvIF6tNPJIZjBbpfmW2EY4=
 github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432/go.mod h1:A8t3i0CUGtXCA0aiLsP7iyikmk/KaD/2XVvNJqGCU20=
 github.com/status-im/go-watchdog v1.2.0-ios-nolibproc h1:BJwZEF7OVKaXc2zErBUAolFSGzwrTBbWnN8e/6MER5E=
