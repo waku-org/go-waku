@@ -1,10 +1,12 @@
 package rpc
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 
+	"github.com/gorilla/mux"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -36,7 +38,7 @@ type TopicArgs struct {
 	Topic string `json:"topic,omitempty"`
 }
 
-func NewRelayService(node *node.WakuNode, log *zap.Logger) *RelayService {
+func NewRelayService(node *node.WakuNode, m *mux.Router, log *zap.Logger) *RelayService {
 	s := &RelayService{
 		node:     node,
 		log:      log.Named("relay"),
@@ -44,6 +46,11 @@ func NewRelayService(node *node.WakuNode, log *zap.Logger) *RelayService {
 	}
 
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
+
+	m.HandleFunc("/relay/v1/subscriptions", s.restPostV1Subscriptions).Methods(http.MethodPost)
+	m.HandleFunc("/relay/v1/subscriptions", s.restDeleteV1Subscriptions).Methods(http.MethodDelete)
+	m.HandleFunc("/relay/v1/messages/{topic}", s.restGetV1Messages).Methods(http.MethodGet)
+	m.HandleFunc("/relay/v1/messages/{topic}", s.restPostV1Message).Methods(http.MethodPost)
 
 	return s
 }
@@ -147,4 +154,75 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 	r.messages[args.Topic] = make([]*pb.WakuMessage, 0)
 
 	return nil
+}
+
+func (d *RelayService) restDeleteV1Subscriptions(w http.ResponseWriter, r *http.Request) {
+	request := new(TopicsArgs)
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&request.Topics); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	response := new(SuccessReply)
+	err := d.DeleteV1Subscription(r, request, response)
+
+	writeErrOrResponse(w, err, response)
+}
+
+func (d *RelayService) restPostV1Subscriptions(w http.ResponseWriter, r *http.Request) {
+	request := new(TopicsArgs)
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&request.Topics); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	response := new(SuccessReply)
+	err := d.PostV1Subscription(r, request, response)
+
+	writeErrOrResponse(w, err, response)
+}
+
+func (d *RelayService) restGetV1Messages(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	topic, ok := vars["topic"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	request := new(TopicArgs)
+	request.Topic = topic
+
+	response := new([]*RPCWakuRelayMessage)
+	err := d.GetV1Messages(r, request, response)
+
+	writeErrOrResponse(w, err, response)
+}
+
+func (d *RelayService) restPostV1Message(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	topic, ok := vars["topic"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	request := new(RelayMessageArgs)
+	request.Topic = topic
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&request.Message); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	response := new(bool)
+	err := d.PostV1Message(r, request, response)
+
+	writeErrOrResponse(w, err, response)
 }
