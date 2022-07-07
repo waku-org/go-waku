@@ -6,8 +6,6 @@ replace github.com/status-im/go-waku => ../..
 
 replace github.com/ethereum/go-ethereum v1.10.18 => github.com/status-im/go-ethereum v1.10.4-status.2
 
-replace github.com/decanus/go-rln => github.com/status-im/go-rln v0.0.6
-
 replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
 
 require (
@@ -23,7 +21,7 @@ require (
 	google.golang.org/protobuf v1.28.0
 )
 
-require github.com/decanus/go-rln v0.0.0-20210914163037-e0e31478e351
+require github.com/status-im/go-rln v0.0.7
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect

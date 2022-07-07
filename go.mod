@@ -8,8 +8,6 @@ replace github.com/ethereum/go-ethereum v1.10.18 => github.com/status-im/go-ethe
 
 replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
 
-replace github.com/decanus/go-rln => github.com/status-im/go-rln v0.0.6
-
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0
@@ -33,15 +31,15 @@ require (
 	github.com/status-im/go-waku-rendezvous v0.0.0-20211018070416-a93f3b70c432
 	github.com/stretchr/testify v1.7.2
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a
-	github.com/urfave/cli/v2 v2.10.2
+	github.com/urfave/cli/v2 v2.10.3
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 )
 
 require (
-	github.com/decanus/go-rln v0.0.0-20210914163037-e0e31478e351
 	github.com/flynn/noise v1.0.0
+	github.com/status-im/go-rln v0.0.7
 	golang.org/x/text v0.3.7
 )
 

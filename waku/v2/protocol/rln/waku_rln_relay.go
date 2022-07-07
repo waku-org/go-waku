@@ -9,11 +9,11 @@ import (
 	"math"
 	"time"
 
-	r "github.com/decanus/go-rln/rln"
 	"github.com/ethereum/go-ethereum/common"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"

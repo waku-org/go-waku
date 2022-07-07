@@ -187,7 +187,7 @@ func (c *CodecRequest) writeServerResponse(w http.ResponseWriter, status int, re
 	if err == nil {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(status)
-		w.Write(b)
+		_, _ = w.Write(b)
 	} else {
 		// Not sure in which case will this happen. But seems harmless.
 		rpc.WriteError(w, 400, err.Error())

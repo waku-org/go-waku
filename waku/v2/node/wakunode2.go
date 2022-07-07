@@ -24,7 +24,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
 
-	r "github.com/decanus/go-rln/rln"
+	r "github.com/status-im/go-rln/rln"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/try"

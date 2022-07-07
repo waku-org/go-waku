@@ -13,11 +13,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/decanus/go-rln/rln"
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/status-im/go-rln/rln"
 	wakuprotocol "github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/utils"
 
