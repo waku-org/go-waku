@@ -161,7 +161,7 @@ func Execute(options Options) {
 	}
 
 	if options.Version {
-		fmt.Printf("version / git commit hash: %s(%s)\n", node.Version, node.GitCommit)
+		fmt.Printf("version / git commit hash: %s-%s\n", node.Version, node.GitCommit)
 		return
 	}
 
