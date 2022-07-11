@@ -20,15 +20,13 @@ type InfoReply struct {
 	ListenAddresses []string `json:"listenAddresses,omitempty"`
 }
 
-// a.Router.HandleFunc("/products", a.getProducts).Methods("GET")
-
 func NewDebugService(node *node.WakuNode, m *mux.Router) *DebugService {
 	d := &DebugService{
 		node: node,
 	}
 
-	m.HandleFunc("/debug/v1/info", d.restGetV1Info).Methods("GET")
-	m.HandleFunc("/debug/v1/version", d.restGetV1Version).Methods("GET")
+	m.HandleFunc("/debug/v1/info", d.restGetV1Info).Methods(http.MethodGet)
+	m.HandleFunc("/debug/v1/version", d.restGetV1Version).Methods(http.MethodGet)
 
 	return d
 }
@@ -51,21 +49,11 @@ func (d *DebugService) GetV1Version(r *http.Request, args *InfoArgs, reply *Vers
 func (d *DebugService) restGetV1Info(w http.ResponseWriter, r *http.Request) {
 	response := new(InfoReply)
 	err := d.GetV1Info(r, nil, response)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	writeResponse(w, response)
+	writeErrOrResponse(w, err, response)
 }
 
 func (d *DebugService) restGetV1Version(w http.ResponseWriter, r *http.Request) {
 	response := new(VersionResponse)
 	err := d.GetV1Version(r, nil, response)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	writeResponse(w, response)
+	writeErrOrResponse(w, err, response)
 }

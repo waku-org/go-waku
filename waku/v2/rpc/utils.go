@@ -136,7 +136,12 @@ func (h *ByteArray) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func writeResponse(w http.ResponseWriter, value interface{}) {
+func writeErrOrResponse(w http.ResponseWriter, err error, value interface{}) {
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	jsonResponse, err := json.Marshal(value)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
