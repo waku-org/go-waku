@@ -8,9 +8,11 @@ import (
 
 var logKey = &struct{}{}
 
-// From allows retrieving the Logger from a Context
+// From allows retrieving the Logger from a Context.
+// Returns default logger if Context does not have one.
 func From(ctx context.Context) *zap.Logger {
-	return ctx.Value(logKey).(*zap.Logger)
+	logger, _ := ctx.Value(logKey).(*zap.Logger)
+	return logger
 }
 
 // With associates a Logger with a Context to allow passing
