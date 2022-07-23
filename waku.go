@@ -85,9 +85,15 @@ func main() {
 				Usage:       "Path to a file containing the private key for the P2P node",
 				Destination: &options.KeyFile,
 			},
+			&cli.StringFlag{
+				Name:        "key-password",
+				Value:       "secret",
+				Usage:       "Password used for the private key file",
+				Destination: &options.KeyPasswd,
+			},
 			&cli.BoolFlag{
 				Name:        "generate-key",
-				Usage:       "Generate private key file at path specified in --key-file",
+				Usage:       "Generate private key file at path specified in --key-file with the password defined by --key-password",
 				Destination: &options.GenerateKey,
 			},
 			&cli.BoolFlag{
