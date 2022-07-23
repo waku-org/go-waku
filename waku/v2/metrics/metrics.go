@@ -62,7 +62,7 @@ var (
 		Measure:     StoreErrors,
 		Description: "The distribution of the store protocol errors",
 		Aggregation: view.Count(),
-		TagKeys:     []tag.Key{KeyType},
+		TagKeys:     []tag.Key{ErrorType},
 	}
 	LightpushErrorTypesView = &view.View{
 		Name:        "gowaku_lightpush_errors",
