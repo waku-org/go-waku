@@ -39,13 +39,13 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		wrpc.log.Info("served request", zap.String("path", r.URL.Path), zap.Duration("duration", time.Since(t)))
 	})
 
-	debugService := NewDebugService(node, mux)
+	debugService := NewDebugService(node)
 	err := s.RegisterService(debugService, "Debug")
 	if err != nil {
 		wrpc.log.Error("registering debug service", zap.Error(err))
 	}
 
-	relayService := NewRelayService(node, mux, log)
+	relayService := NewRelayService(node, log)
 	err = s.RegisterService(relayService, "Relay")
 	if err != nil {
 		wrpc.log.Error("registering relay service", zap.Error(err))

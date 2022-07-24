@@ -111,6 +111,16 @@ type RPCServerOptions struct {
 	Private bool
 }
 
+// RESTServerOptions are settings used to start a rest http server
+type RESTServerOptions struct {
+	Enable             bool
+	Port               int
+	Address            string
+	Admin              bool
+	Private            bool
+	RelayCacheCapacity int
+}
+
 // WSOptions are settings used for enabling websockets and secure websockets
 // support
 type WSOptions struct {
@@ -157,4 +167,5 @@ type Options struct {
 	DNSDiscovery     DNSDiscoveryOptions
 	Metrics          MetricsOptions
 	RPCServer        RPCServerOptions
+	RESTServer       RESTServerOptions
 }

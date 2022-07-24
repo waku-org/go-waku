@@ -2,9 +2,7 @@ package rpc
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
@@ -134,23 +132,4 @@ func (h *ByteArray) UnmarshalText(b []byte) error {
 	*h = decoded
 
 	return nil
-}
-
-func writeErrOrResponse(w http.ResponseWriter, err error, value interface{}) {
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	jsonResponse, err := json.Marshal(value)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	_, err = w.Write(jsonResponse)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 }

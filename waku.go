@@ -385,6 +385,42 @@ func main() {
 				Usage:       "Enable access to JSON-RPC Private API",
 				Destination: &options.RPCServer.Private,
 			},
+
+			&cli.BoolFlag{
+				Name:        "rest",
+				Usage:       "Enable Waku REST HTTP server",
+				Destination: &options.RESTServer.Enable,
+			},
+			&cli.StringFlag{
+				Name:        "rest-address",
+				Value:       "127.0.0.1",
+				Usage:       "Listening address of the REST HTTP server",
+				Destination: &options.RESTServer.Address,
+			},
+			&cli.IntFlag{
+				Name:        "rest-port",
+				Value:       8645,
+				Usage:       "Listening port of the REST HTTP server",
+				Destination: &options.RESTServer.Port,
+			},
+			&cli.IntFlag{
+				Name:        "rest-relay-cache-capacity",
+				Value:       30,
+				Usage:       "Capacity of the Relay REST API message cache",
+				Destination: &options.RESTServer.RelayCacheCapacity,
+			},
+			&cli.BoolFlag{
+				Name:        "rest-admin",
+				Value:       false,
+				Usage:       "Enable access to REST HTTP Admin API",
+				Destination: &options.RESTServer.Admin,
+			},
+			&cli.BoolFlag{
+				Name:        "rest-private",
+				Value:       false,
+				Usage:       "Enable access to REST HTTP Private API",
+				Destination: &options.RESTServer.Private,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			// for go-libp2p loggers
