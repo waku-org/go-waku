@@ -40,6 +40,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"github.com/status-im/go-waku/waku/v2/rest"
 	"github.com/status-im/go-waku/waku/v2/rpc"
 	"github.com/status-im/go-waku/waku/v2/utils"
 )
@@ -315,6 +316,12 @@ func Execute(options Options) {
 		rpcServer.Start()
 	}
 
+	var restServer *rest.WakuRest
+	if options.RESTServer.Enable {
+		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.RESTServer.Admin, options.RESTServer.Private, options.RESTServer.RelayCacheCapacity, logger)
+		restServer.Start()
+	}
+
 	logger.Info("Node setup complete")
 
 	// Wait for a SIGINT or SIGTERM signal
@@ -329,6 +336,11 @@ func Execute(options Options) {
 	if options.RPCServer.Enable {
 		err := rpcServer.Stop(ctx)
 		failOnErr(err, "RPCClose")
+	}
+
+	if options.RESTServer.Enable {
+		err := restServer.Stop(ctx)
+		failOnErr(err, "RESTClose")
 	}
 
 	if options.Metrics.Enable {

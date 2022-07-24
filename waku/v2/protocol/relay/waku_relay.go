@@ -145,7 +145,7 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 		}
 		w.relaySubs[topic] = sub
 
-		w.log.Info("subscribing to topic", zap.String("topic", topic))
+		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
 	}
 
 	return sub, nil
@@ -253,10 +253,11 @@ func (w *WakuRelay) Subscribe(ctx context.Context) (*Subscription, error) {
 
 // Unsubscribe closes a subscription to a pubsub topic
 func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {
-	if _, ok := w.relaySubs[topic]; !ok {
-		return fmt.Errorf("topics %s is not subscribed", (string)(topic))
+	sub, ok := w.relaySubs[topic]
+	if !ok {
+		return fmt.Errorf("not subscribed to topic")
 	}
-	w.log.Info("unsubscribing from topic", zap.String("topic", topic))
+	w.log.Info("unsubscribing from topic", zap.String("topic", sub.Topic()))
 
 	for _, sub := range w.subscriptions[topic] {
 		sub.Unsubscribe()

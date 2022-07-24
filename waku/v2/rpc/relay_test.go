@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/utils"
@@ -20,9 +19,7 @@ func makeRelayService(t *testing.T) *RelayService {
 	err = n.Start()
 	require.NoError(t, err)
 
-	mux := mux.NewRouter()
-
-	return NewRelayService(n, mux, utils.Logger())
+	return NewRelayService(n, utils.Logger())
 }
 
 func TestPostV1Message(t *testing.T) {
