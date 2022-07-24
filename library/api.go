@@ -48,6 +48,13 @@ func waku_stop() *C.char {
 	return C.CString(response)
 }
 
+//export waku_is_started
+// Determine is a node is started or not
+func waku_is_started() *C.char {
+	response := mobile.IsStarted()
+	return C.CString(response)
+}
+
 //export waku_peerid
 // Obtain the peer ID of the waku node
 func waku_peerid() *C.char {
