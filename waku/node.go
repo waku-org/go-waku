@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"database/sql"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
@@ -21,7 +22,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p"
-	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/config"
@@ -73,7 +73,7 @@ func freePort() (int, error) {
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
 	if options.GenerateKey {
-		if err := writePrivateKeyToFile(options.KeyFile, options.Overwrite); err != nil {
+		if err := writePrivateKeyToFile(options.KeyFile, []byte(options.KeyPasswd), options.Overwrite); err != nil {
 			failOnErr(err, "nodekey error")
 		}
 		return
@@ -356,28 +356,24 @@ func addPeers(wakuNode *node.WakuNode, addresses []string, protocols ...string) 
 	}
 }
 
-func loadPrivateKeyFromFile(path string) (*ecdsa.PrivateKey, error) {
+func loadPrivateKeyFromFile(path string, passwd string) (*ecdsa.PrivateKey, error) {
 	src, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	dst := make([]byte, hex.DecodedLen(len(src)))
-	_, err = hex.Decode(dst, src)
+
+	var encryptedK keystore.CryptoJSON
+	err = json.Unmarshal(src, &encryptedK)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := libp2pcrypto.UnmarshalSecp256k1PrivateKey(dst)
+	pKey, err := keystore.DecryptDataV3(encryptedK, passwd)
 	if err != nil {
 		return nil, err
 	}
 
-	pBytes, err := p.Raw()
-	if err != nil {
-		return nil, err
-	}
-
-	return crypto.ToECDSA(pBytes)
+	return crypto.ToECDSA(pKey)
 }
 
 func checkForPrivateKeyFile(path string, overwrite bool) error {
@@ -400,20 +396,25 @@ func generatePrivateKey() ([]byte, error) {
 		return nil, err
 	}
 
-	b := key.D.Bytes()
-
-	output := make([]byte, hex.EncodedLen(len(b)))
-	hex.Encode(output, b)
-
-	return output, nil
+	return key.D.Bytes(), nil
 }
 
-func writePrivateKeyToFile(path string, overwrite bool) error {
+func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
 	if err := checkForPrivateKeyFile(path, overwrite); err != nil {
 		return err
 	}
 
-	output, err := generatePrivateKey()
+	key, err := generatePrivateKey()
+	if err != nil {
+		return err
+	}
+
+	encryptedK, err := keystore.EncryptDataV3(key, passwd, keystore.StandardScryptN, keystore.StandardScryptP)
+	if err != nil {
+		return err
+	}
+
+	output, err := json.Marshal(encryptedK)
 	if err != nil {
 		return err
 	}
@@ -436,7 +437,7 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 			}
 		} else {
 			if _, err := os.Stat(options.KeyFile); err == nil {
-				if prvKey, err = loadPrivateKeyFromFile(options.KeyFile); err != nil {
+				if prvKey, err = loadPrivateKeyFromFile(options.KeyFile, options.KeyPasswd); err != nil {
 					return nil, fmt.Errorf("could not read keyfile: %w", err)
 				}
 			} else {

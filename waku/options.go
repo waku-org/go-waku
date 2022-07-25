@@ -115,6 +115,7 @@ type Options struct {
 	Dns4DomainName   string
 	NodeKey          string
 	KeyFile          string
+	KeyPasswd        string
 	GenerateKey      bool
 	Overwrite        bool
 	StaticNodes      cli.StringSlice
