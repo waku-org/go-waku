@@ -11,7 +11,7 @@ import (
     "fmt"
 
 	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 )
 
 ...
@@ -34,9 +34,7 @@ if err := wakuNode.Start(); err != nil {
 ### Options
 One of these options must be specified when instantiating a node supporting the waku relay protocol
 
-- `WithWakuRelay(opts ...pubsub.Option)` - enables the waku relay protocol and receives an optional list of pubsub options to tune or configure the gossipsub parameters. Supported options can be seen [here](https://pkg.go.dev/github.com/libp2p/go-libp2p-pubsub#Option). The recommended [parameter configuration](https://rfc.vac.dev/spec/29/) is used by default.
-- `WithWakuRelayAndMinPeers(minRelayPeersToPublish int, opts ...pubsub.Option)` - enables the waku relay protocol, specifying the minimum number of peers a topic should have to send a message. It also receives an optional list of pubsub [options](https://pkg.go.dev/github.com/libp2p/go-libp2p-pubsub#Option)
-
+- `WitWakuFilter(isFullNode, opts ...pubsub.Option)` - enables the waku filter protocol and receives an optional list of options to configure the protocol
 
 ## Adding a peer and receiving messages
 ```go
