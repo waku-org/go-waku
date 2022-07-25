@@ -19,12 +19,15 @@ type LightPushParameters struct {
 
 type LightPushOption func(*LightPushParameters)
 
+// WithPeer is an option used to specify the peerID to push a waku message to
 func WithPeer(p peer.ID) LightPushOption {
 	return func(params *LightPushParameters) {
 		params.selectedPeer = p
 	}
 }
 
+// WithAutomaticPeerSelection is an option used to randomly select a peer from the peer store
+// to push a waku message to
 func WithAutomaticPeerSelection(host host.Host) LightPushOption {
 	return func(params *LightPushParameters) {
 		p, err := utils.SelectPeer(host, string(LightPushID_v20beta1), params.log)
@@ -36,6 +39,8 @@ func WithAutomaticPeerSelection(host host.Host) LightPushOption {
 	}
 }
 
+// WithFastestPeerSelection is an option used to select a peer from the peer store
+// with the lowest ping
 func WithFastestPeerSelection(ctx context.Context) LightPushOption {
 	return func(params *LightPushParameters) {
 		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, string(LightPushID_v20beta1), params.log)
@@ -47,18 +52,23 @@ func WithFastestPeerSelection(ctx context.Context) LightPushOption {
 	}
 }
 
+// WithRequestId is an option to set a specific request ID to be used when
+// publishing a message
 func WithRequestId(requestId []byte) LightPushOption {
 	return func(params *LightPushParameters) {
 		params.requestId = requestId
 	}
 }
 
+// WithAutomaticRequestId is an option to automatically generate a request ID
+// when publishing a message
 func WithAutomaticRequestId() LightPushOption {
 	return func(params *LightPushParameters) {
 		params.requestId = protocol.GenerateRequestId()
 	}
 }
 
+// DefaultOptions are the default options to be used when using the lightpush protocol
 func DefaultOptions(host host.Host) []LightPushOption {
 	return []LightPushOption{
 		WithAutomaticRequestId(),

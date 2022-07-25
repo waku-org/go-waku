@@ -1,3 +1,4 @@
+// Set of functions that are exported when go-waku is built as a static/dynamic library
 package main
 
 /*

@@ -18,6 +18,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// LightPushID_v20beta1 is the current Waku Lightpush protocol identifier
 const LightPushID_v20beta1 = libp2pProtocol.ID("/vac/waku/lightpush/2.0.0-beta1")
 
 var (

@@ -279,7 +279,7 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 	}
 }
 
-// WithAutomaticPeerSelection is an option used to randomly select a peer from the store
+// WithAutomaticPeerSelection is an option used to randomly select a peer from the peer store
 // to request the message history
 func WithAutomaticPeerSelection() HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {

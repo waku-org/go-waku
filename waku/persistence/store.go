@@ -71,6 +71,8 @@ func WithDriver(driverName string, datasourceName string) DBOption {
 	}
 }
 
+// WithRetentionPolicy is a DBOption that specifies the max number of messages
+// to be stored and duration before they're removed from the message store
 func WithRetentionPolicy(maxMessages int, maxDuration time.Duration) DBOption {
 	return func(d *DBStore) error {
 		d.maxDuration = maxDuration
@@ -182,14 +184,14 @@ func (d *DBStore) checkForOlderRecords(t time.Duration) {
 	}
 }
 
-// Closes a DB connection
+// Stop closes a DB connection
 func (d *DBStore) Stop() {
 	d.quit <- struct{}{}
 	d.wg.Wait()
 	d.db.Close()
 }
 
-// Inserts a WakuMessage into the DB
+// Put inserts a WakuMessage into the DB
 func (d *DBStore) Put(env *protocol.Envelope) error {
 	stmt, err := d.db.Prepare("INSERT INTO message (id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
@@ -211,6 +213,7 @@ func (d *DBStore) Put(env *protocol.Envelope) error {
 	return nil
 }
 
+// Query retrieves messages from the DB
 func (d *DBStore) Query(query *pb.HistoryQuery) ([]StoredMessage, error) {
 	start := time.Now()
 	defer func() {
@@ -319,6 +322,8 @@ func (d *DBStore) Query(query *pb.HistoryQuery) ([]StoredMessage, error) {
 	return result, nil
 }
 
+// MostRecentTimestamp returns an unix timestamp with the most recent senderTimestamp
+// in the message table
 func (d *DBStore) MostRecentTimestamp() (int64, error) {
 	result := sql.NullInt64{}
 
@@ -329,7 +334,7 @@ func (d *DBStore) MostRecentTimestamp() (int64, error) {
 	return result.Int64, nil
 }
 
-// Returns all the stored WakuMessages
+// GetAll returns all the stored WakuMessages
 func (d *DBStore) GetAll() ([]StoredMessage, error) {
 	start := time.Now()
 	defer func() {
@@ -364,7 +369,8 @@ func (d *DBStore) GetAll() ([]StoredMessage, error) {
 	return result, nil
 }
 
-func (d *DBStore) GetStoredMessage(rows *sql.Rows) (StoredMessage, error) {
+// GetStoredMessage is a helper function used to convert a `*sql.Rows` into a `StoredMessage`
+func (d *DBStore) GetStoredMessage(row *sql.Rows) (StoredMessage, error) {
 	var id []byte
 	var receiverTimestamp int64
 	var senderTimestamp int64
@@ -373,7 +379,7 @@ func (d *DBStore) GetStoredMessage(rows *sql.Rows) (StoredMessage, error) {
 	var version uint32
 	var pubsubTopic string
 
-	err := rows.Scan(&id, &receiverTimestamp, &senderTimestamp, &contentTopic, &pubsubTopic, &payload, &version)
+	err := row.Scan(&id, &receiverTimestamp, &senderTimestamp, &contentTopic, &pubsubTopic, &payload, &version)
 	if err != nil {
 		d.log.Error("scanning messages from db", zap.Error(err))
 		return StoredMessage{}, err

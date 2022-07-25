@@ -6,16 +6,22 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// RendezvousOptions are settings for enabling the rendezvous protocol for
+// discovering new nodes
 type RendezvousOptions struct {
 	Enable bool
 	Nodes  cli.StringSlice
 }
 
+// RendezvousServerOptions are settings to enable the waku node to act as a
+// rendezvous server
 type RendezvousServerOptions struct {
 	Enable bool
 	DBPath string
 }
 
+// DiscV5Options are settings to enable a modified version of Ethereum’s Node
+// Discovery Protocol v5 as a means for ambient node discovery.
 type DiscV5Options struct {
 	Enable     bool
 	Nodes      cli.StringSlice
@@ -23,6 +29,9 @@ type DiscV5Options struct {
 	AutoUpdate bool
 }
 
+// RelayOptions are settings to enable the relay protocol which is a pubsub
+// approach to peer-to-peer messaging with a strong focus on privacy,
+// censorship-resistance, security and scalability.
 type RelayOptions struct {
 	Enable                 bool
 	Topics                 cli.StringSlice
@@ -30,6 +39,10 @@ type RelayOptions struct {
 	MinRelayPeersToPublish int
 }
 
+// FilterOptions are settings used to enable filter protocol. This is a protocol
+// that enables subscribing to messages that a peer receives. This is a more
+// lightweight version of WakuRelay specifically designed for bandwidth
+// restricted devices.
 type FilterOptions struct {
 	Enable          bool
 	DisableFullNode bool
@@ -98,6 +111,8 @@ type RPCServerOptions struct {
 	Private bool
 }
 
+// WSOptions are settings used for enabling websockets and secure websockets
+// support
 type WSOptions struct {
 	Enable   bool
 	Port     int

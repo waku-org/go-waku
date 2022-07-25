@@ -29,6 +29,7 @@ func Logger() *zap.Logger {
 	return log
 }
 
+// InitLogger initializes a global logger using an specific encoding
 func InitLogger(encoding string) {
 	cfg := zap.Config{
 		Encoding:         encoding,

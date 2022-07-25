@@ -206,6 +206,7 @@ func Multiaddress(node *enode.Node) ([]ma.Multiaddr, error) {
 	return result, nil
 }
 
+// EnodeToPeerInfo extracts the peer ID and multiaddresses defined in an ENR
 func EnodeToPeerInfo(node *enode.Node) (*peer.AddrInfo, error) {
 	addresses, err := Multiaddress(node)
 	if err != nil {
@@ -218,5 +219,4 @@ func EnodeToPeerInfo(node *enode.Node) (*peer.AddrInfo, error) {
 	}
 
 	return &res[0], nil
-
 }
