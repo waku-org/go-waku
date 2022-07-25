@@ -116,7 +116,8 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 
 	if params.enableWSS {
 		params.libP2POpts = append(params.libP2POpts, libp2p.Transport(ws.New, ws.WithTLSConfig(params.tlsConfig)))
-	} else if params.enableWS {
+	} else {
+		// Enable WS transport by default
 		params.libP2POpts = append(params.libP2POpts, libp2p.Transport(ws.New))
 	}
 
