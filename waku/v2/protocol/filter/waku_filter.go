@@ -28,6 +28,7 @@ var (
 
 type (
 	Filter struct {
+		filterID       string
 		PeerID         peer.ID
 		Topic          string
 		ContentFilters []string
@@ -57,11 +58,10 @@ type (
 	}
 )
 
-// NOTE This is just a start, the design of this protocol isn't done yet. It
-// should be direct payload exchange (a la req-resp), not be coupled with the
-// relay protocol.
+// FilterID_v20beta1 is the current Waku Filter protocol identifier
 const FilterID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter/2.0.0-beta1")
 
+// NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
 func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, log *zap.Logger, opts ...Option) (*WakuFilter, error) {
 	wf := new(WakuFilter)
 	wf.log = log.Named("filter").With(zap.Bool("fullNode", isFullNode))
@@ -90,7 +90,7 @@ func NewWakuFilter(ctx context.Context, host host.Host, isFullNode bool, log *za
 	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest)
 
 	wf.wg.Add(1)
-	go wf.FilterListener()
+	go wf.filterListener()
 
 	wf.log.Info("filter protocol started")
 	return wf, nil
@@ -177,7 +177,7 @@ func (wf *WakuFilter) pushMessage(subscriber Subscriber, msg *pb.WakuMessage) er
 	return nil
 }
 
-func (wf *WakuFilter) FilterListener() {
+func (wf *WakuFilter) filterListener() {
 	defer wf.wg.Done()
 
 	// This function is invoked for each message received
@@ -282,6 +282,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	return
 }
 
+// Unsubscribe is used to stop receiving messages from a peer that match a content filter
 func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilter, peer peer.ID) error {
 	// We connect first so dns4 addresses are resolved (NewStream does not do it)
 	err := wf.h.Connect(ctx, wf.h.Peerstore().PeerInfo(peer))
@@ -320,6 +321,7 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 	return nil
 }
 
+// Stop unmounts the filter protocol
 func (wf *WakuFilter) Stop() {
 	close(wf.MsgC)
 
@@ -328,6 +330,7 @@ func (wf *WakuFilter) Stop() {
 	wf.wg.Wait()
 }
 
+// Subscribe setups a subscription to receive messages that match a specific content filter
 func (wf *WakuFilter) Subscribe(ctx context.Context, f ContentFilter, opts ...FilterSubscribeOption) (filterID string, theFilter Filter, err error) {
 	// TODO: check if there's an existing pubsub topic that uses the same peer. If so, reuse filter, and return same channel and filterID
 
@@ -344,6 +347,7 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, f ContentFilter, opts ...Fi
 
 	filterID = remoteSubs.RequestID
 	theFilter = Filter{
+		filterID:       filterID,
 		PeerID:         remoteSubs.Peer,
 		Topic:          f.Topic,
 		ContentFilters: f.ContentTopics,
@@ -353,6 +357,16 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, f ContentFilter, opts ...Fi
 	wf.filters.Set(filterID, theFilter)
 
 	return
+}
+
+// UnsubscribeFilterByID removes a subscription to a filter node completely
+// using using a filter. It also closes the filter channel
+func (wf *WakuFilter) UnsubscribeByFilter(ctx context.Context, filter Filter) error {
+	err := wf.UnsubscribeFilterByID(ctx, filter.filterID)
+	if err != nil {
+		close(filter.Chan)
+	}
+	return err
 }
 
 // UnsubscribeFilterByID removes a subscription to a filter node completely
