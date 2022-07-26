@@ -25,6 +25,7 @@ import (
 )
 
 var wakuNode *node.WakuNode
+var wakuStarted = false
 
 var errWakuNodeNotReady = errors.New("go-waku not initialized")
 
@@ -151,6 +152,8 @@ func Start() string {
 		return makeJSONResponse(err)
 	}
 
+	wakuStarted = true
+
 	return makeJSONResponse(nil)
 }
 
@@ -160,9 +163,15 @@ func Stop() string {
 	}
 
 	wakuNode.Stop()
+
+	wakuStarted = false
 	wakuNode = nil
 
 	return makeJSONResponse(nil)
+}
+
+func IsStarted() string {
+	return prepareJSONResponse(wakuStarted, nil)
 }
 
 func PeerID() string {
