@@ -14,6 +14,19 @@ type Subscriber struct {
 	filter    pb.FilterRequest // @TODO MAKE THIS A SEQUENCE AGAIN?
 }
 
+func (sub Subscriber) HasContentTopic(topic string) bool {
+	if len(sub.filter.ContentFilters) == 0 {
+		return true // When the subscriber has no specific ContentTopic filter
+	}
+
+	for _, filter := range sub.filter.ContentFilters {
+		if filter.ContentTopic == topic {
+			return true
+		}
+	}
+	return false
+}
+
 type Subscribers struct {
 	sync.RWMutex
 	subscribers []Subscriber
@@ -36,14 +49,16 @@ func (sub *Subscribers) Append(s Subscriber) int {
 	return len(sub.subscribers)
 }
 
-func (sub *Subscribers) Items() <-chan Subscriber {
+func (sub *Subscribers) Items(contentTopic *string) <-chan Subscriber {
 	c := make(chan Subscriber)
 
 	f := func() {
 		sub.RLock()
 		defer sub.RUnlock()
-		for _, value := range sub.subscribers {
-			c <- value
+		for _, s := range sub.subscribers {
+			if contentTopic == nil || s.HasContentTopic(*contentTopic) {
+				c <- s
+			}
 		}
 		close(c)
 	}
@@ -57,6 +72,13 @@ func (sub *Subscribers) Length() int {
 	defer sub.RUnlock()
 
 	return len(sub.subscribers)
+}
+
+func (sub *Subscribers) IsFailedPeer(peerID peer.ID) bool {
+	sub.RLock()
+	defer sub.RUnlock()
+	_, ok := sub.failedPeers[peerID]
+	return ok
 }
 
 func (sub *Subscribers) FlagAsSuccess(peerID peer.ID) {
@@ -98,22 +120,23 @@ func (sub *Subscribers) RemoveContentFilters(peerID peer.ID, contentFilters []*p
 
 	var peerIdsToRemove []peer.ID
 
-	for _, subscriber := range sub.subscribers {
+	for subIndex, subscriber := range sub.subscribers {
 		if subscriber.peer != peerID {
 			continue
 		}
 
 		// make sure we delete the content filter
 		// if no more topics are left
-		for i, contentFilter := range contentFilters {
+		for _, contentFilter := range contentFilters {
 			subCfs := subscriber.filter.ContentFilters
-			for _, cf := range subCfs {
+			for i, cf := range subCfs {
 				if cf.ContentTopic == contentFilter.ContentTopic {
 					l := len(subCfs) - 1
-					subCfs[l], subCfs[i] = subCfs[i], subCfs[l]
+					subCfs[i] = subCfs[l]
 					subscriber.filter.ContentFilters = subCfs[:l]
 				}
 			}
+			sub.subscribers[subIndex] = subscriber
 		}
 
 		if len(subscriber.filter.ContentFilters) == 0 {
