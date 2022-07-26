@@ -184,10 +184,16 @@ func WithAdvertiseAddress(address *net.TCPAddr) WakuNodeOption {
 			result = append(result, advertiseAddress)
 			if params.enableWS || params.enableWSS {
 				if params.enableWSS {
-					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address, params.wssPort))
+					wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address.IP, params.wssPort))
+					if err != nil {
+						panic(err)
+					}
 					result = append(result, wsMa)
 				} else {
-					wsMa, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address, params.wsPort))
+					wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address.IP, params.wsPort))
+					if err != nil {
+						panic(err)
+					}
 					result = append(result, wsMa)
 				}
 			}
