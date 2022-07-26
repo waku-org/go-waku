@@ -9,6 +9,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/tests"
+	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +36,7 @@ func TestWakuOptions(t *testing.T) {
 
 	options := []WakuNodeOption{
 		WithHostAddress(hostAddr),
-		WithAdvertiseAddress(advertiseAddr, false, false, 4000),
+		WithAdvertiseAddress(advertiseAddr),
 		WithMultiaddress([]multiaddr.Multiaddr{addr}),
 		WithPrivateKey(prvKey),
 		WithLibP2POptions(),
@@ -46,7 +47,7 @@ func TestWakuOptions(t *testing.T) {
 		WithDiscoveryV5(123, nil, false),
 		WithWakuStore(true, true),
 		WithWakuStoreAndRetentionPolicy(true, time.Hour, 100),
-		WithMessageProvider(nil),
+		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),
 		WithKeepAlive(time.Hour),
 		WithConnectionStatusChannel(connStatusChan),

@@ -17,7 +17,7 @@ type dnsDiscoveryParameters struct {
 
 type DnsDiscoveryOption func(*dnsDiscoveryParameters)
 
-// WithMultiaddress is a WakuNodeOption that configures libp2p to listen on a list of multiaddresses
+// WithNameserver is a DnsDiscoveryOption that configures the nameserver to use
 func WithNameserver(nameserver string) DnsDiscoveryOption {
 	return func(params *dnsDiscoveryParameters) {
 		params.nameserver = nameserver

@@ -60,7 +60,7 @@ func TestV1Peers(t *testing.T) {
 	}
 	err = a.PostV1Peers(request, &PeersArgs{Peers: []string{addr.String()}}, &reply2)
 	require.NoError(t, err)
-	require.True(t, reply2.Success)
+	require.True(t, reply2)
 
 	time.Sleep(2 * time.Second)
 

@@ -7,11 +7,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/status-im/go-waku/waku/persistence"
+	"github.com/status-im/go-waku/waku/persistence/sqlite"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
-func checkConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {
+func goCheckConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {
 	wg.Add(1)
+	go checkConnectedness(t, wg, connStatusChan, clientNode, node, nodeShouldBeConnected, shouldBeOnline, shouldHaveHistory, expectedPeers)
+}
+
+func checkConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {
 	defer wg.Done()
 
 	timeout := time.After(5 * time.Second)
@@ -62,6 +69,11 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node2.Start()
 	require.NoError(t, err)
 
+	db, err := sqlite.NewDB(":memory:")
+	require.NoError(t, err)
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db))
+	require.NoError(t, err)
+
 	// Node3: Relay + Store
 	hostAddr3, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
@@ -69,6 +81,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 		WithHostAddress(hostAddr3),
 		WithWakuRelay(),
 		WithWakuStore(false, false),
+		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)
 	err = node3.Start()
@@ -76,31 +89,31 @@ func TestConnectionStatusChanges(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	go checkConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
 
 	err = node1.DialPeer(ctx, node2.ListenAddresses()[0].String())
 	require.NoError(t, err)
 
 	wg.Wait()
 
-	go checkConnectedness(t, &wg, connStatusChan, node1, node3, true, true, true, 2)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node3, true, true, true, 2)
 
 	err = node1.DialPeer(ctx, node3.ListenAddresses()[0].String())
 	require.NoError(t, err)
 
-	go checkConnectedness(t, &wg, connStatusChan, node1, node3, false, true, false, 1)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node3, false, true, false, 1)
 
 	node3.Stop()
 
 	wg.Wait()
 
-	go checkConnectedness(t, &wg, connStatusChan, node1, node2, false, false, false, 0)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node2, false, false, false, 0)
 
 	err = node1.ClosePeerById(node2.Host().ID())
 	require.NoError(t, err)
 	wg.Wait()
 
-	go checkConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
+	goCheckConnectedness(t, &wg, connStatusChan, node1, node2, true, true, false, 1)
 
 	err = node1.DialPeerByID(ctx, node2.Host().ID())
 	require.NoError(t, err)

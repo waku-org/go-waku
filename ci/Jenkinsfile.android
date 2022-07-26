@@ -1,0 +1,83 @@
+library 'status-jenkins-lib@v1.3.3'
+
+pipeline {
+  agent { label 'linux && x86_64 && go-1.18' }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    /* Prevent Jenkins jobs from running forever */
+    timeout(time: 30, unit: 'MINUTES')
+    /* Go requires a certain directory structure */
+    checkoutToSubdirectory('src/github.com/status-im/go-waku')
+    /* Limit builds retained */
+    buildDiscarder(logRotator(
+      numToKeepStr: '10',
+      daysToKeepStr: '20',
+      artifactNumToKeepStr: '10',
+    ))
+    /* Allows combined build to copy */
+    copyArtifactPermission('/go-waku/*')
+  }
+
+  environment {
+    BUILD_PLATFORM   = 'android'
+    CC="gcc-10"
+    /* Other stuff */
+    TARGET   = 'android'
+    REPO   = "${env.WORKSPACE}/src/github.com/status-im/go-waku"
+    GOPATH = "${env.WORKSPACE}"
+    PATH   = "/usr/local/go/bin:${env.PATH}:${env.GOPATH}/bin"
+    /* Android SDK */
+    ANDROID_HOME     = '/usr/lib/android-sdk'
+    ANDROID_SDK_ROOT = '/usr/lib/android-sdk'
+    /* gomobile requires a specific NDK version */
+    ANDROID_NDK      = "/opt/android-ndk-r23c"
+    ANDROID_NDK_HOME = "/opt/android-ndk-r23c"
+  }
+
+  stages {
+
+    stage('Prep') { steps { dir(env.REPO) { script {
+      env.ARTIFACT = "${env.REPO}/pkg/" + utils.pkgFilename(
+        name: "go-waku",
+        type: "android",
+        ext: "tar.gz"
+      )
+
+      sh 'make install-gomobile'
+
+      println("Output: ${env.ARTIFACT}")
+    } } } }
+
+    stage('Build') { steps { dir(env.REPO) {
+      sh 'make mobile-android || true'
+      sh 'make mobile-android'
+      dir('build/lib') {
+        sh 'tar -czvf gowaku-android.tar.gz gowaku.aar gowaku-sources.jar'
+        sh "cp gowaku-android.tar.gz ${env.ARTIFACT}"
+      }
+    } } }
+
+    stage('Parallel Upload') {
+      parallel {
+        stage('Archive') {
+          steps { script {
+            archiveArtifacts(env.ARTIFACT.minus("${env.WORKSPACE}/"))
+          } }
+        }
+        stage('Upload') {
+          steps { script {
+            env.PKG_URL = s3.uploadArtifact(env.ARTIFACT)
+            jenkins.setBuildDesc(android: env.PKG_URL)
+          } }
+        }
+      }
+    }
+  }
+  post {
+    success { script { github.notifyPR(true) } }
+    failure { script { github.notifyPR(false) } }
+    always { cleanWs() }
+  }
+}

@@ -1,3 +1,5 @@
+// Implements gomobile bindings for go-waku. Contains a set of functions that
+// are exported when go-waku is exported as libraries for mobile devices
 package gowaku
 
 import (

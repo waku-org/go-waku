@@ -1,14 +1,3 @@
----
-slug: #
-title: #/GOWAKU-BINDINGS
-name: Go-Waku v2 C Bindings
-status: draft
-tags: go-waku
-editor: Richard Ramos <richard@status.im>
-contributors:
-
----
-
 This specification describes the API for consuming go-waku when built as a dynamic or static library
 
 
@@ -441,9 +430,7 @@ Query historic messages using waku store protocol.
   "startTime": 1234, // optional, unix epoch time in nanoseconds
   "endTime": 1234, // optional, unix epoch time in nanoseconds
   "contentFilters": [ // optional
-    {
-      "contentTopic": "..."
-    }, ...
+    "contentTopic1", "contentTopic2" ...
   ],
   "pagingOptions": { // optional pagination information
     "pageSize": 40, // number

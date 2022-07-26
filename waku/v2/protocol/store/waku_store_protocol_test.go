@@ -20,7 +20,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, nil, 0, 0, utils.Logger())
+	s1 := NewWakuStore(host1, nil, MemoryDB(t), 0, 0, utils.Logger())
 	s1.Start(ctx)
 	defer s1.Stop()
 
@@ -37,9 +37,9 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	// Simulate a message has been received via relay protocol
-	s1.MsgC <- protocol.NewEnvelope(msg, pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)
 
-	s2 := NewWakuStore(host2, nil, nil, 0, 0, utils.Logger())
+	s2 := NewWakuStore(host2, nil, MemoryDB(t), 0, 0, utils.Logger())
 	s2.Start(ctx)
 	defer s2.Stop()
 
@@ -66,7 +66,9 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, nil, 0, 0, utils.Logger())
+	db := MemoryDB(t)
+
+	s1 := NewWakuStore(host1, nil, db, 0, 0, utils.Logger())
 	s1.Start(ctx)
 	defer s1.Stop()
 
@@ -79,11 +81,11 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, 4)
 	msg5 := tests.CreateWakuMessage(topic1, 5)
 
-	s1.MsgC <- protocol.NewEnvelope(msg1, pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg2, pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg3, pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg4, pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg5, pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1)
+	s1.MsgC <- protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1)
 
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
@@ -92,7 +94,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(host2, nil, nil, 0, 0, utils.Logger())
+	s2 := NewWakuStore(host2, nil, db, 0, 0, utils.Logger())
 	s2.Start(ctx)
 	defer s2.Stop()
 

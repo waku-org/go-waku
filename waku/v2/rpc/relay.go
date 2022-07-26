@@ -8,13 +8,14 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
 
 type RelayService struct {
 	node *node.WakuNode
 
-	log *zap.SugaredLogger
+	log *zap.Logger
 
 	messages      map[string][]*pb.WakuMessage
 	messagesMutex sync.RWMutex
@@ -23,8 +24,8 @@ type RelayService struct {
 }
 
 type RelayMessageArgs struct {
-	Topic   string         `json:"topic,omitempty"`
-	Message pb.WakuMessage `json:"message,omitempty"`
+	Topic   string              `json:"topic,omitempty"`
+	Message RPCWakuRelayMessage `json:"message,omitempty"`
 }
 
 type TopicsArgs struct {
@@ -35,7 +36,7 @@ type TopicArgs struct {
 	Topic string `json:"topic,omitempty"`
 }
 
-func NewRelayService(node *node.WakuNode, log *zap.SugaredLogger) *RelayService {
+func NewRelayService(node *node.WakuNode, log *zap.Logger) *RelayService {
 	s := &RelayService{
 		node:     node,
 		log:      log.Named("relay"),
@@ -43,6 +44,7 @@ func NewRelayService(node *node.WakuNode, log *zap.SugaredLogger) *RelayService 
 	}
 
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
+
 	return s
 }
 
@@ -58,6 +60,12 @@ func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
 }
 
 func (r *RelayService) Start() {
+	// Node may already be subscribed to some topics when Relay API handlers are installed. Let's add these
+	for _, topic := range r.node.Relay().Topics() {
+		r.log.Info("adding topic handler for existing subscription", zap.String("topic", topic))
+		r.messages[topic] = make([]*pb.WakuMessage, 0)
+	}
+
 	r.runner.Start()
 }
 
@@ -67,18 +75,20 @@ func (r *RelayService) Stop() {
 
 func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, reply *SuccessReply) error {
 	var err error
+
+	msg := args.Message.toProto()
+
 	if args.Topic == "" {
-		_, err = r.node.Relay().Publish(req.Context(), &args.Message)
+		_, err = r.node.Relay().Publish(req.Context(), msg)
 	} else {
-		_, err = r.node.Relay().PublishToTopic(req.Context(), &args.Message, args.Topic)
+		_, err = r.node.Relay().PublishToTopic(req.Context(), msg, args.Topic)
 	}
 	if err != nil {
-		r.log.Error("Error publishing message: ", err)
-		reply.Success = false
-		reply.Error = err.Error()
-	} else {
-		reply.Success = true
+		r.log.Error("publishing message", zap.Error(err))
+		return err
 	}
+
+	*reply = true
 	return nil
 }
 
@@ -87,20 +97,22 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 	for _, topic := range args.Topics {
 		var err error
 		if topic == "" {
-			_, err = r.node.Relay().Subscribe(ctx)
-
+			var sub *relay.Subscription
+			sub, err = r.node.Relay().Subscribe(ctx)
+			r.node.Broadcaster().Unregister(&relay.DefaultWakuTopic, sub.C)
 		} else {
-			_, err = r.node.Relay().SubscribeToTopic(ctx, topic)
+			var sub *relay.Subscription
+			sub, err = r.node.Relay().SubscribeToTopic(ctx, topic)
+			r.node.Broadcaster().Unregister(&topic, sub.C)
 		}
 		if err != nil {
-			r.log.Error("Error subscribing to topic:", topic, "err:", err)
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
+			return err
 		}
 		r.messages[topic] = make([]*pb.WakuMessage, 0)
 	}
-	reply.Success = true
+
+	*reply = true
 	return nil
 }
 
@@ -109,19 +121,18 @@ func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs,
 	for _, topic := range args.Topics {
 		err := r.node.Relay().Unsubscribe(ctx, topic)
 		if err != nil {
-			r.log.Error("Error unsubscribing from topic", topic, "err:", err)
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			r.log.Error("unsubscribing from topic", zap.String("topic", topic), zap.Error(err))
+			return err
 		}
 
 		delete(r.messages, topic)
 	}
-	reply.Success = true
+
+	*reply = true
 	return nil
 }
 
-func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *MessagesReply) error {
+func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *RelayMessagesReply) error {
 	r.messagesMutex.Lock()
 	defer r.messagesMutex.Unlock()
 
@@ -129,7 +140,11 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 		return fmt.Errorf("topic %s not subscribed", args.Topic)
 	}
 
-	reply.Messages = r.messages[args.Topic]
+	for i := range r.messages[args.Topic] {
+		*reply = append(*reply, ProtoWakuMessageToRPCWakuRelayMessage(r.messages[args.Topic][i]))
+	}
+
 	r.messages[args.Topic] = make([]*pb.WakuMessage, 0)
+
 	return nil
 }

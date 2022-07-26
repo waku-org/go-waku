@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
@@ -52,9 +51,20 @@ func NewWakuEnrBitfield(lightpush, filter, store, relay bool) WakuEnrBitfield {
 
 // GetENRandIP returns a enr Node and TCP address obtained from a multiaddress. priv key and protocols supported
 func GetENRandIP(addr ma.Multiaddr, wakuFlags WakuEnrBitfield, privK *ecdsa.PrivateKey) (*enode.Node, *net.TCPAddr, error) {
-	ip, err := addr.ValueForProtocol(ma.P_IP4)
+	var ip string
+
+	dns4, err := addr.ValueForProtocol(ma.P_DNS4)
 	if err != nil {
-		return nil, nil, err
+		ip, err = addr.ValueForProtocol(ma.P_IP4)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		netIP, err := net.ResolveIPAddr("ip4", dns4)
+		if err != nil {
+			return nil, nil, err
+		}
+		ip = netIP.String()
 	}
 
 	portStr, err := addr.ValueForProtocol(ma.P_TCP)
@@ -101,7 +111,7 @@ func GetENRandIP(addr ma.Multiaddr, wakuFlags WakuEnrBitfield, privK *ecdsa.Priv
 
 	p2pAddr, err := ma.NewMultiaddr("/p2p/" + p2p)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not create p2p addr: %w", err)
+		return nil, nil, fmt.Errorf("could not create p2p addr: %w", err)
 	}
 
 	var fieldRaw []byte
@@ -133,7 +143,7 @@ func GetENRandIP(addr ma.Multiaddr, wakuFlags WakuEnrBitfield, privK *ecdsa.Priv
 
 // EnodeToMultiaddress converts an enode into a multiaddress
 func enodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
-	pubKey := (*crypto.Secp256k1PublicKey)(node.Pubkey())
+	pubKey := EcdsaPubKeyToSecp256k1PublicKey(node.Pubkey())
 	peerID, err := peer.IDFromPublicKey(pubKey)
 	if err != nil {
 		return nil, err
@@ -144,7 +154,7 @@ func enodeToMultiAddr(node *enode.Node) (ma.Multiaddr, error) {
 
 // Multiaddress is used to extract all the multiaddresses that are part of a ENR record
 func Multiaddress(node *enode.Node) ([]ma.Multiaddr, error) {
-	pubKey := (*crypto.Secp256k1PublicKey)(node.Pubkey())
+	pubKey := EcdsaPubKeyToSecp256k1PublicKey(node.Pubkey())
 	peerID, err := peer.IDFromPublicKey(pubKey)
 	if err != nil {
 		return nil, err
@@ -196,6 +206,7 @@ func Multiaddress(node *enode.Node) ([]ma.Multiaddr, error) {
 	return result, nil
 }
 
+// EnodeToPeerInfo extracts the peer ID and multiaddresses defined in an ENR
 func EnodeToPeerInfo(node *enode.Node) (*peer.AddrInfo, error) {
 	addresses, err := Multiaddress(node)
 	if err != nil {
@@ -208,5 +219,4 @@ func EnodeToPeerInfo(node *enode.Node) (*peer.AddrInfo, error) {
 	}
 
 	return &res[0], nil
-
 }

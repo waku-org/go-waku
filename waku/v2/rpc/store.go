@@ -11,7 +11,7 @@ import (
 
 type StoreService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 }
 
 // cursor       *pb.Index
@@ -33,7 +33,7 @@ type StoreMessagesArgs struct {
 }
 
 type StoreMessagesReply struct {
-	Messages   []*pb.WakuMessage  `json:"messages,omitempty"`
+	Messages   []RPCWakuMessage   `json:"messages,omitempty"`
 	PagingInfo StorePagingOptions `json:"pagingInfo,omitempty"`
 	Error      string             `json:"error,omitempty"`
 }
@@ -56,11 +56,16 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 		options...,
 	)
 	if err != nil {
-		s.log.Error("Error querying messages:", zap.Error(err))
+		s.log.Error("querying messages", zap.Error(err))
 		reply.Error = err.Error()
 		return nil
 	}
-	reply.Messages = res.Messages
+
+	reply.Messages = make([]RPCWakuMessage, len(res.Messages))
+	for i := range res.Messages {
+		reply.Messages[i] = *ProtoWakuMessageToRPCWakuMessage(res.Messages[i])
+	}
+
 	reply.PagingInfo = StorePagingOptions{
 		PageSize: args.PagingOptions.PageSize,
 		Cursor:   res.Cursor(),

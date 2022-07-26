@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"database/sql"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
@@ -21,14 +22,15 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p"
-	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/config"
 
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
+	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/persistence/sqlite"
@@ -44,9 +46,6 @@ import (
 
 func failOnErr(err error, msg string) {
 	if err != nil {
-		if msg != "" {
-			msg = msg + ": "
-		}
 		utils.Logger().Fatal(msg, zap.Error(err))
 	}
 }
@@ -74,7 +73,7 @@ func freePort() (int, error) {
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
 	if options.GenerateKey {
-		if err := writePrivateKeyToFile(options.KeyFile, options.Overwrite); err != nil {
+		if err := writePrivateKeyToFile(options.KeyFile, []byte(options.KeyPasswd), options.Overwrite); err != nil {
 			failOnErr(err, "nodekey error")
 		}
 		return
@@ -86,27 +85,37 @@ func Execute(options Options) {
 	prvKey, err := getPrivKey(options)
 	failOnErr(err, "nodekey error")
 
+	p2pPrvKey := utils.EcdsaPrivKeyToSecp256k1PrivKey(prvKey)
+	id, err := peer.IDFromPublicKey(p2pPrvKey.GetPublic())
+	failOnErr(err, "deriving peer ID from private key")
+	logger := utils.Logger().With(logging.HostID("node", id))
+
 	if options.DBPath == "" && options.UseDB {
 		failOnErr(errors.New("dbpath can't be null"), "")
 	}
 
 	var db *sql.DB
-
 	if options.UseDB {
 		db, err = sqlite.NewDB(options.DBPath)
 		failOnErr(err, "Could not connect to DB")
+		logger.Debug("using database: ", zap.String("path", options.DBPath))
+
+	} else {
+		db, err = sqlite.NewDB(":memory:")
+		failOnErr(err, "Could not create in-memory DB")
+		logger.Debug("using in-memory database")
 	}
 
 	ctx := context.Background()
 
 	var metricsServer *metrics.Server
 	if options.Metrics.Enable {
-		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, utils.Logger())
+		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
 		go metricsServer.Start()
 	}
 
 	nodeOpts := []node.WakuNodeOption{
-		node.WithLogger(utils.Logger().Desugar()),
+		node.WithLogger(logger),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
@@ -126,7 +135,11 @@ func Execute(options Options) {
 			}
 		}
 
-		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr, options.Websocket.Enable, options.Websocket.Secure, options.Websocket.Port))
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr))
+	}
+
+	if options.Dns4DomainName != "" {
+		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.Dns4DomainName))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
@@ -147,17 +160,24 @@ func Execute(options Options) {
 		return
 	}
 
+	if options.Version {
+		fmt.Printf("version / git commit hash: %s(%s)\n", node.Version, node.GitCommit)
+		return
+	}
+
 	if options.UseDB {
-		// Create persistent peerstore
-		queries, err := sqlite.NewQueries("peerstore", db)
-		failOnErr(err, "Peerstore")
+		if options.PersistPeers {
+			// Create persistent peerstore
+			queries, err := sqlite.NewQueries("peerstore", db)
+			failOnErr(err, "Peerstore")
 
-		datastore := dssql.NewDatastore(db, queries)
-		opts := pstoreds.DefaultOpts()
-		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
-		failOnErr(err, "Peerstore")
+			datastore := dssql.NewDatastore(db, queries)
+			opts := pstoreds.DefaultOpts()
+			peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
+			failOnErr(err, "Peerstore")
 
-		libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+			libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+		}
 	}
 
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
@@ -180,13 +200,13 @@ func Execute(options Options) {
 	}
 
 	if options.Store.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxDaysDuration(), options.Store.RetentionMaxMessages))
-		if options.UseDB {
-			dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxDaysDuration()))
+		if options.Store.PersistMessages {
+			nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxSecondsDuration(), options.Store.RetentionMaxMessages))
+			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxSecondsDuration()))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		} else {
-			nodeOpts = append(nodeOpts, node.WithMessageProvider(nil))
+			nodeOpts = append(nodeOpts, node.WithWakuStore(false, false))
 		}
 	}
 
@@ -201,16 +221,16 @@ func Execute(options Options) {
 	var discoveredNodes []dnsdisc.DiscoveredNode
 	if options.DNSDiscovery.Enable {
 		if options.DNSDiscovery.URL != "" {
-			utils.Logger().Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
+			logger.Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
 			nodes, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
 			if err != nil {
-				utils.Logger().Warn("dns discovery error ", zap.Error(err))
+				logger.Warn("dns discovery error ", zap.Error(err))
 			} else {
-				utils.Logger().Info("found dns entries ", zap.Any("qty", len(nodes)))
+				logger.Info("found dns entries ", zap.Any("qty", len(nodes)))
 				discoveredNodes = nodes
 			}
 		} else {
-			utils.Logger().Fatal("DNS discovery URL is required")
+			logger.Fatal("DNS discovery URL is required")
 		}
 	}
 
@@ -219,7 +239,7 @@ func Execute(options Options) {
 		for _, addr := range options.DiscV5.Nodes.Value() {
 			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
 			if err != nil {
-				utils.Logger().Fatal("could not parse enr: ", zap.Error(err))
+				logger.Fatal("parsing ENR", zap.Error(err))
 			}
 			bootnodes = append(bootnodes, bootnode)
 		}
@@ -243,12 +263,12 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.Filter.Nodes.Value(), string(filter.FilterID_v20beta1))
 
 	if err = wakuNode.Start(); err != nil {
-		utils.Logger().Fatal(fmt.Errorf("could not start waku node, %w", err).Error())
+		logger.Fatal("starting waku node", zap.Error(err))
 	}
 
 	if options.DiscV5.Enable {
 		if err = wakuNode.DiscV5().Start(); err != nil {
-			utils.Logger().Fatal(fmt.Errorf("could not start discovery v5, %w", err).Error())
+			logger.Fatal("starting discovery v5", zap.Error(err))
 		}
 	}
 
@@ -269,7 +289,7 @@ func Execute(options Options) {
 		go func(node string) {
 			err = wakuNode.DialPeer(ctx, node)
 			if err != nil {
-				utils.Logger().Error("error dialing peer ", zap.Error(err))
+				logger.Error("dialing peer", zap.Error(err))
 			}
 		}(n)
 	}
@@ -282,7 +302,7 @@ func Execute(options Options) {
 					defer cancel()
 					err = wakuNode.DialPeerWithMultiAddress(ctx, m)
 					if err != nil {
-						utils.Logger().Error("error dialing peer ", zap.Error(err))
+						logger.Error("dialing peer ", zap.Error(err))
 					}
 				}(ctx, m)
 			}
@@ -291,15 +311,17 @@ func Execute(options Options) {
 
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, utils.Logger())
+		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, logger)
 		rpcServer.Start()
 	}
+
+	logger.Info("Node setup complete")
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
-	utils.Logger().Info("Received signal, shutting down...")
+	logger.Info("Received signal, shutting down...")
 
 	// shut the node down
 	wakuNode.Stop()
@@ -334,26 +356,24 @@ func addPeers(wakuNode *node.WakuNode, addresses []string, protocols ...string) 
 	}
 }
 
-func loadPrivateKeyFromFile(path string) (*ecdsa.PrivateKey, error) {
+func loadPrivateKeyFromFile(path string, passwd string) (*ecdsa.PrivateKey, error) {
 	src, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	dst := make([]byte, hex.DecodedLen(len(src)))
-	_, err = hex.Decode(dst, src)
+
+	var encryptedK keystore.CryptoJSON
+	err = json.Unmarshal(src, &encryptedK)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := libp2pcrypto.UnmarshalSecp256k1PrivateKey(dst)
+	pKey, err := keystore.DecryptDataV3(encryptedK, passwd)
 	if err != nil {
 		return nil, err
 	}
 
-	privKey := (*ecdsa.PrivateKey)(p.(*libp2pcrypto.Secp256k1PrivateKey))
-	privKey.Curve = crypto.S256()
-
-	return privKey, nil
+	return crypto.ToECDSA(pKey)
 }
 
 func checkForPrivateKeyFile(path string, overwrite bool) error {
@@ -376,25 +396,25 @@ func generatePrivateKey() ([]byte, error) {
 		return nil, err
 	}
 
-	privKey := libp2pcrypto.PrivKey((*libp2pcrypto.Secp256k1PrivateKey)(key))
-
-	b, err := privKey.Raw()
-	if err != nil {
-		return nil, err
-	}
-
-	output := make([]byte, hex.EncodedLen(len(b)))
-	hex.Encode(output, b)
-
-	return output, nil
+	return key.D.Bytes(), nil
 }
 
-func writePrivateKeyToFile(path string, overwrite bool) error {
+func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
 	if err := checkForPrivateKeyFile(path, overwrite); err != nil {
 		return err
 	}
 
-	output, err := generatePrivateKey()
+	key, err := generatePrivateKey()
+	if err != nil {
+		return err
+	}
+
+	encryptedK, err := keystore.EncryptDataV3(key, passwd, keystore.StandardScryptN, keystore.StandardScryptP)
+	if err != nil {
+		return err
+	}
+
+	output, err := json.Marshal(encryptedK)
 	if err != nil {
 		return err
 	}
@@ -417,7 +437,7 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 			}
 		} else {
 			if _, err := os.Stat(options.KeyFile); err == nil {
-				if prvKey, err = loadPrivateKeyFromFile(options.KeyFile); err != nil {
+				if prvKey, err = loadPrivateKeyFromFile(options.KeyFile, options.KeyPasswd); err != nil {
 					return nil, fmt.Errorf("could not read keyfile: %w", err)
 				}
 			} else {

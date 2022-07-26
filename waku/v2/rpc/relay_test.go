@@ -8,7 +8,6 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +32,7 @@ func TestPostV1Message(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 }
 
 func TestRelaySubscription(t *testing.T) {
@@ -48,7 +47,7 @@ func TestRelaySubscription(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	err = d.DeleteV1Subscription(
 		makeRequest(t),
@@ -56,7 +55,7 @@ func TestRelaySubscription(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 }
 
 func TestRelayGetV1Messages(t *testing.T) {
@@ -88,7 +87,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
@@ -97,32 +96,33 @@ func TestRelayGetV1Messages(t *testing.T) {
 		makeRequest(t),
 		&RelayMessageArgs{
 			Topic: "test",
-			Message: pb.WakuMessage{
+			Message: RPCWakuRelayMessage{
 				Payload: []byte("test"),
 			},
 		},
 		&reply,
 	)
 	require.NoError(t, err)
-	require.True(t, reply.Success)
+	require.True(t, reply)
 
 	// Wait for the message to be received
 	time.Sleep(1 * time.Second)
 
-	var messagesReply MessagesReply
+	var messagesReply1 RelayMessagesReply
 	err = serviceB.GetV1Messages(
 		makeRequest(t),
 		&TopicArgs{"test"},
-		&messagesReply,
+		&messagesReply1,
 	)
 	require.NoError(t, err)
-	require.Len(t, messagesReply.Messages, 1)
+	require.Len(t, messagesReply1, 1)
 
+	var messagesReply2 RelayMessagesReply
 	err = serviceB.GetV1Messages(
 		makeRequest(t),
 		&TopicArgs{"test"},
-		&messagesReply,
+		&messagesReply2,
 	)
 	require.NoError(t, err)
-	require.Len(t, messagesReply.Messages, 0)
+	require.Len(t, messagesReply2, 0)
 }

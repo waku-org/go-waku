@@ -3,46 +3,46 @@ package rpc
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
 
 type PrivateService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 
-	symmetricMessages      map[string][]*pb.WakuMessage
-	symmetricMessagesMutex sync.RWMutex
+	messages      map[string][]*pb.WakuMessage
+	messagesMutex sync.RWMutex
 
-	asymmetricMessages      map[string][]*pb.WakuMessage
-	asymmetricMessagesMutex sync.RWMutex
+	runner *runnerService
 }
 
-type SymmetricKeyReply struct {
-	Key string `json:"key"`
-}
+type SymmetricKeyReply string
 
 type KeyPairReply struct {
 	PrivateKey string `json:"privateKey"`
-	PulicKey   string `json:"publicKey"`
+	PublicKey  string `json:"publicKey"`
 }
 
 type SymmetricMessageArgs struct {
 	Topic   string         `json:"topic"`
-	Message pb.WakuMessage `json:"message"`
+	Message RPCWakuMessage `json:"message"`
 	SymKey  string         `json:"symkey"`
 }
 
 type AsymmetricMessageArgs struct {
 	Topic     string         `json:"topic"`
-	Message   pb.WakuMessage `json:"message"`
+	Message   RPCWakuMessage `json:"message"`
 	PublicKey string         `json:"publicKey"`
 }
 
@@ -56,13 +56,25 @@ type AsymmetricMessagesArgs struct {
 	PrivateKey string `json:"privateKey"`
 }
 
-func NewPrivateService(node *node.WakuNode, log *zap.SugaredLogger) *PrivateService {
-	return &PrivateService{
-		node:               node,
-		symmetricMessages:  make(map[string][]*pb.WakuMessage),
-		asymmetricMessages: make(map[string][]*pb.WakuMessage),
-		log:                log.Named("private"),
+func NewPrivateService(node *node.WakuNode, log *zap.Logger) *PrivateService {
+	p := &PrivateService{
+		node:     node,
+		messages: make(map[string][]*pb.WakuMessage),
+		log:      log.Named("private"),
 	}
+	p.runner = newRunnerService(node.Broadcaster(), p.addEnvelope)
+
+	return p
+}
+
+func (p *PrivateService) addEnvelope(envelope *protocol.Envelope) {
+	p.messagesMutex.Lock()
+	defer p.messagesMutex.Unlock()
+	if _, ok := p.messages[envelope.PubsubTopic()]; !ok {
+		p.messages[envelope.PubsubTopic()] = make([]*pb.WakuMessage, 0)
+	}
+
+	p.messages[envelope.PubsubTopic()] = append(p.messages[envelope.PubsubTopic()], envelope.Message())
 }
 
 func (p *PrivateService) GetV1SymmetricKey(req *http.Request, args *Empty, reply *SymmetricKeyReply) error {
@@ -71,7 +83,7 @@ func (p *PrivateService) GetV1SymmetricKey(req *http.Request, args *Empty, reply
 	if err != nil {
 		return err
 	}
-	reply.Key = hex.EncodeToString(key[:])
+	*reply = SymmetricKeyReply(hexutil.Encode(key[:]))
 	return nil
 }
 
@@ -89,44 +101,48 @@ func (p *PrivateService) GetV1AsymmetricKeypair(req *http.Request, args *Empty, 
 	}
 
 	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
-	reply.PrivateKey = hex.EncodeToString(privateKeyBytes[:])
-	reply.PulicKey = hex.EncodeToString(publicKeyBytes[:])
+	reply.PrivateKey = hexutil.Encode(privateKeyBytes[:])
+	reply.PublicKey = hexutil.Encode(publicKeyBytes[:])
 	return nil
 }
 
 func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *SymmetricMessageArgs, reply *SuccessReply) error {
+	symKeyBytes, err := hexutil.Decode(args.SymKey)
+	if err != nil {
+		return fmt.Errorf("invalid symmetric key: %w", err)
+	}
+
 	keyInfo := new(node.KeyInfo)
 	keyInfo.Kind = node.Symmetric
-	keyInfo.SymKey = []byte(args.SymKey)
+	keyInfo.SymKey = symKeyBytes
 
-	err := node.EncodeWakuMessage(&args.Message, keyInfo)
+	msg := args.Message.toProto()
+	msg.Version = 1
+
+	err = node.EncodeWakuMessage(msg, keyInfo)
 	if err != nil {
-		reply.Error = err.Error()
-		reply.Success = false
-		return nil
+		return err
 	}
-	err = p.node.Publish(req.Context(), &args.Message)
+
+	topic := args.Topic
+	if topic == "" {
+		topic = relay.DefaultWakuTopic
+	}
+
+	_, err = p.node.Relay().PublishToTopic(req.Context(), msg, topic)
 	if err != nil {
-		reply.Error = err.Error()
-		reply.Success = false
-		return nil
+		return err
 	}
 
-	p.symmetricMessagesMutex.Lock()
-	defer p.symmetricMessagesMutex.Unlock()
-	if _, ok := p.symmetricMessages[args.Topic]; !ok {
-		p.symmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
-	}
-	p.symmetricMessages[args.Topic] = append(p.symmetricMessages[args.Topic], &args.Message)
-
-	reply.Success = true
+	*reply = true
 	return nil
 }
 
-func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *AsymmetricMessageArgs, reply *SuccessReply) error {
+func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *AsymmetricMessageArgs, reply *bool) error {
 	keyInfo := new(node.KeyInfo)
 	keyInfo.Kind = node.Asymmetric
-	pubKeyBytes, err := hex.DecodeString(args.PublicKey)
+
+	pubKeyBytes, err := hexutil.Decode(args.PublicKey)
 	if err != nil {
 		return fmt.Errorf("public key cannot be decoded: %v", err)
 	}
@@ -135,54 +151,107 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 	if err != nil {
 		return fmt.Errorf("public key cannot be unmarshalled: %v", err)
 	}
+
 	keyInfo.PubKey = *pubKey
 
-	err = node.EncodeWakuMessage(&args.Message, keyInfo)
+	msg := args.Message.toProto()
+	msg.Version = 1
+
+	err = node.EncodeWakuMessage(msg, keyInfo)
 	if err != nil {
-		reply.Error = err.Error()
-		reply.Success = false
-		return nil
-	}
-	err = p.node.Publish(req.Context(), &args.Message)
-	if err != nil {
-		reply.Error = err.Error()
-		reply.Success = false
-		return nil
+		return err
 	}
 
-	p.asymmetricMessagesMutex.Lock()
-	defer p.asymmetricMessagesMutex.Unlock()
-	if _, ok := p.asymmetricMessages[args.Topic]; !ok {
-		p.asymmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	topic := args.Topic
+	if topic == "" {
+		topic = relay.DefaultWakuTopic
 	}
-	p.asymmetricMessages[args.Topic] = append(p.asymmetricMessages[args.Topic], &args.Message)
 
-	reply.Success = true
+	_, err = p.node.Relay().PublishToTopic(req.Context(), msg, topic)
+	if err != nil {
+		return err
+	}
+
+	*reply = true
 	return nil
 }
 
 func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *SymmetricMessagesArgs, reply *MessagesReply) error {
-	p.symmetricMessagesMutex.Lock()
-	defer p.symmetricMessagesMutex.Unlock()
+	p.messagesMutex.Lock()
+	defer p.messagesMutex.Unlock()
 
-	if _, ok := p.symmetricMessages[args.Topic]; !ok {
-		return fmt.Errorf("topic %s not subscribed", args.Topic)
+	if _, ok := p.messages[args.Topic]; !ok {
+		p.messages[args.Topic] = make([]*pb.WakuMessage, 0)
 	}
 
-	reply.Messages = p.symmetricMessages[args.Topic]
-	p.symmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	symKeyBytes, err := hexutil.Decode(args.SymKey)
+	if err != nil {
+		return fmt.Errorf("invalid symmetric key: %w", err)
+	}
+
+	messages := make([]*pb.WakuMessage, len(p.messages[args.Topic]))
+	copy(messages, p.messages[args.Topic])
+	p.messages[args.Topic] = make([]*pb.WakuMessage, 0)
+
+	var decodedMessages []*pb.WakuMessage
+	for _, msg := range messages {
+		err := node.DecodeWakuMessage(msg, &node.KeyInfo{
+			Kind:   node.Symmetric,
+			SymKey: symKeyBytes,
+		})
+		if err != nil {
+			continue
+		}
+		decodedMessages = append(decodedMessages, msg)
+	}
+
+	for i := range decodedMessages {
+		*reply = append(*reply, ProtoWakuMessageToRPCWakuMessage(decodedMessages[i]))
+	}
+
 	return nil
 }
 
 func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *AsymmetricMessagesArgs, reply *MessagesReply) error {
-	p.asymmetricMessagesMutex.Lock()
-	defer p.asymmetricMessagesMutex.Unlock()
+	p.messagesMutex.Lock()
+	defer p.messagesMutex.Unlock()
 
-	if _, ok := p.asymmetricMessages[args.Topic]; !ok {
-		return fmt.Errorf("topic %s not subscribed", args.Topic)
+	if _, ok := p.messages[args.Topic]; !ok {
+		p.messages[args.Topic] = make([]*pb.WakuMessage, 0)
 	}
 
-	reply.Messages = p.asymmetricMessages[args.Topic]
-	p.asymmetricMessages[args.Topic] = make([]*pb.WakuMessage, 0)
+	messages := make([]*pb.WakuMessage, len(p.messages[args.Topic]))
+	copy(messages, p.messages[args.Topic])
+	p.messages[args.Topic] = make([]*pb.WakuMessage, 0)
+
+	privKey, err := crypto.HexToECDSA(strings.TrimPrefix(args.PrivateKey, "0x"))
+	if err != nil {
+		return fmt.Errorf("invalid asymmetric key: %w", err)
+	}
+
+	var decodedMessages []*pb.WakuMessage
+	for _, msg := range messages {
+		err := node.DecodeWakuMessage(msg, &node.KeyInfo{
+			Kind:    node.Asymmetric,
+			PrivKey: privKey,
+		})
+		if err != nil {
+			continue
+		}
+		decodedMessages = append(decodedMessages, msg)
+	}
+
+	for i := range decodedMessages {
+		*reply = append(*reply, ProtoWakuMessageToRPCWakuMessage(decodedMessages[i]))
+	}
+
 	return nil
+}
+
+func (p *PrivateService) Start() {
+	p.runner.Start()
+}
+
+func (p *PrivateService) Stop() {
+	p.runner.Stop()
 }

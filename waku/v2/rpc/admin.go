@@ -15,7 +15,7 @@ import (
 
 type AdminService struct {
 	node *node.WakuNode
-	log  *zap.SugaredLogger
+	log  *zap.Logger
 }
 
 type GetPeersArgs struct {
@@ -26,35 +26,29 @@ type PeersArgs struct {
 }
 
 type PeerReply struct {
-	Multiaddr string `json:"mutliaddr,omitempty"`
+	Multiaddr string `json:"multiaddr,omitempty"`
 	Protocol  string `json:"protocol,omitempty"`
 	Connected bool   `json:"connected,omitempty"`
 }
 
-type PeersReply struct {
-	Peers []PeerReply `json:"peers,omitempty"`
-}
+type PeersReply []PeerReply
 
 func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *SuccessReply) error {
 	for _, peer := range args.Peers {
 		addr, err := ma.NewMultiaddr(peer)
 		if err != nil {
-			a.log.Error("Error building multiaddr", zap.Error(err))
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			a.log.Error("building multiaddr", zap.Error(err))
+			return err
 		}
 
 		err = a.node.DialPeerWithMultiAddress(req.Context(), addr)
 		if err != nil {
-			a.log.Error("Error dialing peers", zap.Error(err))
-			reply.Success = false
-			reply.Error = err.Error()
-			return nil
+			a.log.Error("dialing peers", zap.Error(err))
+			return err
 		}
 	}
 
-	reply.Success = true
+	*reply = true
 	return nil
 }
 
@@ -65,7 +59,7 @@ func isWakuProtocol(protocol string) bool {
 func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *PeersReply) error {
 	peers, err := a.node.Peers()
 	if err != nil {
-		a.log.Error("Error getting peers", zap.Error(err))
+		a.log.Error("getting peers", zap.Error(err))
 		return nil
 	}
 	for _, peer := range peers {
@@ -74,7 +68,7 @@ func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *
 				if !isWakuProtocol(proto) {
 					continue
 				}
-				reply.Peers = append(reply.Peers, PeerReply{
+				*reply = append(*reply, PeerReply{
 					Multiaddr: addr.String(),
 					Protocol:  proto,
 					Connected: peer.Connected,
