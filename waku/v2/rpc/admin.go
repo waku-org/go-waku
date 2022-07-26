@@ -26,14 +26,12 @@ type PeersArgs struct {
 }
 
 type PeerReply struct {
-	Multiaddr string `json:"mutliaddr,omitempty"`
+	Multiaddr string `json:"multiaddr,omitempty"`
 	Protocol  string `json:"protocol,omitempty"`
 	Connected bool   `json:"connected,omitempty"`
 }
 
-type PeersReply struct {
-	Peers []PeerReply `json:"peers,omitempty"`
-}
+type PeersReply []PeerReply
 
 func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *SuccessReply) error {
 	for _, peer := range args.Peers {
@@ -70,7 +68,7 @@ func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *
 				if !isWakuProtocol(proto) {
 					continue
 				}
-				reply.Peers = append(reply.Peers, PeerReply{
+				*reply = append(*reply, PeerReply{
 					Multiaddr: addr.String(),
 					Protocol:  proto,
 					Connected: peer.Connected,
