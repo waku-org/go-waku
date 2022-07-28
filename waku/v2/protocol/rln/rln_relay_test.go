@@ -52,7 +52,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	// index also represents the index of the leaf in the Merkle tree that contains node's commitment key
 	index := r.MembershipIndex(5)
 
-	wakuRLNRelay, err := RlnRelayStatic(relay, groupIDCommitments, groupKeyPairs[index], index, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
+	wakuRLNRelay, err := RlnRelayStatic(context.TODO(), relay, groupIDCommitments, groupKeyPairs[index], index, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
 	s.NoError(err)
 
 	// get the root of Merkle tree which is constructed inside the mountRlnRelay proc
