@@ -226,7 +226,11 @@ func (w *WakuNode) setupENR(addrs []ma.Multiaddr) error {
 			return err
 		} else {
 			if w.localNode == nil || w.localNode.Node().String() != localNode.Node().String() {
+				existingLocalNode := w.localNode
 				w.localNode = localNode
+				if existingLocalNode != nil {
+					existingLocalNode.Database().Close()
+				}
 				w.log.Info("enr record", logging.ENode("enr", w.localNode.Node()))
 			}
 		}

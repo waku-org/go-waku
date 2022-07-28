@@ -346,6 +346,10 @@ func (w *WakuNode) Stop() {
 	w.host.Close()
 
 	w.wg.Wait()
+
+	if w.localNode != nil {
+		w.localNode.Database().Close()
+	}
 }
 
 // Host returns the libp2p Host used by the WakuNode
