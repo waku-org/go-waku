@@ -685,7 +685,7 @@ func (w *WakuNode) mountRlnRelay() error {
 	}
 
 	if !w.opts.rlnRelayDynamic {
-		w.log.Info("setting up waku-rln-relay in off-chain mode... ")
+		w.log.Info("setting up waku-rln-relay in off-chain mode")
 		// set up rln relay inputs
 		groupKeys, memKeyPair, memIndex, err := rln.StaticSetup(w.opts.rlnRelayMemIndex)
 		if err != nil {
@@ -693,7 +693,7 @@ func (w *WakuNode) mountRlnRelay() error {
 		}
 
 		// mount rlnrelay in off-chain mode with a static group of users
-		wakuRLNRelay, err := rln.RlnRelayStatic(w.relay, groupKeys, memKeyPair, memIndex, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, nil, w.log)
+		wakuRLNRelay, err := rln.RlnRelayStatic(w.ctx, w.relay, groupKeys, memKeyPair, memIndex, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.log)
 		if err != nil {
 			return err
 		}
@@ -703,7 +703,6 @@ func (w *WakuNode) mountRlnRelay() error {
 
 		// check the correct construction of the tree by comparing the calculated root against the expected root
 		// no error should happen as it is already captured in the unit tests
-
 		root, err := wakuRLNRelay.RLN.GetMerkleRoot()
 		if err != nil {
 			return err
@@ -714,12 +713,28 @@ func (w *WakuNode) mountRlnRelay() error {
 			return errors.New("root mismatch: something went wrong not in Merkle tree construction")
 		}
 
-		w.rlnRelay = wakuRLNRelay
-
 		w.log.Info("the calculated root", zap.String("root", hex.EncodeToString(root[:])))
-		w.log.Info("mounted waku RLN relay", zap.String("pubsubTopic", w.opts.rlnRelayPubsubTopic), zap.String("contentTopic", w.opts.rlnRelayContentTopic))
 	} else {
-		return errors.New("TODO: not implemented yet")
+		w.log.Info("setting up waku-rln-relay in on-chain mode")
+
+		//  check if the peer has provided its rln credentials
+		var memKeyPair *r.MembershipKeyPair
+		if w.opts.rlnRelayIDCommitment != nil && w.opts.rlnRelayIDKey != nil {
+			memKeyPair = &r.MembershipKeyPair{
+				IDCommitment: *w.opts.rlnRelayIDCommitment,
+				IDKey:        *w.opts.rlnRelayIDKey,
+			}
+		}
+
+		// mount the rln relay protocol in the on-chain/dynamic mode
+		var err error
+		w.rlnRelay, err = rln.RlnRelayDynamic(context.Background(), w.relay, w.opts.rlnETHClientAddress, w.opts.rlnETHPrivateKey, w.opts.rlnMembershipContractAddress, memKeyPair, w.opts.rlnRelayMemIndex, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.log)
+		if err != nil {
+			return err
+		}
 	}
+
+	w.log.Info("mounted waku RLN relay", zap.String("pubsubTopic", w.opts.rlnRelayPubsubTopic), zap.String("contentTopic", w.opts.rlnRelayContentTopic))
+
 	return nil
 }
