@@ -46,7 +46,7 @@ func TestV1Peers(t *testing.T) {
 
 	err = a.GetV1Peers(request, &GetPeersArgs{}, &reply)
 	require.NoError(t, err)
-	require.Len(t, reply.Peers, 0)
+	require.Len(t, reply, 0)
 
 	var reply2 SuccessReply
 
@@ -66,5 +66,5 @@ func TestV1Peers(t *testing.T) {
 
 	err = a.GetV1Peers(request, &GetPeersArgs{}, &reply)
 	require.NoError(t, err)
-	require.Len(t, reply.Peers, 2)
+	require.Len(t, reply, 2)
 }
