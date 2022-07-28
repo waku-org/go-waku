@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -84,12 +85,17 @@ type WakuNodeParameters struct {
 	discV5Opts       []pubsub.DiscoverOpt
 	discV5autoUpdate bool
 
-	enableRLN            bool
-	rlnRelayMemIndex     r.MembershipIndex
-	rlnRelayPubsubTopic  string
-	rlnRelayContentTopic string
-	rlnRelayDynamic      bool
-	rlnSpamHandler       rln.SpamHandler
+	enableRLN                    bool
+	rlnRelayMemIndex             r.MembershipIndex
+	rlnRelayPubsubTopic          string
+	rlnRelayContentTopic         string
+	rlnRelayDynamic              bool
+	rlnSpamHandler               rln.SpamHandler
+	rlnRelayIDKey                *r.IDKey
+	rlnRelayIDCommitment         *r.IDCommitment
+	rlnETHPrivateKey             *ecdsa.PrivateKey
+	rlnETHClientAddress          string
+	rlnMembershipContractAddress common.Address
 
 	keepAliveInterval time.Duration
 
@@ -424,6 +430,22 @@ func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.M
 		params.rlnRelayPubsubTopic = pubsubTopic
 		params.rlnRelayContentTopic = contentTopic
 		params.rlnSpamHandler = spamHandler
+		return nil
+	}
+}
+
+func WithDynamicRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, spamHandler rln.SpamHandler, ethClientAddress string, ethPrivateKey *ecdsa.PrivateKey, membershipContractAddress common.Address) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableRLN = true
+		params.rlnRelayDynamic = true
+		params.rlnRelayMemIndex = memberIndex
+		params.rlnRelayPubsubTopic = pubsubTopic
+		params.rlnRelayContentTopic = contentTopic
+		params.rlnSpamHandler = spamHandler
+		params.rlnETHClientAddress = ethClientAddress
+		params.rlnETHPrivateKey = ethPrivateKey
+		params.rlnMembershipContractAddress = membershipContractAddress
+
 		return nil
 	}
 }

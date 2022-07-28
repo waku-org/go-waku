@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
@@ -262,6 +263,24 @@ func Execute(options Options) {
 
 		if !options.RLNRelay.Dynamic {
 			nodeOpts = append(nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipIndex), nil))
+		} else {
+
+			var ethPrivKey *ecdsa.PrivateKey
+			if options.RLNRelay.ETHPrivateKey != "" {
+				k, err := crypto.HexToECDSA(options.RLNRelay.ETHPrivateKey)
+				failOnErr(err, "Invalid private key")
+				ethPrivKey = k
+			}
+
+			nodeOpts = append(nodeOpts, node.WithDynamicRLNRelay(
+				options.RLNRelay.PubsubTopic,
+				options.RLNRelay.ContentTopic,
+				rln.MembershipIndex(options.RLNRelay.MembershipIndex),
+				nil,
+				options.RLNRelay.ETHClientAddress,
+				ethPrivKey,
+				common.HexToAddress(options.RLNRelay.MembershipContractAddress),
+			))
 		}
 	}
 
