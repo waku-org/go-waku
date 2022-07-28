@@ -211,6 +211,7 @@ func (w *WakuNode) checkForAddressChanges() {
 	for {
 		select {
 		case <-w.quit:
+			close(w.addrChan)
 			return
 		case <-first:
 			w.log.Info("listening", logging.MultiAddrs("multiaddr", addrs...))
@@ -322,7 +323,6 @@ func (w *WakuNode) Stop() {
 	defer w.cancel()
 
 	close(w.quit)
-	close(w.addrChan)
 
 	w.bcaster.Close()
 
