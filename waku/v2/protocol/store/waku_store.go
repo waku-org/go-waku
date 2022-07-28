@@ -631,7 +631,9 @@ func (store *WakuStore) Stop() {
 		close(store.MsgC)
 	}
 
-	store.quit <- struct{}{}
+	if store.msgProvider != nil {
+		store.quit <- struct{}{}
+	}
 
 	if store.h != nil {
 		store.h.RemoveStreamHandler(StoreID_v20beta4)
