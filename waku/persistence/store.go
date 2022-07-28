@@ -334,6 +334,16 @@ func (d *DBStore) MostRecentTimestamp() (int64, error) {
 	return result.Int64, nil
 }
 
+// Count returns the number of rows in the message table
+func (d *DBStore) Count() (int, error) {
+	var result int
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM message`).Scan(&result)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+	return result, nil
+}
+
 // GetAll returns all the stored WakuMessages
 func (d *DBStore) GetAll() ([]StoredMessage, error) {
 	start := time.Now()

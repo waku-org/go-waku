@@ -112,6 +112,7 @@ type MessageProvider interface {
 	Put(env *protocol.Envelope) error
 	MostRecentTimestamp() (int64, error)
 	Stop()
+	Count() (int, error)
 }
 type Query struct {
 	Topic         string
@@ -149,6 +150,7 @@ type WakuStore struct {
 	log *zap.Logger
 
 	started bool
+	quit    chan struct{}
 
 	msgProvider MessageProvider
 	h           host.Host
@@ -172,6 +174,8 @@ func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNum
 	wakuStore.swap = swap
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.log = log.Named("store")
+	wakuStore.quit = make(chan struct{})
+
 	return wakuStore
 }
 
@@ -197,8 +201,9 @@ func (store *WakuStore) Start(ctx context.Context) {
 
 	store.h.SetStreamHandlerMatch(StoreID_v20beta4, protocol.PrefixTextMatch(string(StoreID_v20beta4)), store.onRequest)
 
-	store.wg.Add(1)
+	store.wg.Add(2)
 	go store.storeIncomingMessages(ctx)
+	go store.updateMetrics(ctx)
 
 	store.log.Info("Store protocol started")
 }
@@ -223,6 +228,26 @@ func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
 	defer store.wg.Done()
 	for envelope := range store.MsgC {
 		_ = store.storeMessage(envelope)
+	}
+}
+
+func (store *WakuStore) updateMetrics(ctx context.Context) {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+	defer store.wg.Done()
+
+	for {
+		select {
+		case <-ticker.C:
+			msgCount, err := store.msgProvider.Count()
+			if err != nil {
+				store.log.Error("updating store metrics", zap.Error(err))
+			} else {
+				metrics.RecordMessage(store.ctx, "stored", msgCount)
+			}
+		case <-store.quit:
+			return
+		}
 	}
 }
 
@@ -605,6 +630,8 @@ func (store *WakuStore) Stop() {
 	if store.MsgC != nil {
 		close(store.MsgC)
 	}
+
+	store.quit <- struct{}{}
 
 	if store.h != nil {
 		store.h.RemoveStreamHandler(StoreID_v20beta4)
