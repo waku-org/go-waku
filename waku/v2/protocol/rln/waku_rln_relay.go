@@ -26,6 +26,8 @@ const MAX_CLOCK_GAP_SECONDS = 20
 const MAX_EPOCH_GAP = int64(MAX_CLOCK_GAP_SECONDS / r.EPOCH_UNIT_SECONDS)
 
 type WakuRLNRelay struct {
+	ctx context.Context
+
 	membershipKeyPair r.MembershipKeyPair
 
 	// membershipIndex denotes the index of a leaf in the Merkle tree
@@ -34,7 +36,6 @@ type WakuRLNRelay struct {
 	membershipIndex           r.MembershipIndex
 	membershipContractAddress common.Address
 	ethClientAddress          string
-	ethAccountAddress         common.Address
 	// ethAccountPrivateKey is required for signing transactions
 	// TODO may need to erase this ethAccountPrivateKey when is not used
 	// TODO may need to make ethAccountPrivateKey mandatory

@@ -311,15 +311,17 @@ func main() {
 				Usage:       "Rln relay identity commitment key as a Hex string",
 				Destination: &options.RLNRelay.IDCommitment,
 			},
+			// TODO: this is a good candidate option for subcommands
+			// TODO: consider accepting a private key file and passwd
 			&cli.StringFlag{
-				Name:        "eth-account-address",
-				Usage:       "Ethereum testnet account address",
-				Destination: &options.RLNRelay.ETHAccount,
+				Name:        "eth-private-key",
+				Usage:       "Ethereum testnet account private key used for registering in member contract",
+				Destination: &options.RLNRelay.ETHPrivateKey,
 			},
 			&cli.StringFlag{
 				Name:        "eth-client-address",
 				Usage:       "Ethereum testnet client address",
-				Value:       "ws://localhost:8540",
+				Value:       "ws://localhost:8545",
 				Destination: &options.RLNRelay.ETHClientAddress,
 			},
 			&cli.StringFlag{

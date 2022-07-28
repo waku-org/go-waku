@@ -38,7 +38,7 @@ type RLNRelayOptions struct {
 	Dynamic                   bool
 	IDKey                     string
 	IDCommitment              string
-	ETHAccount                string
+	ETHPrivateKey             string
 	ETHClientAddress          string
 	MembershipContractAddress string
 }
