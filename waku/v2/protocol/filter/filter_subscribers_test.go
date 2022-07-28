@@ -28,13 +28,14 @@ func firstSubscriber(subs *Subscribers, contentTopic string) *Subscriber {
 func TestAppend(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
 	peerId := createPeerId(t)
+	requestId := "request_1"
 	contentTopic := "topic1"
 	request := pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
 	}
-	subs.Append(Subscriber{peerId, "request_1", request})
+	subs.Append(Subscriber{peerId, requestId, request})
 
 	sub := firstSubscriber(subs, contentTopic)
 	assert.NotNil(t, sub)
@@ -43,22 +44,24 @@ func TestAppend(t *testing.T) {
 func TestRemove(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
 	peerId := createPeerId(t)
+	requestId := "request_1"
 	contentTopic := "topic1"
 	request := pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
 	}
-	subs.Append(Subscriber{peerId, "request_1", request})
-	subs.RemoveContentFilters(peerId, request.ContentFilters)
+	subs.Append(Subscriber{peerId, requestId, request})
+	subs.RemoveContentFilters(peerId, requestId, request.ContentFilters)
 
 	sub := firstSubscriber(subs, contentTopic)
 	assert.Nil(t, sub)
 }
 
-func TestRemovePartial(t *testing.T) {
+func TestRemoveMultipleTopics(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
 	peerId := createPeerId(t)
+	requestId := "request_1"
 	topic1 := "topic1"
 	topic2 := "topic2"
 	request := pb.FilterRequest{
@@ -66,8 +69,53 @@ func TestRemovePartial(t *testing.T) {
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}, {ContentTopic: topic2}},
 	}
-	subs.Append(Subscriber{peerId, "request_1", request})
-	subs.RemoveContentFilters(peerId, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}})
+	subs.Append(Subscriber{peerId, requestId, request})
+	subs.RemoveContentFilters(peerId, requestId, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}, {ContentTopic: topic2}})
+
+	sub1 := firstSubscriber(subs, topic1)
+	sub2 := firstSubscriber(subs, topic2)
+	assert.Nil(t, sub1)
+	assert.Nil(t, sub2)
+}
+
+func TestRemoveDuplicateFilters(t *testing.T) {
+	subs := NewSubscribers(10 * time.Second)
+	peerId := createPeerId(t)
+	topic := "topic"
+	requestId1 := "request_1"
+	requestId2 := "request_2"
+	request1 := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          TOPIC,
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
+	}
+	request2 := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          TOPIC,
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
+	}
+	subs.Append(Subscriber{peerId, requestId1, request1})
+	subs.Append(Subscriber{peerId, requestId2, request2})
+	subs.RemoveContentFilters(peerId, requestId1, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}})
+
+	sub := firstSubscriber(subs, topic)
+	assert.NotNil(t, sub)
+	assert.Equal(t, sub.requestId, requestId2)
+}
+
+func TestRemovePartial(t *testing.T) {
+	subs := NewSubscribers(10 * time.Second)
+	peerId := createPeerId(t)
+	requestId := "request_1"
+	topic1 := "topic1"
+	topic2 := "topic2"
+	request := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          TOPIC,
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}, {ContentTopic: topic2}},
+	}
+	subs.Append(Subscriber{peerId, requestId, request})
+	subs.RemoveContentFilters(peerId, requestId, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}})
 
 	sub := firstSubscriber(subs, topic2)
 	assert.NotNil(t, sub)
@@ -77,14 +125,15 @@ func TestRemovePartial(t *testing.T) {
 func TestRemoveBogus(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
 	peerId := createPeerId(t)
+	requestId := "request_1"
 	contentTopic := "topic1"
 	request := pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
 	}
-	subs.Append(Subscriber{peerId, "request_1", request})
-	subs.RemoveContentFilters(peerId, []*pb.FilterRequest_ContentFilter{{ContentTopic: "does not exist"}, {ContentTopic: contentTopic}})
+	subs.Append(Subscriber{peerId, requestId, request})
+	subs.RemoveContentFilters(peerId, requestId, []*pb.FilterRequest_ContentFilter{{ContentTopic: "does not exist"}, {ContentTopic: contentTopic}})
 
 	sub := firstSubscriber(subs, contentTopic)
 	assert.Nil(t, sub)

@@ -132,7 +132,7 @@ func (wf *WakuFilter) onRequest(s network.Stream) {
 			stats.Record(wf.ctx, metrics.FilterSubscriptions.M(int64(len)))
 		} else {
 			peerId := s.Conn().RemotePeer()
-			wf.subscribers.RemoveContentFilters(peerId, filterRPCRequest.Request.ContentFilters)
+			wf.subscribers.RemoveContentFilters(peerId, filterRPCRequest.RequestId, filterRPCRequest.Request.ContentFilters)
 
 			logger.Info("removing subscriber")
 			stats.Record(wf.ctx, metrics.FilterSubscriptions.M(int64(wf.subscribers.Length())))

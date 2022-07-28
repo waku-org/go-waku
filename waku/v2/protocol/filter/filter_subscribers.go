@@ -114,14 +114,14 @@ func (sub *Subscribers) FlagAsFailure(peerID peer.ID) {
 	}
 }
 
-func (sub *Subscribers) RemoveContentFilters(peerID peer.ID, contentFilters []*pb.FilterRequest_ContentFilter) {
+func (sub *Subscribers) RemoveContentFilters(peerID peer.ID, requestId string, contentFilters []*pb.FilterRequest_ContentFilter) {
 	sub.Lock()
 	defer sub.Unlock()
 
 	var peerIdsToRemove []peer.ID
 
 	for subIndex, subscriber := range sub.subscribers {
-		if subscriber.peer != peerID {
+		if subscriber.peer != peerID || subscriber.requestId != requestId {
 			continue
 		}
 
