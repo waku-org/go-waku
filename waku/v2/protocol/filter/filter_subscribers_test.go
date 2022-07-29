@@ -58,7 +58,51 @@ func TestRemove(t *testing.T) {
 	assert.Nil(t, sub)
 }
 
+func TestRemovePartial(t *testing.T) {
+	subs := NewSubscribers(10 * time.Second)
+	peerId := createPeerId(t)
+	requestId := "request_1"
+	topic1 := "topic1"
+	topic2 := "topic2"
+	request := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          TOPIC,
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}, {ContentTopic: topic2}},
+	}
+	subs.Append(Subscriber{peerId, requestId, request})
+	subs.RemoveContentFilters(peerId, requestId, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}})
+
+	sub := firstSubscriber(subs, topic2)
+	assert.NotNil(t, sub)
+	assert.Len(t, sub.filter.ContentFilters, 1)
+}
+
 func TestRemoveDuplicateSubscriptions(t *testing.T) {
+	subs := NewSubscribers(10 * time.Second)
+	peerId := createPeerId(t)
+	topic := "topic"
+	requestId1 := "request_1"
+	requestId2 := "request_2"
+	request1 := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          TOPIC,
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
+	}
+	request2 := pb.FilterRequest{
+		Subscribe:      true,
+		Topic:          TOPIC,
+		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
+	}
+	subs.Append(Subscriber{peerId, requestId1, request1})
+	subs.Append(Subscriber{peerId, requestId2, request2})
+	subs.RemoveContentFilters(peerId, requestId2, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}})
+	subs.RemoveContentFilters(peerId, requestId1, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}})
+
+	sub := firstSubscriber(subs, topic)
+	assert.Nil(t, sub)
+}
+
+func TestRemoveDuplicateSubscriptionsPartial(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
 	peerId := createPeerId(t)
 	topic := "topic"
@@ -81,25 +125,6 @@ func TestRemoveDuplicateSubscriptions(t *testing.T) {
 	sub := firstSubscriber(subs, topic)
 	assert.NotNil(t, sub)
 	assert.Equal(t, sub.requestId, requestId2)
-}
-
-func TestRemovePartial(t *testing.T) {
-	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
-	requestId := "request_1"
-	topic1 := "topic1"
-	topic2 := "topic2"
-	request := pb.FilterRequest{
-		Subscribe:      true,
-		Topic:          TOPIC,
-		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}, {ContentTopic: topic2}},
-	}
-	subs.Append(Subscriber{peerId, requestId, request})
-	subs.RemoveContentFilters(peerId, requestId, []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}})
-
-	sub := firstSubscriber(subs, topic2)
-	assert.NotNil(t, sub)
-	assert.Len(t, sub.filter.ContentFilters, 1)
 }
 
 func TestRemoveBogus(t *testing.T) {
