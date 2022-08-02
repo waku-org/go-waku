@@ -167,7 +167,7 @@ type Store interface {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, maxNumberOfMessages int, maxRetentionDuration time.Duration, log *zap.Logger) *WakuStore {
+func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, log *zap.Logger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.h = host

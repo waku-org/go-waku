@@ -37,6 +37,8 @@ type DBStore struct {
 	maxMessages int
 	maxDuration time.Duration
 
+	enableMigrations bool
+
 	wg   sync.WaitGroup
 	quit chan struct{}
 }
@@ -81,6 +83,21 @@ func WithRetentionPolicy(maxMessages int, maxDuration time.Duration) DBOption {
 	}
 }
 
+// WithMigrationsEnabled is a DBOption used to determine whether migrations should
+// be executed or not
+func WithMigrationsEnabled(enabled bool) DBOption {
+	return func(d *DBStore) error {
+		d.enableMigrations = enabled
+		return nil
+	}
+}
+
+func DefaultOptions() []DBOption {
+	return []DBOption{
+		WithMigrationsEnabled(true),
+	}
+}
+
 // Creates a new DB store using the db specified via options.
 // It will create a messages table if it does not exist and
 // clean up records according to the retention policy used
@@ -89,7 +106,10 @@ func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 	result.log = log.Named("dbstore")
 	result.quit = make(chan struct{})
 
-	for _, opt := range options {
+	optList := DefaultOptions()
+	optList = append(optList, options...)
+
+	for _, opt := range optList {
 		err := opt(result)
 		if err != nil {
 			return nil, err
@@ -119,9 +139,11 @@ func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 		return nil, fmt.Errorf("unable to set journal_mode to WAL. actual mode %s", mode)
 	}
 
-	err = migrations.Migrate(result.db)
-	if err != nil {
-		return nil, err
+	if result.enableMigrations {
+		err = migrations.Migrate(result.db)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = result.cleanOlderRecords()

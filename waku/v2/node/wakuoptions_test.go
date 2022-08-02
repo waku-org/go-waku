@@ -31,7 +31,7 @@ func TestWakuOptions(t *testing.T) {
 	advertiseAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 
 	storeFactory := func(w *WakuNode) store.Store {
-		return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.opts.maxMessages, w.opts.maxDuration, w.log)
+		return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.log)
 	}
 
 	options := []WakuNodeOption{
@@ -46,7 +46,6 @@ func TestWakuOptions(t *testing.T) {
 		WithWakuFilter(true),
 		WithDiscoveryV5(123, nil, false),
 		WithWakuStore(true, true),
-		WithWakuStoreAndRetentionPolicy(true, time.Hour, 100),
 		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),
 		WithKeepAlive(time.Hour),
