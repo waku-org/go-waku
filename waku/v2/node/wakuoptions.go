@@ -327,19 +327,6 @@ func WithWakuSwap(mode int, disconnectThreshold, paymentThreshold int) WakuNodeO
 	}
 }
 
-// WithWakuStoreAndRetentionPolicy enables the Waku V2 Store protocol, storing them in an optional message provider
-// applying an specific retention policy
-func WithWakuStoreAndRetentionPolicy(shouldResume bool, maxDuration time.Duration, maxMessages int) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableStore = true
-		params.storeMsgs = true
-		params.shouldResume = shouldResume
-		params.maxDuration = maxDuration
-		params.maxMessages = maxMessages
-		return nil
-	}
-}
-
 // WithMessageProvider is a WakuNodeOption that sets the MessageProvider
 // used to store and retrieve persisted messages
 func WithMessageProvider(s store.MessageProvider) WakuNodeOption {

@@ -1,3 +1,6 @@
+//go:build !gowaku_skip_migrations
+// +build !gowaku_skip_migrations
+
 package migrations
 
 import (

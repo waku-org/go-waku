@@ -201,7 +201,7 @@ func Execute(options Options) {
 
 	if options.Store.Enable {
 		if options.Store.PersistMessages {
-			nodeOpts = append(nodeOpts, node.WithWakuStoreAndRetentionPolicy(options.Store.ShouldResume, options.Store.RetentionMaxSecondsDuration(), options.Store.RetentionMaxMessages))
+			nodeOpts = append(nodeOpts, node.WithWakuStore(true, options.Store.ShouldResume))
 			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxSecondsDuration()))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
