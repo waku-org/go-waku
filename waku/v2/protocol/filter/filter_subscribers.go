@@ -114,14 +114,14 @@ func (sub *Subscribers) FlagAsFailure(peerID peer.ID) {
 	}
 }
 
-func (sub *Subscribers) RemoveContentFilters(peerID peer.ID, contentFilters []*pb.FilterRequest_ContentFilter) {
+func (sub *Subscribers) RemoveContentFilters(peerID peer.ID, requestId string, contentFilters []*pb.FilterRequest_ContentFilter) {
 	sub.Lock()
 	defer sub.Unlock()
 
 	var peerIdsToRemove []peer.ID
 
 	for subIndex, subscriber := range sub.subscribers {
-		if subscriber.peer != peerID {
+		if subscriber.peer != peerID || subscriber.requestId != requestId {
 			continue
 		}
 
@@ -148,11 +148,10 @@ func (sub *Subscribers) RemoveContentFilters(peerID peer.ID, contentFilters []*p
 	// if no more content filters left
 	for _, peerId := range peerIdsToRemove {
 		for i, s := range sub.subscribers {
-			if s.peer == peerId {
+			if s.peer == peerId && s.requestId == requestId {
 				l := len(sub.subscribers) - 1
-				sub.subscribers[l], sub.subscribers[i] = sub.subscribers[i], sub.subscribers[l]
+				sub.subscribers[i] = sub.subscribers[l]
 				sub.subscribers = sub.subscribers[:l]
-				break
 			}
 		}
 	}
