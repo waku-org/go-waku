@@ -464,8 +464,6 @@ func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option)
 		w.Broadcaster().Unregister(&relay.DefaultWakuTopic, sub.C)
 	}
 
-	// TODO: rlnRelay
-
 	return err
 }
 
@@ -692,7 +690,7 @@ func (w *WakuNode) mountRlnRelay() error {
 		}
 
 		// mount rlnrelay in off-chain mode with a static group of users
-		wakuRLNRelay, err := rln.RlnRelayStatic(w.ctx, w.relay, groupKeys, memKeyPair, memIndex, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.log)
+		w.rlnRelay, err = rln.RlnRelayStatic(w.ctx, w.relay, groupKeys, memKeyPair, memIndex, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.log)
 		if err != nil {
 			return err
 		}
@@ -702,7 +700,7 @@ func (w *WakuNode) mountRlnRelay() error {
 
 		// check the correct construction of the tree by comparing the calculated root against the expected root
 		// no error should happen as it is already captured in the unit tests
-		root, err := wakuRLNRelay.RLN.GetMerkleRoot()
+		root, err := w.rlnRelay.RLN.GetMerkleRoot()
 		if err != nil {
 			return err
 		}

@@ -266,15 +266,29 @@ func Execute(options Options) {
 
 			var ethPrivKey *ecdsa.PrivateKey
 			if options.RLNRelay.ETHPrivateKey != "" {
-				k, err := crypto.HexToECDSA(options.RLNRelay.ETHPrivateKey)
+				k, err := crypto.ToECDSA(common.FromHex(options.RLNRelay.ETHPrivateKey))
 				failOnErr(err, "Invalid private key")
 				ethPrivKey = k
+			}
+
+			var idKey *rln.IDKey
+			if options.RLNRelay.IDCommitment != "" {
+				idKey = new(rln.IDKey)
+				copy((*idKey)[:], common.FromHex(options.RLNRelay.IDKey))
+			}
+
+			var idCommitment *rln.IDCommitment
+			if options.RLNRelay.IDCommitment != "" {
+				idCommitment = new(rln.IDCommitment)
+				copy((*idCommitment)[:], common.FromHex(options.RLNRelay.IDCommitment))
 			}
 
 			nodeOpts = append(nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
 				rln.MembershipIndex(options.RLNRelay.MembershipIndex),
+				idKey,
+				idCommitment,
 				nil,
 				options.RLNRelay.ETHClientAddress,
 				ethPrivKey,
@@ -455,13 +469,13 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 	var prvKey *ecdsa.PrivateKey
 	var err error
 	if options.NodeKey != "" {
-		if prvKey, err = crypto.HexToECDSA(options.NodeKey); err != nil {
+		if prvKey, err = crypto.ToECDSA(common.FromHex(options.NodeKey)); err != nil {
 			return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
 		}
 	} else {
 		keyString := os.Getenv("GOWAKU-NODEKEY")
 		if keyString != "" {
-			if prvKey, err = crypto.HexToECDSA(keyString); err != nil {
+			if prvKey, err = crypto.ToECDSA(common.FromHex(keyString)); err != nil {
 				return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
 			}
 		} else {

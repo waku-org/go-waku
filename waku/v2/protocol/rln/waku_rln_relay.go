@@ -262,6 +262,14 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 	return nil
 }
 
+func (r *WakuRLNRelay) MembershipKeyPair() r.MembershipKeyPair {
+	return r.membershipKeyPair
+}
+
+func (r *WakuRLNRelay) MembershipIndex() r.MembershipIndex {
+	return r.membershipIndex
+}
+
 type SpamHandler func(message *pb.WakuMessage) error
 
 // this function sets a validator for the waku messages published on the supplied pubsubTopic and contentTopic
@@ -301,10 +309,7 @@ func (r *WakuRLNRelay) addValidator(
 				zap.Binary("epoch", wakuMessage.RateLimitProof.Epoch),
 				zap.Int("timestamp", int(wakuMessage.Timestamp)),
 				zap.Binary("payload", wakuMessage.Payload),
-				zap.Binary("proof", wakuMessage.RateLimitProof.Epoch),
-				zap.Binary("shareX", wakuMessage.RateLimitProof.ShareX),
-				zap.Binary("shareY", wakuMessage.RateLimitProof.ShareY),
-				zap.Binary("nullifier", wakuMessage.RateLimitProof.Nullifier),
+				zap.Any("proof", wakuMessage.RateLimitProof),
 			)
 			return true
 		case MessageValidationResult_Invalid:
@@ -313,10 +318,7 @@ func (r *WakuRLNRelay) addValidator(
 				zap.Binary("epoch", wakuMessage.RateLimitProof.Epoch),
 				zap.Int("timestamp", int(wakuMessage.Timestamp)),
 				zap.Binary("payload", wakuMessage.Payload),
-				zap.Binary("proof", wakuMessage.RateLimitProof.Epoch),
-				zap.Binary("shareX", wakuMessage.RateLimitProof.ShareX),
-				zap.Binary("shareY", wakuMessage.RateLimitProof.ShareY),
-				zap.Binary("nullifier", wakuMessage.RateLimitProof.Nullifier),
+				zap.Any("proof", wakuMessage.RateLimitProof),
 			)
 			return true
 		case MessageValidationResult_Spam:
@@ -325,10 +327,7 @@ func (r *WakuRLNRelay) addValidator(
 				zap.Binary("epoch", wakuMessage.RateLimitProof.Epoch),
 				zap.Int("timestamp", int(wakuMessage.Timestamp)),
 				zap.Binary("payload", wakuMessage.Payload),
-				zap.Binary("proof", wakuMessage.RateLimitProof.Epoch),
-				zap.Binary("shareX", wakuMessage.RateLimitProof.ShareX),
-				zap.Binary("shareY", wakuMessage.RateLimitProof.ShareY),
-				zap.Binary("nullifier", wakuMessage.RateLimitProof.Nullifier),
+				zap.Any("proof", wakuMessage.RateLimitProof),
 			)
 
 			if spamHandler != nil {
