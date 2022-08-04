@@ -13,6 +13,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -72,6 +73,13 @@ func main() {
 	rlnRelayContentTopicFlag := flag.String("rln-relay-content-topic", "/toy-chat/2/luzhou/proto", "the content topic for which rln-relay gets enabled")
 	rlnRelayPubsubTopicFlag := flag.String("rln-relay-pubsub-topic", "/waku/2/default-waku/proto", "the pubsub topic for which rln-relay gets enabled")
 
+	rlnRelayDynamicFlag := flag.Bool("rln-relay-dynamic", false, "Enable waku-rln-relay with on-chain dynamic group management")
+	rlnRelayIdKeyFlag := flag.String("rln-relay-id", "", "Rln relay identity secret key as a Hex string")
+	rlnRelayIdCommitmentKeyFlag := flag.String("rln-relay-id-commitment", "", "Rln relay identity commitment key as a Hex string")
+	rlnRelayEthAccountPrivKeyFlag := flag.String("eth-account-privatekey", "", "Account private key for an Ethereum testnet")
+	rlnRelayEthClientAddressFlag := flag.String("eth-client-address", "ws://localhost:8545/", "Ethereum testnet client address")
+	rlnRelayEthMemContractAddressFlag := flag.String("eth-mem-contract-address", "", "Address of membership contract on an Ethereum testnet")
+
 	flag.Parse()
 
 	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
@@ -112,7 +120,40 @@ func main() {
 			spamChan <- message
 			return nil
 		}
-		opts = append(opts, node.WithStaticRLNRelay(*rlnRelayPubsubTopicFlag, *rlnRelayContentTopicFlag, rln.MembershipIndex(*rlnRelayMemIndexFlag), spamHandler))
+
+		if *rlnRelayDynamicFlag {
+			key, err := crypto.ToECDSA(common.FromHex(*rlnRelayEthAccountPrivKeyFlag))
+			if err != nil {
+				panic(err)
+			}
+
+			var idKey *rln.IDKey
+			if *rlnRelayIdKeyFlag != "" {
+				idKey = new(rln.IDKey)
+				copy((*idKey)[:], common.FromHex(*rlnRelayIdKeyFlag))
+			}
+
+			var idCommitment *rln.IDCommitment
+			if *rlnRelayIdCommitmentKeyFlag != "" {
+				idCommitment = new(rln.IDCommitment)
+				copy((*idCommitment)[:], common.FromHex(*rlnRelayIdCommitmentKeyFlag))
+			}
+
+			fmt.Println("Setting up dynamic rln")
+			opts = append(opts, node.WithDynamicRLNRelay(
+				*rlnRelayPubsubTopicFlag,
+				*rlnRelayContentTopicFlag,
+				rln.MembershipIndex(*rlnRelayMemIndexFlag),
+				idKey,
+				idCommitment,
+				spamHandler,
+				*rlnRelayEthClientAddressFlag,
+				key,
+				common.HexToAddress(*rlnRelayEthMemContractAddressFlag),
+			))
+		} else {
+			opts = append(opts, node.WithStaticRLNRelay(*rlnRelayPubsubTopicFlag, *rlnRelayContentTopicFlag, rln.MembershipIndex(*rlnRelayMemIndexFlag), spamHandler))
+		}
 	}
 
 	if *filterFlag {

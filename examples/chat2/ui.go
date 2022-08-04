@@ -3,6 +3,7 @@ package main
 import (
 	"chat2/pb"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
@@ -158,6 +159,18 @@ Available commands:
 func (ui *ChatUI) Run() error {
 	ui.displayMessage("\nWelcome, " + ui.chat.nick)
 	ui.displayMessage("type /help to see available commands \n")
+
+	if ui.chat.node.RLNRelay() != nil {
+
+		idKey := ui.chat.node.RLNRelay().MembershipKeyPair().IDKey
+		idCommitment := ui.chat.node.RLNRelay().MembershipKeyPair().IDCommitment
+
+		ui.displayMessage("RLN config:")
+		ui.displayMessage(fmt.Sprintf("- Your membership index is: %d", uint(ui.chat.node.RLNRelay().MembershipIndex())))
+		ui.displayMessage(fmt.Sprintf("- Your rln identity key is: 0x%s", hex.EncodeToString(idKey[:])))
+		ui.displayMessage(fmt.Sprintf("- Your rln identity commitment key is: 0x%s\n", hex.EncodeToString(idCommitment[:])))
+
+	}
 
 	go ui.handleEvents()
 	defer ui.end()
