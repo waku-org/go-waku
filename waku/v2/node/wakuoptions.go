@@ -434,18 +434,19 @@ func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.M
 	}
 }
 
-func WithDynamicRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, spamHandler rln.SpamHandler, ethClientAddress string, ethPrivateKey *ecdsa.PrivateKey, membershipContractAddress common.Address) WakuNodeOption {
+func WithDynamicRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, idKey *r.IDKey, idCommitment *r.IDCommitment, spamHandler rln.SpamHandler, ethClientAddress string, ethPrivateKey *ecdsa.PrivateKey, membershipContractAddress common.Address) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRLN = true
 		params.rlnRelayDynamic = true
 		params.rlnRelayMemIndex = memberIndex
+		params.rlnRelayIDKey = idKey
+		params.rlnRelayIDCommitment = idCommitment
 		params.rlnRelayPubsubTopic = pubsubTopic
 		params.rlnRelayContentTopic = contentTopic
 		params.rlnSpamHandler = spamHandler
 		params.rlnETHClientAddress = ethClientAddress
 		params.rlnETHPrivateKey = ethPrivateKey
 		params.rlnMembershipContractAddress = membershipContractAddress
-
 		return nil
 	}
 }

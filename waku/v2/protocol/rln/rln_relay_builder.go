@@ -124,13 +124,14 @@ func RlnRelayDynamic(
 			return nil, err
 		}
 
+		rlnPeer.membershipKeyPair = *memKeyPair
+
 		// register the rln-relay peer to the membership contract
 		membershipIndex, err := rlnPeer.Register(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		rlnPeer.membershipKeyPair = *memKeyPair
 		rlnPeer.membershipIndex = *membershipIndex
 
 		log.Info("registered peer into the membership contract")

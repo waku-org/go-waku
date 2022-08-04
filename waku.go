@@ -321,7 +321,7 @@ func main() {
 			// TODO: consider accepting a private key file and passwd
 			&cli.StringFlag{
 				Name:        "eth-private-key",
-				Usage:       "Ethereum testnet account private key used for registering in member contract",
+				Usage:       "Ethereum Goerli testnet account private key used for registering in member contract",
 				Destination: &options.RLNRelay.ETHPrivateKey,
 			},
 			&cli.StringFlag{
