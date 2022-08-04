@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var MEMBERSHIP_FEE = big.NewInt(5) // wei
+var MEMBERSHIP_FEE = big.NewInt(1000000000000000) // wei - 0.001 eth
 
 func toBigInt(i []byte) *big.Int {
 	result := new(big.Int)
