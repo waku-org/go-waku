@@ -12,8 +12,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 )
 
-var subscriptions map[string]*relay.Subscription = make(map[string]*relay.Subscription)
-var mutex sync.Mutex
+var relaySubscriptions map[string]*relay.Subscription = make(map[string]*relay.Subscription)
+var relaySubsMutex sync.Mutex
 
 func RelayEnoughPeers(topic string) string {
 	if wakuNode == nil {
@@ -86,10 +86,10 @@ func RelaySubscribe(topic string) string {
 
 	topicToSubscribe := getTopic(topic)
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	relaySubsMutex.Lock()
+	defer relaySubsMutex.Unlock()
 
-	_, ok := subscriptions[topicToSubscribe]
+	_, ok := relaySubscriptions[topicToSubscribe]
 	if ok {
 		return makeJSONResponse(nil)
 	}
@@ -99,7 +99,7 @@ func RelaySubscribe(topic string) string {
 		return makeJSONResponse(err)
 	}
 
-	subscriptions[topicToSubscribe] = subscription
+	relaySubscriptions[topicToSubscribe] = subscription
 
 	go func(subscription *relay.Subscription) {
 		for envelope := range subscription.C {
@@ -117,17 +117,17 @@ func RelayUnsubscribe(topic string) string {
 
 	topicToUnsubscribe := getTopic(topic)
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	relaySubsMutex.Lock()
+	defer relaySubsMutex.Unlock()
 
-	subscription, ok := subscriptions[topicToUnsubscribe]
+	subscription, ok := relaySubscriptions[topicToUnsubscribe]
 	if ok {
 		return makeJSONResponse(nil)
 	}
 
 	subscription.Unsubscribe()
 
-	delete(subscriptions, topicToUnsubscribe)
+	delete(relaySubscriptions, topicToUnsubscribe)
 
 	err := wakuNode.Relay().Unsubscribe(context.Background(), topicToUnsubscribe)
 	if err != nil {

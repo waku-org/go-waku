@@ -27,13 +27,16 @@ func prepareJSONResponse(result interface{}, err error) string {
 
 func makeJSONResponse(err error) string {
 	var errString *string = nil
+	result := true
 	if err != nil {
 		errStr := err.Error()
 		errString = &errStr
+		result = false
 	}
 
 	out := jsonResponse{
-		Error: errString,
+		Error:  errString,
+		Result: result,
 	}
 	outBytes, _ := json.Marshal(out)
 

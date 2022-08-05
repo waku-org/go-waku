@@ -44,6 +44,7 @@ type wakuConfig struct {
 	NodeKey           *string `json:"nodeKey,omitempty"`
 	KeepAliveInterval *int    `json:"keepAliveInterval,omitempty"`
 	EnableRelay       *bool   `json:"relay"`
+	EnableFilter      *bool   `json:"filter"`
 	MinPeersToPublish *int    `json:"minPeersToPublish"`
 }
 
@@ -52,6 +53,7 @@ var defaultPort = 60000
 var defaultKeepAliveInterval = 20
 var defaultEnableRelay = true
 var defaultMinPeersToPublish = 0
+var defaultEnableFilter = false
 
 func getConfig(configJSON string) (wakuConfig, error) {
 	var config wakuConfig
@@ -68,6 +70,10 @@ func getConfig(configJSON string) (wakuConfig, error) {
 
 	if config.EnableRelay == nil {
 		config.EnableRelay = &defaultEnableRelay
+	}
+
+	if config.EnableFilter == nil {
+		config.EnableFilter = &defaultEnableFilter
 	}
 
 	if config.Host == nil {
@@ -129,6 +135,10 @@ func NewNode(configJSON string) string {
 
 	if *config.EnableRelay {
 		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish))
+	}
+
+	if *config.EnableFilter {
+		opts = append(opts, node.WithWakuFilter(false))
 	}
 
 	ctx := context.Background()
