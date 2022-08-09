@@ -13,6 +13,7 @@ namespace Waku
         public int? keepAliveInterval { get; set; }
         public bool? relay { get; set; }
         public int? minPeersToPublish {get; set; }
+        public bool? enableFilter {get; set; }
     }
 
     public enum EventType
@@ -107,6 +108,12 @@ namespace Waku
     {
         public IList<Message> messages { get; set; } = new List<Message>();
         public PagingOptions? pagingInfo { get; set; }
+    }
+
+     public class FilterSubscription
+    {
+        public IList<ContentFilter> contentFilters { get; set; } = new List<ContentFilter>();
+        public string? topic { get; set; }
     }
 
     public class Node
@@ -525,7 +532,7 @@ namespace Waku
         /// </summary>
         /// <param name="query">Query</param>
         /// <param name="peerID">PeerID to ask the history from. Use NULL to automatically select a peer</param>
-        /// <param name="ms">If ms is greater than 0, the broadcast of the message must happen before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        /// <param name="ms">If ms is greater than 0, the response must be received before the timeout (in milliseconds) is reached, or an error will be returned</param>
         /// <returns>Response containing the messages and cursor for pagination. Use the cursor in further queries to retrieve more results</returns>
         public StoreResponse StoreQuery(StoreQuery query, string? peerID = null, int ms = 0)
         {
@@ -535,8 +542,36 @@ namespace Waku
             return Response.HandleStoreResponse(ptr, "could not extract query response");
         }
 
+        [DllImport(Constants.dllName)]
+        internal static extern IntPtr waku_filter_subscribe(string filterJSON, string? peerID, int ms);
+        /// <summary>
+        /// Creates a subscription in a lightnode for messages
+        /// </summary>
+        /// <param name="filter">Filter criteria</param>
+        /// <param name="peerID">PeerID to subscribe to</param>
+        /// <param name="ms">If ms is greater than 0, the subscription must be done before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        public FilterSubscribe(FilterSubscription filter, string? peerID = null, int ms = 0)
+        {
+            string filterJSON = JsonSerializer.Serialize(filter);
+            IntPtr ptr = waku_filter_subscribe(filterJSON, peerID, ms);
+            
+            Response.HandleResponse(ptr);
+        }
 
-
+        [DllImport(Constants.dllName)]
+        internal static extern IntPtr waku_filter_unsubscribe(string filterJSON, int ms);
+        /// <summary>
+        /// Removes subscriptions in a light node 
+        /// </summary>
+        /// <param name="filter">Filter criteria</param>
+        /// <param name="ms">If ms is greater than 0, the unsubscription must be done before the timeout (in milliseconds) is reached, or an error will be returned</param>
+        public FilterUnsubscribe(FilterSubscription filter, int ms = 0)
+        {
+            string filterJSON = JsonSerializer.Serialize(filter);
+            IntPtr ptr = waku_filter_unsubscribe(filterJSON, ms);
+            
+            Response.HandleResponse(ptr);
+        }
     }
 }
 

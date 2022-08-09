@@ -7,6 +7,7 @@ import com.example.waku.events.MessageEvent
 import com.example.waku.messages.Message
 import com.example.waku.store.StoreQuery
 import com.example.waku.store.StoreResponse
+import com.example.waku.filter.FilterSubscription
 import gowaku.Gowaku
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -315,7 +316,7 @@ fun Node.peers(): List<Peer> {
  * Query message history
  * @param query Query
  * @param peerID PeerID to ask the history from. Use "" to automatically select a peer
- * @param ms If ms is greater than 0, the broadcast of the message must happen before the timeout
+ * @param ms If ms is greater than 0, response must be received before the timeout
  *           (in milliseconds) is reached, or an error will be returned
  * @return Response containing the messages and cursor for pagination. Use the cursor in further queries to retrieve more results
  */
@@ -323,4 +324,29 @@ fun Node.storeQuery(query: StoreQuery, peerID: String = "", ms: Long = 0): Store
     val queryJSON = Json.encodeToString(query)
     val response = Gowaku.storeQuery(queryJSON, peerID, ms)
     return handleResponse<StoreResponse>(response)
+}
+
+/**
+ * Creates a subscription in a lightnode for messages
+ * @param filter Filter criteria
+ * @param peerID PeerID to subscribe to. Use "" to automatically select a peer
+ * @param ms If ms is greater than 0, the subscription must be done before the timeout
+ *           (in milliseconds) is reached, or an error will be returned
+ */
+func Node.filterSubscribe(filter: FilterSubscription, peerID: String = "", ms: Long = 0) {
+    val filterJSON = Json.encodeToString(filter)
+    val response = Gowaku.filterSubscribe(filterJSON, peerID, ms)
+    handleResponse(response)
+}
+
+/**
+ * Removes subscriptions in a light node
+ * @param filter Filter criteria
+ * @param ms If ms is greater than 0, the unsubscription must be done before the timeout
+ *           (in milliseconds) is reached, or an error will be returned
+ */
+func Node.filterUnsubscribe(filter: FilterSubscription, ms: Long = 0) {
+    val filterJSON = Json.encodeToString(filter)
+    val response = Gowaku.filterUnsubscribe(filterJSON, ms)
+    handleResponse(response)
 }
