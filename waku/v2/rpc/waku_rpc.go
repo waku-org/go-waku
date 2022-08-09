@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc/v2"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"go.uber.org/zap"
@@ -31,7 +32,15 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 	s.RegisterCodec(NewSnakeCaseCodec(), "application/json")
 	s.RegisterCodec(NewSnakeCaseCodec(), "application/json;charset=UTF-8")
 
-	err := s.RegisterService(&DebugService{node}, "Debug")
+	mux := mux.NewRouter()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		t := time.Now()
+		s.ServeHTTP(w, r)
+		wrpc.log.Info("served request", zap.String("path", r.URL.Path), zap.Duration("duration", time.Since(t)))
+	})
+
+	debugService := NewDebugService(node, mux)
+	err := s.RegisterService(debugService, "Debug")
 	if err != nil {
 		wrpc.log.Error("registering debug service", zap.Error(err))
 	}
@@ -70,13 +79,6 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		}
 		wrpc.privateService = privateService
 	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		t := time.Now()
-		s.ServeHTTP(w, r)
-		wrpc.log.Info("served request", zap.String("path", r.URL.Path), zap.Duration("duration", time.Since(t)))
-	})
 
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
 
