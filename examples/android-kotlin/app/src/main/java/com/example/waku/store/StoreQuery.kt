@@ -8,6 +8,6 @@ data class StoreQuery(
     var pubsubTopic: String? = DefaultPubsubTopic(),
     var startTime: Long? = null,
     var endTime: Long? = null,
-    var contentFilter: List<ContentFilter>?,
+    var contentFilters: List<ContentFilter>?,
     var pagingOptions: PagingOptions?
 )
