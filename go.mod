@@ -6,6 +6,8 @@ replace github.com/raulk/go-watchdog v1.2.0 => github.com/status-im/go-watchdog 
 
 replace github.com/ethereum/go-ethereum v1.10.18 => github.com/status-im/go-ethereum v1.10.4-status.2
 
+replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
+
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3
@@ -36,7 +38,10 @@ require (
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 )
 
-require golang.org/x/text v0.3.7
+require (
+	github.com/flynn/noise v1.0.0
+	golang.org/x/text v0.3.7
+)
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -55,7 +60,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/elastic/gosigar v0.14.1 // indirect
-	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-kit/log v0.1.0 // indirect
@@ -90,7 +94,6 @@ require (
 	github.com/libp2p/go-libp2p-blankhost v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-connmgr v0.3.1 // indirect
 	github.com/libp2p/go-libp2p-discovery v0.6.0 // indirect
-	github.com/libp2p/go-libp2p-quic-transport v0.17.0 // indirect
 	github.com/libp2p/go-libp2p-resource-manager v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-swarm v0.10.2 // indirect
 	github.com/libp2p/go-libp2p-tls v0.3.1 // indirect
