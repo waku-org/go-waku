@@ -14,7 +14,9 @@ import (
 //  "startTime": 1234, // optional, unix epoch time in nanoseconds
 //  "endTime": 1234, // optional, unix epoch time in nanoseconds
 //  "contentFilters": [ // optional
-// 	    "contentTopic1", ...
+//		{
+// 	      contentTopic: "contentTopic1"
+//		}, ...
 //  ],
 //  "pagingOptions": {// optional pagination information
 //      "pageSize": 40, // number

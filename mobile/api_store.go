@@ -22,7 +22,7 @@ type storePagingOptions struct {
 
 type storeMessagesArgs struct {
 	Topic          string             `json:"pubsubTopic,omitempty"`
-	ContentFilters []string           `json:"contentFilters,omitempty"`
+	ContentFilters []pb.ContentFilter `json:"contentFilters,omitempty"`
 	StartTime      int64              `json:"startTime,omitempty"`
 	EndTime        int64              `json:"endTime,omitempty"`
 	PagingOptions  storePagingOptions `json:"pagingOptions,omitempty"`
@@ -73,11 +73,16 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 		ctx = context.Background()
 	}
 
+	var contentTopics []string
+	for _, ct := range args.ContentFilters {
+		contentTopics = append(contentTopics, ct.ContentTopic)
+	}
+
 	res, err := wakuNode.Store().Query(
 		ctx,
 		store.Query{
 			Topic:         args.Topic,
-			ContentTopics: args.ContentFilters,
+			ContentTopics: contentTopics,
 			StartTime:     args.StartTime,
 			EndTime:       args.EndTime,
 		},
