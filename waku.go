@@ -317,6 +317,12 @@ func main() {
 				Usage:       "Rln relay identity commitment key as a Hex string",
 				Destination: &options.RLNRelay.IDCommitment,
 			},
+			&cli.StringFlag{
+				Name:        "rln-relay-membership-credentials-file",
+				Usage:       "RLN relay membership credentials file",
+				Value:       "rlnCredentials.txt",
+				Destination: &options.RLNRelay.CredentialsFile,
+			},
 			// TODO: this is a good candidate option for subcommands
 			// TODO: consider accepting a private key file and passwd
 			&cli.StringFlag{
