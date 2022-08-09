@@ -256,6 +256,7 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
+	loadedCredentialsFromFile := false
 	if options.RLNRelay.Enable {
 		if !options.Relay.Enable {
 			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")
@@ -272,22 +273,15 @@ func Execute(options Options) {
 				ethPrivKey = k
 			}
 
-			var idKey *rln.IDKey
-			if options.RLNRelay.IDCommitment != "" {
-				idKey = new(rln.IDKey)
-				copy((*idKey)[:], common.FromHex(options.RLNRelay.IDKey))
-			}
+			loaded, idKey, idCommitment, membershipIndex, err := getMembershipCredentials(options)
+			failOnErr(err, "Invalid membership credentials")
 
-			var idCommitment *rln.IDCommitment
-			if options.RLNRelay.IDCommitment != "" {
-				idCommitment = new(rln.IDCommitment)
-				copy((*idCommitment)[:], common.FromHex(options.RLNRelay.IDCommitment))
-			}
+			loadedCredentialsFromFile = loaded
 
 			nodeOpts = append(nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
-				rln.MembershipIndex(options.RLNRelay.MembershipIndex),
+				membershipIndex,
 				idKey,
 				idCommitment,
 				nil,
@@ -352,6 +346,11 @@ func Execute(options Options) {
 				}(ctx, m)
 			}
 		}
+	}
+
+	if options.RLNRelay.Enable && options.RLNRelay.Dynamic && !loadedCredentialsFromFile {
+		err := writeRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), options.RLNRelay.CredentialsFile, []byte(options.KeyPasswd), options.Overwrite)
+		failOnErr(err, "Could not write membership credentials file")
 	}
 
 	var rpcServer *rpc.WakuRpc
@@ -432,7 +431,7 @@ func loadPrivateKeyFromFile(path string, passwd string) (*ecdsa.PrivateKey, erro
 	return crypto.ToECDSA(pKey)
 }
 
-func checkForPrivateKeyFile(path string, overwrite bool) error {
+func checkForFileExistence(path string, overwrite bool) error {
 	_, err := os.Stat(path)
 
 	if err == nil && !overwrite {
@@ -456,7 +455,7 @@ func generatePrivateKey() ([]byte, error) {
 }
 
 func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
-	if err := checkForPrivateKeyFile(path, overwrite); err != nil {
+	if err := checkForFileExistence(path, overwrite); err != nil {
 		return err
 	}
 

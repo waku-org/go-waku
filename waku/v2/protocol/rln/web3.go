@@ -101,9 +101,9 @@ func (rln *WakuRLNRelay) Register(ctx context.Context) (*r.MembershipIndex, erro
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
 type RegistrationEventHandler = func(pubkey r.IDCommitment, index r.MembershipIndex) error
 
-func processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) {
+func processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) error {
 	if evt == nil {
-		return
+		return nil
 	}
 
 	var pubkey r.IDCommitment
@@ -111,7 +111,7 @@ func processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHa
 
 	index := r.MembershipIndex(uint(evt.Index.Int64()))
 
-	handler(pubkey, index)
+	return handler(pubkey, index)
 }
 
 // HandleGroupUpdates mounts the supplied handler for the registration events emitting from the membership contract
@@ -129,11 +129,15 @@ func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler) er
 		return err
 	}
 
-	// TODO: process log should have a channel that consumes logs and has a buffer to receive a lot of events
-	// TODO: an error channel is required
+	err = rln.loadOldEvents(rlnContract, handler)
+	if err != nil {
+		return err
+	}
 
-	rln.loadOldEvents(rlnContract, handler)
-	rln.watchNewEvents(rlnContract, handler, rln.log)
+	err = rln.watchNewEvents(rlnContract, handler, rln.log)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

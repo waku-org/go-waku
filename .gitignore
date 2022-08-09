@@ -2,6 +2,7 @@
 *.db-shm
 *.db-wal
 nodekey
+rlnCredentials.txt
 
 # Binaries for programs and plugins
 *.exe

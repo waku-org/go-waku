@@ -79,6 +79,7 @@ func main() {
 	rlnRelayEthAccountPrivKeyFlag := flag.String("eth-account-privatekey", "", "Account private key for an Ethereum testnet")
 	rlnRelayEthClientAddressFlag := flag.String("eth-client-address", "ws://localhost:8545/", "Ethereum testnet client address")
 	rlnRelayEthMemContractAddressFlag := flag.String("eth-mem-contract-address", "", "Address of membership contract on an Ethereum testnet")
+	rlnRelayCredentialsFile := flag.String("rln-relay-credentials-file", "rlnCredentials.txt", "RLN credentials file")
 
 	flag.Parse()
 
@@ -127,23 +128,16 @@ func main() {
 				panic(err)
 			}
 
-			var idKey *rln.IDKey
-			if *rlnRelayIdKeyFlag != "" {
-				idKey = new(rln.IDKey)
-				copy((*idKey)[:], common.FromHex(*rlnRelayIdKeyFlag))
-			}
-
-			var idCommitment *rln.IDCommitment
-			if *rlnRelayIdCommitmentKeyFlag != "" {
-				idCommitment = new(rln.IDCommitment)
-				copy((*idCommitment)[:], common.FromHex(*rlnRelayIdCommitmentKeyFlag))
+			idKey, idCommitment, index, err := getMembershipCredentials(*rlnRelayCredentialsFile, *rlnRelayIdKeyFlag, *rlnRelayIdCommitmentKeyFlag, *rlnRelayMemIndexFlag)
+			if err != nil {
+				panic(err)
 			}
 
 			fmt.Println("Setting up dynamic rln")
 			opts = append(opts, node.WithDynamicRLNRelay(
 				*rlnRelayPubsubTopicFlag,
 				*rlnRelayContentTopicFlag,
-				rln.MembershipIndex(*rlnRelayMemIndexFlag),
+				index,
 				idKey,
 				idCommitment,
 				spamHandler,
@@ -181,6 +175,14 @@ func main() {
 
 	if err := wakuNode.Start(); err != nil {
 		panic(err)
+	}
+
+	if *rlnRelayFlag && *rlnRelayDynamicFlag {
+		err := writeRLNMembershipCredentialsToFile(*rlnRelayCredentialsFile, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex())
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Wrote credentials in file %s\n", *rlnRelayCredentialsFile)
 	}
 
 	// use the nickname from the cli flag, or a default if blank

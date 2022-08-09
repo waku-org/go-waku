@@ -67,8 +67,6 @@ type WakuNodeParameters struct {
 	shouldResume    bool
 	storeMsgs       bool
 	messageProvider store.MessageProvider
-	maxMessages     int
-	maxDuration     time.Duration
 
 	swapMode                int
 	swapDisconnectThreshold int
