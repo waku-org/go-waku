@@ -1,3 +1,6 @@
+//go:build include_onchain_tests
+// +build include_onchain_tests
+
 package rln
 
 import (
