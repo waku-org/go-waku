@@ -148,7 +148,7 @@ func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler Regis
 		if !logIterator.Next() || logIterator.Error() != nil {
 			break
 		}
-		go processLogs(logIterator.Event, handler)
+		processLogs(logIterator.Event, handler)
 	}
 	return nil
 }
@@ -164,7 +164,7 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 	for {
 		select {
 		case evt := <-logSink:
-			go processLogs(evt, handler)
+			processLogs(evt, handler)
 		case <-rln.ctx.Done():
 			subs.Unsubscribe()
 			close(logSink)
