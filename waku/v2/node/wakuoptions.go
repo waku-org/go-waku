@@ -252,6 +252,14 @@ func WithWakuRelayAndMinPeers(minRelayPeersToPublish int, opts ...pubsub.Option)
 	}
 }
 
+// WithoutWakuRelay disables the Waku V2 Relay protocol.
+func WithoutWakuRelay() WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableRelay = false
+		return nil
+	}
+}
+
 // WithDiscoveryV5 is a WakuOption used to enable DiscV5 peer discovery
 func WithDiscoveryV5(udpPort int, bootnodes []*enode.Node, autoUpdate bool, discoverOpts ...pubsub.DiscoverOpt) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
