@@ -24,6 +24,8 @@ type broadcaster struct {
 
 	outputs         broadcastOutputs
 	outputsPerTopic map[string]broadcastOutputs
+
+	closed bool
 }
 
 // The Broadcaster interface describes the main entry points to
@@ -145,6 +147,13 @@ func (b *broadcaster) Register(topic *string, newch chan<- *protocol.Envelope) {
 // Unregister a subscriptor channel and return a channel to wait until this operation is done
 func (b *broadcaster) WaitUnregister(topic *string, newch chan<- *protocol.Envelope) doneCh {
 	d := make(doneCh)
+	if b.closed {
+		// If the broadcaster is already closed, then sending to the unreg
+		// channel will block since the goroutine that would be consuming
+		// it is no longer running.
+		close(d)
+		return d
+	}
 	b.unreg <- chOperation{
 		ch:    newch,
 		topic: topic,
@@ -155,6 +164,12 @@ func (b *broadcaster) WaitUnregister(topic *string, newch chan<- *protocol.Envel
 
 // Unregister a subscriptor channel
 func (b *broadcaster) Unregister(topic *string, newch chan<- *protocol.Envelope) {
+	if b.closed {
+		// If the broadcaster is already closed, then sending to the unreg
+		// channel will block since the goroutine that would be consuming
+		// it is no longer running.
+		return
+	}
 	b.unreg <- chOperation{
 		ch:    newch,
 		topic: topic,
@@ -164,6 +179,7 @@ func (b *broadcaster) Unregister(topic *string, newch chan<- *protocol.Envelope)
 
 // Closes the broadcaster. Used to stop receiving new subscribers
 func (b *broadcaster) Close() {
+	b.closed = true
 	close(b.reg)
 }
 
