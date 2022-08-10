@@ -57,7 +57,7 @@ lint:
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
 test:
-	${GOBIN} test -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
+	${GOBIN} test ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
 	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
 	${GOBIN} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 
@@ -158,6 +158,6 @@ start-ganache:
 stop-ganache:
 	docker stop ganache-cli
 
-test-rln:
-	go test -timeout 30s -v -count 1 github.com/status-im/go-waku/waku/v2/protocol/rln
-	
+test-onchain:
+	${GOBIN} test -v -count 1 -tags="include_onchain_tests" github.com/status-im/go-waku/waku/v2/protocol/rln
+
