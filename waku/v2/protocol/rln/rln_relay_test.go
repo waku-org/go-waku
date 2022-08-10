@@ -27,20 +27,20 @@ type WakuRLNRelaySuite struct {
 
 func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	port, err := tests.FindFreePort(s.T(), "", 5)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, utils.Logger())
 	defer relay.Stop()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	params, err := parametersKeyBytes()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	groupKeyPairs, root, err := r.CreateMembershipList(100, params)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	var groupIDCommitments []r.IDCommitment
 	for _, c := range groupKeyPairs {
@@ -53,16 +53,16 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	index := r.MembershipIndex(5)
 
 	wakuRLNRelay, err := RlnRelayStatic(context.TODO(), relay, groupIDCommitments, groupKeyPairs[index], index, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// get the root of Merkle tree which is constructed inside the mountRlnRelay proc
 	calculatedRoot, err := wakuRLNRelay.RLN.GetMerkleRoot()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Checks whether the Merkle tree is constructed correctly inside the mountRlnRelay func
 	// this check is done by comparing the tree root resulted from mountRlnRelay i.e., calculatedRoot
 	// against the root which is the expected root
-	s.Equal(root[:], calculatedRoot[:])
+	s.Require().Equal(root[:], calculatedRoot[:])
 }
 
 func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
@@ -96,37 +96,37 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	// check whether hasDuplicate correctly finds records with the same nullifiers but different secret shares
 	// no duplicate for wm1 should be found, since the log is empty
 	result1, err := rlnRelay.HasDuplicate(wm1)
-	s.NoError(err)
-	s.False(result1) // No duplicate is found
+	s.Require().NoError(err)
+	s.Require().False(result1) // No duplicate is found
 
 	// Add it to the log
 	added, err := rlnRelay.UpdateLog(wm1)
-	s.NoError(err)
-	s.True(added)
+	s.Require().NoError(err)
+	s.Require().True(added)
 
 	// no duplicate for wm2 should be found, its nullifier differs from wm1
 	result2, err := rlnRelay.HasDuplicate(wm2)
-	s.NoError(err)
-	s.False(result2) // No duplicate is found
+	s.Require().NoError(err)
+	s.Require().False(result2) // No duplicate is found
 
 	// Add it to the log
 	added, err = rlnRelay.UpdateLog(wm2)
-	s.NoError(err)
-	s.True(added)
+	s.Require().NoError(err)
+	s.Require().True(added)
 
 	// wm3 has the same nullifier as wm1 but different secret shares, it should be detected as duplicate
 	result3, err := rlnRelay.HasDuplicate(wm3)
-	s.NoError(err)
-	s.True(result3) // It's a duplicate
+	s.Require().NoError(err)
+	s.Require().True(result3) // It's a duplicate
 
 }
 
 func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	params, err := parametersKeyBytes()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	groupKeyPairs, _, err := r.CreateMembershipList(100, params)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	var groupIDCommitments []r.IDCommitment
 	for _, c := range groupKeyPairs {
@@ -140,10 +140,10 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 
 	// Create a RLN instance
 	rlnInstance, err := r.NewRLN(params)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	added := rlnInstance.AddAll(groupIDCommitments)
-	s.True(added)
+	s.Require().True(added)
 
 	rlnRelay := &WakuRLNRelay{
 		membershipIndex:   index,
@@ -160,38 +160,38 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 
 	wm1 := &pb.WakuMessage{Payload: []byte("Valid message")}
 	err = rlnRelay.AppendRLNProof(wm1, now)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// another message in the same epoch as wm1, it will break the messaging rate limit
 	wm2 := &pb.WakuMessage{Payload: []byte("Spam")}
 	err = rlnRelay.AppendRLNProof(wm2, now)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// wm3 points to the next epoch
 	wm3 := &pb.WakuMessage{Payload: []byte("Valid message")}
 	err = rlnRelay.AppendRLNProof(wm3, now.Add(time.Second*time.Duration(r.EPOCH_UNIT_SECONDS)))
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	wm4 := &pb.WakuMessage{Payload: []byte("Invalid message")}
 
 	// valid message
 	msgValidate1, err := rlnRelay.ValidateMessage(wm1, &now)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// wm2 is published within the same Epoch as wm1 and should be found as spam
 	msgValidate2, err := rlnRelay.ValidateMessage(wm2, &now)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// a valid message should be validated successfully
 	msgValidate3, err := rlnRelay.ValidateMessage(wm3, &now)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// wm4 has no rln proof and should not be validated
 	msgValidate4, err := rlnRelay.ValidateMessage(wm4, &now)
-	s.NoError(err)
+	s.Require().NoError(err)
 
-	s.Equal(MessageValidationResult_Valid, msgValidate1)
-	s.Equal(MessageValidationResult_Spam, msgValidate2)
-	s.Equal(MessageValidationResult_Valid, msgValidate3)
-	s.Equal(MessageValidationResult_Invalid, msgValidate4)
+	s.Require().Equal(MessageValidationResult_Valid, msgValidate1)
+	s.Require().Equal(MessageValidationResult_Spam, msgValidate2)
+	s.Require().Equal(MessageValidationResult_Valid, msgValidate3)
+	s.Require().Equal(MessageValidationResult_Invalid, msgValidate4)
 }
