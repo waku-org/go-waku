@@ -57,7 +57,7 @@ lint:
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
 test:
-	${GOBIN} test ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
+	${GOBIN} test -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
 	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
 	${GOBIN} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 
@@ -77,7 +77,7 @@ generate:
 	
 
 coverage:
-	${GOBIN} test  -count 1 -coverprofile=coverage.out ./...
+	${GOBIN} test -timeout 300s  -count 1 -coverprofile=coverage.out ./...
 	${GOBIN} tool cover -html=coverage.out -o=coverage.html
 
 # build a docker image for the fleet
@@ -149,3 +149,15 @@ install-gomobile: install-xtools
 build-linux-pkg:
 	./scripts/linux/docker-run.sh
 	ls -la ./build/*.rpm ./build/*.deb
+
+TEST_MNEMONIC="swim relax risk shy chimney please usual search industry board music segment"
+
+start-ganache:
+	docker run -p 8545:8545 --name ganache-cli --rm -d trufflesuite/ganache-cli:latest -m ${TEST_MNEMONIC}
+
+stop-ganache:
+	docker stop ganache-cli
+
+test-rln:
+	go test -timeout 30s -v -count 1 github.com/status-im/go-waku/waku/v2/protocol/rln
+	
