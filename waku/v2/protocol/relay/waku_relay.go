@@ -33,6 +33,9 @@ type WakuRelay struct {
 
 	log *zap.Logger
 
+	ctx       context.Context
+	ctxCancel func()
+
 	bcaster v2.Broadcaster
 
 	minPeersToPublish int
@@ -62,6 +65,7 @@ func NewWakuRelay(ctx context.Context, h host.Host, bcaster v2.Broadcaster, minP
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
 	w.log = log.Named("relay")
+	w.ctx, w.ctxCancel = context.WithCancel(ctx)
 
 	// default options required by WakuRelay
 	opts = append(opts, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
@@ -82,7 +86,7 @@ func NewWakuRelay(ctx context.Context, h host.Host, bcaster v2.Broadcaster, minP
 		},
 	))
 
-	ps, err := pubsub.NewGossipSub(ctx, h, opts...)
+	ps, err := pubsub.NewGossipSub(w.ctx, h, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -204,6 +208,8 @@ func (w *WakuRelay) Stop() {
 		}
 	}
 	w.subscriptions = nil
+
+	w.ctxCancel()
 }
 
 // EnoughPeersToPublish returns whether there are enough peers connected in the default waku pubsub topic
@@ -302,7 +308,7 @@ func (w *WakuRelay) nextMessage(ctx context.Context, sub *pubsub.Subscription) <
 }
 
 func (w *WakuRelay) subscribeToTopic(t string, subscription *Subscription, sub *pubsub.Subscription) {
-	ctx, err := tag.New(context.Background(), tag.Insert(metrics.KeyType, "relay"))
+	ctx, err := tag.New(w.ctx, tag.Insert(metrics.KeyType, "relay"))
 	if err != nil {
 		w.log.Error("creating tag map", zap.Error(err))
 		return
