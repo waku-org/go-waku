@@ -22,10 +22,9 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
-	r "github.com/status-im/go-rln/rln"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
-	"github.com/status-im/go-waku/waku/v2/protocol/rln"
+	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -84,13 +83,13 @@ type WakuNodeParameters struct {
 	discV5autoUpdate bool
 
 	enableRLN                    bool
-	rlnRelayMemIndex             r.MembershipIndex
+	rlnRelayMemIndex             uint
 	rlnRelayPubsubTopic          string
 	rlnRelayContentTopic         string
 	rlnRelayDynamic              bool
-	rlnSpamHandler               rln.SpamHandler
-	rlnRelayIDKey                *r.IDKey
-	rlnRelayIDCommitment         *r.IDCommitment
+	rlnSpamHandler               func(message *pb.WakuMessage) error
+	rlnRelayIDKey                *[32]byte
+	rlnRelayIDCommitment         *[32]byte
 	rlnETHPrivateKey             *ecdsa.PrivateKey
 	rlnETHClientAddress          string
 	rlnMembershipContractAddress common.Address
@@ -416,35 +415,6 @@ func WithSecureWebsockets(address string, port int, certPath string, keyPath str
 			Certificates: []tls.Certificate{certificate},
 		}
 
-		return nil
-	}
-}
-
-func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, spamHandler rln.SpamHandler) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableRLN = true
-		params.rlnRelayDynamic = false
-		params.rlnRelayMemIndex = memberIndex
-		params.rlnRelayPubsubTopic = pubsubTopic
-		params.rlnRelayContentTopic = contentTopic
-		params.rlnSpamHandler = spamHandler
-		return nil
-	}
-}
-
-func WithDynamicRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, idKey *r.IDKey, idCommitment *r.IDCommitment, spamHandler rln.SpamHandler, ethClientAddress string, ethPrivateKey *ecdsa.PrivateKey, membershipContractAddress common.Address) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableRLN = true
-		params.rlnRelayDynamic = true
-		params.rlnRelayMemIndex = memberIndex
-		params.rlnRelayIDKey = idKey
-		params.rlnRelayIDCommitment = idCommitment
-		params.rlnRelayPubsubTopic = pubsubTopic
-		params.rlnRelayContentTopic = contentTopic
-		params.rlnSpamHandler = spamHandler
-		params.rlnETHClientAddress = ethClientAddress
-		params.rlnETHPrivateKey = ethPrivateKey
-		params.rlnMembershipContractAddress = membershipContractAddress
 		return nil
 	}
 }

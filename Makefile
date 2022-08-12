@@ -38,12 +38,18 @@ BUILD_FLAGS ?= $(shell echo "-ldflags='\
 	-X github.com/status-im/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT) \
 	-X github.com/status-im/go-waku/waku/v2/node.Version=$(VERSION)'")
 
+
+# control rln code compilation
+ifeq ($(RLN), true)
+BUILD_TAGS := gowaku_rln
+endif
+
 all: build
 
 deps: lint-install
 
 build:
-	${GOBIN} build $(BUILD_FLAGS) -o build/waku waku.go
+	${GOBIN} build -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku
 
 vendor:
 	${GOBIN} mod tidy
@@ -105,6 +111,7 @@ static-library:
 	@echo "Building static library..."
 	${GOBIN} build \
 		-buildmode=c-archive \
+		-tags="${BUILD_TAGS}" \
 		-o ./build/lib/libgowaku.a \
 		./library/
 	@echo "Static library built:"
@@ -114,6 +121,7 @@ dynamic-library:
 	@echo "Building shared library..."
 	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) ${GOBIN} build \
 		-buildmode=c-shared \
+		-tags="${BUILD_TAGS}" \
 		-o ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT) \
 		./library/
 ifeq ($(detected_OS),Linux)
@@ -128,14 +136,14 @@ endif
 mobile-android:
 	gomobile init && \
 	go get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -v -target=android -ldflags="-s -w" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
+	gomobile bind -v -target=android -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 
 mobile-ios:
 	gomobile init && \
 	go get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -target=ios -ldflags="-s -w" -o ./build/lib/Gowaku.xcframework ./mobile
+	gomobile bind -target=ios -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/Gowaku.xcframework ./mobile
 	@echo "IOS library built:"
 	@ls -la ./build/lib/*.xcframework
 
@@ -158,6 +166,7 @@ start-ganache:
 stop-ganache:
 	docker stop ganache-cli
 
+test-onchain: BUILD_TAGS += include_onchain_tests
 test-onchain:
-	${GOBIN} test -v -count 1 -tags="include_onchain_tests" github.com/status-im/go-waku/waku/v2/protocol/rln
+	${GOBIN} test -v -count 1 -tags="${BUILD_TAGS}" github.com/status-im/go-waku/waku/v2/protocol/rln
 
