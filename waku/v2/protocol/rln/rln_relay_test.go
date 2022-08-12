@@ -100,7 +100,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	s.Require().False(result1) // No duplicate is found
 
 	// Add it to the log
-	added, err := rlnRelay.UpdateLog(wm1)
+	added, err := rlnRelay.updateLog(wm1)
 	s.Require().NoError(err)
 	s.Require().True(added)
 
@@ -110,7 +110,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	s.Require().False(result2) // No duplicate is found
 
 	// Add it to the log
-	added, err = rlnRelay.UpdateLog(wm2)
+	added, err = rlnRelay.updateLog(wm2)
 	s.Require().NoError(err)
 	s.Require().True(added)
 

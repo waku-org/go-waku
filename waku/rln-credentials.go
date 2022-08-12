@@ -1,3 +1,6 @@
+//go:build gowaku_rln
+// +build gowaku_rln
+
 package waku
 
 import (

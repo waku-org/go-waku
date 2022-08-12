@@ -125,7 +125,7 @@ func (rln *WakuRLNRelay) HasDuplicate(msg *pb.WakuMessage) (bool, error) {
 	return matched, nil
 }
 
-func (rln *WakuRLNRelay) UpdateLog(msg *pb.WakuMessage) (bool, error) {
+func (rln *WakuRLNRelay) updateLog(msg *pb.WakuMessage) (bool, error) {
 	// extracts  the `ProofMetadata` of the supplied messages `msg` and
 	// saves it in the `nullifierLog` of the `rlnPeer`
 
@@ -225,7 +225,7 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	// insert the message to the log
 	// the result of `updateLog` is discarded because message insertion is guaranteed by the implementation i.e.,
 	// it will never error out
-	_, err = rln.UpdateLog(msg)
+	_, err = rln.updateLog(msg)
 	if err != nil {
 		return MessageValidationResult_Unknown, err
 	}
@@ -270,7 +270,7 @@ func (r *WakuRLNRelay) MembershipIndex() r.MembershipIndex {
 	return r.membershipIndex
 }
 
-type SpamHandler func(message *pb.WakuMessage) error
+type SpamHandler = func(message *pb.WakuMessage) error
 
 // this function sets a validator for the waku messages published on the supplied pubsubTopic and contentTopic
 // if contentTopic is empty, then validation takes place for All the messages published on the given pubsubTopic
