@@ -1,6 +1,4 @@
-// https://github.com/kilic/rlnapp/blob/master/packages/contracts/contracts/RLN.sol
-
-pragma solidity 0.7.4;
+pragma solidity ^0.7.4;
 
 import { IPoseidonHasher } from "./crypto/PoseidonHasher.sol";
 
@@ -14,8 +12,8 @@ contract RLN {
 
 	IPoseidonHasher public poseidonHasher;
 
-	event MemberRegistered(uint256 indexed pubkey, uint256 indexed index);
-	event MemberWithdrawn(uint256 indexed pubkey, uint256 indexed index);
+	event MemberRegistered(uint256 pubkey, uint256 index);
+	event MemberWithdrawn(uint256 pubkey, uint256 index);
 
 	constructor(
 		uint256 membershipDeposit,
