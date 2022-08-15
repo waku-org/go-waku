@@ -186,7 +186,7 @@ func (m UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmdToReturn = append(cmdToReturn, recvMessages(m.messageChan))
 
 	case quit:
-		m.textarea.Placeholder = "Bye!"
+		fmt.Println("Bye!")
 		return m, tea.Quit
 
 	case sending:

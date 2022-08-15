@@ -148,7 +148,12 @@ func RlnRelayDynamic(
 		return nil
 	}
 
-	go rlnPeer.HandleGroupUpdates(handler)
+	errChan := make(chan error)
+	go rlnPeer.HandleGroupUpdates(handler, errChan)
+	err = <-errChan
+	if err != nil {
+		return nil, err
+	}
 
 	// adds a topic validator for the supplied pubsub topic at the relay protocol
 	// messages published on this pubsub topic will be relayed upon a successful validation, otherwise they will be dropped

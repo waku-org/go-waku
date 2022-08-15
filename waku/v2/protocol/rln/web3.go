@@ -117,66 +117,89 @@ func processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHa
 // HandleGroupUpdates mounts the supplied handler for the registration events emitting from the membership contract
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
-func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler) error {
+func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler, errChan chan<- error) {
+	defer close(errChan)
+
 	backend, err := ethclient.Dial(rln.ethClientAddress)
 	if err != nil {
-		return err
+		errChan <- err
+		return
 	}
 	defer backend.Close()
 
 	rlnContract, err := contracts.NewRLN(rln.membershipContractAddress, backend)
 	if err != nil {
-		return err
+		errChan <- err
+		return
 	}
 
 	err = rln.loadOldEvents(rlnContract, handler)
 	if err != nil {
-		return err
+		errChan <- err
+		return
 	}
 
-	err = rln.watchNewEvents(rlnContract, handler, rln.log)
-	if err != nil {
-		return err
-	}
+	doneCh := make(chan struct{})
+	errCh := make(chan error)
+	go rln.watchNewEvents(rlnContract, handler, rln.log, doneCh, errCh)
 
-	return nil
+	select {
+	case <-doneCh:
+		return
+	case <-errCh:
+		errChan <- err
+		return
+	}
 }
 
 func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
-	// Get old events should
 	logIterator, err := rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: 0, End: nil, Context: rln.ctx})
 	if err != nil {
 		return err
 	}
 	for {
-		if !logIterator.Next() || logIterator.Error() != nil {
+		if !logIterator.Next() {
 			break
 		}
-		processLogs(logIterator.Event, handler)
+
+		if logIterator.Error() != nil {
+			return logIterator.Error()
+		}
+
+		err = processLogs(logIterator.Event, handler)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger) error {
+func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger, doneCh chan struct{}, errCh chan error) {
 	// Watch for new events
 	logSink := make(chan *contracts.RLNMemberRegistered)
 	subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink)
 	if err != nil {
-		return err
+		errCh <- err
 	}
+
+	close(doneCh)
 
 	for {
 		select {
 		case evt := <-logSink:
-			processLogs(evt, handler)
+			err = processLogs(evt, handler)
+			if err != nil {
+				// TODO: should this stop the chat app?
+				rln.log.Error("processing rln log", zap.Error(err))
+			}
 		case <-rln.ctx.Done():
 			subs.Unsubscribe()
 			close(logSink)
-			return nil
+			return
 		case err := <-subs.Err():
-			log.Error("watching new events", zap.Error(err))
+			rln.log.Error("watching new events", zap.Error(err))
 			close(logSink)
-			return nil
+			return
 		}
 	}
 }

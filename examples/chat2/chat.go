@@ -141,8 +141,9 @@ func (c *Chat) parseInput() {
 				defer c.ui.SetSending(false)
 
 				// bail if requested
-				if line == "/quit" {
+				if line == "/exit" {
 					c.ui.Quit()
+					fmt.Println("Bye!")
 					return
 				}
 
@@ -221,7 +222,7 @@ func (c *Chat) parseInput() {
   /connect multiaddress - dials a node adding it to the list of connected peers
   /peers - list of peers connected to this node
   /nick newNick - change the user's nickname
-  /quit - closes the app`)
+  /exit - closes the app`)
 					return
 				}
 
@@ -437,8 +438,14 @@ func (c *Chat) welcomeMessage() {
 
 	<-c.uiReady // wait until UI is ready
 
-	c.ui.InfoMessage("Welcome, " + c.nick)
+	c.ui.InfoMessage("Welcome, " + c.nick + "!")
 	c.ui.InfoMessage("type /help to see available commands \n")
+
+	addrMessage := "Listening on:\n"
+	for _, addr := range c.node.ListenAddresses() {
+		addrMessage += "  -" + addr.String() + "\n"
+	}
+	c.ui.InfoMessage(addrMessage)
 
 	if !c.options.RLNRelay.Enable {
 		return

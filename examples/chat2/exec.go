@@ -45,10 +45,11 @@ func execute(options Options) {
 		if options.RLNRelay.Dynamic {
 			idKey, idCommitment, index, err := getMembershipCredentials(options.RLNRelay.CredentialsFile, options.RLNRelay.IDKey, options.RLNRelay.IDCommitment, options.RLNRelay.MembershipIndex)
 			if err != nil {
-				panic(err)
+				fmt.Println(err)
+				return
 			}
 
-			fmt.Println("Setting up dynamic rln")
+			fmt.Println("Setting up dynamic rln...")
 			opts = append(opts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
@@ -82,30 +83,31 @@ func execute(options Options) {
 
 	wakuNode, err := node.New(ctx, opts...)
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err.Error())
 		return
 	}
 
 	err = addPeer(wakuNode, options.Store.Node, string(store.StoreID_v20beta4))
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err.Error())
 		return
 	}
 
 	err = addPeer(wakuNode, options.LightPush.Node, string(lightpush.LightPushID_v20beta1))
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err.Error())
 		return
 	}
 
 	err = addPeer(wakuNode, options.Filter.Node, string(filter.FilterID_v20beta1))
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err.Error())
 		return
 	}
 
 	if err := wakuNode.Start(); err != nil {
-		panic(err)
+		fmt.Println(err.Error())
+		return
 	}
 
 	if options.RLNRelay.Enable && options.RLNRelay.Dynamic {
@@ -113,7 +115,8 @@ func execute(options Options) {
 			// Write membership credentials file only if the idkey and commitment are not specified
 			err := writeRLNMembershipCredentialsToFile(options.RLNRelay.CredentialsFile, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex())
 			if err != nil {
-				panic(err)
+				fmt.Println(err.Error())
+				return
 			}
 		}
 	}
@@ -121,7 +124,7 @@ func execute(options Options) {
 	chat := NewChat(ctx, wakuNode, options)
 	p := tea.NewProgram(chat.ui)
 	if err := p.Start(); err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
 	}
 
 	cancel()

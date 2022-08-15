@@ -51,6 +51,11 @@ deps: lint-install
 build:
 	${GOBIN} build -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku
 
+chat2:
+	pushd ./examples/chat2 && \
+	${GOBIN} build -tags="gowaku_rln" -o ../../build/chat2 . && \
+	popd
+
 vendor:
 	${GOBIN} mod tidy
 

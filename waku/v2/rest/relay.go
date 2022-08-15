@@ -152,7 +152,8 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 
 	if _, ok := d.messages[topic]; !ok {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("not subscribed to topic"))
+		_, err = w.Write([]byte("not subscribed to topic"))
+		d.log.Error("writing response", zap.Error(err))
 		return
 	} else {
 		for i := range d.messages[topic] {
