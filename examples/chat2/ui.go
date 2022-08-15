@@ -1,227 +1,341 @@
 package main
 
 import (
-	"chat2/pb"
-	"context"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
 )
 
-// ChatUI is a Text User Interface (TUI) for a ChatRoom.
-// The Run method will draw the UI to the terminal in "fullscreen"
-// mode. You can quit with Ctrl-C, or by typing "/quit" into the
-// chat prompt.
-type ChatUI struct {
-	app  *tview.Application
-	chat *Chat
+const viewportMargin = 6
 
-	msgW    io.Writer
-	inputCh chan string
-	doneCh  chan struct{}
+var (
+	appStyle = lipgloss.NewStyle().Padding(1, 2)
 
-	ctx context.Context
+	titleStyle = func() lipgloss.Style {
+		b := lipgloss.RoundedBorder()
+		b.Right = "├"
+		return lipgloss.NewStyle().BorderStyle(b).Padding(0, 1)
+	}().Render
+
+	errorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render
+	infoStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Render
+	senderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Render
+)
+
+type errMsg error
+
+type sending bool
+
+type quit bool
+
+type MessageType int
+
+const (
+	ChatMessageType MessageType = iota
+	InfoMessageType
+	ErrorMessageType
+)
+
+type message struct {
+	mType   MessageType
+	err     error
+	author  string
+	clock   time.Time
+	content string
 }
 
-// NewChatUI returns a new ChatUI struct that controls the text UI.
-// It won't actually do anything until you call Run().
-func NewChatUI(ctx context.Context, chat *Chat) *ChatUI {
-	chatUI := new(ChatUI)
+type UI struct {
+	ready bool
+	err   error
 
-	app := tview.NewApplication()
+	quitChan  chan struct{}
+	readyChan chan<- struct{}
+	inputChan chan<- string
 
-	// make a NewChatUI text view to contain our chat messages
-	msgBox := tview.NewTextView()
-	msgBox.SetDynamicColors(true)
-	msgBox.SetBorder(true)
-	msgBox.SetTitle("chat2 example")
+	messageChan chan message
+	messages    []message
 
-	// text views are io.Writers, but they don't automatically refresh.
-	// this sets a change handler to force the app to redraw when we get
-	// new messages to display.
-	msgBox.SetChangedFunc(func() {
-		app.Draw()
-	})
+	isSendingChan chan sending
+	isSending     bool
 
-	// an input field for typing messages into
-	inputCh := make(chan string, 32)
-	input := tview.NewInputField().
-		SetLabel(chat.nick + " > ").
-		SetFieldWidth(0).
-		SetFieldBackgroundColor(tcell.ColorBlack)
+	width  int
+	height int
 
-	// the done func is called when the user hits enter, or tabs out of the field
-	input.SetDoneFunc(func(key tcell.Key) {
-		if key != tcell.KeyEnter {
-			// we don't want to do anything if they just tabbed away
-			return
-		}
-		line := input.GetText()
+	viewport viewport.Model
+	textarea textarea.Model
 
-		if len(line) == 0 {
-			// ignore blank lines
-			return
-		}
+	spinner spinner.Model
+}
 
-		input.SetText("")
+func NewUIModel(readyChan chan<- struct{}, inputChan chan<- string) UI {
+	width, height := GetTerminalDimensions()
 
-		// bail if requested
-		if line == "/quit" {
-			app.Stop()
-			return
-		}
+	ta := textarea.New()
+	ta.Placeholder = "Send a message..."
+	ta.Focus()
 
-		// add peer
-		if strings.HasPrefix(line, "/connect ") {
-			peer := strings.TrimPrefix(line, "/connect ")
-			go func(peer string) {
-				chatUI.displayMessage("Connecting to peer...")
-				ctx, cancel := context.WithTimeout(ctx, time.Duration(5)*time.Second)
-				defer cancel()
-				err := chat.node.DialPeer(ctx, peer)
-				if err != nil {
-					chatUI.displayMessage(err.Error())
-				} else {
-					chatUI.displayMessage("Peer connected successfully")
-				}
-			}(peer)
-			return
-		}
+	ta.Prompt = "┃ "
+	ta.CharLimit = 2000
 
-		// list peers
-		if line == "/peers" {
-			peers := chat.node.Relay().PubSub().ListPeers(string(relay.DefaultWakuTopic))
-			if len(peers) == 0 {
-				chatUI.displayMessage("No peers available")
-			}
-			for _, p := range peers {
-				chatUI.displayMessage("- " + p.Pretty())
-			}
-			return
-		}
+	// Remove cursor line styling
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.SetHeight(3)
+	ta.SetWidth(width)
+	ta.ShowLineNumbers = false
 
-		// change nick
-		if strings.HasPrefix(line, "/nick ") {
-			newNick := strings.TrimSpace(strings.TrimPrefix(line, "/nick "))
-			chat.nick = newNick
-			input.SetLabel(chat.nick + " > ")
-			return
-		}
+	ta.KeyMap.InsertNewline.SetEnabled(false)
 
-		if line == "/help" {
-			chatUI.displayMessage(`
-Available commands:
-/connect multiaddress - dials a node adding it to the list of connected peers
-/peers - list of peers connected to this node
-/nick newNick - change the user's nickname
-/quit - closes the app
-`)
-			return
-		}
+	s := spinner.New()
+	s.Spinner = spinner.Jump
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
-		// send the line onto the input chan and reset the field text
-		inputCh <- line
-	})
-
-	chatPanel := tview.NewFlex().
-		AddItem(msgBox, 0, 1, false)
-
-	// flex is a vertical box with the chatPanel on top and the input field at the bottom.
-	flex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(chatPanel, 0, 1, false).
-		AddItem(input, 1, 1, true)
-
-	app.SetRoot(flex, true)
-
-	chatUI.app = app
-	chatUI.msgW = msgBox
-	chatUI.chat = chat
-	chatUI.ctx = ctx
-	chatUI.inputCh = inputCh
-	chatUI.doneCh = make(chan struct{}, 1)
-
-	for _, addr := range chat.node.ListenAddresses() {
-		chatUI.displayMessage(fmt.Sprintf("Listening on %s", addr))
+	m := UI{
+		messageChan:   make(chan message, 100),
+		isSendingChan: make(chan sending, 100),
+		quitChan:      make(chan struct{}),
+		readyChan:     readyChan,
+		inputChan:     inputChan,
+		width:         width,
+		height:        height,
+		textarea:      ta,
+		spinner:       s,
+		err:           nil,
 	}
 
-	return chatUI
+	return m
 }
 
-// Run starts the chat event loop in the background, then starts
-// the event loop for the text UI.
-func (ui *ChatUI) Run() error {
-	ui.displayMessage("\nWelcome, " + ui.chat.nick)
-	ui.displayMessage("type /help to see available commands \n")
+func (m UI) Init() tea.Cmd {
+	return tea.Batch(
+		recvQuitSignal(m.quitChan),
+		recvMessages(m.messageChan),
+		recvSendingState(m.isSendingChan),
+		textarea.Blink,
+		spinner.Tick,
+	)
+}
 
-	if ui.chat.node.RLNRelay() != nil {
+func (m UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		tiCmd tea.Cmd
+		vpCmd tea.Cmd
+	)
 
-		idKey := ui.chat.node.RLNRelay().MembershipKeyPair().IDKey
-		idCommitment := ui.chat.node.RLNRelay().MembershipKeyPair().IDCommitment
+	m.textarea, tiCmd = m.textarea.Update(msg)
+	m.viewport, vpCmd = m.viewport.Update(msg)
 
-		ui.displayMessage("RLN config:")
-		ui.displayMessage(fmt.Sprintf("- Your membership index is: %d", uint(ui.chat.node.RLNRelay().MembershipIndex())))
-		ui.displayMessage(fmt.Sprintf("- Your rln identity key is: 0x%s", hex.EncodeToString(idKey[:])))
-		ui.displayMessage(fmt.Sprintf("- Your rln identity commitment key is: 0x%s\n", hex.EncodeToString(idCommitment[:])))
+	var cmdToReturn []tea.Cmd = []tea.Cmd{tiCmd, vpCmd}
 
+	headerHeight := lipgloss.Height(m.headerView())
+
+	printMessages := false
+
+	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+
+		if !m.ready {
+			// Since this program is using the full size of the viewport we
+			// need to wait until we've received the window dimensions before
+			// we can initialize the viewport. The initial dimensions come in
+			// quickly, though asynchronously, which is why we wait for them
+			// here.
+			m.viewport = viewport.New(msg.Width, msg.Height-headerHeight-viewportMargin)
+			m.viewport.SetContent("")
+			m.viewport.YPosition = headerHeight + 1
+			m.viewport.KeyMap = DefaultKeyMap()
+			m.ready = true
+
+			close(m.readyChan)
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = msg.Height - headerHeight - viewportMargin
+		}
+
+		printMessages = true
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			return m, tea.Quit
+		case tea.KeyEnter:
+			line := m.textarea.Value()
+			if len(line) != 0 {
+				m.inputChan <- line
+				m.textarea.Reset()
+			}
+		}
+
+	// We handle errors just like any other message
+	case errMsg:
+		m.err = msg
+		return m, nil
+
+	case message:
+		m.messages = append(m.messages, msg)
+		printMessages = true
+		cmdToReturn = append(cmdToReturn, recvMessages(m.messageChan))
+
+	case quit:
+		m.textarea.Placeholder = "Bye!"
+		return m, tea.Quit
+
+	case sending:
+		m.isSending = bool(msg)
+		cmdToReturn = append(cmdToReturn, recvSendingState(m.isSendingChan))
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	}
 
-	go ui.handleEvents()
-	defer ui.end()
+	if printMessages {
+		var sb strings.Builder
+		for i, msg := range m.messages {
+			line := ""
 
-	return ui.app.Run()
-}
-
-// end signals the event loop to exit gracefully
-func (ui *ChatUI) end() {
-	ui.doneCh <- struct{}{}
-}
-
-// displayChatMessage writes a ChatMessage from the room to the message window,
-// with the sender's nick highlighted in green.
-func (ui *ChatUI) displayChatMessage(cm *pb.Chat2Message) {
-	t := time.Unix(int64(cm.Timestamp), 0)
-	prompt := withColor("green", fmt.Sprintf("<%s> %s:", t.Format("Jan 02, 15:04"), cm.Nick))
-	fmt.Fprintf(ui.msgW, "%s %s\n", prompt, cm.Payload)
-}
-
-// displayMessage writes a blue message to output
-func (ui *ChatUI) displayMessage(msg string) {
-	fmt.Fprintf(ui.msgW, "%s\n", withColor("grey", msg))
-}
-
-// handleEvents runs an event loop that sends user input to the chat room
-// and displays messages received from the chat room. It also periodically
-// refreshes the list of peers in the UI.
-func (ui *ChatUI) handleEvents() {
-	for {
-		select {
-		case input := <-ui.inputCh:
-			err := ui.chat.Publish(ui.ctx, input)
-			if err != nil {
-				printErr("publish error: %s", err)
+			switch msg.mType {
+			case ChatMessageType:
+				line += m.breaklineIfNeeded(i, ChatMessageType)
+				msgLine := "[" + msg.clock.Format("Jan 02 15:04") + " " + senderStyle(msg.author) + "] "
+				msgLine += msg.content
+				line += wordwrap.String(line+msgLine, m.width-10)
+			case ErrorMessageType:
+				line += m.breaklineIfNeeded(i, ErrorMessageType)
+				line += wordwrap.String(errorStyle("ERROR:")+" "+msg.err.Error(), m.width-10)
+			case InfoMessageType:
+				line += m.breaklineIfNeeded(i, InfoMessageType)
+				line += wordwrap.String(infoStyle("INFO:")+" "+msg.content, m.width-10)
 			}
 
-		case m := <-ui.chat.Messages:
-			// when we receive a message from the chat room, print it to the message window
-			ui.displayChatMessage(m)
+			sb.WriteString(line + "\n")
 
-		case <-ui.ctx.Done():
-			return
-
-		case <-ui.doneCh:
-			return
 		}
+
+		m.viewport.SetContent(sb.String())
+		m.viewport.GotoBottom()
+	}
+
+	return m, tea.Batch(cmdToReturn...)
+}
+
+func (m UI) breaklineIfNeeded(i int, mt MessageType) string {
+	result := ""
+	if i > 0 {
+		if (mt == ChatMessageType && m.messages[i-1].mType != ChatMessageType) || (mt != ChatMessageType && m.messages[i-1].mType == ChatMessageType) {
+			result += "\n"
+		}
+	}
+	return result
+}
+
+func (m UI) headerView() string {
+	title := titleStyle("Chat2 •")
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)-4))
+	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func (m UI) View() string {
+	spinnerStr := ""
+	inputStr := ""
+	if m.isSending {
+		spinnerStr = m.spinner.View() + " Sending message..."
+	} else {
+		inputStr = m.textarea.View()
+	}
+
+	return appStyle.Render(fmt.Sprintf(
+		"%s\n%s\n%s%s\n",
+		m.headerView(),
+		m.viewport.View(),
+		inputStr,
+		spinnerStr,
+	),
+	)
+}
+
+func recvMessages(sub chan message) tea.Cmd {
+	return func() tea.Msg {
+		return <-sub
 	}
 }
 
-// withColor wraps a string with color tags for display in the messages text box.
-func withColor(color, msg string) string {
-	return fmt.Sprintf("[%s]%s[-]", color, msg)
+func recvSendingState(sub chan sending) tea.Cmd {
+	return func() tea.Msg {
+		return <-sub
+	}
+}
+
+func recvQuitSignal(q chan struct{}) tea.Cmd {
+	return func() tea.Msg {
+		<-q
+		return quit(true)
+	}
+}
+
+func (m UI) Quit() {
+	m.quitChan <- struct{}{}
+}
+
+func (m UI) SetSending(isSending bool) {
+	m.isSendingChan <- sending(isSending)
+}
+
+func (m UI) ErrorMessage(err error) {
+	m.messageChan <- message{mType: ErrorMessageType, err: err}
+}
+
+func (m UI) InfoMessage(text string) {
+	m.messageChan <- message{mType: InfoMessageType, content: text}
+}
+
+func (m UI) ChatMessage(clock int64, author string, text string) {
+	m.messageChan <- message{mType: ChatMessageType, author: author, content: text, clock: time.Unix(clock, 0)}
+}
+
+// DefaultKeyMap returns a set of pager-like default keybindings.
+func DefaultKeyMap() viewport.KeyMap {
+	return viewport.KeyMap{
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown"),
+			key.WithHelp("pgdn", "page down"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "page up"),
+		),
+		HalfPageUp: key.NewBinding(
+			key.WithKeys("ctrl+u"),
+			key.WithHelp("ctrl+u", "½ page up"),
+		),
+		HalfPageDown: key.NewBinding(
+			key.WithKeys("ctrl+d"),
+			key.WithHelp("ctrl+d", "½ page down"),
+		),
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+	}
 }
