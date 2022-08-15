@@ -1,95 +1,252 @@
 package main
 
 import (
-	"chat2/pb"
+	"chat3/pb"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/status-im/go-rln/rln"
+	"github.com/status-im/go-waku/waku/v2/dnsdisc"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
+	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"golang.org/x/crypto/pbkdf2"
+	"google.golang.org/protobuf/proto"
 )
 
 // Chat represents a subscription to a single PubSub topic. Messages
 // can be published to the topic with Chat.Publish, and received
 // messages are pushed to the Messages channel.
 type Chat struct {
-	// Messages is a channel of messages received from other peers in the chat room
-	Messages chan *pb.Chat2Message
+	ctx       context.Context
+	wg        sync.WaitGroup
+	node      *node.WakuNode
+	ui        UI
+	uiReady   chan struct{}
+	inputChan chan string
+	options   Options
 
-	C    chan *protocol.Envelope
-	node *node.WakuNode
+	C chan *protocol.Envelope
 
-	self         peer.ID
-	contentTopic string
-	useV1Payload bool
-	useLightPush bool
-	nick         string
-	spamChan     chan *wpb.WakuMessage
+	nick string
 }
 
-// NewChat tries to subscribe to the PubSub topic for the room name, returning
-// a ChatRoom on success.
-func NewChat(ctx context.Context, n *node.WakuNode, selfID peer.ID, contentTopic string, useV1Payload bool, useLightPush bool, nickname string, spamChan chan *wpb.WakuMessage) (*Chat, error) {
-	// join the default waku topic and subscribe to it
-
+func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
 	chat := &Chat{
-		node:         n,
-		self:         selfID,
-		contentTopic: contentTopic,
-		nick:         nickname,
-		useV1Payload: useV1Payload,
-		useLightPush: useLightPush,
-		Messages:     make(chan *pb.Chat2Message, 1024),
-		spamChan:     spamChan,
+		ctx:       ctx,
+		node:      node,
+		options:   options,
+		nick:      options.Nickname,
+		uiReady:   make(chan struct{}, 1),
+		inputChan: make(chan string, 100),
 	}
 
-	if useLightPush {
+	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
+
+	if options.Filter.Enable {
 		cf := filter.ContentFilter{
 			Topic:         relay.DefaultWakuTopic,
-			ContentTopics: []string{contentTopic},
+			ContentTopics: []string{options.ContentTopic},
 		}
 		var err error
-		_, theFilter, err := n.Filter().Subscribe(ctx, cf)
-		chat.C = theFilter.Chan
+
+		var filterOpt filter.FilterSubscribeOption
+		peerID, err := options.Filter.NodePeerID()
 		if err != nil {
-			return nil, err
+			filterOpt = filter.WithAutomaticPeerSelection()
+		} else {
+			filterOpt = filter.WithPeer(peerID)
+			chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
+		}
+
+		_, theFilter, err := node.Filter().Subscribe(ctx, cf, filterOpt)
+		if err != nil {
+			chat.ui.ErrorMessage(err)
+		} else {
+			chat.C = theFilter.Chan
 		}
 	} else {
-		sub, err := n.Relay().Subscribe(ctx)
+		sub, err := node.Relay().Subscribe(ctx)
 		if err != nil {
-			return nil, err
+			chat.ui.ErrorMessage(err)
+		} else {
+			chat.C = sub.C
 		}
-		chat.C = sub.C
 	}
 
-	// start reading messages from the subscription in a loop
-	go chat.readLoop()
+	chat.wg.Add(6)
+	go chat.parseInput()
+	go chat.receiveMessages()
 
-	go chat.readSpamMessages()
+	connectionWg := sync.WaitGroup{}
+	connectionWg.Add(2)
 
-	return chat, nil
+	go chat.welcomeMessage()
+
+	go chat.staticNodes(&connectionWg)
+	go chat.discoverNodes(&connectionWg)
+	go chat.retrieveHistory(&connectionWg)
+
+	return chat
 }
 
-func generateSymKey(password string) []byte {
-	// AesKeyLength represents the length (in bytes) of an private key
-	AESKeyLength := 256 / 8
-	return pbkdf2.Key([]byte(password), nil, 65356, AESKeyLength, sha256.New)
+func (c *Chat) Stop() {
+	c.wg.Wait()
+	close(c.inputChan)
 }
 
-// Publish sends a message to the pubsub topic.
-func (cr *Chat) Publish(ctx context.Context, message string) error {
+func (c *Chat) receiveMessages() {
+	defer c.wg.Done()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case value := <-c.C:
 
+			msgContentTopic := value.Message().ContentTopic
+			if msgContentTopic != c.options.ContentTopic || (c.options.RLNRelay.Enable && msgContentTopic != c.options.RLNRelay.ContentTopic) {
+				continue // Discard messages from other topics
+			}
+
+			msg, err := decodeMessage(c.options.UsePayloadV1, c.options.ContentTopic, value.Message())
+			if err == nil {
+				// send valid messages to the UI
+				c.ui.ChatMessage(int64(msg.Timestamp), msg.Nick, string(msg.Payload))
+			}
+		}
+	}
+}
+func (c *Chat) parseInput() {
+	defer c.wg.Done()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case line := <-c.inputChan:
+			c.ui.SetSending(true)
+			go func() {
+				defer c.ui.SetSending(false)
+
+				// bail if requested
+				if line == "/quit" {
+					c.ui.Quit()
+					return
+				}
+
+				// add peer
+				if strings.HasPrefix(line, "/connect") {
+					peer := strings.TrimPrefix(line, "/connect ")
+					c.wg.Add(1)
+					go func(peer string) {
+						defer c.wg.Done()
+
+						ma, err := multiaddr.NewMultiaddr(peer)
+						if err != nil {
+							c.ui.ErrorMessage(err)
+							return
+						}
+
+						peerID, err := ma.ValueForProtocol(multiaddr.P_P2P)
+						if err != nil {
+							c.ui.ErrorMessage(err)
+							return
+						}
+
+						c.ui.InfoMessage(fmt.Sprintf("Connecting to peer: %s", peerID))
+						ctx, cancel := context.WithTimeout(c.ctx, time.Duration(5)*time.Second)
+						defer cancel()
+
+						err = c.node.DialPeerWithMultiAddress(ctx, ma)
+						if err != nil {
+							c.ui.ErrorMessage(err)
+						} else {
+							c.ui.InfoMessage(fmt.Sprintf("Connected to %s", peerID))
+						}
+					}(peer)
+					return
+				}
+
+				// list peers
+				if line == "/peers" {
+					peers := c.node.Host().Network().Peers()
+					if len(peers) == 0 {
+						c.ui.InfoMessage("No peers available")
+					} else {
+						peerInfoMsg := "Peers: \n"
+						for _, p := range peers {
+							peerInfo := c.node.Host().Peerstore().PeerInfo(p)
+							peerProtocols, err := c.node.Host().Peerstore().GetProtocols(p)
+							if err != nil {
+								c.ui.ErrorMessage(err)
+								return
+							}
+							peerInfoMsg += fmt.Sprintf("             Protocols: %s\n", strings.Join(peerProtocols, ", "))
+							peerInfoMsg += "             Addresses:\n"
+							peerInfoMsg += fmt.Sprintf("        - %s:\n", p.Pretty())
+							for _, addr := range peerInfo.Addrs {
+								peerInfoMsg += fmt.Sprintf("             %s/p2p/%s\n", addr.String(), p.Pretty())
+							}
+						}
+						c.ui.InfoMessage(peerInfoMsg)
+					}
+					return
+				}
+
+				// change nick
+				if strings.HasPrefix(line, "/nick") {
+					newNick := strings.TrimSpace(strings.TrimPrefix(line, "/nick "))
+					if newNick != "" {
+						c.nick = newNick
+					} else {
+						c.ui.ErrorMessage(errors.New("invalid nickname"))
+					}
+					return
+				}
+
+				if line == "/help" {
+					c.ui.InfoMessage(`Available commands:
+  /connect multiaddress - dials a node adding it to the list of connected peers
+  /peers - list of peers connected to this node
+  /nick newNick - change the user's nickname
+  /quit - closes the app`)
+					return
+				}
+
+				c.SendMessage(line)
+			}()
+		}
+	}
+}
+
+func (c *Chat) SendMessage(line string) {
+	tCtx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
+	defer func() {
+		cancel()
+	}()
+
+	err := c.publish(tCtx, line)
+	if err != nil {
+		c.ui.ErrorMessage(err)
+	}
+}
+
+func (c *Chat) publish(ctx context.Context, message string) error {
 	msg := &pb.Chat2Message{
 		Timestamp: uint64(time.Now().Unix()),
-		Nick:      cr.nick,
+		Nick:      c.nick,
 		Payload:   []byte(message),
 	}
 
@@ -103,9 +260,9 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	var timestamp int64 = utils.GetUnixEpochFrom(t)
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 
-	if cr.useV1Payload { // Use WakuV1 encryption
+	if c.options.UsePayloadV1 { // Use WakuV1 encryption
 		keyInfo.Kind = node.Symmetric
-		keyInfo.SymKey = generateSymKey(cr.contentTopic)
+		keyInfo.SymKey = generateSymKey(c.options.ContentTopic)
 		version = 1
 	} else {
 		keyInfo.Kind = node.None
@@ -124,31 +281,40 @@ func (cr *Chat) Publish(ctx context.Context, message string) error {
 	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
-		ContentTopic: cr.contentTopic,
+		ContentTopic: options.ContentTopic,
 		Timestamp:    timestamp,
 	}
 
-	if cr.node.RLNRelay() != nil {
+	if c.options.RLNRelay.Enable {
 		// for future version when we support more than one rln protected content topic,
 		// we should check the message content topic as well
-		err = cr.node.RLNRelay().AppendRLNProof(wakuMsg, t)
+		err = c.node.RLNRelay().AppendRLNProof(wakuMsg, t)
 		if err != nil {
 			return err
 		}
+
+		c.ui.InfoMessage(fmt.Sprintf("RLN Epoch: %d", rln.BytesToEpoch(wakuMsg.RateLimitProof.Epoch).Uint64()))
 	}
 
-	if cr.useLightPush {
-		_, err = cr.node.Lightpush().Publish(ctx, wakuMsg)
+	if c.options.LightPush.Enable {
+		var lightOpt lightpush.LightPushOption
+		var peerID peer.ID
+		peerID, err = options.LightPush.NodePeerID()
+		if err != nil {
+			lightOpt = lightpush.WithAutomaticPeerSelection()
+		} else {
+			lightOpt = lightpush.WithPeer(peerID)
+		}
 
+		_, err = c.node.Lightpush().Publish(c.ctx, wakuMsg, lightOpt)
 	} else {
-		_, err = cr.node.Relay().Publish(ctx, wakuMsg)
-
+		_, err = c.node.Relay().Publish(ctx, wakuMsg)
 	}
 
 	return err
 }
 
-func DecodeMessage(useV1Payload bool, contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
+func decodeMessage(useV1Payload bool, contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 	if useV1Payload { // Use WakuV1 encryption
 		keyInfo.Kind = node.Symmetric
@@ -170,34 +336,180 @@ func DecodeMessage(useV1Payload bool, contentTopic string, wakumsg *wpb.WakuMess
 	return msg, nil
 }
 
-// readLoop pulls messages from the pubsub topic and pushes them onto the Messages channel.
-func (cr *Chat) readLoop() {
-	for value := range cr.C {
-		msg, err := DecodeMessage(cr.useV1Payload, cr.contentTopic, value.Message())
-		if err == nil {
-			// send valid messages onto the Messages channel
-			cr.Messages <- msg
+func generateSymKey(password string) []byte {
+	// AesKeyLength represents the length (in bytes) of an private key
+	AESKeyLength := 256 / 8
+	return pbkdf2.Key([]byte(password), nil, 65356, AESKeyLength, sha256.New)
+}
+
+func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
+	defer c.wg.Done()
+
+	connectionWg.Wait() // Wait until node connection operations are done
+
+	if !c.options.Store.Enable {
+		return
+	}
+
+	var storeOpt store.HistoryRequestOption
+	if c.options.Store.Node == nil {
+		c.ui.InfoMessage("No store node configured. Choosing one at random...")
+		storeOpt = store.WithAutomaticPeerSelection()
+	} else {
+		peerID, err := (*c.options.Store.Node).ValueForProtocol(multiaddr.P_P2P)
+		if err != nil {
+			c.ui.ErrorMessage(err)
+			return
+		}
+		pID, err := peer.Decode(peerID)
+		if err != nil {
+			c.ui.ErrorMessage(err)
+			return
+		}
+		storeOpt = store.WithPeer(pID)
+		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", peerID))
+
+	}
+
+	tCtx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+	defer cancel()
+
+	q := store.Query{
+		ContentTopics: []string{options.ContentTopic},
+	}
+
+	response, err := c.node.Store().Query(tCtx, q,
+		store.WithAutomaticRequestId(),
+		storeOpt,
+		store.WithPaging(true, 100))
+
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("could not query storenode: %w", err))
+	} else {
+		if len(response.Messages) == 0 {
+			c.ui.InfoMessage("0 historic messages available")
+		} else {
+			for _, msg := range response.Messages {
+				c.C <- protocol.NewEnvelope(msg, msg.Timestamp, relay.DefaultWakuTopic)
+			}
 		}
 	}
 }
 
-// readSpam prints messages that are spam (to demonstrate RLN functionality)
-func (cr *Chat) readSpamMessages() {
-	for value := range cr.C {
-		msg, err := DecodeMessage(cr.useV1Payload, cr.contentTopic, value.Message())
-		if err == nil {
-			msg.Payload = append([]byte("Spam message received and discarded: "), msg.Payload...)
-			cr.Messages <- msg
-		}
+func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
+	defer c.wg.Done()
+	defer connectionWg.Done()
+
+	<-c.uiReady // wait until UI is ready
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(len(options.StaticNodes))
+	for _, n := range options.StaticNodes {
+		go func(addr multiaddr.Multiaddr) {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(c.ctx, time.Duration(3)*time.Second)
+			defer cancel()
+
+			peerID, err := addr.ValueForProtocol(multiaddr.P_P2P)
+			if err != nil {
+				c.ui.ErrorMessage(err)
+				return
+			}
+
+			c.ui.InfoMessage(fmt.Sprintf("Connecting to %s", addr.String()))
+
+			err = c.node.DialPeerWithMultiAddress(ctx, addr)
+			if err != nil {
+				c.ui.ErrorMessage(err)
+			} else {
+				c.ui.InfoMessage(fmt.Sprintf("Connected to %s", peerID))
+			}
+		}(n)
 	}
+
+	wg.Wait()
+
 }
 
-func (cr *Chat) displayMessages(messages []*wpb.WakuMessage) {
-	for _, msg := range messages {
-		msg, err := DecodeMessage(cr.useV1Payload, cr.contentTopic, msg)
-		if err == nil {
-			// send valid messages onto the Messages channel
-			cr.Messages <- msg
+func (c *Chat) welcomeMessage() {
+	defer c.wg.Done()
+
+	<-c.uiReady // wait until UI is ready
+
+	c.ui.InfoMessage("Welcome, " + c.nick)
+	c.ui.InfoMessage("type /help to see available commands \n")
+
+	if !c.options.RLNRelay.Enable {
+		return
+	}
+
+	idKey := c.node.RLNRelay().MembershipKeyPair().IDKey
+	idCommitment := c.node.RLNRelay().MembershipKeyPair().IDCommitment
+
+	rlnMessage := "RLN config:\n"
+	rlnMessage += fmt.Sprintf("- Your membership index is: %d\n", uint(c.node.RLNRelay().MembershipIndex()))
+	rlnMessage += fmt.Sprintf("- Your rln identity key is: 0x%s\n", hex.EncodeToString(idKey[:]))
+	rlnMessage += fmt.Sprintf("- Your rln identity commitment key is: 0x%s\n", hex.EncodeToString(idCommitment[:]))
+
+	c.ui.InfoMessage(rlnMessage)
+}
+
+func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
+	defer c.wg.Done()
+	defer connectionWg.Done()
+
+	<-c.uiReady // wait until UI is ready
+
+	var dnsDiscoveryUrl string
+	if options.Fleet != fleetNone {
+		if options.Fleet == fleetTest {
+			dnsDiscoveryUrl = "enrtree://AOFTICU2XWDULNLZGRMQS4RIZPAZEHYMV4FYHAPW563HNRAOERP7C@test.waku.nodes.status.im"
+		} else {
+			// Connect to prod by default
+			dnsDiscoveryUrl = "enrtree://ANTL4SLG2COUILKAPE7EF2BYNL2SHSHVCHLRD5J7ZJLN5R3PRJD2Y@prod.waku.nodes.status.im"
+		}
+	}
+
+	if options.DNSDiscovery.Enable && options.DNSDiscovery.URL != "" {
+		dnsDiscoveryUrl = options.DNSDiscovery.URL
+	}
+
+	if dnsDiscoveryUrl != "" {
+		c.ui.InfoMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
+		nodes, err := dnsdisc.RetrieveNodes(c.ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
+		if err != nil {
+			c.ui.ErrorMessage(errors.New(err.Error()))
+		} else {
+			var nodeList []multiaddr.Multiaddr
+			for _, n := range nodes {
+				nodeList = append(nodeList, n.Addresses...)
+			}
+			c.ui.InfoMessage(fmt.Sprintf("Discovered and connecting to %v ", nodeList))
+			wg := sync.WaitGroup{}
+			wg.Add(len(nodeList))
+			for _, n := range nodeList {
+				go func(ctx context.Context, addr multiaddr.Multiaddr) {
+					defer wg.Done()
+
+					peerID, err := addr.ValueForProtocol(multiaddr.P_P2P)
+					if err != nil {
+						c.ui.ErrorMessage(err)
+						return
+					}
+
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+					defer cancel()
+					err = c.node.DialPeerWithMultiAddress(ctx, addr)
+					if err != nil {
+						c.ui.ErrorMessage(fmt.Errorf("could not connect to %s: %w", peerID, err))
+					} else {
+						c.ui.InfoMessage(fmt.Sprintf("Connected to %s", peerID))
+					}
+				}(c.ctx, n)
+
+			}
+			wg.Wait()
 		}
 	}
 }

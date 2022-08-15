@@ -17,18 +17,6 @@ To start the `chat2` application in its most basic form, run the following from 
 ./build/chat2
 ```
 
-The app will randomly select and connect to a peer from the test fleet.
-
-```
-No static peers configured. Choosing one at random from test fleet...
-```
-
-Wait for the chat prompt (`>`) and chat away!
-
-## Retrieving historical messages
-
-TODO
-
 ## Specifying a static peer
 
 In order to connect to a *specific* node as [`relay`](https://specs.vac.dev/specs/waku/v2/waku-relay) peer, define that node's `multiaddr` as a `staticnode` when starting the app:

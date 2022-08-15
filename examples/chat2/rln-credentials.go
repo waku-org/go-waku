@@ -11,9 +11,14 @@ import (
 	"github.com/status-im/go-rln/rln"
 )
 
+type membershipKeyPair struct {
+	IDKey        rln.IDKey        `json:"idKey"`
+	IDCommitment rln.IDCommitment `json:"idCommitment"`
+}
+
 type membershipCredentials struct {
-	Keypair rln.MembershipKeyPair `json:"keypair"`
-	Index   rln.MembershipIndex   `json:"index"`
+	Keypair membershipKeyPair   `json:"membershipKeyPair"`
+	Index   rln.MembershipIndex `json:"rlnIndex"`
 }
 
 func fileExists(path string) bool {
@@ -34,7 +39,7 @@ func writeRLNMembershipCredentialsToFile(path string, keyPair rln.MembershipKeyP
 	}
 
 	credentialsJSON, err := json.Marshal(membershipCredentials{
-		Keypair: keyPair,
+		Keypair: membershipKeyPair(keyPair),
 		Index:   idx,
 	})
 	if err != nil {
@@ -56,19 +61,27 @@ func loadMembershipCredentialsFromFile(path string) (rln.MembershipKeyPair, rln.
 		return rln.MembershipKeyPair{}, rln.MembershipIndex(0), err
 	}
 
-	return credentials.Keypair, credentials.Index, err
+	return rln.MembershipKeyPair(credentials.Keypair), credentials.Index, err
 }
 
 func getMembershipCredentials(path string, rlnIDKey string, rlnIDCommitment string, rlnMembershipIndex int) (idKey *rln.IDKey, idCommitment *rln.IDCommitment, index rln.MembershipIndex, err error) {
-	if _, err = os.Stat(path); err == nil {
-		if keyPair, index, err := loadMembershipCredentialsFromFile(path); err != nil {
-			return nil, nil, rln.MembershipIndex(0), fmt.Errorf("could not read membership credentials file: %w", err)
-		} else {
-			return &keyPair.IDKey, &keyPair.IDCommitment, index, nil
+	valuesWereInput := false
+	if rlnIDKey != "" || rlnIDCommitment != "" {
+		valuesWereInput = true
+	}
+
+	var osErr error
+	if !valuesWereInput {
+		if _, osErr = os.Stat(path); osErr == nil {
+			if keyPair, index, err := loadMembershipCredentialsFromFile(path); err != nil {
+				return nil, nil, rln.MembershipIndex(0), fmt.Errorf("could not read membership credentials file: %w", err)
+			} else {
+				return &keyPair.IDKey, &keyPair.IDCommitment, index, nil
+			}
 		}
 	}
 
-	if os.IsNotExist(err) {
+	if valuesWereInput || os.IsNotExist(osErr) {
 		if rlnIDKey != "" {
 			idKey = new(rln.IDKey)
 			copy((*idKey)[:], common.FromHex(rlnIDKey))
