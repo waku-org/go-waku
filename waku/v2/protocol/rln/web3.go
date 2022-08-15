@@ -144,7 +144,7 @@ func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler) er
 
 func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
 	// Get old events should
-	logIterator, err := rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: 0, End: nil, Context: rln.ctx}, []*big.Int{}, []*big.Int{})
+	logIterator, err := rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: 0, End: nil, Context: rln.ctx})
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler Regis
 func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger) error {
 	// Watch for new events
 	logSink := make(chan *contracts.RLNMemberRegistered)
-	subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink, []*big.Int{}, []*big.Int{})
+	subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink)
 	if err != nil {
 		return err
 	}

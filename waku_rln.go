@@ -3,7 +3,10 @@
 
 package main
 
-import "github.com/urfave/cli/v2"
+import (
+	wcli "github.com/status-im/go-waku/waku/cliutils"
+	"github.com/urfave/cli/v2"
+)
 
 func rlnFlags() []cli.Flag {
 	return []cli.Flag{
@@ -46,7 +49,7 @@ func rlnFlags() []cli.Flag {
 			Usage:       "Rln relay identity commitment key as a Hex string",
 			Destination: &options.RLNRelay.IDCommitment,
 		},
-		&cli.StringFlag{
+		&cli.PathFlag{
 			Name:        "rln-relay-membership-credentials-file",
 			Usage:       "RLN relay membership credentials file",
 			Value:       "rlnCredentials.txt",
@@ -54,10 +57,12 @@ func rlnFlags() []cli.Flag {
 		},
 		// TODO: this is a good candidate option for subcommands
 		// TODO: consider accepting a private key file and passwd
-		&cli.StringFlag{
-			Name:        "eth-private-key",
-			Usage:       "Ethereum Goerli testnet account private key used for registering in member contract",
-			Destination: &options.RLNRelay.ETHPrivateKey,
+		&cli.GenericFlag{
+			Name:  "eth-private-key",
+			Usage: "Ethereum  account private key used for registering in member contract",
+			Value: &wcli.PrivateKeyValue{
+				Value: &options.RLNRelay.ETHPrivateKey,
+			},
 		},
 		&cli.StringFlag{
 			Name:        "eth-client-address",
@@ -65,10 +70,12 @@ func rlnFlags() []cli.Flag {
 			Value:       "ws://localhost:8545",
 			Destination: &options.RLNRelay.ETHClientAddress,
 		},
-		&cli.StringFlag{
-			Name:        "eth-mem-contract-address",
-			Usage:       "Address of membership contract on an Ethereum testnet",
-			Destination: &options.RLNRelay.MembershipContractAddress,
+		&cli.GenericFlag{
+			Name:  "eth-mem-contract-address",
+			Usage: "Address of membership contract ",
+			Value: &wcli.AddressValue{
+				Value: &options.RLNRelay.MembershipContractAddress,
+			},
 		},
 	}
 }

@@ -2,9 +2,11 @@ package main
 
 import (
 	"os"
+	"time"
 
 	logging "github.com/ipfs/go-log"
 	"github.com/status-im/go-waku/waku"
+	"github.com/status-im/go-waku/waku/cliutils"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -12,6 +14,10 @@ import (
 var options waku.Options
 
 func main() {
+	// Defaults
+	options.LogLevel = "INFO"
+	options.LogEncoding = "console"
+
 	cliFlags := []cli.Flag{
 		&cli.IntFlag{
 			Name:        "tcp-port",
@@ -53,14 +59,14 @@ func main() {
 			Usage:       "Enable secure websockets support",
 			Destination: &options.Websocket.Secure,
 		},
-		&cli.StringFlag{
+		&cli.PathFlag{
 			Name:        "websocket-secure-key-path",
 			Aliases:     []string{"wss-key"},
 			Value:       "/path/to/key.txt",
 			Usage:       "Secure websocket key path",
 			Destination: &options.Websocket.KeyPath,
 		},
-		&cli.StringFlag{
+		&cli.PathFlag{
 			Name:        "websocket-secure-cert-path",
 			Aliases:     []string{"wss-cert"},
 			Value:       "/path/to/cert.txt",
@@ -73,12 +79,15 @@ func main() {
 			Usage:       "The domain name resolving to the node's public IPv4 address",
 			Destination: &options.Dns4DomainName,
 		},
-		&cli.StringFlag{
-			Name:        "nodekey",
-			Usage:       "P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)",
-			Destination: &options.NodeKey,
+		&cli.GenericFlag{
+			Name:  "nodekey",
+			Usage: "P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)",
+			Value: &cliutils.PrivateKeyValue{
+				Value: &options.NodeKey,
+			},
+			EnvVars: []string{"GOWAKU-NODEKEY"},
 		},
-		&cli.StringFlag{
+		&cli.PathFlag{
 			Name:        "key-file",
 			Value:       "./nodekey",
 			Usage:       "Path to a file containing the private key for the P2P node",
@@ -100,14 +109,16 @@ func main() {
 			Usage:       "When generating a keyfile, overwrite the nodekey file if it already exists",
 			Destination: &options.Overwrite,
 		},
-		&cli.StringSliceFlag{
-			Name:        "staticnode",
-			Usage:       "Multiaddr of peer to directly connect with. Option may be repeated",
-			Destination: &options.StaticNodes,
+		&cli.GenericFlag{
+			Name:  "staticnode",
+			Usage: "Multiaddr of peer to directly connect with. Option may be repeated",
+			Value: &cliutils.MultiaddrSlice{
+				Values: &options.StaticNodes,
+			},
 		},
-		&cli.IntFlag{
+		&cli.DurationFlag{
 			Name:        "keep-alive",
-			Value:       20,
+			Value:       20 * time.Second,
 			Usage:       "Interval in seconds for pinging peers to keep the connection alive.",
 			Destination: &options.KeepAlive,
 		},
@@ -135,7 +146,7 @@ func main() {
 			Value:       "any",
 			Destination: &options.NAT, // TODO: accept none,any,upnp,extaddr
 		},
-		&cli.StringFlag{
+		&cli.PathFlag{
 			Name:        "db-path",
 			Aliases:     []string{"dbpath"},
 			Value:       "./store.db",
@@ -152,12 +163,14 @@ func main() {
 			Usage:       "Display listening addresses according to current configuration",
 			Destination: &options.ShowAddresses,
 		},
-		&cli.StringFlag{
-			Name:        "log-level",
-			Aliases:     []string{"l"},
-			Value:       "INFO",
-			Usage:       "Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms.",
-			Destination: &options.LogLevel,
+		&cli.GenericFlag{
+			Name:    "log-level",
+			Aliases: []string{"l"},
+			Value: &cliutils.ChoiceValue{
+				Choices: []string{"DEBUG", "INFO", "WARN", "ERROR", "DPANIC", "PANIC", "FATAL"},
+				Value:   &options.LogLevel,
+			},
+			Usage: "Define the logging level,",
 		},
 		&cli.BoolFlag{
 			Name:        "version",
@@ -165,11 +178,13 @@ func main() {
 			Usage:       "prints the version",
 			Destination: &options.Version,
 		},
-		&cli.StringFlag{
-			Name:        "log-encoding",
-			Value:       "console",
-			Usage:       "Define the encoding used for the logs: console, json",
-			Destination: &options.LogEncoding,
+		&cli.GenericFlag{
+			Name:  "log-encoding",
+			Usage: "Define the encoding used for the logs",
+			Value: &cliutils.ChoiceValue{
+				Choices: []string{"console", "json"},
+				Value:   &options.LogEncoding,
+			},
 		},
 		&cli.BoolFlag{
 			Name:        "relay",
@@ -205,11 +220,11 @@ func main() {
 			Usage:       "Fix the gaps in message history",
 			Destination: &options.Store.ShouldResume,
 		},
-		&cli.IntFlag{
-			Name:        "store-seconds",
-			Value:       (86400 * 30), // 30 days
+		&cli.DurationFlag{
+			Name:        "store-duration",
+			Value:       time.Hour * 24 * 30,
 			Usage:       "maximum number of seconds before a message is removed from the store",
-			Destination: &options.Store.RetentionMaxSeconds,
+			Destination: &options.Store.RetentionTime,
 		},
 		&cli.IntFlag{
 			Name:        "store-capacity",
@@ -217,10 +232,12 @@ func main() {
 			Usage:       "maximum number of messages to store",
 			Destination: &options.Store.RetentionMaxMessages,
 		},
-		&cli.StringSliceFlag{
-			Name:        "storenode",
-			Usage:       "Multiaddr of a peer that supports store protocol. Option may be repeated",
-			Destination: &options.Store.Nodes,
+		&cli.GenericFlag{
+			Name:  "storenode",
+			Usage: "Multiaddr of a peer that supports store protocol. Option may be repeated",
+			Value: &cliutils.MultiaddrSlice{
+				Values: &options.Store.Nodes,
+			},
 		},
 		&cli.BoolFlag{
 			Name:        "swap",
@@ -256,14 +273,16 @@ func main() {
 			Usage:       "Don't accept filter subscribers",
 			Destination: &options.Filter.DisableFullNode,
 		},
-		&cli.StringSliceFlag{
-			Name:        "filternode",
-			Usage:       "Multiaddr of a peer that supports filter protocol. Option may be repeated",
-			Destination: &options.Filter.Nodes,
+		&cli.GenericFlag{
+			Name:  "filternode",
+			Usage: "Multiaddr of a peer that supports filter protocol. Option may be repeated",
+			Value: &cliutils.MultiaddrSlice{
+				Values: &options.Filter.Nodes,
+			},
 		},
-		&cli.IntFlag{
+		&cli.DurationFlag{
 			Name:        "filter-timeout",
-			Value:       14400,
+			Value:       14400 * time.Second,
 			Usage:       "Timeout for filter node in seconds",
 			Destination: &options.Filter.Timeout,
 		},
@@ -272,10 +291,12 @@ func main() {
 			Usage:       "Enable lightpush protocol",
 			Destination: &options.LightPush.Enable,
 		},
-		&cli.StringSliceFlag{
-			Name:        "lightpushnode",
-			Usage:       "Multiaddr of a peer that supports lightpush protocol. Option may be repeated",
-			Destination: &options.LightPush.Nodes,
+		&cli.GenericFlag{
+			Name:  "lightpushnode",
+			Usage: "Multiaddr of a peer that supports lightpush protocol. Option may be repeated",
+			Value: &cliutils.MultiaddrSlice{
+				Values: &options.LightPush.Nodes,
+			},
 		},
 		&cli.BoolFlag{
 			Name:        "discv5-discovery",
@@ -303,17 +324,19 @@ func main() {
 			Usage:       "Enable rendezvous protocol for peer discovery",
 			Destination: &options.Rendezvous.Enable,
 		},
-		&cli.StringSliceFlag{
-			Name:        "rendezvous-node",
-			Usage:       "Multiaddr of a waku2 rendezvous node. Option may be repeated",
-			Destination: &options.Rendezvous.Nodes,
+		&cli.GenericFlag{
+			Name:  "rendezvous-node",
+			Usage: "Multiaddr of a waku2 rendezvous node. Option may be repeated",
+			Value: &cliutils.MultiaddrSlice{
+				Values: &options.Rendezvous.Nodes,
+			},
 		},
 		&cli.BoolFlag{
 			Name:        "rendezvous-server",
 			Usage:       "Node will act as rendezvous server",
 			Destination: &options.RendezvousServer.Enable,
 		},
-		&cli.StringFlag{
+		&cli.PathFlag{
 			Name:        "rendezvous-db-path",
 			Value:       "/tmp/rendezvous",
 			Usage:       "Path where peer records database will be stored",

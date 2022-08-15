@@ -83,7 +83,7 @@ generate:
 	
 
 coverage:
-	${GOBIN} test -timeout 300s  -count 1 -coverprofile=coverage.out ./...
+	${GOBIN} test -count 1 -coverprofile=coverage.out ./...
 	${GOBIN} tool cover -html=coverage.out -o=coverage.html
 
 # build a docker image for the fleet

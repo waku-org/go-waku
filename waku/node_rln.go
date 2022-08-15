@@ -6,8 +6,6 @@ package waku
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/node"
 )
@@ -24,10 +22,8 @@ func checkForRLN(options Options, nodeOpts *[]node.WakuNodeOption) {
 		} else {
 
 			var ethPrivKey *ecdsa.PrivateKey
-			if options.RLNRelay.ETHPrivateKey != "" {
-				k, err := crypto.ToECDSA(common.FromHex(options.RLNRelay.ETHPrivateKey))
-				failOnErr(err, "Invalid private key")
-				ethPrivKey = k
+			if options.RLNRelay.ETHPrivateKey != nil {
+				ethPrivKey = options.RLNRelay.ETHPrivateKey
 			}
 
 			loaded, idKey, idCommitment, membershipIndex, err := getMembershipCredentials(options)
@@ -44,7 +40,7 @@ func checkForRLN(options Options, nodeOpts *[]node.WakuNodeOption) {
 				nil,
 				options.RLNRelay.ETHClientAddress,
 				ethPrivKey,
-				common.HexToAddress(options.RLNRelay.MembershipContractAddress),
+				options.RLNRelay.MembershipContractAddress,
 			))
 		}
 	}

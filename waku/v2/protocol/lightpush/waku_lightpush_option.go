@@ -28,9 +28,9 @@ func WithPeer(p peer.ID) LightPushOption {
 
 // WithAutomaticPeerSelection is an option used to randomly select a peer from the peer store
 // to push a waku message to
-func WithAutomaticPeerSelection(host host.Host) LightPushOption {
+func WithAutomaticPeerSelection() LightPushOption {
 	return func(params *LightPushParameters) {
-		p, err := utils.SelectPeer(host, string(LightPushID_v20beta1), params.log)
+		p, err := utils.SelectPeer(params.host, string(LightPushID_v20beta1), params.log)
 		if err == nil {
 			params.selectedPeer = *p
 		} else {
@@ -72,6 +72,6 @@ func WithAutomaticRequestId() LightPushOption {
 func DefaultOptions(host host.Host) []LightPushOption {
 	return []LightPushOption{
 		WithAutomaticRequestId(),
-		WithAutomaticPeerSelection(host),
+		WithAutomaticPeerSelection(),
 	}
 }
