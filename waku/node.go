@@ -120,7 +120,7 @@ func Execute(options Options) {
 		node.WithLogger(logger),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
-		node.WithKeepAlive(time.Duration(options.KeepAlive) * time.Second),
+		node.WithKeepAlive(options.KeepAlive),
 	}
 
 	if options.AdvertiseAddress != "" {
@@ -198,13 +198,13 @@ func Execute(options Options) {
 	}
 
 	if options.Filter.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(time.Duration(options.Filter.Timeout)*time.Second)))
+		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
 	}
 
 	if options.Store.Enable {
 		if options.Store.PersistMessages {
 			nodeOpts = append(nodeOpts, node.WithWakuStore(true, options.Store.ShouldResume))
-			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionMaxSecondsDuration()))
+			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime))
 			failOnErr(err, "DBStore")
 			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 		} else {
@@ -261,10 +261,10 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
-	addPeers(wakuNode, options.Rendezvous.Nodes.Value(), string(rendezvous.RendezvousID_v001))
-	addPeers(wakuNode, options.Store.Nodes.Value(), string(store.StoreID_v20beta4))
-	addPeers(wakuNode, options.LightPush.Nodes.Value(), string(lightpush.LightPushID_v20beta1))
-	addPeers(wakuNode, options.Filter.Nodes.Value(), string(filter.FilterID_v20beta1))
+	addPeers(wakuNode, options.Rendezvous.Nodes, string(rendezvous.RendezvousID_v001))
+	addPeers(wakuNode, options.Store.Nodes, string(store.StoreID_v20beta4))
+	addPeers(wakuNode, options.LightPush.Nodes, string(lightpush.LightPushID_v20beta1))
+	addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
 
 	if err = wakuNode.Start(); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
@@ -289,9 +289,9 @@ func Execute(options Options) {
 		}
 	}
 
-	for _, n := range options.StaticNodes.Value() {
-		go func(node string) {
-			err = wakuNode.DialPeer(ctx, node)
+	for _, n := range options.StaticNodes {
+		go func(node multiaddr.Multiaddr) {
+			err = wakuNode.DialPeerWithMultiAddress(ctx, node)
 			if err != nil {
 				logger.Error("dialing peer", zap.Error(err))
 			}
@@ -359,16 +359,9 @@ func Execute(options Options) {
 	}
 }
 
-func addPeers(wakuNode *node.WakuNode, addresses []string, protocols ...string) {
-	for _, addrString := range addresses {
-		if addrString == "" {
-			continue
-		}
-
-		addr, err := multiaddr.NewMultiaddr(addrString)
-		failOnErr(err, "invalid multiaddress")
-
-		_, err = wakuNode.AddPeer(addr, protocols...)
+func addPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...string) {
+	for _, addr := range addresses {
+		_, err := wakuNode.AddPeer(addr, protocols...)
 		failOnErr(err, "error adding peer")
 	}
 }
@@ -442,11 +435,11 @@ func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
 func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 	var prvKey *ecdsa.PrivateKey
 	var err error
-	if options.NodeKey != "" {
-		if prvKey, err = crypto.ToECDSA(common.FromHex(options.NodeKey)); err != nil {
-			return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
-		}
+
+	if options.NodeKey != nil {
+		prvKey = options.NodeKey
 	} else {
+		// TODO: once https://github.com/urfave/cli/issues/1272 is fixed, remove env variable logic
 		keyString := os.Getenv("GOWAKU-NODEKEY")
 		if keyString != "" {
 			if prvKey, err = crypto.ToECDSA(common.FromHex(keyString)); err != nil {

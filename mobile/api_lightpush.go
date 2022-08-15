@@ -34,7 +34,7 @@ func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms 
 		}
 		lpOptions = append(lpOptions, lightpush.WithPeer(p))
 	} else {
-		lpOptions = append(lpOptions, lightpush.WithAutomaticPeerSelection(wakuNode.Host()))
+		lpOptions = append(lpOptions, lightpush.WithAutomaticPeerSelection())
 	}
 
 	hash, err := wakuNode.Lightpush().PublishToTopic(ctx, &msg, pubsubTopic, lpOptions...)

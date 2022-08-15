@@ -1,8 +1,11 @@
 package waku
 
 import (
+	"crypto/ecdsa"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
 )
 
@@ -10,7 +13,7 @@ import (
 // discovering new nodes
 type RendezvousOptions struct {
 	Enable bool
-	Nodes  cli.StringSlice
+	Nodes  []multiaddr.Multiaddr
 }
 
 // RendezvousServerOptions are settings to enable the waku node to act as a
@@ -48,9 +51,9 @@ type RLNRelayOptions struct {
 	Dynamic                   bool
 	IDKey                     string
 	IDCommitment              string
-	ETHPrivateKey             string
+	ETHPrivateKey             *ecdsa.PrivateKey
 	ETHClientAddress          string
-	MembershipContractAddress string
+	MembershipContractAddress common.Address
 }
 
 // FilterOptions are settings used to enable filter protocol. This is a protocol
@@ -60,8 +63,8 @@ type RLNRelayOptions struct {
 type FilterOptions struct {
 	Enable          bool
 	DisableFullNode bool
-	Nodes           cli.StringSlice
-	Timeout         int
+	Nodes           []multiaddr.Multiaddr
+	Timeout         time.Duration
 }
 
 // LightpushOptions are settings used to enable the lightpush protocol. This is
@@ -72,7 +75,7 @@ type FilterOptions struct {
 // broadcasted
 type LightpushOptions struct {
 	Enable bool
-	Nodes  cli.StringSlice
+	Nodes  []multiaddr.Multiaddr
 }
 
 // StoreOptions are settings used for enabling the store protocol, used to
@@ -82,9 +85,9 @@ type StoreOptions struct {
 	Enable               bool
 	PersistMessages      bool
 	ShouldResume         bool
-	RetentionMaxSeconds  int
+	RetentionTime        time.Duration
 	RetentionMaxMessages int
-	Nodes                cli.StringSlice
+	Nodes                []multiaddr.Multiaddr
 }
 
 // SwapOptions are settings used for configuring the swap protocol
@@ -93,10 +96,6 @@ type SwapOptions struct {
 	Mode                int
 	PaymentThreshold    int
 	DisconnectThreshold int
-}
-
-func (s *StoreOptions) RetentionMaxSecondsDuration() time.Duration {
-	return time.Duration(s.RetentionMaxSeconds) * time.Second
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery
@@ -152,17 +151,17 @@ type Options struct {
 	Port             int
 	Address          string
 	Dns4DomainName   string
-	NodeKey          string
+	NodeKey          *ecdsa.PrivateKey
 	KeyFile          string
 	KeyPasswd        string
 	GenerateKey      bool
 	Overwrite        bool
-	StaticNodes      cli.StringSlice
-	KeepAlive        int
+	StaticNodes      []multiaddr.Multiaddr
+	KeepAlive        time.Duration
 	UseDB            bool
 	DBPath           string
 	AdvertiseAddress string
-	Version          bool
+	Version          bool // TODO: use vflag from urcli
 	ShowAddresses    bool
 	LogLevel         string
 	LogEncoding      string
