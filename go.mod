@@ -2,7 +2,7 @@ module github.com/status-im/go-waku
 
 go 1.17
 
-replace github.com/raulk/go-watchdog v1.2.0 => github.com/status-im/go-watchdog v1.2.0-ios-nolibproc
+replace github.com/raulk/go-watchdog v1.3.0 => github.com/status-im/go-watchdog v1.2.0-ios-nolibproc
 
 replace github.com/ethereum/go-ethereum v1.10.21 => github.com/status-im/go-ethereum v1.10.4-status.2
 
@@ -144,6 +144,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
+	github.com/raulk/clock v1.1.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
