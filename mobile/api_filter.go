@@ -11,7 +11,7 @@ import (
 )
 
 type FilterArgument struct {
-	Topic          string             `json:"topic,omitempty"`
+	Topic          string             `json:"pubsubTopic,omitempty"`
 	ContentFilters []pb.ContentFilter `json:"contentFilters,omitempty"`
 }
 

@@ -15,7 +15,7 @@ import (
 //       "contentTopic": "the content topic"
 //     }, ...
 //   ],
-//   "topic": "the pubsub topic" // optional
+//   "pubsubTopic": "the pubsub topic" // optional
 // }
 // peerID should contain the ID of a peer supporting the filter protocol. Use NULL to automatically select a node
 // If ms is greater than 0, the subscription must happen before the timeout
@@ -34,7 +34,7 @@ func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char
 //       "contentTopic": "the content topic"
 //     }, ...
 //   ],
-//   "topic": "the pubsub topic" // optional
+//   "pubsubTopic": "the pubsub topic" // optional
 // }
 // If ms is greater than 0, the subscription must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned
