@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -40,7 +41,9 @@ type WakuRLNRelay struct {
 	// TODO may need to erase this ethAccountPrivateKey when is not used
 	// TODO may need to make ethAccountPrivateKey mandatory
 	ethAccountPrivateKey *ecdsa.PrivateKey
-	RLN                  *r.RLN
+	ethClient            *ethclient.Client
+
+	RLN *r.RLN
 	// pubsubTopic is the topic for which rln relay is mounted
 	pubsubTopic  string
 	contentTopic string
@@ -48,6 +51,12 @@ type WakuRLNRelay struct {
 	nullifierLog map[r.Epoch][]r.ProofMetadata
 
 	log *zap.Logger
+}
+
+func (rln *WakuRLNRelay) Stop() {
+	if rln.ethClient != nil {
+		rln.ethClient.Close()
+	}
 }
 
 func StaticSetup(rlnRelayMemIndex r.MembershipIndex) ([]r.IDCommitment, r.MembershipKeyPair, r.MembershipIndex, error) {

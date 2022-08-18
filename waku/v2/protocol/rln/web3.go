@@ -125,7 +125,7 @@ func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler, er
 		errChan <- err
 		return
 	}
-	defer backend.Close()
+	rln.ethClient = backend
 
 	rlnContract, err := contracts.NewRLN(rln.membershipContractAddress, backend)
 	if err != nil {
@@ -181,6 +181,7 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 	if err != nil {
 		errCh <- err
 	}
+	defer subs.Unsubscribe()
 
 	close(doneCh)
 
@@ -189,7 +190,6 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 		case evt := <-logSink:
 			err = processLogs(evt, handler)
 			if err != nil {
-				// TODO: should this stop the chat app?
 				rln.log.Error("processing rln log", zap.Error(err))
 			}
 		case <-rln.ctx.Done():
@@ -197,7 +197,9 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 			close(logSink)
 			return
 		case err := <-subs.Err():
-			rln.log.Error("watching new events", zap.Error(err))
+			if err != nil {
+				rln.log.Error("watching new events", zap.Error(err))
+			}
 			close(logSink)
 			return
 		}

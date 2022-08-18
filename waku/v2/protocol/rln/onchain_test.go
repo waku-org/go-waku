@@ -140,8 +140,10 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 		return nil
 	}
 
+	errChan := make(chan error, 1)
+
 	// mount the handler for listening to the contract events
-	go rlnPeer.HandleGroupUpdates(handler)
+	go rlnPeer.HandleGroupUpdates(handler, errChan)
 
 	// Register first member
 	s.register(s.u1PrivKey, toBigInt(keyPair.IDCommitment[:]))
@@ -150,6 +152,14 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	s.register(s.u2PrivKey, toBigInt(keyPair2.IDCommitment[:]))
 
 	wg.Wait()
+
+	timer1 := time.NewTimer(2 * time.Second)
+	select {
+	case <-timer1.C:
+		return
+	case err = <-errChan:
+		s.Require().NoError(err)
+	}
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestInsertKeyMembershipContract() {
