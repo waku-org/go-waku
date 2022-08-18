@@ -11,6 +11,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/rln"
 )
 
+// WithStaticRLNRelay enables the Waku V2 RLN protocol in offchain mode
+// Requires the `gowaku_rln` build constrain (or the env variable RLN=true if building go-waku)
 func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, spamHandler rln.SpamHandler) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRLN = true
@@ -23,6 +25,8 @@ func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.M
 	}
 }
 
+// WithStaticRLNRelay enables the Waku V2 RLN protocol in onchain mode.
+// Requires the `gowaku_rln` build constrain (or the env variable RLN=true if building go-waku)
 func WithDynamicRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, idKey *r.IDKey, idCommitment *r.IDCommitment, spamHandler rln.SpamHandler, ethClientAddress string, ethPrivateKey *ecdsa.PrivateKey, membershipContractAddress common.Address) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRLN = true
