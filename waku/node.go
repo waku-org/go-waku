@@ -26,9 +26,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/config"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
 	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/logging"
@@ -150,11 +152,11 @@ func Execute(options Options) {
 	}
 
 	if options.Websocket.Enable {
-		nodeOpts = append(nodeOpts, node.WithWebsockets(options.Websocket.Address, options.Websocket.Port))
+		nodeOpts = append(nodeOpts, node.WithWebsockets(options.Websocket.Address, options.Websocket.WSPort))
 	}
 
 	if options.Websocket.Secure {
-		nodeOpts = append(nodeOpts, node.WithSecureWebsockets(options.Websocket.Address, options.Websocket.Port, options.Websocket.CertPath, options.Websocket.KeyPath))
+		nodeOpts = append(nodeOpts, node.WithSecureWebsockets(options.Websocket.Address, options.Websocket.WSSPort, options.Websocket.CertPath, options.Websocket.KeyPath))
 	}
 
 	if options.ShowAddresses {
@@ -478,6 +480,14 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		params.Identity(),
 		libp2p.ListenAddrs(params.MultiAddresses()...),
 	)
+
+	if options.Websocket.Secure {
+		transports := libp2p.ChainOptions(
+			libp2p.Transport(tcp.NewTCPTransport),
+			libp2p.Transport(ws.New, ws.WithTLSConfig(params.TLSConfig())),
+		)
+		libp2pOpts = append(libp2pOpts, transports)
+	}
 
 	addrFactory := params.AddressFactory()
 	if addrFactory != nil {

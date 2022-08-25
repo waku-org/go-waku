@@ -138,7 +138,8 @@ type RESTServerOptions struct {
 // support
 type WSOptions struct {
 	Enable   bool
-	Port     int
+	WSPort   int
+	WSSPort  int
 	Address  string
 	Secure   bool
 	KeyPath  string
