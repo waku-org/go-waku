@@ -44,7 +44,14 @@ func main() {
 			Aliases:     []string{"ws-port"},
 			Value:       60001,
 			Usage:       "Libp2p TCP listening port for websocket connection (0 for random)",
-			Destination: &options.Websocket.Port,
+			Destination: &options.Websocket.WSPort,
+		},
+		&cli.IntFlag{
+			Name:        "websocket-secure-port",
+			Aliases:     []string{"wss-port"},
+			Value:       6443,
+			Usage:       "Libp2p TCP listening port for secure websocket connection (0 for random, binding to 443 requires root access)",
+			Destination: &options.Websocket.WSSPort,
 		},
 		&cli.StringFlag{
 			Name:        "websocket-address",

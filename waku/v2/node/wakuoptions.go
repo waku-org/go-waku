@@ -121,6 +121,11 @@ func (w WakuNodeParameters) Identity() config.Option {
 	return libp2p.Identity(*w.GetPrivKey())
 }
 
+// TLSConfig returns the TLS config used for setting up secure websockets
+func (w WakuNodeParameters) TLSConfig() *tls.Config {
+	return w.tlsConfig
+}
+
 // AddressFactory returns the address factory used by the node's host
 func (w WakuNodeParameters) AddressFactory() basichost.AddrsFactory {
 	return w.addressFactory
