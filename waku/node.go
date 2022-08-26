@@ -72,6 +72,8 @@ func freePort() (int, error) {
 	return port, nil
 }
 
+const dialTimeout = 7 * time.Second
+
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
 	if options.GenerateKey {
@@ -228,7 +230,11 @@ func Execute(options Options) {
 			if err != nil {
 				logger.Warn("dns discovery error ", zap.Error(err))
 			} else {
-				logger.Info("found dns entries ", zap.Any("qty", len(nodes)))
+				var discAddresses []multiaddr.Multiaddr
+				for _, n := range nodes {
+					discAddresses = append(discAddresses, n.Addresses...)
+				}
+				logger.Info("found dns entries ", logging.MultiAddrs("nodes", discAddresses...))
 				discoveredNodes = nodes
 			}
 		} else {
@@ -290,23 +296,25 @@ func Execute(options Options) {
 	}
 
 	for _, n := range options.StaticNodes {
-		go func(node multiaddr.Multiaddr) {
+		go func(ctx context.Context, node multiaddr.Multiaddr) {
+			ctx, cancel := context.WithTimeout(ctx, dialTimeout)
+			defer cancel()
 			err = wakuNode.DialPeerWithMultiAddress(ctx, node)
 			if err != nil {
 				logger.Error("dialing peer", zap.Error(err))
 			}
-		}(n)
+		}(ctx, n)
 	}
 
 	if len(discoveredNodes) != 0 {
 		for _, n := range discoveredNodes {
 			for _, m := range n.Addresses {
 				go func(ctx context.Context, m multiaddr.Multiaddr) {
-					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+					ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 					defer cancel()
 					err = wakuNode.DialPeerWithMultiAddress(ctx, m)
 					if err != nil {
-						logger.Error("dialing peer ", zap.Error(err))
+						logger.Error("dialing peer", logging.MultiAddrs("peer", m), zap.Error(err))
 					}
 				}(ctx, m)
 			}
