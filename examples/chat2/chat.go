@@ -505,7 +505,7 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 						return
 					}
 
-					ctx, cancel := context.WithTimeout(ctx, time.Duration(3)*time.Second)
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(7)*time.Second)
 					defer cancel()
 					err = c.node.DialPeerWithMultiAddress(ctx, addr)
 					if err != nil {
