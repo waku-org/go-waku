@@ -96,6 +96,8 @@ func (w *WakuNode) mountRlnRelay() error {
 }
 
 func (w *WakuNode) stopRlnRelay() error {
-	w.rlnRelay.Stop()
+	if w.rlnRelay != nil {
+		w.rlnRelay.Stop()
+	}
 	return nil
 }
