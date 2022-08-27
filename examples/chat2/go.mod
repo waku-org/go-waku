@@ -18,7 +18,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.19.1
 	github.com/muesli/reflow v0.3.0
 	github.com/multiformats/go-multiaddr v0.6.0
-	github.com/status-im/go-rln v0.0.9
+	github.com/status-im/go-rln v0.1.1
 	github.com/status-im/go-waku v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli/v2 v2.11.2
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
