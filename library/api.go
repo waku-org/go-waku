@@ -29,6 +29,7 @@ func main() {}
 // - keepAliveInterval: interval in seconds to ping all peers
 // - relay: Enable WakuRelay. Default `true`
 // - minPeersToPublish: The minimum number of peers required on a topic to allow broadcasting a message. Default `0`
+// - filter: Enable Filter. Default `false`
 func waku_new(configJSON *C.char) *C.char {
 	response := mobile.NewNode(C.GoString(configJSON))
 	return C.CString(response)

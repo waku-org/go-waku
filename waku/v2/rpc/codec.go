@@ -190,6 +190,6 @@ func (c *CodecRequest) writeServerResponse(w http.ResponseWriter, status int, re
 		_, _ = w.Write(b)
 	} else {
 		// Not sure in which case will this happen. But seems harmless.
-		rpc.WriteError(w, 400, err.Error())
+		rpc.WriteError(w, status, err.Error())
 	}
 }

@@ -186,3 +186,18 @@ func TestNoiseXK1HandshakeRoundtrip(t *testing.T) {
 
 	handshakeTest(t, hsAlice, hsBob)
 }
+
+func TestPKCSPaddingUnpadding(t *testing.T) {
+	maxMessageLength := 3 * NoisePaddingBlockSize
+	for messageLen := 0; messageLen <= maxMessageLength; messageLen++ {
+		message := generateRandomBytes(t, messageLen)
+		padded, err := PKCS7_Pad(message, NoisePaddingBlockSize)
+		require.NoError(t, err)
+		unpadded, err := PKCS7_Unpad(padded, NoisePaddingBlockSize)
+		require.NoError(t, err)
+
+		require.Greater(t, len(padded), 0)
+		require.Equal(t, len(padded)%NoisePaddingBlockSize, 0)
+		require.Equal(t, message, unpadded)
+	}
+}

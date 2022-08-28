@@ -446,7 +446,7 @@ For example:
 }
 ```
 
-### `extern char* waku_connect_peer(char* address, int timeoutMs)`
+### `extern char* waku_connect(char* address, int timeoutMs)`
 
 Dial peer using a multiaddress.
 
@@ -499,7 +499,7 @@ For example:
 }
 ```
 
-### `extern char* waku_disconnect_peer(char* peerId)`
+### `extern char* waku_disconnect(char* peerId)`
 
 Disconnect a peer using its peerID
 
