@@ -57,10 +57,10 @@ make mobile-ios
 ```
 
 ## Tutorials and documentation
-- [Receive and send messages using Waku Relay](docs/relay.md)
-- [Send messages using Waku Lightpush](docs/lightpush.md)
-- [Encrypting and decrypting Waku Messages](docs/encoding.md)
-- [Retrieve message history using Waku Store](docs/store.md)
+- [Receive and send messages using Waku Relay](docs/api/relay.md)
+- [Send messages using Waku Lightpush](docs/api/lightpush.md)
+- [Encrypting and decrypting Waku Messages](docs/api/encoding.md)
+- [Retrieve message history using Waku Store](docs/api/store.md)
 - [C Bindings](library/README.md)
 
 ## Examples
