@@ -14,6 +14,8 @@ import (
 	"net"
 	"time"
 
+	logging "github.com/ipfs/go-log"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
@@ -22,6 +24,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 var wakuNode *node.WakuNode
@@ -100,6 +103,23 @@ func NewNode(configJSON string) string {
 		return makeJSONResponse(errors.New("go-waku already initialized. stop it first"))
 	}
 
+	// for go-libp2p loggers
+	lvl, err := logging.LevelFromString("DEBUG")
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+	logging.SetAllLoggers(lvl)
+
+	// go-waku logger
+	err = utils.SetLogLevel("DEBUG")
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	// Set encoding for logs (console, json, ...)
+	// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
+	utils.InitLogger("json")
+
 	config, err := getConfig(configJSON)
 	if err != nil {
 		return makeJSONResponse(err)
@@ -127,7 +147,10 @@ func NewNode(configJSON string) string {
 		}
 	}
 
+	logger := utils.Logger()
+
 	opts := []node.WakuNodeOption{
+		node.WithLogger(logger),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(*config.KeepAliveInterval) * time.Second),
