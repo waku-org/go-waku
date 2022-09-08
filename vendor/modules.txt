@@ -860,9 +860,6 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# inet.af/netaddr v0.0.0-20210721214506-ce7a8ad02cc1
-## explicit; go 1.12
-inet.af/netaddr
 # lukechampine.com/blake3 v1.1.7
 ## explicit; go 1.13
 lukechampine.com/blake3

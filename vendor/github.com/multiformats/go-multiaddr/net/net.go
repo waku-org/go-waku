@@ -15,10 +15,10 @@ import (
 
 	"git.wow.st/gmp/jni"
 	"golang.org/x/mobile/app"
-	"inet.af/netaddr"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
+
 // Conn is the equivalent of a net.Conn object. It is the
 // result of calling the Dial or Listen functions in this
 // package, with associated local and remote Multiaddrs.
@@ -468,15 +468,16 @@ func getInterfaceAddrsFromAndroid() ([]net.Addr, error) {
 
 		addrs := strings.Trim(fields[1], " \n")
 		for _, addr := range strings.Split(addrs, " ") {
-			ip, err := netaddr.ParseIPPrefix(addr)
+			_, ip, err := net.ParseCIDR(addr)
 			if err == nil {
-				ifat = append(ifat, ip.IPNet())
+				ifat = append(ifat, ip)
 			}
 		}
 	}
 
-		return ifat, nil
+	return ifat, nil
 }
+
 // AddrMatch returns the Multiaddrs that match the protocol stack on addr
 func AddrMatch(match ma.Multiaddr, addrs []ma.Multiaddr) []ma.Multiaddr {
 

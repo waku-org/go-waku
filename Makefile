@@ -143,7 +143,7 @@ mobile-android-1:
 	go get -d golang.org/x/mobile/cmd/gomobile
 
 mobile-android-2:
-	gomobile bind -v -target=android -androidapi=23 -ldflags="-s -w" -v -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
+	gomobile bind -v -target=android -androidapi=30 -ldflags="-s -w" -v -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 

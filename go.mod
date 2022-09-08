@@ -37,7 +37,6 @@ require (
 	go.uber.org/zap v1.22.0
 	golang.org/x/mobile v0.0.0-20220722155234-aaac322e2105
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
-	inet.af/netaddr v0.0.0-20210721214506-ce7a8ad02cc1
 )
 
 require (
