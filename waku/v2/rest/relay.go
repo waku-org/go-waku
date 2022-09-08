@@ -145,7 +145,6 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	var response []*pb.WakuMessage
 
 	d.messagesMutex.Lock()
 	defer d.messagesMutex.Unlock()
@@ -155,14 +154,14 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 		_, err = w.Write([]byte("not subscribed to topic"))
 		d.log.Error("writing response", zap.Error(err))
 		return
-	} else {
-		for i := range d.messages[topic] {
-			response = append(response, d.messages[topic][i])
-		}
-		d.messages[topic] = make([]*pb.WakuMessage, 0)
 	}
 
-	writeErrOrResponse(w, err, response)
+	response := make([]*pb.WakuMessage, len(d.messages[topic]))
+	for i := range d.messages[topic] {
+		response = append(response, d.messages[topic][i])
+	}
+	d.messages[topic] = make([]*pb.WakuMessage, 0)
+	writeErrOrResponse(w, nil, response)
 }
 
 func (d *RelayService) postV1Message(w http.ResponseWriter, r *http.Request) {
