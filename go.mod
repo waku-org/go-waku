@@ -10,6 +10,7 @@ replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-hands
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
+	git.wow.st/gmp/jni v0.0.0-20200827154156-014cd5c7c4c0
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.10.21
@@ -34,7 +35,9 @@ require (
 	github.com/urfave/cli/v2 v2.11.2
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.22.0
+	golang.org/x/mobile v0.0.0-20220722155234-aaac322e2105
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
+	inet.af/netaddr v0.0.0-20210721214506-ce7a8ad02cc1
 )
 
 require (
@@ -160,6 +163,8 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
+	go4.org/intern v0.0.0-20210108033219-3eb7198706b2 // indirect
+	go4.org/unsafe/assume-no-moving-gc v0.0.0-20201222180813-1025295fd063 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220630215102-69896b714898 // indirect

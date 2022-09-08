@@ -138,10 +138,12 @@ endif
 	@echo "Shared library built:"
 	@ls -la ./build/lib/libgowaku.*
 
-mobile-android:
+mobile-android-1:
 	gomobile init && \
-	go get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -v -target=android -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
+	go get -d golang.org/x/mobile/cmd/gomobile
+
+mobile-android-2:
+	gomobile bind -v -target=android -androidapi=23 -ldflags="-s -w" -v -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 
