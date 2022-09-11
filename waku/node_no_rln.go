@@ -3,9 +3,12 @@
 
 package waku
 
-import "github.com/status-im/go-waku/waku/v2/node"
+import (
+	"github.com/status-im/go-waku/waku/v2/node"
+	"go.uber.org/zap"
+)
 
-func checkForRLN(options Options, nodeOpts *[]node.WakuNodeOption) {
+func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeOption) {
 	// Do nothing
 }
 

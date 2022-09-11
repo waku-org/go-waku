@@ -6,6 +6,7 @@ import (
 	"net"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/node"
@@ -42,8 +43,12 @@ func execute(options Options) {
 			return nil
 		}
 
+		registrationHandler := func(tx *types.Transaction) {
+			fmt.Println(fmt.Sprintf("You are registered to the rln membership contract, find details of your registration transaction in https://goerli.etherscan.io/tx/%s", tx.Hash()))
+		}
+
 		if options.RLNRelay.Dynamic {
-			idKey, idCommitment, index, err := getMembershipCredentials(options.RLNRelay.CredentialsFile, options.RLNRelay.IDKey, options.RLNRelay.IDCommitment, options.RLNRelay.MembershipIndex)
+			idKey, idCommitment, index, err := getMembershipCredentials(options.RLNRelay.CredentialsPath, options.RLNRelay.IDKey, options.RLNRelay.IDCommitment, options.RLNRelay.MembershipIndex)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -60,6 +65,7 @@ func execute(options Options) {
 				options.RLNRelay.ETHClientAddress,
 				options.RLNRelay.ETHPrivateKey,
 				options.RLNRelay.MembershipContractAddress,
+				registrationHandler,
 			))
 		} else {
 			opts = append(opts, node.WithStaticRLNRelay(
@@ -113,7 +119,7 @@ func execute(options Options) {
 	if options.RLNRelay.Enable && options.RLNRelay.Dynamic {
 		if options.RLNRelay.IDKey == "" && options.RLNRelay.IDCommitment == "" {
 			// Write membership credentials file only if the idkey and commitment are not specified
-			err := writeRLNMembershipCredentialsToFile(options.RLNRelay.CredentialsFile, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex())
+			err := writeRLNMembershipCredentialsToFile(options.RLNRelay.CredentialsPath, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex())
 			if err != nil {
 				fmt.Println(err.Error())
 				return

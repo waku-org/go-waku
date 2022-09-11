@@ -240,6 +240,9 @@ func (c *Chat) SendMessage(line string) {
 
 	err := c.publish(tCtx, line)
 	if err != nil {
+		if err.Error() == "validation failed" {
+			err = errors.New("message rate violation!")
+		}
 		c.ui.ErrorMessage(err)
 	}
 }

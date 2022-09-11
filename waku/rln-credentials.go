@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/status-im/go-rln/rln"
+	"go.uber.org/zap"
 )
 
 type membershipCredentials struct {
@@ -19,7 +21,11 @@ type membershipCredentials struct {
 	Index   rln.MembershipIndex   `json:"index"`
 }
 
+const RLN_CREDENTIALS_FILENAME = "rlnCredentials.txt"
+
 func writeRLNMembershipCredentialsToFile(keyPair rln.MembershipKeyPair, idx rln.MembershipIndex, path string, passwd []byte, overwrite bool) error {
+	path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
+
 	if err := checkForFileExistence(path, overwrite); err != nil {
 		return err
 	}
@@ -45,8 +51,8 @@ func writeRLNMembershipCredentialsToFile(keyPair rln.MembershipKeyPair, idx rln.
 	return ioutil.WriteFile(path, output, 0600)
 }
 
-func loadMembershipCredentialsFromFile(path string, passwd string) (rln.MembershipKeyPair, rln.MembershipIndex, error) {
-	src, err := ioutil.ReadFile(path)
+func loadMembershipCredentialsFromFile(credentialsFilePath string, passwd string) (rln.MembershipKeyPair, rln.MembershipIndex, error) {
+	src, err := ioutil.ReadFile(credentialsFilePath)
 	if err != nil {
 		return rln.MembershipKeyPair{}, rln.MembershipIndex(0), err
 	}
@@ -71,11 +77,13 @@ func loadMembershipCredentialsFromFile(path string, passwd string) (rln.Membersh
 	return credentials.Keypair, credentials.Index, err
 }
 
-func getMembershipCredentials(options Options) (fromFile bool, idKey *rln.IDKey, idCommitment *rln.IDCommitment, index rln.MembershipIndex, err error) {
-	if _, err = os.Stat(options.RLNRelay.CredentialsFile); err == nil {
-		if keyPair, index, err := loadMembershipCredentialsFromFile(options.RLNRelay.CredentialsFile, options.KeyPasswd); err != nil {
+func getMembershipCredentials(logger *zap.Logger, options Options) (fromFile bool, idKey *rln.IDKey, idCommitment *rln.IDCommitment, index rln.MembershipIndex, err error) {
+	credentialsFilePath := filepath.Join(options.RLNRelay.CredentialsPath, RLN_CREDENTIALS_FILENAME)
+	if _, err = os.Stat(credentialsFilePath); err == nil {
+		if keyPair, index, err := loadMembershipCredentialsFromFile(credentialsFilePath, options.KeyPasswd); err != nil {
 			return false, nil, nil, rln.MembershipIndex(0), fmt.Errorf("could not read membership credentials file: %w", err)
 		} else {
+			logger.Info("loaded rln credentials", zap.String("filepath", credentialsFilePath))
 			return true, &keyPair.IDKey, &keyPair.IDCommitment, index, nil
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/rln/contracts"
 	"go.uber.org/zap"
@@ -23,7 +24,7 @@ func toBigInt(i []byte) *big.Int {
 	return result
 }
 
-func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *ecdsa.PrivateKey, ethClientAddress string, membershipContractAddress common.Address, log *zap.Logger) (*r.MembershipIndex, error) {
+func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *ecdsa.PrivateKey, ethClientAddress string, membershipContractAddress common.Address, registrationHandler RegistrationHandler, log *zap.Logger) (*r.MembershipIndex, error) {
 	backend, err := ethclient.Dial(ethClientAddress)
 	if err != nil {
 		return nil, err
@@ -56,6 +57,10 @@ func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *
 	}
 
 	log.Info("transaction broadcasted", zap.String("transactionHash", tx.Hash().Hex()))
+
+	if registrationHandler != nil {
+		registrationHandler(tx)
+	}
 
 	txReceipt, err := bind.WaitMined(ctx, backend, tx)
 	if err != nil {
@@ -95,7 +100,7 @@ func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *
 // into the membership contract whose address is in rlnPeer.membershipContractAddress
 func (rln *WakuRLNRelay) Register(ctx context.Context) (*r.MembershipIndex, error) {
 	pk := rln.membershipKeyPair.IDCommitment
-	return register(ctx, pk, rln.ethAccountPrivateKey, rln.ethClientAddress, rln.membershipContractAddress, rln.log)
+	return register(ctx, pk, rln.ethAccountPrivateKey, rln.ethClientAddress, rln.membershipContractAddress, rln.registrationHandler, rln.log)
 }
 
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
@@ -146,7 +151,7 @@ func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler, er
 	select {
 	case <-doneCh:
 		return
-	case <-errCh:
+	case err := <-errCh:
 		errChan <- err
 		return
 	}
@@ -179,7 +184,11 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 	logSink := make(chan *contracts.RLNMemberRegistered)
 	subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink)
 	if err != nil {
+		if err == rpc.ErrNotificationsUnsupported {
+			err = errors.New("notifications not supported. The node must support websockets")
+		}
 		errCh <- err
+		return
 	}
 	defer subs.Unsubscribe()
 
@@ -197,10 +206,11 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 			close(logSink)
 			return
 		case err := <-subs.Err():
+			close(logSink)
 			if err != nil {
 				rln.log.Error("watching new events", zap.Error(err))
+				errCh <- err
 			}
-			close(logSink)
 			return
 		}
 	}

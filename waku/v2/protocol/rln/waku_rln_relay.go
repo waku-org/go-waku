@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -25,6 +26,8 @@ const MAX_CLOCK_GAP_SECONDS = 20
 
 // maximum allowed gap between the epochs of messages' RateLimitProofs
 const MAX_EPOCH_GAP = int64(MAX_CLOCK_GAP_SECONDS / r.EPOCH_UNIT_SECONDS)
+
+type RegistrationHandler = func(tx *types.Transaction)
 
 type WakuRLNRelay struct {
 	ctx context.Context
@@ -50,7 +53,8 @@ type WakuRLNRelay struct {
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
 	nullifierLog map[r.Epoch][]r.ProofMetadata
 
-	log *zap.Logger
+	registrationHandler RegistrationHandler
+	log                 *zap.Logger
 }
 
 func (rln *WakuRLNRelay) Stop() {

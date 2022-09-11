@@ -263,7 +263,7 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
-	checkForRLN(options, &nodeOpts)
+	checkForRLN(logger, options, &nodeOpts)
 
 	wakuNode, err := node.New(ctx, nodeOpts...)
 

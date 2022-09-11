@@ -214,10 +214,10 @@ func getFlags() []cli.Flag {
 			Destination: &options.RLNRelay.IDCommitment,
 		},
 		&cli.PathFlag{
-			Name:        "rln-relay-membership-credentials-file",
-			Usage:       "RLN relay membership credentials file",
-			Value:       "rlnCredentials.txt",
-			Destination: &options.RLNRelay.CredentialsFile,
+			Name:        "rln-relay-cred-path",
+			Usage:       "The path for persisting rln-relay credential",
+			Value:       "",
+			Destination: &options.RLNRelay.CredentialsPath,
 		},
 		// TODO: this is a good candidate option for subcommands
 		// TODO: consider accepting a private key file and passwd

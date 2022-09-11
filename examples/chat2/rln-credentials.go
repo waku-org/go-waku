@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/status-im/go-rln/rln"
@@ -21,6 +22,8 @@ type membershipCredentials struct {
 	Index   rln.MembershipIndex `json:"rlnIndex"`
 }
 
+const RLN_CREDENTIALS_FILENAME = "rlnCredentials.txt"
+
 func fileExists(path string) bool {
 	if _, err := os.Stat(path); err == nil {
 		return false
@@ -34,6 +37,8 @@ func fileExists(path string) bool {
 }
 
 func writeRLNMembershipCredentialsToFile(path string, keyPair rln.MembershipKeyPair, idx rln.MembershipIndex) error {
+	path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
+
 	if fileExists(path) {
 		return nil
 	}
@@ -49,8 +54,8 @@ func writeRLNMembershipCredentialsToFile(path string, keyPair rln.MembershipKeyP
 	return ioutil.WriteFile(path, credentialsJSON, 0600)
 }
 
-func loadMembershipCredentialsFromFile(path string) (rln.MembershipKeyPair, rln.MembershipIndex, error) {
-	src, err := ioutil.ReadFile(path)
+func loadMembershipCredentialsFromFile(rlnCredentialsPath string) (rln.MembershipKeyPair, rln.MembershipIndex, error) {
+	src, err := ioutil.ReadFile(rlnCredentialsPath)
 	if err != nil {
 		return rln.MembershipKeyPair{}, rln.MembershipIndex(0), err
 	}
@@ -72,6 +77,7 @@ func getMembershipCredentials(path string, rlnIDKey string, rlnIDCommitment stri
 
 	var osErr error
 	if !valuesWereInput {
+		path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
 		if _, osErr = os.Stat(path); osErr == nil {
 			if keyPair, index, err := loadMembershipCredentialsFromFile(path); err != nil {
 				return nil, nil, rln.MembershipIndex(0), fmt.Errorf("could not read membership credentials file: %w", err)
