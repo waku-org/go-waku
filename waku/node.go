@@ -205,15 +205,12 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
 	}
 
-	if options.Store.Enable {
-		if options.Store.PersistMessages {
-			nodeOpts = append(nodeOpts, node.WithWakuStore(true, options.Store.ShouldResume))
-			dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime))
-			failOnErr(err, "DBStore")
-			nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
-		} else {
-			nodeOpts = append(nodeOpts, node.WithWakuStore(false, false))
-		}
+	nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.Enable, options.Store.ShouldResume))
+	if options.Store.Enable && options.UseDB {
+		dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime))
+		failOnErr(err, "DBStore")
+		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+
 	}
 
 	if options.LightPush.Enable {
