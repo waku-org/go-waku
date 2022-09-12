@@ -214,6 +214,10 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
 		return ErrFutureMessage
 	}
 
+	if env.Message().Ephemeral {
+		return nil
+	}
+
 	err := store.msgProvider.Put(env)
 	if err != nil {
 		store.log.Error("storing message", zap.Error(err))
