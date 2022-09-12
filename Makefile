@@ -76,7 +76,7 @@ _before-cc:
 	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter before-build
 	
 _after-cc:
-	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter after-build --prefix ${CC_PREFIX}
+	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter after-build --debug --prefix ${CC_PREFIX}
 
 test-ci: _before-cc test _after-cc
 
