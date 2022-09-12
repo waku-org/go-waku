@@ -46,8 +46,6 @@ pipeline {
       )
 
       sh 'make install-gomobile'
-
-      println("Output: ${env.ARTIFACT}")
     } } } }
 
     stage('Build') { steps { dir(env.REPO) {

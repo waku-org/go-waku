@@ -364,7 +364,7 @@ func (w *WakuNode) Stop() {
 	w.relay.Stop()
 	w.lightPush.Stop()
 	w.store.Stop()
-	w.stopRlnRelay()
+	_ = w.stopRlnRelay()
 
 	w.host.Close()
 

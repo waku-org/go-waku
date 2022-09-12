@@ -69,7 +69,7 @@ func (r *RelayService) Start() {
 	// Node may already be subscribed to some topics when Relay API handlers are installed. Let's add these
 	for _, topic := range r.node.Relay().Topics() {
 		r.log.Info("adding topic handler for existing subscription", zap.String("topic", topic))
-		r.messages[topic] = make([]*pb.WakuMessage, 0)
+		r.messages[topic] = []*pb.WakuMessage{}
 	}
 
 	r.runner.Start()
@@ -129,7 +129,7 @@ func (d *RelayService) postV1Subscriptions(w http.ResponseWriter, r *http.Reques
 		} else {
 			d.node.Broadcaster().Unregister(&topicToSubscribe, sub.C)
 
-			d.messages[topic] = make([]*pb.WakuMessage, 0)
+			d.messages[topic] = []*pb.WakuMessage{}
 		}
 	}
 
@@ -156,11 +156,11 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := make([]*pb.WakuMessage, len(d.messages[topic]))
+	var response []*pb.WakuMessage
 	for i := range d.messages[topic] {
 		response = append(response, d.messages[topic][i])
 	}
-	d.messages[topic] = make([]*pb.WakuMessage, 0)
+	d.messages[topic] = []*pb.WakuMessage{}
 	writeErrOrResponse(w, nil, response)
 }
 

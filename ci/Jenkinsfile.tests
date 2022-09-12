@@ -29,21 +29,6 @@ pipeline {
     stage('Test') {
       steps { sh 'make test-ci' }
     }
-
-    stage('Build example') {
-      steps { sh 'make build-example' }
-    }
-
-    stage('Build go-mobile') {
-      parallel {
-        stage('Linux') { steps { script {
-          linux = jenkins.Build('go-waku/platforms/linux')
-        } } }
-        stage('MacOS') { steps { script {
-          macos = jenkins.Build('go-waku/platforms/macos')
-        } } }
-      }
-    }
   }
   post {
     always { cleanWs() }
