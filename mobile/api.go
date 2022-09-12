@@ -22,6 +22,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 var wakuNode *node.WakuNode
@@ -351,7 +352,7 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 		Kind: node.Symmetric,
 	}
 
-	keyInfo.SymKey, err = hexutil.Decode(symmetricKey)
+	keyInfo.SymKey, err = utils.DecodeHexString(symmetricKey)
 	if err != nil {
 		return makeJSONResponse(err)
 	}
@@ -393,7 +394,7 @@ func DecodeAsymmetric(messageJSON string, privateKey string) string {
 		Kind: node.Asymmetric,
 	}
 
-	keyBytes, err := hexutil.Decode(privateKey)
+	keyBytes, err := utils.DecodeHexString(privateKey)
 	if err != nil {
 		return makeJSONResponse(err)
 	}
