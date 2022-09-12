@@ -2,11 +2,7 @@
 
 let
   androidPkgs = pkgs.androidenv.composeAndroidPackages {
-    toolsVersion = "26.1.1";
-    platformToolsVersion = "33.0.1";
-    buildToolsVersions = [ "31.0.0" ];
-    platformVersions = [ "30" ];
-    cmakeVersions = [ "3.18.1" ];
+    platformVersions = [ "23" ];
     ndkVersion = "22.1.7171670";
     includeNDK = true;
   };
@@ -25,6 +21,10 @@ in buildGoPackage rec {
   ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
 
   buildPhase = ''
+    echo GOPATH: $GOPATH
+    echo PWD: $PWD
+    ls -l go/src/${goPackagePath}
+    set -x
     gomobile bind -x \
       -target=android/arm64 \
       -androidapi=23 \

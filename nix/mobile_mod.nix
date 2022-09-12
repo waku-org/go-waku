@@ -1,4 +1,4 @@
-{ lib, pkgs, callPackage, buildGoModule }:
+{ pkgs, buildGoModule }:
 
 let
   androidPkgs = pkgs.androidenv.composeAndroidPackages {
@@ -11,31 +11,37 @@ let
 in buildGoModule {
   pname = "go-waku";
   version = "devel";
-  vendorSha256 = "sha256-+U8mlEK7HvCtssI8VDqxGaOvi+IU0+cr4isZLl9sB4o=";
-  deleteVendor = true;
+  goPkgPath = "github.com/status-im/go-waku";
+  vendorSha256 = "sha256-+W5PnVmD4oPh3a8Ik9Xn3inCI8shqEsdlkG/d6PQntk=";
   doCheck = false;
+  proxyVendor = true;
 
   src = ./..;
 
-  nativeBuildInputs = [ pkgs.gomobile pkgs.openjdk8 ];
-
-  # We can't symlink gomobile src in vendor created by buildGoModule.
-  proxyVendor = true;
+  nativeBuildInputs = with pkgs; [ gomobile openjdk8 ];
 
   ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
+  #GOFLAGS = "-mod=mod";
+
+  #overrideModAttrs = (_: {
+  #  postBuild = ''
+  #    echo 'WTF ------------------------------------------------------'
+  #    go install golang.org/x/mobile/cmd/gomobile
+  #    echo 'WTF ------------------------------------------------------'
+  #  '';
+  #});
 
   # Correct GOPATH necessary to avoid error:
   # `no exported names in the package "_/build/go-waku/mobile"`
-  preBuild = ''
-    export GO111MODULE=off
-    mkdir -p /build/go/src/github.com/status-im
-    mv /build/go-waku /build/go/src/github.com/status-im/
-    cd /build/go/src/github.com/status-im/go-waku
+  postConfigure = ''
+    cd "$NIX_BUILD_TOP"
+    mkdir -p "go/src/$(dirname "$goPkgPath")"
+    mv "$sourceRoot" "go/src/$goPkgPath"
+    cd go/src/$goPkgPath/mobile
   '';
 
   buildPhase = ''
-    runHook preBuild
-    gomobile bind -x \
+    GO111MODULE=off gomobile bind -x \
       -target=android/arm64 \
       -androidapi=23 \
       -ldflags="-s -w" \
@@ -47,14 +53,4 @@ in buildGoModule {
     mkdir -p $out
     mv go-waku.aar $out/
   '';
-
-  #buildPhase = ''
-  #  echo $ANDROID_HOME
-  #  gomobile bind -x \
-  #    -target=ios \
-  #    -iosversion=8.0 \
-  #    -ldflags="-s -w" \
-  #    -o ./build/lib/go-waku.xcframework \
-  #    ./mobile
-  #'';
 }
