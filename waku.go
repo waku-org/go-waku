@@ -136,12 +136,6 @@ func main() {
 			Destination: &options.UseDB,
 		},
 		&cli.BoolFlag{
-			Name:        "persist-messages",
-			Usage:       "Enable message persistence",
-			Destination: &options.Store.PersistMessages,
-			Value:       false,
-		},
-		&cli.BoolFlag{
 			Name:        "persist-peers",
 			Usage:       "Enable peer persistence",
 			Destination: &options.PersistPeers,
@@ -219,7 +213,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:        "store",
-			Usage:       "Enable relay protocol",
+			Usage:       "Enable store protocol to persist messages",
 			Destination: &options.Store.Enable,
 		},
 		&cli.BoolFlag{

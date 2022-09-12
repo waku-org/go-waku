@@ -83,7 +83,6 @@ type LightpushOptions struct {
 // node and provide message history to nodes that ask for it.
 type StoreOptions struct {
 	Enable               bool
-	PersistMessages      bool
 	ShouldResume         bool
 	RetentionTime        time.Duration
 	RetentionMaxMessages int
