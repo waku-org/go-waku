@@ -354,10 +354,10 @@ func main() {
 			Usage:       "Enable DNS discovery",
 			Destination: &options.DNSDiscovery.Enable,
 		},
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:        "dns-discovery-url",
 			Usage:       "URL for DNS node list in format 'enrtree://<key>@<fqdn>'",
-			Destination: &options.DNSDiscovery.URL,
+			Destination: &options.DNSDiscovery.URLs,
 		},
 		&cli.StringFlag{
 			Name:        "dns-discovery-name-server",

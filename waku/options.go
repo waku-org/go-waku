@@ -103,7 +103,7 @@ type SwapOptions struct {
 // information for nodes. It's very useful for bootstrapping a p2p network.
 type DNSDiscoveryOptions struct {
 	Enable     bool
-	URL        string
+	URLs       cli.StringSlice
 	Nameserver string
 }
 
