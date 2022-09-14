@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 // HexBytes is marshalled to a hex string
@@ -107,7 +108,7 @@ func (h *HexBytes) UnmarshalText(b []byte) error {
 		hexString = string(b)
 	}
 
-	decoded, err := hex.DecodeString(hexString)
+	decoded, err := utils.DecodeHexString(hexString)
 	if err != nil {
 		return err
 	}
@@ -181,7 +182,7 @@ func (h *ByteArray) UnmarshalText(b []byte) error {
 		hexString = string(b)
 	}
 
-	decoded, err := hex.DecodeString(hexString)
+	decoded, err := utils.DecodeHexString(hexString)
 	if err != nil {
 		return err
 	}

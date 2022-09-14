@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"errors"
 	"math"
 	"time"
@@ -18,6 +17,7 @@ import (
 	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -365,11 +365,11 @@ func toMembershipKeyPairs(groupKeys [][]string) ([]r.MembershipKeyPair, error) {
 
 	groupKeyPairs := []r.MembershipKeyPair{}
 	for _, pair := range groupKeys {
-		idKey, err := hex.DecodeString(pair[0])
+		idKey, err := utils.DecodeHexString(pair[0])
 		if err != nil {
 			return nil, err
 		}
-		idCommitment, err := hex.DecodeString(pair[1])
+		idCommitment, err := utils.DecodeHexString(pair[1])
 		if err != nil {
 			return nil, err
 		}

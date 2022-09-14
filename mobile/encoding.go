@@ -3,10 +3,10 @@ package gowaku
 import (
 	"encoding/json"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 func wakuMessage(messageJSON string) (pb.WakuMessage, error) {
@@ -29,7 +29,7 @@ func wakuMessageSymmetricEncoding(messageJSON string, publicKey string, optional
 		},
 	}
 
-	keyBytes, err := hexutil.Decode(publicKey)
+	keyBytes, err := utils.DecodeHexString(publicKey)
 	if err != nil {
 		return msg, err
 	}
@@ -40,7 +40,7 @@ func wakuMessageSymmetricEncoding(messageJSON string, publicKey string, optional
 	}
 
 	if optionalSigningKey != "" {
-		signingKeyBytes, err := hexutil.Decode(optionalSigningKey)
+		signingKeyBytes, err := utils.DecodeHexString(optionalSigningKey)
 		if err != nil {
 			return msg, err
 		}
@@ -70,7 +70,7 @@ func wakuMessageAsymmetricEncoding(messageJSON string, publicKey string, optiona
 		},
 	}
 
-	keyBytes, err := hexutil.Decode(publicKey)
+	keyBytes, err := utils.DecodeHexString(publicKey)
 	if err != nil {
 		return msg, err
 	}
@@ -81,7 +81,7 @@ func wakuMessageAsymmetricEncoding(messageJSON string, publicKey string, optiona
 	}
 
 	if optionalSigningKey != "" {
-		signingKeyBytes, err := hexutil.Decode(optionalSigningKey)
+		signingKeyBytes, err := utils.DecodeHexString(optionalSigningKey)
 		if err != nil {
 			return msg, err
 		}

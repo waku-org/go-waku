@@ -14,6 +14,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/status-im/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -107,7 +108,7 @@ func (p *PrivateService) GetV1AsymmetricKeypair(req *http.Request, args *Empty, 
 }
 
 func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *SymmetricMessageArgs, reply *SuccessReply) error {
-	symKeyBytes, err := hexutil.Decode(args.SymKey)
+	symKeyBytes, err := utils.DecodeHexString(args.SymKey)
 	if err != nil {
 		return fmt.Errorf("invalid symmetric key: %w", err)
 	}
@@ -142,7 +143,7 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 	keyInfo := new(node.KeyInfo)
 	keyInfo.Kind = node.Asymmetric
 
-	pubKeyBytes, err := hexutil.Decode(args.PublicKey)
+	pubKeyBytes, err := utils.DecodeHexString(args.PublicKey)
 	if err != nil {
 		return fmt.Errorf("public key cannot be decoded: %v", err)
 	}
@@ -184,7 +185,7 @@ func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *Symmetr
 		p.messages[args.Topic] = make([]*pb.WakuMessage, 0)
 	}
 
-	symKeyBytes, err := hexutil.Decode(args.SymKey)
+	symKeyBytes, err := utils.DecodeHexString(args.SymKey)
 	if err != nil {
 		return fmt.Errorf("invalid symmetric key: %w", err)
 	}
