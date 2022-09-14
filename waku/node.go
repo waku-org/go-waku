@@ -226,18 +226,20 @@ func Execute(options Options) {
 
 	var discoveredNodes []dnsdisc.DiscoveredNode
 	if options.DNSDiscovery.Enable {
-		if options.DNSDiscovery.URL != "" {
-			logger.Info("attempting DNS discovery with ", zap.String("URL", options.DNSDiscovery.URL))
-			nodes, err := dnsdisc.RetrieveNodes(ctx, options.DNSDiscovery.URL, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
-			if err != nil {
-				logger.Warn("dns discovery error ", zap.Error(err))
-			} else {
-				var discAddresses []multiaddr.Multiaddr
-				for _, n := range nodes {
-					discAddresses = append(discAddresses, n.Addresses...)
+		if len(options.DNSDiscovery.URLs.Value()) != 0 {
+			for _, url := range options.DNSDiscovery.URLs.Value() {
+				logger.Info("attempting DNS discovery with ", zap.String("URL", url))
+				nodes, err := dnsdisc.RetrieveNodes(ctx, url, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
+				if err != nil {
+					logger.Warn("dns discovery error ", zap.Error(err))
+				} else {
+					var discAddresses []multiaddr.Multiaddr
+					for _, n := range nodes {
+						discAddresses = append(discAddresses, n.Addresses...)
+					}
+					logger.Info("found dns entries ", logging.MultiAddrs("nodes", discAddresses...))
+					discoveredNodes = nodes
 				}
-				logger.Info("found dns entries ", logging.MultiAddrs("nodes", discAddresses...))
-				discoveredNodes = nodes
 			}
 		} else {
 			logger.Fatal("DNS discovery URL is required")
