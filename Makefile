@@ -140,24 +140,27 @@ endif
 
 mobile-android:
 	gomobile init && \
-	go get -d golang.org/x/mobile/cmd/gomobile && \
+	${GOBIN} get -d golang.org/x/mobile/cmd/gomobile && \
 	gomobile bind -v -target=android -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 
 mobile-ios:
 	gomobile init && \
-	go get -d golang.org/x/mobile/cmd/gomobile && \
+	${GOBIN} get -d golang.org/x/mobile/cmd/gomobile && \
 	gomobile bind -target=ios -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/Gowaku.xcframework ./mobile
 	@echo "IOS library built:"
 	@ls -la ./build/lib/*.xcframework
 
 install-xtools:
-	go install golang.org/x/tools/...@v0.1.10
+	${GOBIN} install golang.org/x/tools/...@v0.1.10
+
+install-bindata:
+	${GOBIN} install github.com/kevinburke/go-bindata/go-bindata@v3.13.0
 
 install-gomobile: install-xtools
-	go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20220518205345-8578da9835fd
-	go install golang.org/x/mobile/cmd/gobind@v0.0.0-20220518205345-8578da9835fd
+	${GOBIN} install golang.org/x/mobile/cmd/gomobile@v0.0.0-20220518205345-8578da9835fd
+	${GOBIN} install golang.org/x/mobile/cmd/gobind@v0.0.0-20220518205345-8578da9835fd
 
 build-linux-pkg:
 	./scripts/linux/docker-run.sh
