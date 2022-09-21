@@ -150,7 +150,7 @@ Discovery v5 will attempt to extract the ENRs of the discovered nodes as bootstr
 ```sh
 ./build/waku \
   --dns-discovery=true \
-  --dns-discovery-url=enrtree://AOFTICU2XWDULNLZGRMQS4RIZPAZEHYMV4FYHAPW563HNRAOERP7C@test.waku.nodes.status.im \
+  --dns-discovery-url=enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im \
   --discv5-discovery=true
 ```
 
@@ -169,7 +169,7 @@ appears below.
   --db-path=/mnt/go-waku/data/db1/ \
   --store-capacity=150000 \
   --dns-discovery=true \
-  --dns-discovery-url=enrtree://AOFTICU2XWDULNLZGRMQS4RIZPAZEHYMV4FYHAPW563HNRAOERP7C@test.waku.nodes.status.im \
+  --dns-discovery-url=enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im \
   --discv5-discovery=true
 ```
 
