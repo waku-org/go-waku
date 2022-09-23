@@ -152,6 +152,7 @@ func (r *RPCWakuRelayMessage) toProto() *pb.WakuMessage {
 		Payload:      r.Payload,
 		ContentTopic: r.ContentTopic,
 		Timestamp:    r.Timestamp,
+		Version:      r.Version,
 	}
 
 	if r.RateLimitProof != nil {
