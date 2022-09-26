@@ -474,10 +474,10 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	var dnsDiscoveryUrl string
 	if options.Fleet != fleetNone {
 		if options.Fleet == fleetTest {
-			dnsDiscoveryUrl = "enrtree://AOFTICU2XWDULNLZGRMQS4RIZPAZEHYMV4FYHAPW563HNRAOERP7C@test.waku.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im"
 		} else {
 			// Connect to prod by default
-			dnsDiscoveryUrl = "enrtree://ANTL4SLG2COUILKAPE7EF2BYNL2SHSHVCHLRD5J7ZJLN5R3PRJD2Y@prod.waku.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
 		}
 	}
 
