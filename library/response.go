@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 )
 
-type jsonResponse struct {
-	Error  *string     `json:"error,omitempty"`
+type jsonResponseError struct {
+	Error *string `json:"error"`
+}
+
+type jsonResponseSuccess struct {
 	Result interface{} `json:"result"`
 }
 
@@ -14,14 +17,14 @@ func prepareJSONResponse(result interface{}, err error) *C.char {
 
 	if err != nil {
 		errStr := err.Error()
-		errResponse := jsonResponse{
+		errResponse := jsonResponseError{
 			Error: &errStr,
 		}
 		response, _ := json.Marshal(&errResponse)
 		return C.CString(string(response))
 	}
 
-	data, err := json.Marshal(jsonResponse{Result: result})
+	data, err := json.Marshal(jsonResponseSuccess{Result: result})
 	if err != nil {
 		return prepareJSONResponse(nil, err)
 	}
@@ -35,7 +38,7 @@ func makeJSONResponse(err error) *C.char {
 		errString = &errStr
 	}
 
-	out := jsonResponse{
+	out := jsonResponseError{
 		Error: errString,
 	}
 	outBytes, _ := json.Marshal(out)
