@@ -2,8 +2,11 @@ package gowaku
 
 import "encoding/json"
 
-type jsonResponse struct {
-	Error  *string     `json:"error,omitempty"`
+type jsonResponseError struct {
+	Error *string `json:"error"`
+}
+
+type jsonResponseSuccess struct {
 	Result interface{} `json:"result"`
 }
 
@@ -11,14 +14,14 @@ func prepareJSONResponse(result interface{}, err error) string {
 
 	if err != nil {
 		errStr := err.Error()
-		errResponse := jsonResponse{
+		errResponse := jsonResponseError{
 			Error: &errStr,
 		}
 		response, _ := json.Marshal(&errResponse)
 		return string(response)
 	}
 
-	data, err := json.Marshal(jsonResponse{Result: result})
+	data, err := json.Marshal(jsonResponseSuccess{Result: result})
 	if err != nil {
 		return prepareJSONResponse(nil, err)
 	}
@@ -26,17 +29,14 @@ func prepareJSONResponse(result interface{}, err error) string {
 }
 
 func makeJSONResponse(err error) string {
-	var errString *string = nil
-	result := true
 	if err != nil {
 		errStr := err.Error()
-		errString = &errStr
-		result = false
+		outBytes, _ := json.Marshal(jsonResponseError{Error: &errStr})
+		return string(outBytes)
 	}
 
-	out := jsonResponse{
-		Error:  errString,
-		Result: result,
+	out := jsonResponseSuccess{
+		Result: true,
 	}
 	outBytes, _ := json.Marshal(out)
 
