@@ -86,7 +86,7 @@ func TestForwardPagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, messages, 10)
 	require.Equal(t, msgList[9].Message(), messages[9])
-	require.Equal(t, msgList[9].Index(), newPagingInfo.Cursor)
+	require.Equal(t, &pb.Index{}, newPagingInfo.Cursor)
 	require.Equal(t, pagingInfo.Direction, newPagingInfo.Direction)
 	require.Equal(t, uint64(10), newPagingInfo.PageSize)
 
@@ -105,7 +105,7 @@ func TestForwardPagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, messages, 6)
 	require.Equal(t, []*pb.WakuMessage{msgList[4].Message(), msgList[5].Message(), msgList[6].Message(), msgList[7].Message(), msgList[8].Message(), msgList[9].Message()}, messages)
-	require.Equal(t, msgList[9].Index(), newPagingInfo.Cursor)
+	require.Equal(t, &pb.Index{}, newPagingInfo.Cursor)
 	require.Equal(t, pagingInfo.Direction, newPagingInfo.Direction)
 	require.Equal(t, uint64(6), newPagingInfo.PageSize)
 
@@ -141,7 +141,7 @@ func TestForwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, singleItemDB)
 	require.NoError(t, err)
 	require.Len(t, messages, 1)
-	require.Equal(t, msgList[0].Index(), newPagingInfo.Cursor)
+	require.Equal(t, &pb.Index{}, newPagingInfo.Cursor)
 	require.Equal(t, pagingInfo.Direction, newPagingInfo.Direction)
 	require.Equal(t, uint64(1), newPagingInfo.PageSize)
 }
@@ -182,7 +182,7 @@ func TestBackwardPagination(t *testing.T) {
 	require.Len(t, messages, 10)
 	require.Equal(t, msgList[0].Message(), messages[0])
 	require.Equal(t, msgList[9].Message(), messages[9])
-	require.Equal(t, msgList[0].Index(), newPagingInfo.Cursor)
+	require.Equal(t, &pb.Index{}, newPagingInfo.Cursor)
 	require.Equal(t, pagingInfo.Direction, newPagingInfo.Direction)
 	require.Equal(t, uint64(10), newPagingInfo.PageSize)
 
@@ -201,7 +201,7 @@ func TestBackwardPagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, messages, 3)
 	require.Equal(t, []*pb.WakuMessage{msgList[0].Message(), msgList[1].Message(), msgList[2].Message()}, messages)
-	require.Equal(t, msgList[0].Index(), newPagingInfo.Cursor)
+	require.Equal(t, &pb.Index{}, newPagingInfo.Cursor)
 	require.Equal(t, pagingInfo.Direction, newPagingInfo.Direction)
 	require.Equal(t, uint64(3), newPagingInfo.PageSize)
 
@@ -237,7 +237,7 @@ func TestBackwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, singleItemDB)
 	require.NoError(t, err)
 	require.Len(t, messages, 1)
-	require.Equal(t, msgList[0].Index(), newPagingInfo.Cursor)
+	require.Equal(t, &pb.Index{}, newPagingInfo.Cursor)
 	require.Equal(t, pagingInfo.Direction, newPagingInfo.Direction)
 	require.Equal(t, uint64(1), newPagingInfo.PageSize)
 }
