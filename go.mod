@@ -40,7 +40,7 @@ require (
 require (
 	github.com/flynn/noise v1.0.0
 	github.com/gorilla/mux v1.8.0
-	github.com/status-im/go-rln v0.1.1
+	github.com/status-im/go-zerokit-rln v0.1.2
 	golang.org/x/text v0.3.7
 )
 

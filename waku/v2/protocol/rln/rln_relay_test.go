@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/utils"
+	r "github.com/status-im/go-zerokit-rln/rln"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,10 +36,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	defer relay.Stop()
 	s.Require().NoError(err)
 
-	params, err := parametersKeyBytes()
-	s.Require().NoError(err)
-
-	groupKeyPairs, root, err := r.CreateMembershipList(100, params)
+	groupKeyPairs, root, err := r.CreateMembershipList(100)
 	s.Require().NoError(err)
 
 	var groupIDCommitments []r.IDCommitment
@@ -122,10 +119,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 }
 
 func (s *WakuRLNRelaySuite) TestValidateMessage() {
-	params, err := parametersKeyBytes()
-	s.Require().NoError(err)
-
-	groupKeyPairs, _, err := r.CreateMembershipList(100, params)
+	groupKeyPairs, _, err := r.CreateMembershipList(100)
 	s.Require().NoError(err)
 
 	var groupIDCommitments []r.IDCommitment
@@ -139,11 +133,11 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	index := r.MembershipIndex(5)
 
 	// Create a RLN instance
-	rlnInstance, err := r.NewRLN(params)
+	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
-	added := rlnInstance.AddAll(groupIDCommitments)
-	s.Require().True(added)
+	err = rlnInstance.AddAll(groupIDCommitments)
+	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
 		membershipIndex:   index,

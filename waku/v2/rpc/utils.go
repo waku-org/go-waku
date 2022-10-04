@@ -16,12 +16,13 @@ type HexBytes []byte
 type ByteArray []byte
 
 type RateLimitProof struct {
-	Proof      HexBytes `json:"proof,omitempty"`
-	MerkleRoot HexBytes `json:"merkle_root,omitempty"`
-	Epoch      HexBytes `json:"epoch,omitempty"`
-	ShareX     HexBytes `json:"share_x,omitempty"`
-	ShareY     HexBytes `json:"share_y,omitempty"`
-	Nullifier  HexBytes `json:"nullifier,omitempty"`
+	Proof         HexBytes `json:"proof,omitempty"`
+	MerkleRoot    HexBytes `json:"merkle_root,omitempty"`
+	Epoch         HexBytes `json:"epoch,omitempty"`
+	ShareX        HexBytes `json:"share_x,omitempty"`
+	ShareY        HexBytes `json:"share_y,omitempty"`
+	Nullifier     HexBytes `json:"nullifier,omitempty"`
+	RlnIdentifier HexBytes `json:"rln_identifier,omitempty"`
 }
 
 type RPCWakuMessage struct {
@@ -54,12 +55,13 @@ func ProtoWakuMessageToRPCWakuMessage(input *pb.WakuMessage) *RPCWakuMessage {
 
 	if input.RateLimitProof != nil {
 		rpcWakuMsg.RateLimitProof = &RateLimitProof{
-			Proof:      input.RateLimitProof.Proof,
-			MerkleRoot: input.RateLimitProof.MerkleRoot,
-			Epoch:      input.RateLimitProof.Epoch,
-			ShareX:     input.RateLimitProof.ShareX,
-			ShareY:     input.RateLimitProof.ShareY,
-			Nullifier:  input.RateLimitProof.Nullifier,
+			Proof:         input.RateLimitProof.Proof,
+			MerkleRoot:    input.RateLimitProof.MerkleRoot,
+			Epoch:         input.RateLimitProof.Epoch,
+			ShareX:        input.RateLimitProof.ShareX,
+			ShareY:        input.RateLimitProof.ShareY,
+			Nullifier:     input.RateLimitProof.Nullifier,
+			RlnIdentifier: input.RateLimitProof.RlnIdentifier,
 		}
 	}
 
@@ -80,12 +82,13 @@ func (r *RPCWakuMessage) toProto() *pb.WakuMessage {
 
 	if r.RateLimitProof != nil {
 		msg.RateLimitProof = &pb.RateLimitProof{
-			Proof:      r.RateLimitProof.Proof,
-			MerkleRoot: r.RateLimitProof.MerkleRoot,
-			Epoch:      r.RateLimitProof.Epoch,
-			ShareX:     r.RateLimitProof.ShareX,
-			ShareY:     r.RateLimitProof.ShareY,
-			Nullifier:  r.RateLimitProof.Nullifier,
+			Proof:         r.RateLimitProof.Proof,
+			MerkleRoot:    r.RateLimitProof.MerkleRoot,
+			Epoch:         r.RateLimitProof.Epoch,
+			ShareX:        r.RateLimitProof.ShareX,
+			ShareY:        r.RateLimitProof.ShareY,
+			Nullifier:     r.RateLimitProof.Nullifier,
+			RlnIdentifier: r.RateLimitProof.RlnIdentifier,
 		}
 	}
 
@@ -131,12 +134,13 @@ func ProtoWakuMessageToRPCWakuRelayMessage(input *pb.WakuMessage) *RPCWakuRelayM
 
 	if input.RateLimitProof != nil {
 		rpcMsg.RateLimitProof = &RateLimitProof{
-			Proof:      input.RateLimitProof.Proof,
-			MerkleRoot: input.RateLimitProof.MerkleRoot,
-			Epoch:      input.RateLimitProof.Epoch,
-			ShareX:     input.RateLimitProof.ShareX,
-			ShareY:     input.RateLimitProof.ShareY,
-			Nullifier:  input.RateLimitProof.Nullifier,
+			Proof:         input.RateLimitProof.Proof,
+			MerkleRoot:    input.RateLimitProof.MerkleRoot,
+			Epoch:         input.RateLimitProof.Epoch,
+			ShareX:        input.RateLimitProof.ShareX,
+			ShareY:        input.RateLimitProof.ShareY,
+			Nullifier:     input.RateLimitProof.Nullifier,
+			RlnIdentifier: input.RateLimitProof.RlnIdentifier,
 		}
 	}
 
@@ -157,12 +161,13 @@ func (r *RPCWakuRelayMessage) toProto() *pb.WakuMessage {
 
 	if r.RateLimitProof != nil {
 		msg.RateLimitProof = &pb.RateLimitProof{
-			Proof:      r.RateLimitProof.Proof,
-			MerkleRoot: r.RateLimitProof.MerkleRoot,
-			Epoch:      r.RateLimitProof.Epoch,
-			ShareX:     r.RateLimitProof.ShareX,
-			ShareY:     r.RateLimitProof.ShareY,
-			Nullifier:  r.RateLimitProof.Nullifier,
+			Proof:         r.RateLimitProof.Proof,
+			MerkleRoot:    r.RateLimitProof.MerkleRoot,
+			Epoch:         r.RateLimitProof.Epoch,
+			ShareX:        r.RateLimitProof.ShareX,
+			ShareY:        r.RateLimitProof.ShareY,
+			Nullifier:     r.RateLimitProof.Nullifier,
+			RlnIdentifier: r.RateLimitProof.RlnIdentifier,
 		}
 	}
 
