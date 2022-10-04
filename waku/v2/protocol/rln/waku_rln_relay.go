@@ -14,10 +14,10 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	r "github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/utils"
+	r "github.com/status-im/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 
@@ -264,12 +264,13 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 	}
 
 	msg.RateLimitProof = &pb.RateLimitProof{
-		Proof:      proof.Proof[:],
-		MerkleRoot: proof.MerkleRoot[:],
-		Epoch:      proof.Epoch[:],
-		ShareX:     proof.ShareX[:],
-		ShareY:     proof.ShareY[:],
-		Nullifier:  proof.Nullifier[:],
+		Proof:         proof.Proof[:],
+		MerkleRoot:    proof.MerkleRoot[:],
+		Epoch:         proof.Epoch[:],
+		ShareX:        proof.ShareX[:],
+		ShareY:        proof.ShareY[:],
+		Nullifier:     proof.Nullifier[:],
+		RlnIdentifier: proof.RLNIdentifier[:],
 	}
 
 	return nil
@@ -333,7 +334,7 @@ func (r *WakuRLNRelay) addValidator(
 				zap.Binary("payload", wakuMessage.Payload),
 				zap.Any("proof", wakuMessage.RateLimitProof),
 			)
-			return true
+			return false
 		case MessageValidationResult_Spam:
 			r.log.Debug("spam message found",
 				zap.String("contentTopic", wakuMessage.ContentTopic),
@@ -395,12 +396,13 @@ func ToRateLimitProof(msg *pb.WakuMessage) *r.RateLimitProof {
 	}
 
 	result := &r.RateLimitProof{
-		Proof:      r.ZKSNARK(Bytes256(msg.RateLimitProof.Proof)),
-		MerkleRoot: r.MerkleNode(Bytes32(msg.RateLimitProof.MerkleRoot)),
-		Epoch:      r.Epoch(Bytes32(msg.RateLimitProof.Epoch)),
-		ShareX:     r.MerkleNode(Bytes32(msg.RateLimitProof.ShareX)),
-		ShareY:     r.MerkleNode(Bytes32(msg.RateLimitProof.ShareY)),
-		Nullifier:  r.Nullifier(Bytes32(msg.RateLimitProof.Nullifier)),
+		Proof:         r.ZKSNARK(Bytes128(msg.RateLimitProof.Proof)),
+		MerkleRoot:    r.MerkleNode(Bytes32(msg.RateLimitProof.MerkleRoot)),
+		Epoch:         r.Epoch(Bytes32(msg.RateLimitProof.Epoch)),
+		ShareX:        r.MerkleNode(Bytes32(msg.RateLimitProof.ShareX)),
+		ShareY:        r.MerkleNode(Bytes32(msg.RateLimitProof.ShareY)),
+		Nullifier:     r.Nullifier(Bytes32(msg.RateLimitProof.Nullifier)),
+		RLNIdentifier: r.RLNIdentifier(Bytes32(msg.RateLimitProof.RlnIdentifier)),
 	}
 
 	return result
@@ -412,8 +414,8 @@ func Bytes32(b []byte) [32]byte {
 	return result
 }
 
-func Bytes256(b []byte) [256]byte {
-	var result [256]byte
+func Bytes128(b []byte) [128]byte {
+	var result [128]byte
 	copy(result[:], b)
 	return result
 }

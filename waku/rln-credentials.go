@@ -12,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/status-im/go-rln/rln"
+	"github.com/status-im/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 

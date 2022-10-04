@@ -7,13 +7,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"errors"
 	"math/big"
 	"sync"
 	"testing"
 	"time"
 
-	r "github.com/status-im/go-rln/rln"
+	r "github.com/status-im/go-zerokit-rln/rln"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -98,11 +97,8 @@ func (s *WakuRLNRelayDynamicSuite) register(privKey *ecdsa.PrivateKey, commitmen
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
-	params, err := parametersKeyBytes()
-	s.Require().NoError(err)
-
 	// Create a RLN instance
-	rlnInstance, err := r.NewRLN(params)
+	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
 	keyPair, err := rlnInstance.MembershipKeyGen()
@@ -133,11 +129,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 			wg.Done()
 		}
 
-		if !rlnInstance.InsertMember(pubkey) {
-			return errors.New("couldn't insert member")
-		}
-
-		return nil
+		return rlnInstance.InsertMember(pubkey)
 	}
 
 	errChan := make(chan error, 1)
@@ -181,11 +173,8 @@ func (s *WakuRLNRelayDynamicSuite) TestInsertKeyMembershipContract() {
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestRegistrationProcedure() {
-	params, err := parametersKeyBytes()
-	s.Require().NoError(err)
-
 	// Create a RLN instance
-	rlnInstance, err := r.NewRLN(params)
+	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
 	keyPair, err := rlnInstance.MembershipKeyGen()
@@ -209,11 +198,8 @@ func (s *WakuRLNRelayDynamicSuite) TestRegistrationProcedure() {
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
-	params, err := parametersKeyBytes()
-	s.Require().NoError(err)
-
 	// Create a RLN instance
-	rlnInstance, err := r.NewRLN(params)
+	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
 	keyPair1, err := rlnInstance.MembershipKeyGen()
@@ -222,10 +208,11 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	keyPair2, err := rlnInstance.MembershipKeyGen()
 	s.Require().NoError(err)
 
-	r1 := rlnInstance.InsertMember(keyPair1.IDCommitment)
-	r2 := rlnInstance.InsertMember(keyPair2.IDCommitment)
-	s.Require().True(r1)
-	s.Require().True(r2)
+	err = rlnInstance.InsertMember(keyPair1.IDCommitment)
+	s.Require().NoError(err)
+
+	err = rlnInstance.InsertMember(keyPair2.IDCommitment)
+	s.Require().NoError(err)
 
 	//  get the Merkle root
 	expectedRoot, err := rlnInstance.GetMerkleRoot()
@@ -250,7 +237,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	defer sub.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay, err := RlnRelayDynamic(context.TODO(), relay, ETH_CLIENT_ADDRESS, nil, s.rlnAddr, keyPair1, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
+	rlnRelay, err := RlnRelayDynamic(context.TODO(), relay, ETH_CLIENT_ADDRESS, nil, s.rlnAddr, keyPair1, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	// wait for the event to reach the group handler
@@ -282,7 +269,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer sub1.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay1, err := RlnRelayDynamic(context.TODO(), relay1, ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
+	rlnRelay1, err := RlnRelayDynamic(context.TODO(), relay1, ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	// Node 2 ============================================================
@@ -301,7 +288,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer sub2.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay2, err := RlnRelayDynamic(context.TODO(), relay2, ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
+	rlnRelay2, err := RlnRelayDynamic(context.TODO(), relay2, ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	// ==================================

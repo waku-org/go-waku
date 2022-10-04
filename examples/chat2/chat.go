@@ -13,7 +13,6 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-rln/rln"
 	"github.com/status-im/go-waku/waku/v2/dnsdisc"
 	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-waku/waku/v2/protocol"
@@ -23,6 +22,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/status-im/go-zerokit-rln/rln"
 	"golang.org/x/crypto/pbkdf2"
 	"google.golang.org/protobuf/proto"
 )
