@@ -396,26 +396,14 @@ func ToRateLimitProof(msg *pb.WakuMessage) *r.RateLimitProof {
 	}
 
 	result := &r.RateLimitProof{
-		Proof:         r.ZKSNARK(Bytes128(msg.RateLimitProof.Proof)),
-		MerkleRoot:    r.MerkleNode(Bytes32(msg.RateLimitProof.MerkleRoot)),
-		Epoch:         r.Epoch(Bytes32(msg.RateLimitProof.Epoch)),
-		ShareX:        r.MerkleNode(Bytes32(msg.RateLimitProof.ShareX)),
-		ShareY:        r.MerkleNode(Bytes32(msg.RateLimitProof.ShareY)),
-		Nullifier:     r.Nullifier(Bytes32(msg.RateLimitProof.Nullifier)),
-		RLNIdentifier: r.RLNIdentifier(Bytes32(msg.RateLimitProof.RlnIdentifier)),
+		Proof:         r.ZKSNARK(r.Bytes128(msg.RateLimitProof.Proof)),
+		MerkleRoot:    r.MerkleNode(r.Bytes32(msg.RateLimitProof.MerkleRoot)),
+		Epoch:         r.Epoch(r.Bytes32(msg.RateLimitProof.Epoch)),
+		ShareX:        r.MerkleNode(r.Bytes32(msg.RateLimitProof.ShareX)),
+		ShareY:        r.MerkleNode(r.Bytes32(msg.RateLimitProof.ShareY)),
+		Nullifier:     r.Nullifier(r.Bytes32(msg.RateLimitProof.Nullifier)),
+		RLNIdentifier: r.RLNIdentifier(r.Bytes32(msg.RateLimitProof.RlnIdentifier)),
 	}
 
-	return result
-}
-
-func Bytes32(b []byte) [32]byte {
-	var result [32]byte
-	copy(result[:], b)
-	return result
-}
-
-func Bytes128(b []byte) [128]byte {
-	var result [128]byte
-	copy(result[:], b)
 	return result
 }

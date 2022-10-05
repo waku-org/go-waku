@@ -167,7 +167,7 @@ func (c *Chat) parseInput() {
 						}
 
 						c.ui.InfoMessage(fmt.Sprintf("Connecting to peer: %s", peerID))
-						ctx, cancel := context.WithTimeout(c.ctx, time.Duration(5)*time.Second)
+						ctx, cancel := context.WithTimeout(c.ctx, time.Duration(10)*time.Second)
 						defer cancel()
 
 						err = c.node.DialPeerWithMultiAddress(ctx, ma)
@@ -412,7 +412,7 @@ func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
 	for _, n := range options.StaticNodes {
 		go func(addr multiaddr.Multiaddr) {
 			defer wg.Done()
-			ctx, cancel := context.WithTimeout(c.ctx, time.Duration(3)*time.Second)
+			ctx, cancel := context.WithTimeout(c.ctx, time.Duration(10)*time.Second)
 			defer cancel()
 
 			peerID, err := addr.ValueForProtocol(multiaddr.P_P2P)
@@ -508,7 +508,7 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 						return
 					}
 
-					ctx, cancel := context.WithTimeout(ctx, time.Duration(7)*time.Second)
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
 					defer cancel()
 					err = c.node.DialPeerWithMultiAddress(ctx, addr)
 					if err != nil {

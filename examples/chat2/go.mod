@@ -8,8 +8,6 @@ replace github.com/ethereum/go-ethereum v1.10.21 => github.com/status-im/go-ethe
 
 replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
 
-replace github.com/status-im/go-zerokit-rln => ../../../go-zerokit-rln
-
 require (
 	github.com/charmbracelet/bubbles v0.13.0
 	github.com/charmbracelet/bubbletea v0.22.0
@@ -21,7 +19,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/status-im/go-waku v0.0.0-00010101000000-000000000000
-	github.com/status-im/go-zerokit-rln v0.1.2
+	github.com/status-im/go-zerokit-rln v0.1.3
 	github.com/urfave/cli/v2 v2.11.2
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
