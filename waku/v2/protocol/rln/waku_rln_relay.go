@@ -217,9 +217,18 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	// verify the proof
 	contentTopicBytes := []byte(msg.ContentTopic)
 	input := append(msg.Payload, contentTopicBytes...)
-	if !rln.RLN.Verify(input, *msgProof) {
+
+	// TODO: set window of roots
+	roots := [][32]byte{}
+	valid, err := rln.RLN.VerifyWithRoots(input, *msgProof, roots)
+	if err != nil {
+		rln.log.Debug("could not verify proof", zap.Error(err))
+		return MessageValidationResult_Invalid, nil
+	}
+
+	if !valid {
 		// invalid proof
-		rln.log.Debug("invalid message: invalid proof")
+		rln.log.Debug("Invalid proof")
 		return MessageValidationResult_Invalid, nil
 	}
 

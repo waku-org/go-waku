@@ -19,7 +19,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/status-im/go-waku v0.0.0-00010101000000-000000000000
-	github.com/status-im/go-zerokit-rln v0.1.3
+	github.com/status-im/go-zerokit-rln v0.1.4
 	github.com/urfave/cli/v2 v2.11.2
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
