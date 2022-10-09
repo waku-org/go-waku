@@ -35,11 +35,11 @@ func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
 func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var ctx context.Context
@@ -56,7 +56,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return makeJSONResponse(err)
+			return MakeJSONResponse(err)
 		}
 		fOptions = append(fOptions, filter.WithPeer(p))
 	} else {
@@ -65,7 +65,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 
 	_, f, err := wakuNode.Filter().Subscribe(ctx, cf, fOptions...)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	go func(f filter.Filter) {
@@ -74,17 +74,17 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 		}
 	}(f)
 
-	return prepareJSONResponse(true, nil)
+	return PrepareJSONResponse(true, nil)
 }
 
 func FilterUnsubscribe(filterJSON string, ms int) string {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var ctx context.Context
@@ -99,8 +99,8 @@ func FilterUnsubscribe(filterJSON string, ms int) string {
 
 	err = wakuNode.Filter().UnsubscribeFilter(ctx, cf)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
-	return makeJSONResponse(nil)
+	return MakeJSONResponse(nil)
 }

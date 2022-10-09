@@ -14,18 +14,6 @@ An alternative is to link existing Waku implementation as a static or dynamic li
 This specification describes the C API that SHOULD be implemented by native Waku library and that SHOULD be used to
 consume them.
 
-# Design requirements
-
-The API should be generic enough, so:
-
-- it can be implemented by both nwaku and go-waku C-Bindings,
-- it can be consumed from a variety of languages such as C#, Kotlin, Swift, Rust, C++, etc.
-
-The selected format to pass data to and from the API is `JSON`.
-
-It has been selected due to its widespread usage and easiness of use. Other alternatives MAY replace it in the future (C
-structure, protobuf) if it brings limitations that need to be lifted.
-
 # The API
 
 ## General
@@ -276,7 +264,7 @@ which are used to react to asynchronous events in Waku.
 Type holding a node configuration:
 
 ```ts
-interface JsonSignal {
+interface JsonConfig {
     host?: string;
     port?: number;
     advertiseAddr?: string;
@@ -480,7 +468,7 @@ Dial peer using its peer ID.
 1`char* peerID`: Peer ID to dial.
    The peer must be already known.
    It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
-   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+   or previously dialed with [`waku_connect`](#extern-char-waku_connectchar-address-int-timeoutms).
 2. `int timeoutMs`: Timeout value in milliseconds to execute the call.
    If the function execution takes longer than this value,
    the execution will be canceled and an error returned.
@@ -743,7 +731,6 @@ For Example:
 {
   "type": "message",
   "event": {
-    "subscriptionID": 1,
     "pubsubTopic": "/waku/2/default-waku/proto",
     "messageID": "0x6496491e40dbe0b6c3a2198c2426b16301688a2daebc4f57ad7706115eac3ad1",
     "wakuMessage": {
@@ -825,9 +812,8 @@ For Example:
 {
   "type": "message",
   "event": {
-    "subscriptionID": 1,
     "pubsubTopic": "/waku/2/default-waku/proto",
-    "messageID": "0x6496491e40dbe0b6c3a2198c2426b16301688a2daebc4f57ad7706115eac3ad1",
+    "messageId": "0x6496491e40dbe0b6c3a2198c2426b16301688a2daebc4f57ad7706115eac3ad1",
     "wakuMessage": {
       "payload": "TODO",
       "contentTopic": "/my-app/1/notification/proto",
@@ -1059,6 +1045,15 @@ Decode a base64 string (useful for reading the payload from Waku Messages).
 
 A [`JsonResponse`](#jsonresponse-type).
 If the execution is successful, the `result` field contains the decoded payload.
+
+
+### `extern void waku_utils_free(char* data)`
+Frees a char* since all strings returned by gowaku are allocated in the C heap using malloc.
+
+**Parameters**
+
+1. `char* data`: variable to free
+
 
 # Copyright
 

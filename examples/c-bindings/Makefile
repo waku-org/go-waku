@@ -18,7 +18,7 @@ endif
 
 build:
 	cd ../../ && $(MAKE) static-library # Building library
-	rm -rf build && \
+	rm -rf build/main && \
 	echo "Compiling 'main.c'"
 	+ mkdir -p build
 	$(CC) \
