@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -50,8 +51,10 @@ type WakuRLNRelay struct {
 	// pubsubTopic is the topic for which rln relay is mounted
 	pubsubTopic  string
 	contentTopic string
+
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
-	nullifierLog map[r.Epoch][]r.ProofMetadata
+	nullifierLogLock sync.RWMutex
+	nullifierLog     map[r.Epoch][]r.ProofMetadata
 
 	registrationHandler RegistrationHandler
 	log                 *zap.Logger
@@ -112,7 +115,9 @@ func (rln *WakuRLNRelay) HasDuplicate(msg *pb.WakuMessage) (bool, error) {
 		ShareY:    msgProof.ShareY,
 	}
 
+	rln.nullifierLogLock.RLock()
 	proofs, ok := rln.nullifierLog[msgProof.Epoch]
+	rln.nullifierLogLock.RUnlock()
 
 	// check if the epoch exists
 	if !ok {
@@ -154,6 +159,8 @@ func (rln *WakuRLNRelay) updateLog(msg *pb.WakuMessage) (bool, error) {
 		ShareY:    msgProof.ShareY,
 	}
 
+	rln.nullifierLogLock.Lock()
+	defer rln.nullifierLogLock.Unlock()
 	proofs, ok := rln.nullifierLog[msgProof.Epoch]
 
 	// check if the epoch exists
@@ -183,7 +190,6 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	// the `msg` does not violate the rate limit
 	// `timeOption` indicates Unix epoch time (fractional part holds sub-seconds)
 	// if `timeOption` is supplied, then the current epoch is calculated based on that
-
 	if msg == nil {
 		return MessageValidationResult_Unknown, errors.New("nil message")
 	}
