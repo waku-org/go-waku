@@ -44,31 +44,31 @@ func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms 
 func LightpushPublish(messageJSON string, topic string, peerID string, ms int) string {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	hash, err := lightpushPublish(msg, getTopic(topic), peerID, ms)
-	return prepareJSONResponse(hash, err)
+	return PrepareJSONResponse(hash, err)
 }
 
 func LightpushPublishEncodeAsymmetric(messageJSON string, topic string, peerID string, publicKey string, optionalSigningKey string, ms int) string {
 	msg, err := wakuMessageAsymmetricEncoding(messageJSON, publicKey, optionalSigningKey)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	hash, err := lightpushPublish(msg, getTopic(topic), peerID, ms)
 
-	return prepareJSONResponse(hash, err)
+	return PrepareJSONResponse(hash, err)
 }
 
 func LightpushPublishEncodeSymmetric(messageJSON string, topic string, peerID string, symmetricKey string, optionalSigningKey string, ms int) string {
 	msg, err := wakuMessageSymmetricEncoding(messageJSON, symmetricKey, optionalSigningKey)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	hash, err := lightpushPublish(msg, getTopic(topic), peerID, ms)
 
-	return prepareJSONResponse(hash, err)
+	return PrepareJSONResponse(hash, err)
 }

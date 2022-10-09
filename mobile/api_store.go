@@ -36,13 +36,13 @@ type storeMessagesReply struct {
 
 func StoreQuery(queryJSON string, peerID string, ms int) string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var args storeMessagesArgs
 	err := json.Unmarshal([]byte(queryJSON), &args)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	options := []store.HistoryRequestOption{
@@ -54,7 +54,7 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return makeJSONResponse(err)
+			return MakeJSONResponse(err)
 		}
 		options = append(options, store.WithPeer(p))
 	} else {
@@ -91,7 +91,7 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 
 	if err != nil {
 		reply.Error = err.Error()
-		return prepareJSONResponse(reply, nil)
+		return PrepareJSONResponse(reply, nil)
 	}
 	reply.Messages = res.Messages
 	reply.PagingInfo = storePagingOptions{
@@ -100,5 +100,5 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 		Forward:  args.PagingOptions.Forward,
 	}
 
-	return prepareJSONResponse(reply, nil)
+	return PrepareJSONResponse(reply, nil)
 }

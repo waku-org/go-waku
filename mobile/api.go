@@ -98,33 +98,33 @@ func getConfig(configJSON string) (wakuConfig, error) {
 
 func NewNode(configJSON string) string {
 	if wakuNode != nil {
-		return makeJSONResponse(errors.New("go-waku already initialized. stop it first"))
+		return MakeJSONResponse(errors.New("go-waku already initialized. stop it first"))
 	}
 
 	config, err := getConfig(configJSON)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", *config.Host, *config.Port))
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	var prvKey *ecdsa.PrivateKey
 	if config.NodeKey != nil {
 		prvKey, err = crypto.HexToECDSA(*config.NodeKey)
 		if err != nil {
-			return makeJSONResponse(err)
+			return MakeJSONResponse(err)
 		}
 	} else {
 		key, err := randomHex(32)
 		if err != nil {
-			return makeJSONResponse(err)
+			return MakeJSONResponse(err)
 		}
 		prvKey, err = crypto.HexToECDSA(key)
 		if err != nil {
-			return makeJSONResponse(err)
+			return MakeJSONResponse(err)
 		}
 	}
 
@@ -146,31 +146,31 @@ func NewNode(configJSON string) string {
 	w, err := node.New(ctx, opts...)
 
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	wakuNode = w
 
-	return makeJSONResponse(nil)
+	return MakeJSONResponse(nil)
 }
 
 func Start() string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	if err := wakuNode.Start(); err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	wakuStarted = true
 
-	return makeJSONResponse(nil)
+	return MakeJSONResponse(nil)
 }
 
 func Stop() string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	wakuNode.Stop()
@@ -178,24 +178,24 @@ func Stop() string {
 	wakuStarted = false
 	wakuNode = nil
 
-	return makeJSONResponse(nil)
+	return MakeJSONResponse(nil)
 }
 
 func IsStarted() string {
-	return prepareJSONResponse(wakuStarted, nil)
+	return PrepareJSONResponse(wakuStarted, nil)
 }
 
 func PeerID() string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	return prepareJSONResponse(wakuNode.ID(), nil)
+	return PrepareJSONResponse(wakuNode.ID(), nil)
 }
 
 func ListenAddresses() string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var addresses []string
@@ -203,26 +203,26 @@ func ListenAddresses() string {
 		addresses = append(addresses, addr.String())
 	}
 
-	return prepareJSONResponse(addresses, nil)
+	return PrepareJSONResponse(addresses, nil)
 }
 
 func AddPeer(address string, protocolID string) string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	ma, err := multiaddr.NewMultiaddr(address)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	peerID, err := wakuNode.AddPeer(ma, protocolID)
-	return prepareJSONResponse(peerID, err)
+	return PrepareJSONResponse(peerID, err)
 }
 
 func Connect(address string, ms int) string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var ctx context.Context
@@ -236,12 +236,12 @@ func Connect(address string, ms int) string {
 	}
 
 	err := wakuNode.DialPeer(ctx, address)
-	return makeJSONResponse(err)
+	return MakeJSONResponse(err)
 }
 
 func ConnectPeerID(peerID string, ms int) string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var ctx context.Context
@@ -249,7 +249,7 @@ func ConnectPeerID(peerID string, ms int) string {
 
 	pID, err := peer.Decode(peerID)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	if ms > 0 {
@@ -260,29 +260,29 @@ func ConnectPeerID(peerID string, ms int) string {
 	}
 
 	err = wakuNode.DialPeerByID(ctx, pID)
-	return makeJSONResponse(err)
+	return MakeJSONResponse(err)
 }
 
 func Disconnect(peerID string) string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	pID, err := peer.Decode(peerID)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	err = wakuNode.ClosePeerById(pID)
-	return makeJSONResponse(err)
+	return MakeJSONResponse(err)
 }
 
 func PeerCnt() string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	return prepareJSONResponse(wakuNode.PeerCount(), nil)
+	return PrepareJSONResponse(wakuNode.PeerCount(), nil)
 }
 
 func ContentTopic(applicationName string, applicationVersion int, contentTopicName string, encoding string) string {
@@ -305,7 +305,7 @@ func getTopic(topic string) string {
 }
 
 type subscriptionMsg struct {
-	MessageID   string          `json:"messageID"`
+	MessageID   string          `json:"messageId"`
 	PubsubTopic string          `json:"pubsubTopic"`
 	Message     *pb.WakuMessage `json:"wakuMessage"`
 }
@@ -320,11 +320,11 @@ func toSubscriptionMessage(msg *protocol.Envelope) *subscriptionMsg {
 
 func Peers() string {
 	if wakuNode == nil {
-		return makeJSONResponse(errWakuNodeNotReady)
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	peers, err := wakuNode.Peers()
-	return prepareJSONResponse(peers, err)
+	return PrepareJSONResponse(peers, err)
 }
 
 func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {
@@ -339,13 +339,13 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	if msg.Version == 0 {
-		return prepareJSONResponse(msg.Payload, nil)
+		return PrepareJSONResponse(msg.Payload, nil)
 	} else if msg.Version > 1 {
-		return makeJSONResponse(errors.New("unsupported wakumessage version"))
+		return MakeJSONResponse(errors.New("unsupported wakumessage version"))
 	}
 
 	keyInfo := &node.KeyInfo{
@@ -354,12 +354,12 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 
 	keyInfo.SymKey, err = utils.DecodeHexString(symmetricKey)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	payload, err := node.DecodePayload(&msg, keyInfo)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	response := struct {
@@ -374,20 +374,20 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 		Padding:   payload.Padding,
 	}
 
-	return prepareJSONResponse(response, err)
+	return PrepareJSONResponse(response, err)
 }
 
 func DecodeAsymmetric(messageJSON string, privateKey string) string {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	if msg.Version == 0 {
-		return prepareJSONResponse(msg.Payload, nil)
+		return PrepareJSONResponse(msg.Payload, nil)
 	} else if msg.Version > 1 {
-		return makeJSONResponse(errors.New("unsupported wakumessage version"))
+		return MakeJSONResponse(errors.New("unsupported wakumessage version"))
 	}
 
 	keyInfo := &node.KeyInfo{
@@ -396,17 +396,17 @@ func DecodeAsymmetric(messageJSON string, privateKey string) string {
 
 	keyBytes, err := utils.DecodeHexString(privateKey)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	keyInfo.PrivKey, err = crypto.ToECDSA(keyBytes)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	payload, err := node.DecodePayload(&msg, keyInfo)
 	if err != nil {
-		return makeJSONResponse(err)
+		return MakeJSONResponse(err)
 	}
 
 	response := struct {
@@ -421,5 +421,5 @@ func DecodeAsymmetric(messageJSON string, privateKey string) string {
 		Padding:   payload.Padding,
 	}
 
-	return prepareJSONResponse(response, err)
+	return PrepareJSONResponse(response, err)
 }
