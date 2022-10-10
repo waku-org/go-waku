@@ -87,7 +87,7 @@ func waku_connect(address *C.char, ms C.int) *C.char {
 //export waku_connect_peerid
 // Connect to known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 func waku_connect_peerid(peerID *C.char, ms C.int) *C.char {
-	response := mobile.Connect(C.GoString(peerID), int(ms))
+	response := mobile.ConnectPeerID(C.GoString(peerID), int(ms))
 	return C.CString(response)
 }
 
