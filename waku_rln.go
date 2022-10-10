@@ -52,7 +52,7 @@ func rlnFlags() []cli.Flag {
 		&cli.PathFlag{
 			Name:        "rln-relay-membership-credentials-file",
 			Usage:       "RLN relay membership credentials file",
-			Value:       "rlnCredentials.txt",
+			Value:       "",
 			Destination: &options.RLNRelay.CredentialsPath,
 		},
 		// TODO: this is a good candidate option for subcommands

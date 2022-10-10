@@ -1616,10 +1616,8 @@ github.com/status-im/go-ethereum v1.10.4-status.2 h1:uvcD2U7skYqPQviARFb4w3wZyFS
 github.com/status-im/go-ethereum v1.10.4-status.2/go.mod h1:GvIhpdCOgMHI6i5xVPEZOrv/qSMeOFHbZh77AoyZUoE=
 github.com/status-im/go-waku-rendezvous v0.0.0-20220817210730-9b9b02b1e880 h1:Ggyf88sYbHV3q/qVNMNsq+JMiar1WRkiDTr+VdTPyVk=
 github.com/status-im/go-waku-rendezvous v0.0.0-20220817210730-9b9b02b1e880/go.mod h1:lYUCd41Gzh6bw8RYlbADWe+LQCvhxnq2e19QWxdDM0k=
-github.com/status-im/go-zerokit-rln v0.1.3 h1:3UxA29BoMPlBrXw1Cddubmq4XR96ihH9KpnwfzzPtq4=
-github.com/status-im/go-zerokit-rln v0.1.3/go.mod h1:buDqUAAFez13mhNTGAJKD03XyEe8PdlTKdsTbfi8imI=
-github.com/status-im/go-zerokit-rln v0.1.4 h1:rHrtmm6jl0y5oLswNZHrTmAVmA6Sz16V1QjBTYHmm3Y=
-github.com/status-im/go-zerokit-rln v0.1.4/go.mod h1:buDqUAAFez13mhNTGAJKD03XyEe8PdlTKdsTbfi8imI=
+github.com/status-im/go-zerokit-rln v0.1.5 h1:Tx39c6DLpPjLbMFj0K2ft4eS43toezWOXs026tbLPhU=
+github.com/status-im/go-zerokit-rln v0.1.5/go.mod h1:buDqUAAFez13mhNTGAJKD03XyEe8PdlTKdsTbfi8imI=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 h1:Gb2Tyox57NRNuZ2d3rmvB3pcmbu7O1RS3m8WRx7ilrg=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=
 github.com/status-im/noise v1.0.1-handshakeMessages h1:mj1btE58Qk2pS0qz+BHE22HYIOhZoEFNTnRpQeMfHYk=

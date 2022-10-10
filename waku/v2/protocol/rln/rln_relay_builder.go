@@ -46,7 +46,7 @@ func RlnRelayStatic(
 	// create the WakuRLNRelay
 	rlnPeer := &WakuRLNRelay{
 		ctx:               ctx,
-		membershipKeyPair: memKeyPair,
+		membershipKeyPair: &memKeyPair,
 		membershipIndex:   memIndex,
 		RLN:               rlnInstance,
 		pubsubTopic:       pubsubTopic,
@@ -107,14 +107,14 @@ func RlnRelayDynamic(
 	}
 
 	// prepare rln membership key pair
-	if memKeyPair == nil {
+	if memKeyPair == nil && ethAccountPrivateKey != nil {
 		log.Debug("no rln-relay key is provided, generating one")
 		memKeyPair, err = rlnInstance.MembershipKeyGen()
 		if err != nil {
 			return nil, err
 		}
 
-		rlnPeer.membershipKeyPair = *memKeyPair
+		rlnPeer.membershipKeyPair = memKeyPair
 
 		// register the rln-relay peer to the membership contract
 		membershipIndex, err := rlnPeer.Register(ctx)
@@ -125,8 +125,8 @@ func RlnRelayDynamic(
 		rlnPeer.membershipIndex = *membershipIndex
 
 		log.Info("registered peer into the membership contract")
-	} else {
-		rlnPeer.membershipKeyPair = *memKeyPair
+	} else if memKeyPair != nil {
+		rlnPeer.membershipKeyPair = memKeyPair
 	}
 
 	handler := func(pubkey r.IDCommitment, index r.MembershipIndex) error {

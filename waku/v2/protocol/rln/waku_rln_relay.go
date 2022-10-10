@@ -33,7 +33,7 @@ type RegistrationHandler = func(tx *types.Transaction)
 type WakuRLNRelay struct {
 	ctx context.Context
 
-	membershipKeyPair r.MembershipKeyPair
+	membershipKeyPair *r.MembershipKeyPair
 
 	// membershipIndex denotes the index of a leaf in the Merkle tree
 	// that contains the pk of the current peer
@@ -213,7 +213,7 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 
 	// calculate the gaps and validate the epoch
 	gap := r.Diff(epoch, msgProof.Epoch)
-	if int64(math.Abs(float64(gap))) >= MAX_EPOCH_GAP {
+	if int64(math.Abs(float64(gap))) > MAX_EPOCH_GAP {
 		// message's epoch is too old or too ahead
 		// accept messages whose epoch is within +-MAX_EPOCH_GAP from the current epoch
 		rln.log.Debug("invalid message: epoch gap exceeds a threshold", zap.Int64("gap", gap))
@@ -271,9 +271,13 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 		return errors.New("nil message")
 	}
 
+	if rln.membershipKeyPair == nil {
+		return errors.New("No keypair setup")
+	}
+
 	input := toRLNSignal(msg)
 
-	proof, err := rln.RLN.GenerateProof(input, rln.membershipKeyPair, rln.membershipIndex, r.CalcEpoch(senderEpochTime))
+	proof, err := rln.RLN.GenerateProof(input, *rln.membershipKeyPair, rln.membershipIndex, r.CalcEpoch(senderEpochTime))
 	if err != nil {
 		return err
 	}
@@ -291,12 +295,16 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 	return nil
 }
 
-func (r *WakuRLNRelay) MembershipKeyPair() r.MembershipKeyPair {
+func (r *WakuRLNRelay) MembershipKeyPair() *r.MembershipKeyPair {
 	return r.membershipKeyPair
 }
 
 func (r *WakuRLNRelay) MembershipIndex() r.MembershipIndex {
 	return r.membershipIndex
+}
+
+func (r *WakuRLNRelay) MembershipContractAddress() common.Address {
+	return r.membershipContractAddress
 }
 
 type SpamHandler = func(message *pb.WakuMessage) error
