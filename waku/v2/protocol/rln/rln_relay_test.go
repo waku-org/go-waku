@@ -141,7 +141,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 
 	rlnRelay := &WakuRLNRelay{
 		membershipIndex:   index,
-		membershipKeyPair: groupKeyPairs[index],
+		membershipKeyPair: &groupKeyPairs[index],
 		RLN:               rlnInstance,
 		nullifierLog:      make(map[r.Epoch][]r.ProofMetadata),
 		log:               utils.Logger(),

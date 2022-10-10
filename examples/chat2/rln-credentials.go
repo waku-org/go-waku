@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,18 +10,9 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/status-im/go-zerokit-rln/rln"
 )
-
-type membershipKeyPair struct {
-	IDKey        rln.IDKey        `json:"idKey"`
-	IDCommitment rln.IDCommitment `json:"idCommitment"`
-}
-
-type membershipCredentials struct {
-	Keypair membershipKeyPair   `json:"membershipKeyPair"`
-	Index   rln.MembershipIndex `json:"rlnIndex"`
-}
 
 const RLN_CREDENTIALS_FILENAME = "rlnCredentials.txt"
 
@@ -36,16 +28,27 @@ func fileExists(path string) bool {
 	}
 }
 
-func writeRLNMembershipCredentialsToFile(path string, keyPair rln.MembershipKeyPair, idx rln.MembershipIndex) error {
-	path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
+func writeRLNMembershipCredentialsToFile(path string, keyPair *rln.MembershipKeyPair, idx rln.MembershipIndex, contractAddress common.Address) error {
+	if path == "" {
+		return nil // No path to save file
+	}
 
+	path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
 	if fileExists(path) {
 		return nil
 	}
 
-	credentialsJSON, err := json.Marshal(membershipCredentials{
-		Keypair: membershipKeyPair(keyPair),
-		Index:   idx,
+	if keyPair == nil {
+		return nil // No credentials to write
+	}
+
+	credentialsJSON, err := json.Marshal(node.MembershipCredentials{
+		Keypair: &rln.MembershipKeyPair{
+			IDKey:        keyPair.IDKey,
+			IDCommitment: keyPair.IDCommitment,
+		},
+		Index:    idx,
+		Contract: contractAddress,
 	})
 	if err != nil {
 		return err
@@ -54,52 +57,61 @@ func writeRLNMembershipCredentialsToFile(path string, keyPair rln.MembershipKeyP
 	return ioutil.WriteFile(path, credentialsJSON, 0600)
 }
 
-func loadMembershipCredentialsFromFile(rlnCredentialsPath string) (rln.MembershipKeyPair, rln.MembershipIndex, error) {
+func loadMembershipCredentialsFromFile(rlnCredentialsPath string) (node.MembershipCredentials, error) {
 	src, err := ioutil.ReadFile(rlnCredentialsPath)
 	if err != nil {
-		return rln.MembershipKeyPair{}, rln.MembershipIndex(0), err
+		return node.MembershipCredentials{}, err
 	}
 
-	var credentials membershipCredentials
+	var credentials node.MembershipCredentials
 	err = json.Unmarshal(src, &credentials)
-	if err != nil {
-		return rln.MembershipKeyPair{}, rln.MembershipIndex(0), err
-	}
 
-	return rln.MembershipKeyPair(credentials.Keypair), credentials.Index, err
+	return credentials, err
 }
 
-func getMembershipCredentials(path string, rlnIDKey string, rlnIDCommitment string, rlnMembershipIndex int) (idKey *rln.IDKey, idCommitment *rln.IDCommitment, index rln.MembershipIndex, err error) {
+func getMembershipCredentials(options RLNRelayOptions) (credentials node.MembershipCredentials, err error) {
 	valuesWereInput := false
-	if rlnIDKey != "" || rlnIDCommitment != "" {
+	if options.IDKey != "" || options.IDCommitment != "" {
 		valuesWereInput = true
+	}
+
+	path := options.CredentialsPath
+
+	if path == "" {
+		return node.MembershipCredentials{
+			Contract: options.MembershipContractAddress,
+		}, nil
 	}
 
 	var osErr error
 	if !valuesWereInput {
 		path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
 		if _, osErr = os.Stat(path); osErr == nil {
-			if keyPair, index, err := loadMembershipCredentialsFromFile(path); err != nil {
-				return nil, nil, rln.MembershipIndex(0), fmt.Errorf("could not read membership credentials file: %w", err)
+			if credentials, err := loadMembershipCredentialsFromFile(path); err != nil {
+				return node.MembershipCredentials{}, fmt.Errorf("could not read membership credentials file: %w", err)
 			} else {
-				return &keyPair.IDKey, &keyPair.IDCommitment, index, nil
+				if (bytes.Equal(credentials.Contract.Bytes(), common.Address{}.Bytes())) {
+					credentials.Contract = options.MembershipContractAddress
+				}
+				return credentials, nil
 			}
 		}
 	}
 
+	var keypair *rln.MembershipKeyPair
 	if valuesWereInput || os.IsNotExist(osErr) {
-		if rlnIDKey != "" {
-			idKey = new(rln.IDKey)
-			copy((*idKey)[:], common.FromHex(rlnIDKey))
+		if options.IDKey != "" && options.IDCommitment != "" {
+			keypair = new(rln.MembershipKeyPair)
+			copy((keypair.IDKey)[:], common.FromHex(options.IDKey))
+			copy((keypair.IDCommitment)[:], common.FromHex(options.IDCommitment))
 		}
 
-		if rlnIDCommitment != "" {
-			idCommitment = new(rln.IDCommitment)
-			copy((*idCommitment)[:], common.FromHex(rlnIDCommitment))
-		}
-
-		return idKey, idCommitment, rln.MembershipIndex(rlnMembershipIndex), nil
+		return node.MembershipCredentials{
+			Keypair:  keypair,
+			Index:    uint(options.MembershipIndex),
+			Contract: options.MembershipContractAddress,
+		}, nil
 	}
 
-	return nil, nil, rln.MembershipIndex(0), fmt.Errorf("could not read membership credentials file: %w", err)
+	return node.MembershipCredentials{}, fmt.Errorf("could not read membership credentials file: %w", err)
 }

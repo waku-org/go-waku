@@ -28,7 +28,7 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 				ethPrivKey = options.RLNRelay.ETHPrivateKey
 			}
 
-			loaded, idKey, idCommitment, membershipIndex, err := getMembershipCredentials(logger, options)
+			loaded, membershipCredentials, err := getMembershipCredentials(logger, options)
 			failOnErr(err, "Invalid membership credentials")
 
 			loadedCredentialsFromFile = loaded
@@ -36,13 +36,10 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
-				membershipIndex,
-				idKey,
-				idCommitment,
+				membershipCredentials,
 				nil,
 				options.RLNRelay.ETHClientAddress,
 				ethPrivKey,
-				options.RLNRelay.MembershipContractAddress,
 				nil,
 			))
 		}
@@ -51,7 +48,7 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 
 func onStartRLN(wakuNode *node.WakuNode, options Options) {
 	if options.RLNRelay.Enable && options.RLNRelay.Dynamic && !loadedCredentialsFromFile && options.RLNRelay.CredentialsPath != "" {
-		err := writeRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), options.RLNRelay.CredentialsPath, []byte(options.KeyPasswd), options.Overwrite)
+		err := writeRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress(), options.RLNRelay.CredentialsPath, []byte(options.KeyPasswd), options.Overwrite)
 		failOnErr(err, "Could not write membership credentials file")
 	}
 }

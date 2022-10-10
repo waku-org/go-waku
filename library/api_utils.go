@@ -21,7 +21,7 @@ func waku_utils_base64_decode(data *C.char) *C.char {
 		return C.CString(mobile.MakeJSONResponse(err))
 	}
 
-	return prepareJSONResponse(string(b), nil)
+	return C.CString(mobile.PrepareJSONResponse(string(b), nil))
 }
 
 // Encode data to base64 (useful for creating the payload of a waku message in the

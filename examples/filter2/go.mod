@@ -127,7 +127,7 @@ require (
 	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e // indirect
 	github.com/status-im/go-rln v0.0.9 // indirect
 	github.com/status-im/go-waku-rendezvous v0.0.0-20220817210730-9b9b02b1e880 // indirect
-	github.com/status-im/go-zerokit-rln v0.1.4 // indirect
+	github.com/status-im/go-zerokit-rln v0.1.5 // indirect
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 // indirect
 	github.com/status-im/status-go/extkeys v1.1.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect

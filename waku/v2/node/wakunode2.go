@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
@@ -49,13 +50,14 @@ type Peer struct {
 type storeFactory func(w *WakuNode) store.Store
 
 type MembershipKeyPair = struct {
-	IDKey        [32]byte
-	IDCommitment [32]byte
+	IDKey        [32]byte `json:"idKey"`
+	IDCommitment [32]byte `json:"idCommitment"`
 }
 
 type RLNRelay interface {
-	MembershipKeyPair() MembershipKeyPair
+	MembershipKeyPair() *MembershipKeyPair
 	MembershipIndex() uint
+	MembershipContractAddress() common.Address
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
 	Stop()
 }
