@@ -16,7 +16,7 @@ func wakuMessage(messageJSON string) (pb.WakuMessage, error) {
 	return msg, err
 }
 
-func wakuMessageSymmetricEncoding(messageJSON string, publicKey string, optionalSigningKey string) (pb.WakuMessage, error) {
+func wakuMessageSymmetricEncoding(messageJSON string, symmetricKey string, optionalSigningKey string) (pb.WakuMessage, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return msg, err
@@ -25,19 +25,16 @@ func wakuMessageSymmetricEncoding(messageJSON string, publicKey string, optional
 	payload := node.Payload{
 		Data: msg.Payload,
 		Key: &node.KeyInfo{
-			Kind: node.Asymmetric,
+			Kind: node.Symmetric,
 		},
 	}
 
-	keyBytes, err := utils.DecodeHexString(publicKey)
+	keyBytes, err := utils.DecodeHexString(symmetricKey)
 	if err != nil {
 		return msg, err
 	}
 
-	payload.Key.PubKey, err = unmarshalPubkey(keyBytes)
-	if err != nil {
-		return msg, err
-	}
+	payload.Key.SymKey = keyBytes
 
 	if optionalSigningKey != "" {
 		signingKeyBytes, err := utils.DecodeHexString(optionalSigningKey)
