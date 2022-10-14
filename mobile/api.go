@@ -335,6 +335,19 @@ func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {
 	return ecdsa.PublicKey{Curve: secp256k1.S256(), X: x, Y: y}, nil
 }
 
+func extractPubKeyAndSignature(payload *node.DecodedPayload) (pubkey string, signature string) {
+	pkBytes := crypto.FromECDSAPub(payload.PubKey)
+	if len(pkBytes) != 0 {
+		pubkey = hexutil.Encode(pkBytes)
+	}
+
+	if len(payload.Signature) != 0 {
+		signature = hexutil.Encode(payload.Signature)
+	}
+
+	return
+}
+
 func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
@@ -362,14 +375,16 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 		return MakeJSONResponse(err)
 	}
 
+	pubkey, signature := extractPubKeyAndSignature(payload)
+
 	response := struct {
-		PubKey    string `json:"pubkey"`
-		Signature string `json:"signature"`
+		PubKey    string `json:"pubkey,omitempty"`
+		Signature string `json:"signature,omitempty"`
 		Data      []byte `json:"data"`
 		Padding   []byte `json:"padding"`
 	}{
-		PubKey:    hexutil.Encode(crypto.FromECDSAPub(payload.PubKey)),
-		Signature: hexutil.Encode(payload.Signature),
+		PubKey:    pubkey,
+		Signature: signature,
 		Data:      payload.Data,
 		Padding:   payload.Padding,
 	}
@@ -409,14 +424,16 @@ func DecodeAsymmetric(messageJSON string, privateKey string) string {
 		return MakeJSONResponse(err)
 	}
 
+	pubkey, signature := extractPubKeyAndSignature(payload)
+
 	response := struct {
-		PubKey    string `json:"pubkey"`
-		Signature string `json:"signature"`
+		PubKey    string `json:"pubkey,omitempty"`
+		Signature string `json:"signature,omitempty"`
 		Data      []byte `json:"data"`
 		Padding   []byte `json:"padding"`
 	}{
-		PubKey:    hexutil.Encode(crypto.FromECDSAPub(payload.PubKey)),
-		Signature: hexutil.Encode(payload.Signature),
+		PubKey:    pubkey,
+		Signature: signature,
 		Data:      payload.Data,
 		Padding:   payload.Padding,
 	}
