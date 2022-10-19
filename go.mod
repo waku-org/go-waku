@@ -31,7 +31,7 @@ require (
 	github.com/status-im/go-waku-rendezvous v0.0.0-20220817210730-9b9b02b1e880
 	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a
-	github.com/urfave/cli/v2 v2.11.2
+	github.com/urfave/cli/v2 v2.20.2
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.22.0
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29

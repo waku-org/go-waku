@@ -40,17 +40,17 @@ func rlnFlags() []cli.Flag {
 			Destination: &options.RLNRelay.Dynamic,
 		},
 		&cli.StringFlag{
-			Name:        "rln-relay-id",
+			Name:        "rln-relay-id-key",
 			Usage:       "Rln relay identity secret key as a Hex string",
 			Destination: &options.RLNRelay.IDKey,
 		},
 		&cli.StringFlag{
-			Name:        "rln-relay-id-commitment",
+			Name:        "rln-relay-id-commitment-key",
 			Usage:       "Rln relay identity commitment key as a Hex string",
 			Destination: &options.RLNRelay.IDCommitment,
 		},
 		&cli.PathFlag{
-			Name:        "rln-relay-membership-credentials-file",
+			Name:        "rln-relay-cred-path",
 			Usage:       "RLN relay membership credentials file",
 			Value:       "",
 			Destination: &options.RLNRelay.CredentialsPath,
@@ -58,20 +58,20 @@ func rlnFlags() []cli.Flag {
 		// TODO: this is a good candidate option for subcommands
 		// TODO: consider accepting a private key file and passwd
 		&cli.GenericFlag{
-			Name:  "eth-private-key",
+			Name:  "rln-relay-eth-account-private-key",
 			Usage: "Ethereum  account private key used for registering in member contract",
 			Value: &wcli.PrivateKeyValue{
 				Value: &options.RLNRelay.ETHPrivateKey,
 			},
 		},
 		&cli.StringFlag{
-			Name:        "eth-client-address",
+			Name:        "rln-relay-eth-client-address",
 			Usage:       "Ethereum testnet client address",
 			Value:       "ws://localhost:8545",
 			Destination: &options.RLNRelay.ETHClientAddress,
 		},
 		&cli.GenericFlag{
-			Name:  "eth-mem-contract-address",
+			Name:  "rln-relay-eth-contract-address",
 			Usage: "Address of membership contract ",
 			Value: &wcli.AddressValue{
 				Value: &options.RLNRelay.MembershipContractAddress,

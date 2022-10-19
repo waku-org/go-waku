@@ -34,6 +34,20 @@ func getFlags() []cli.Flag {
 	options.Fleet = fleetProd
 
 	return []cli.Flag{
+		&cli.GenericFlag{
+			Name:  "nodekey",
+			Usage: "P2P node private key as hex. (default random)",
+			Value: &wcli.PrivateKeyValue{
+				Value: &options.NodeKey,
+			},
+		},
+		&cli.StringFlag{
+			Name:        "listen-address",
+			Aliases:     []string{"host", "address"},
+			Value:       "0.0.0.0",
+			Usage:       "Listening address",
+			Destination: &options.Address,
+		},
 		&cli.IntFlag{
 			Name:        "tcp-port",
 			Aliases:     []string{"port", "p"},
@@ -41,19 +55,11 @@ func getFlags() []cli.Flag {
 			Usage:       "Libp2p TCP listening port (0 for random)",
 			Destination: &options.Port,
 		},
-		&cli.StringFlag{
-			Name:        "address",
-			Aliases:     []string{"host", "listen-address"},
-			Value:       "0.0.0.0",
-			Usage:       "Listening address",
-			Destination: &options.Address,
-		},
-		&cli.GenericFlag{
-			Name:  "nodekey",
-			Usage: "P2P node private key as hex. (default random)",
-			Value: &wcli.PrivateKeyValue{
-				Value: &options.NodeKey,
-			},
+		&cli.IntFlag{
+			Name:        "udp-port",
+			Value:       60000,
+			Usage:       "Listening UDP port for Node Discovery v5.",
+			Destination: &options.DiscV5.Port,
 		},
 		&cli.StringFlag{
 			Name:        "content-topic",
@@ -82,7 +88,6 @@ func getFlags() []cli.Flag {
 			Destination: &options.Nickname,
 			Value:       "Anonymous",
 		},
-
 		&cli.BoolFlag{
 			Name:        "relay",
 			Value:       true,
@@ -147,12 +152,6 @@ func getFlags() []cli.Flag {
 			Usage:       "Text-encoded ENR for bootstrap node. Used when connecting to the network. Option may be repeated",
 			Destination: &options.DiscV5.Nodes,
 		},
-		&cli.IntFlag{
-			Name:        "discv5-udp-port",
-			Value:       9000,
-			Usage:       "Listening UDP port for Node Discovery v5.",
-			Destination: &options.DiscV5.Port,
-		},
 		&cli.BoolFlag{
 			Name:        "discv5-enr-auto-update",
 			Usage:       "Discovery can automatically update its ENR with the IP address as seen by other nodes it communicates with.",
@@ -204,12 +203,12 @@ func getFlags() []cli.Flag {
 			Destination: &options.RLNRelay.Dynamic,
 		},
 		&cli.StringFlag{
-			Name:        "rln-relay-id",
+			Name:        "rln-relay-id-key",
 			Usage:       "Rln relay identity secret key as a Hex string",
 			Destination: &options.RLNRelay.IDKey,
 		},
 		&cli.StringFlag{
-			Name:        "rln-relay-id-commitment",
+			Name:        "rln-relay-id-commitment-key",
 			Usage:       "Rln relay identity commitment key as a Hex string",
 			Destination: &options.RLNRelay.IDCommitment,
 		},
@@ -222,20 +221,20 @@ func getFlags() []cli.Flag {
 		// TODO: this is a good candidate option for subcommands
 		// TODO: consider accepting a private key file and passwd
 		&cli.GenericFlag{
-			Name:  "eth-account-privatekey",
+			Name:  "rln-relay-eth-account-private-key",
 			Usage: "Ethereum Goerli testnet account private key used for registering in member contract",
 			Value: &wcli.PrivateKeyValue{
 				Value: &options.RLNRelay.ETHPrivateKey,
 			},
 		},
 		&cli.StringFlag{
-			Name:        "eth-client-address",
+			Name:        "rln-relay-eth-client-address",
 			Usage:       "Ethereum testnet client address",
 			Value:       "ws://localhost:8545",
 			Destination: &options.RLNRelay.ETHClientAddress,
 		},
 		&cli.GenericFlag{
-			Name:  "eth-mem-contract-address",
+			Name:  "rln-relay-eth-contract-address",
 			Usage: "Address of membership contract on an Ethereum testnet",
 			Value: &wcli.AddressValue{
 				Value: &options.RLNRelay.MembershipContractAddress,
