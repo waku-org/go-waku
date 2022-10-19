@@ -56,25 +56,25 @@ make chat2
 Run the following command to set up your chat2 client. 
 
 ```
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --eth-mem-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --eth-account-privatekey=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --eth-client-address=xxxx  
+./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --rln-relay-eth-client-address=xxxx  
 ```
 
 In this command
-- the `--fleet:test` indicates that the chat2 app gets connected to the test fleets.
-- the `toy-chat/2/luzhou/proto` passed to the `content-topic` option indicates the content topic on which the chat2 application is going to run.
-- the `rln-relay` flag is set to `true` to enable the Waku-RLN-Relay protocol for spam protection.
+- the `--fleet=test` indicates that the chat2 app gets connected to the test fleets.
+- the `toy-chat/2/luzhou/proto` passed to the `--content-topic` option indicates the content topic on which the chat2 application is going to run.
+- the `--rln-relay` flag is set to `true` to enable the Waku-RLN-Relay protocol for spam protection.
 - the `--rln-relay-dynamic` flag is set to `true`  to enable the on-chain mode of  Waku-RLN-Relay protocol with dynamic group management.
-- the `--eth-mem-contract-address` option gets the address of the membership contract.
+- the `--rln-relay-eth-contract-address` option gets the address of the membership contract.
   The current address of the contract is `0x4252105670fe33d2947e8ead304969849e64f2a6`.
   You may check the state of the contract on the [Goerli testnet](https://goerli.etherscan.io/address/0x4252105670fe33d2947e8ead304969849e64f2a6).
-- the `eth-account-privatekey` option is for your account private key on the Goerli testnet. 
+- the `--rln-relay-eth-account-private-key` option is for your account private key on the Goerli testnet. 
   It is made up of 64 hex characters (not sensitive to the `0x` prefix).
-- the `eth-client-address` should be assigned with the address of a websocket endpoint of the hosted node on the Goerli testnet. 
+- the `--rln-relay-eth-client-address` should be assigned with the address of a websocket endpoint of the hosted node on the Goerli testnet. 
   You need to replace the `xxxx` with the actual node's websocket endpoint.
 
-For the last two config options i.e., `eth-account-privatekey`, and `eth-client-address`,  if you do not know how to obtain those, you may use the following tutorial on the [prerequisites of running on-chain spam-protected chat2](https://github.com/status-im/nwaku/blob/master/docs/tutorial/pre-requisites-of-running-on-chain-spam-protected-chat2.md).
+For the last two config options i.e., `--rln-relay-eth-account-private-key`, and `--rln-relay-eth-client-address`,  if you do not know how to obtain those, you may use the following tutorial on the [prerequisites of running on-chain spam-protected chat2](https://github.com/status-im/nwaku/blob/master/docs/tutorial/pre-requisites-of-running-on-chain-spam-protected-chat2.md).
 
-> You may set up more than one chat client, using the `--rln-relay-membership-credentials-file` flag, specifying in each client a different path to store the credentials.
+> You may set up more than one chat client, using the `--rln-relay-cred-path` flag, specifying in each client a different path to store the credentials.
 
 Once you run the command, you will see the following message:
 ```
@@ -155,7 +155,7 @@ Bye!
 
 ## How to reuse RLN credential
 
-You may reuse your old RLN credential using `rln-relay-membership-index`, `rln-relay-id` and `rln-relay-id-commitment` options. 
+You may reuse your old RLN credential using `--rln-relay-membership-index`, `--rln-relay-id` and `--rln-relay-id-commitment` options. 
 For instance, if the previously generated credential are
 ```
 INFO: RLN config:
@@ -165,13 +165,13 @@ INFO: RLN config:
 ```
 Then, the execution command will look like this (inspect the last three config options):
 ```
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --eth-mem-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --eth-account-privatekey=your_eth_private_key  --eth-client-address=your_goerli_node --rln-relay-membership-index=63 --rln-relay-id=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --rln-relay-id-commitment:6c6598126ba10d1b70100893b76d7f8d7343eeb8f5ecfd48371b421c5aa6f012
+./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=your_eth_private_key  --rln-relay-eth-client-address=your_goerli_node --rln-relay-membership-index=63 --rln-relay-id=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --rln-relay-id-commitment:6c6598126ba10d1b70100893b76d7f8d7343eeb8f5ecfd48371b421c5aa6f012
 
 ```
 
 # Sample test output
 In this section, a sample test of running two chat clients is provided.
-Note that the values used for `eth-account-privatekey`, and `eth-client-address` in the following code snippets are junk and not valid.
+Note that the values used for `--rln-relay-eth-account-private-key`, and `--rln-relay-eth-client-address` in the following code snippets are junk and not valid.
 
 The two chat clients namely `Alice` and `Bob` are connected to the test fleets.
 `Alice` sends 4 messages i.e., `message1`, `message2`, `message3`, and `message4`.
@@ -182,7 +182,7 @@ You can check this fact by looking at `Bob`'s console, where `message3` is missi
 
 **Alice**
 ``` 
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --eth-mem-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --eth-account-privatekey=your_eth_private_key --eth-client-address=your_goerli_node --rln-relay-membership-credentials-file=rlnCredentialsAlice.txt --nickname=Alice
+./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=your_eth_private_key --rln-relay-eth-client-address=your_goerli_node --rln-relay-cred-path=./path/to/alice/folder --nickname=Alice
 
 Seting up dynamic rln
 INFO: Welcome, Alice!
@@ -230,7 +230,7 @@ INFO RLN Epoch: 165886593
 
 **Bob**
 ``` 
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --eth-mem-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --eth-account-privatekey=your_eth_private_key --eth-client-address=your_goerli_node --rln-relay-membership-credentials-file=rlnCredentialsBob.txt --nickname=Bob
+./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=your_eth_private_key --rln-relay-eth-client-address=your_goerli_node --rln-relay-cred-path=./path/to/bob/folder --nickname=Bob
 
 Seting up dynamic rln
 INFO: Welcome, Bob!
