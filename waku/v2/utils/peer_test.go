@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/status-im/go-waku/tests"
 	"github.com/stretchr/testify/require"
 )

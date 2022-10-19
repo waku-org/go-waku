@@ -11,15 +11,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/multiformats/go-multiaddr"
-	ma "github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 )
 
 // GetHostAddress returns the first listen address used by a host
-func GetHostAddress(ha host.Host) ma.Multiaddr {
+func GetHostAddress(ha host.Host) multiaddr.Multiaddr {
 	return ha.Addrs()[0]
 }
 
