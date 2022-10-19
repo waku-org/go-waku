@@ -4,7 +4,7 @@ A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v
 <p align="left">
   <a href="https://goreportcard.com/report/github.com/status-im/go-waku"><img src="https://goreportcard.com/badge/github.com/status-im/go-waku" /></a>
   <a href="https://godoc.org/github.com/status-im/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
-  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.17.0-orange.svg?style=flat-square" /></a>
+  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.18.0-orange.svg?style=flat-square" /></a>
   <a href="https://lgtm.com/projects/g/status-im/go-waku/alerts/"><img alt="Total alerts" src="https://img.shields.io/lgtm/alerts/g/status-im/go-waku.svg?logo=lgtm&logoWidth=18"/></a> 
   <a href="https://codeclimate.com/github/status-im/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/25b76a20113236b175d8/maintainability" /></a>
   <br>
@@ -80,7 +80,7 @@ Thank you for considering to help out with the source code! We welcome contribut
 If you'd like to contribute to go-waku, please fork, fix, commit and send a pull request. If you wish to submit more complex changes though, please check up with the core devs first to ensure those changes are in line with the general philosophy of the project and/or get some early feedback which can make both your efforts much lighter as well as our review and merge procedures quick and simple.
 
 To build and test this repository, you need:
-  - [Go](https://golang.org/) (version 1.15 or later)
+  - [Go](https://golang.org/) (version 1.17 or later)
   - [protoc](https://grpc.io/docs/protoc-installation/) 
   - [Protocol Buffers for Go with Gadgets](https://github.com/gogo/protobuf)
 

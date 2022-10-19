@@ -4,7 +4,6 @@
 // implementation purposely does as little as possible at field creation time,
 // and postpones any transformation to output time by relying on the generic
 // zap types like zap.Stringer, zap.Array, zap.Object
-//
 package logging
 
 import (
@@ -13,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"go.uber.org/zap"

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/status-im/go-waku/tests"
 	v2 "github.com/status-im/go-waku/waku/v2"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
@@ -47,7 +47,7 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 // Node1: Filter subscribed to content topic A
 // Node2: Relay + Filter
 //
-// Node1 and Node2 are peers
+// # Node1 and Node2 are peers
 //
 // Node2 send a successful message with topic A
 // Node1 receive the message
