@@ -103,16 +103,9 @@ func getMembershipCredentials(logger *zap.Logger, options Options) (fromFile boo
 		}
 	}
 
-	var keypair *rln.MembershipKeyPair
 	if os.IsNotExist(err) {
-		if options.RLNRelay.IDKey != "" && options.RLNRelay.IDCommitment != "" {
-			keypair = new(rln.MembershipKeyPair)
-			copy((keypair.IDKey)[:], common.FromHex(options.RLNRelay.IDKey))
-			copy((keypair.IDCommitment)[:], common.FromHex(options.RLNRelay.IDCommitment))
-		}
-
 		return false, node.MembershipCredentials{
-			Keypair:  keypair,
+			Keypair:  nil,
 			Index:    uint(options.RLNRelay.MembershipIndex),
 			Contract: options.RLNRelay.MembershipContractAddress,
 		}, nil

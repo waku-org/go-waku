@@ -202,16 +202,6 @@ func getFlags() []cli.Flag {
 			Usage:       "Enable waku-rln-relay with on-chain dynamic group management",
 			Destination: &options.RLNRelay.Dynamic,
 		},
-		&cli.StringFlag{
-			Name:        "rln-relay-id-key",
-			Usage:       "Rln relay identity secret key as a Hex string",
-			Destination: &options.RLNRelay.IDKey,
-		},
-		&cli.StringFlag{
-			Name:        "rln-relay-id-commitment-key",
-			Usage:       "Rln relay identity commitment key as a Hex string",
-			Destination: &options.RLNRelay.IDCommitment,
-		},
 		&cli.PathFlag{
 			Name:        "rln-relay-cred-path",
 			Usage:       "The path for persisting rln-relay credential",

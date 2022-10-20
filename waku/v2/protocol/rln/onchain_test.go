@@ -114,7 +114,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 		RLN:                       rlnInstance,
 		log:                       utils.Logger(),
 		nullifierLog:              make(map[r.Epoch][]r.ProofMetadata),
-		membershipKeyPair:         *keyPair,
+		membershipKeyPair:         keyPair,
 	}
 
 	// generate another membership key pair
@@ -190,7 +190,7 @@ func (s *WakuRLNRelayDynamicSuite) TestRegistrationProcedure() {
 		RLN:                       rlnInstance,
 		log:                       utils.Logger(),
 		nullifierLog:              make(map[r.Epoch][]r.ProofMetadata),
-		membershipKeyPair:         *keyPair,
+		membershipKeyPair:         keyPair,
 	}
 
 	_, err = rlnPeer.Register(context.TODO())
