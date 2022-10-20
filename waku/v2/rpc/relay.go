@@ -18,6 +18,7 @@ type RelayService struct {
 	log *zap.Logger
 
 	messages      map[string][]*pb.WakuMessage
+	cacheCapacity int
 	messagesMutex sync.RWMutex
 
 	runner *runnerService
@@ -36,11 +37,12 @@ type TopicArgs struct {
 	Topic string `json:"topic,omitempty"`
 }
 
-func NewRelayService(node *node.WakuNode, log *zap.Logger) *RelayService {
+func NewRelayService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *RelayService {
 	s := &RelayService{
-		node:     node,
-		log:      log.Named("relay"),
-		messages: make(map[string][]*pb.WakuMessage),
+		node:          node,
+		cacheCapacity: cacheCapacity,
+		log:           log.Named("relay"),
+		messages:      make(map[string][]*pb.WakuMessage),
 	}
 
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
@@ -54,6 +56,11 @@ func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
 
 	if _, ok := r.messages[envelope.PubsubTopic()]; !ok {
 		return
+	}
+
+	// Keep a specific max number of messages per topic
+	if len(r.messages[envelope.PubsubTopic()]) >= r.cacheCapacity {
+		r.messages[envelope.PubsubTopic()] = r.messages[envelope.PubsubTopic()][1:]
 	}
 
 	r.messages[envelope.PubsubTopic()] = append(r.messages[envelope.PubsubTopic()], envelope.Message())

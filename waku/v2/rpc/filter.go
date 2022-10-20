@@ -17,6 +17,7 @@ type FilterService struct {
 	log  *zap.Logger
 
 	messages      map[string][]*pb.WakuMessage
+	cacheCapacity int
 	messagesMutex sync.RWMutex
 
 	runner *runnerService
@@ -31,11 +32,12 @@ type ContentTopicArgs struct {
 	ContentTopic string `json:"contentTopic,omitempty"`
 }
 
-func NewFilterService(node *node.WakuNode, log *zap.Logger) *FilterService {
+func NewFilterService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *FilterService {
 	s := &FilterService{
-		node:     node,
-		log:      log.Named("filter"),
-		messages: make(map[string][]*pb.WakuMessage),
+		node:          node,
+		log:           log.Named("filter"),
+		cacheCapacity: cacheCapacity,
+		messages:      make(map[string][]*pb.WakuMessage),
 	}
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
 	return s
@@ -60,6 +62,11 @@ func (f *FilterService) addEnvelope(envelope *protocol.Envelope) {
 	contentTopic := envelope.Message().ContentTopic
 	if _, ok := f.messages[contentTopic]; !ok {
 		return
+	}
+
+	// Keep a specific max number of messages per topic
+	if len(f.messages[envelope.PubsubTopic()]) >= f.cacheCapacity {
+		f.messages[envelope.PubsubTopic()] = f.messages[envelope.PubsubTopic()][1:]
 	}
 
 	f.messages[contentTopic] = append(f.messages[contentTopic], envelope.Message())
