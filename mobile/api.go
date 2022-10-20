@@ -14,6 +14,8 @@ import (
 	"net"
 	"time"
 
+	logging "github.com/ipfs/go-log"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
@@ -43,6 +45,7 @@ type wakuConfig struct {
 	Port              *int    `json:"port,omitempty"`
 	AdvertiseAddress  *string `json:"advertiseAddr,omitempty"`
 	NodeKey           *string `json:"nodeKey,omitempty"`
+	LogLevel          *string `json:"logLevel,omitempty"`
 	KeepAliveInterval *int    `json:"keepAliveInterval,omitempty"`
 	EnableRelay       *bool   `json:"relay"`
 	EnableFilter      *bool   `json:"filter"`
@@ -55,6 +58,7 @@ var defaultKeepAliveInterval = 20
 var defaultEnableRelay = true
 var defaultMinPeersToPublish = 0
 var defaultEnableFilter = false
+var defaultLogLevel = "INFO"
 
 func getConfig(configJSON string) (wakuConfig, error) {
 	var config wakuConfig
@@ -91,6 +95,10 @@ func getConfig(configJSON string) (wakuConfig, error) {
 
 	if config.MinPeersToPublish == nil {
 		config.MinPeersToPublish = &defaultMinPeersToPublish
+	}
+
+	if config.LogLevel == nil {
+		config.LogLevel = &defaultLogLevel
 	}
 
 	return config, nil
@@ -140,6 +148,19 @@ func NewNode(configJSON string) string {
 
 	if *config.EnableFilter {
 		opts = append(opts, node.WithWakuFilter(false))
+	}
+
+	// for go-libp2p loggers
+	lvl, err := logging.LevelFromString(*config.LogLevel)
+	if err != nil {
+		return MakeJSONResponse(err)
+	}
+	logging.SetAllLoggers(lvl)
+
+	// go-waku logger
+	err = utils.SetLogLevel(*config.LogLevel)
+	if err != nil {
+		return MakeJSONResponse(err)
 	}
 
 	ctx := context.Background()
