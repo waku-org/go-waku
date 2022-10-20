@@ -1018,6 +1018,38 @@ An `error` message otherwise.
 }
 ```
 
+## DNS Discovery
+
+### `extern char* waku_dns_discovery(char* url, char* nameserver, int timeoutMs)`
+Returns a list of multiaddress given a url to a DNS discoverable ENR tree
+
+**Parameters**
+
+1. `char* url`: URL containing a discoverable ENR tree
+2. `char* nameserver`: The nameserver to resolve the ENR tree url. 
+   If `NULL` or empty, it will automatically use the default system dns.
+3. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field contains an array with multiaddresses.
+An `error` message otherwise.
+
+```json
+{
+  "result": [
+    "/ip4/134.209.139.210/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ",
+    "/ip4/104.154.239.128/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS",
+    "/ip4/47.242.210.73/tcp/30303/p2p/16Uiu2HAkvWiyFsgRhuJEb9JfjYxEkoHLgnUQmr1N5mKWnYjxYRVm"
+  ]
+}
+```
+
+
 ## Utils
 
 ### `extern char* waku_utils_base64_encode(char* data)`
