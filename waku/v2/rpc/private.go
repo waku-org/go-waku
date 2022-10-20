@@ -23,6 +23,7 @@ type PrivateService struct {
 	log  *zap.Logger
 
 	messages      map[string][]*pb.WakuMessage
+	cacheCapacity int
 	messagesMutex sync.RWMutex
 
 	runner *runnerService
@@ -57,11 +58,12 @@ type AsymmetricMessagesArgs struct {
 	PrivateKey string `json:"privateKey"`
 }
 
-func NewPrivateService(node *node.WakuNode, log *zap.Logger) *PrivateService {
+func NewPrivateService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *PrivateService {
 	p := &PrivateService{
-		node:     node,
-		messages: make(map[string][]*pb.WakuMessage),
-		log:      log.Named("private"),
+		node:          node,
+		cacheCapacity: cacheCapacity,
+		messages:      make(map[string][]*pb.WakuMessage),
+		log:           log.Named("private"),
 	}
 	p.runner = newRunnerService(node.Broadcaster(), p.addEnvelope)
 
@@ -73,6 +75,11 @@ func (p *PrivateService) addEnvelope(envelope *protocol.Envelope) {
 	defer p.messagesMutex.Unlock()
 	if _, ok := p.messages[envelope.PubsubTopic()]; !ok {
 		p.messages[envelope.PubsubTopic()] = make([]*pb.WakuMessage, 0)
+	}
+
+	// Keep a specific max number of messages per topic
+	if len(p.messages[envelope.PubsubTopic()]) >= p.cacheCapacity {
+		p.messages[envelope.PubsubTopic()] = p.messages[envelope.PubsubTopic()][1:]
 	}
 
 	p.messages[envelope.PubsubTopic()] = append(p.messages[envelope.PubsubTopic()], envelope.Message())
