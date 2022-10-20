@@ -19,7 +19,7 @@ func makeRelayService(t *testing.T) *RelayService {
 	err = n.Start()
 	require.NoError(t, err)
 
-	return NewRelayService(n, utils.Logger())
+	return NewRelayService(n, 30, utils.Logger())
 }
 
 func TestPostV1Message(t *testing.T) {

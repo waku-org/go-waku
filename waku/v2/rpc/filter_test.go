@@ -29,7 +29,7 @@ func makeFilterService(t *testing.T) *FilterService {
 	_, err = n.Relay().SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	return NewFilterService(n, utils.Logger())
+	return NewFilterService(n, 30, utils.Logger())
 }
 
 func TestFilterSubscription(t *testing.T) {

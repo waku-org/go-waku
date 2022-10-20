@@ -24,7 +24,7 @@ type WakuRpc struct {
 	adminService   *AdminService
 }
 
-func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, log *zap.Logger) *WakuRpc {
+func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, cacheCapacity int, log *zap.Logger) *WakuRpc {
 	wrpc := new(WakuRpc)
 	wrpc.log = log.Named("rpc")
 
@@ -45,7 +45,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		wrpc.log.Error("registering debug service", zap.Error(err))
 	}
 
-	relayService := NewRelayService(node, log)
+	relayService := NewRelayService(node, cacheCapacity, log)
 	err = s.RegisterService(relayService, "Relay")
 	if err != nil {
 		wrpc.log.Error("registering relay service", zap.Error(err))
@@ -65,7 +65,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		wrpc.adminService = adminService
 	}
 
-	filterService := NewFilterService(node, log)
+	filterService := NewFilterService(node, cacheCapacity, log)
 	err = s.RegisterService(filterService, "Filter")
 	if err != nil {
 		wrpc.log.Error("registering filter service", zap.Error(err))

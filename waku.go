@@ -402,6 +402,12 @@ func main() {
 			Usage:       "Listening address of the rpc server",
 			Destination: &options.RPCServer.Address,
 		},
+		&cli.IntFlag{
+			Name:        "rpc-relay-cache-capacity",
+			Value:       30,
+			Usage:       "Capacity of the Relay REST API message cache",
+			Destination: &options.RPCServer.RelayCacheCapacity,
+		},
 		&cli.BoolFlag{
 			Name:        "rpc-admin",
 			Value:       false,
