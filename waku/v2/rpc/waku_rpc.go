@@ -72,7 +72,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 	}
 
 	if enablePrivate {
-		privateService := NewPrivateService(node, log)
+		privateService := NewPrivateService(node, cacheCapacity, log)
 		err = s.RegisterService(privateService, "Private")
 		if err != nil {
 			wrpc.log.Error("registering private service", zap.Error(err))
