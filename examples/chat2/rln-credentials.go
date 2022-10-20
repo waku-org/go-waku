@@ -70,11 +70,6 @@ func loadMembershipCredentialsFromFile(rlnCredentialsPath string) (node.Membersh
 }
 
 func getMembershipCredentials(options RLNRelayOptions) (credentials node.MembershipCredentials, err error) {
-	valuesWereInput := false
-	if options.IDKey != "" || options.IDCommitment != "" {
-		valuesWereInput = true
-	}
-
 	path := options.CredentialsPath
 
 	if path == "" {
@@ -83,31 +78,21 @@ func getMembershipCredentials(options RLNRelayOptions) (credentials node.Members
 		}, nil
 	}
 
-	var osErr error
-	if !valuesWereInput {
-		path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
-		if _, osErr = os.Stat(path); osErr == nil {
-			if credentials, err := loadMembershipCredentialsFromFile(path); err != nil {
-				return node.MembershipCredentials{}, fmt.Errorf("could not read membership credentials file: %w", err)
-			} else {
-				if (bytes.Equal(credentials.Contract.Bytes(), common.Address{}.Bytes())) {
-					credentials.Contract = options.MembershipContractAddress
-				}
-				return credentials, nil
+	path = filepath.Join(path, RLN_CREDENTIALS_FILENAME)
+	_, osErr := os.Stat(path)
+	if osErr == nil {
+		if credentials, err := loadMembershipCredentialsFromFile(path); err != nil {
+			return node.MembershipCredentials{}, fmt.Errorf("could not read membership credentials file: %w", err)
+		} else {
+			if (bytes.Equal(credentials.Contract.Bytes(), common.Address{}.Bytes())) {
+				credentials.Contract = options.MembershipContractAddress
 			}
+			return credentials, nil
 		}
 	}
 
-	var keypair *rln.MembershipKeyPair
-	if valuesWereInput || os.IsNotExist(osErr) {
-		if options.IDKey != "" && options.IDCommitment != "" {
-			keypair = new(rln.MembershipKeyPair)
-			copy((keypair.IDKey)[:], common.FromHex(options.IDKey))
-			copy((keypair.IDCommitment)[:], common.FromHex(options.IDCommitment))
-		}
-
+	if os.IsNotExist(osErr) {
 		return node.MembershipCredentials{
-			Keypair:  keypair,
 			Index:    uint(options.MembershipIndex),
 			Contract: options.MembershipContractAddress,
 		}, nil

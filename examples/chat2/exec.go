@@ -114,13 +114,10 @@ func execute(options Options) {
 	}
 
 	if options.RLNRelay.Enable && options.RLNRelay.Dynamic {
-		if options.RLNRelay.IDKey == "" && options.RLNRelay.IDCommitment == "" {
-			// Write membership credentials file only if the idkey and commitment are not specified
-			err := writeRLNMembershipCredentialsToFile(options.RLNRelay.CredentialsPath, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress())
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+		err := writeRLNMembershipCredentialsToFile(options.RLNRelay.CredentialsPath, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress())
+		if err != nil {
+			fmt.Println(err.Error())
+			return
 		}
 	}
 
