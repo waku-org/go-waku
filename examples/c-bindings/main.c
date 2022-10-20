@@ -86,6 +86,14 @@ int main(int argc, char *argv[])
   if (isError(response))
     return 1;
 
+
+  /*
+  // To use dns discovery, and retrieve nodes from a enrtree url
+  response = waku_dns_discovery("enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im", "", 0); // Discover Nodes
+  if (isError(response))
+    return 1;
+  printf("Discovered nodes: %s\n", response);
+  */
   
   /*
   // To see a store query in action:
