@@ -385,7 +385,7 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 	response, err := c.node.Store().Query(tCtx, q,
 		store.WithAutomaticRequestId(),
 		storeOpt,
-		store.WithPaging(true, 100))
+		store.WithPaging(false, 100))
 
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("could not query storenode: %w", err))
