@@ -34,8 +34,7 @@ func writeRLNMembershipCredentialsToFile(keyPair *rln.MembershipKeyPair, idx rln
 	if err := checkForFileExistence(path, overwrite); err != nil {
 		return err
 	}
-	fmt.Println("AQUI 2")
-	fmt.Println(keyPair)
+
 	credentialsJSON, err := json.Marshal(node.MembershipCredentials{
 		Keypair:  keyPair,
 		Index:    idx,
