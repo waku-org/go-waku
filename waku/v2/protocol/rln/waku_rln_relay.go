@@ -49,8 +49,9 @@ type WakuRLNRelay struct {
 
 	RLN *r.RLN
 	// pubsubTopic is the topic for which rln relay is mounted
-	pubsubTopic  string
-	contentTopic string
+	pubsubTopic     string
+	contentTopic    string
+	lastIndexLoaded r.MembershipIndex
 
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
 	nullifierLogLock sync.RWMutex
