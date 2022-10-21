@@ -5,11 +5,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/status-im/go-waku/waku/v2/protocol/rln/contracts"
 	r "github.com/status-im/go-zerokit-rln/rln"
@@ -180,14 +182,18 @@ func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler Regis
 func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger, doneCh chan struct{}, errCh chan error) {
 	// Watch for new events
 	logSink := make(chan *contracts.RLNMemberRegistered)
-	subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink)
-	if err != nil {
-		if err == rpc.ErrNotificationsUnsupported {
-			err = errors.New("notifications not supported. The node must support websockets")
+
+	subs := event.Resubscribe(2*time.Second, func(ctx context.Context) (event.Subscription, error) {
+		subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink)
+		if err != nil {
+			if err == rpc.ErrNotificationsUnsupported {
+				err = errors.New("notifications not supported. The node must support websockets")
+			}
+			errCh <- err
+			subs.Unsubscribe()
 		}
-		errCh <- err
-		return
-	}
+		return subs, err
+	})
 	defer subs.Unsubscribe()
 
 	close(doneCh)
@@ -195,7 +201,7 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 	for {
 		select {
 		case evt := <-logSink:
-			err = processLogs(evt, handler)
+			err := processLogs(evt, handler)
 			if err != nil {
 				rln.log.Error("processing rln log", zap.Error(err))
 			}
