@@ -51,8 +51,9 @@ type WakuRLNRelay struct {
 
 	RLN *r.RLN
 	// pubsubTopic is the topic for which rln relay is mounted
-	pubsubTopic  string
-	contentTopic string
+	pubsubTopic     string
+	contentTopic    string
+	lastIndexLoaded r.MembershipIndex
 
 	validMerkleRoots []r.MerkleNode
 

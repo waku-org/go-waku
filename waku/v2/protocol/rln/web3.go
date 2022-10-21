@@ -107,7 +107,7 @@ func (rln *WakuRLNRelay) Register(ctx context.Context) (*r.MembershipIndex, erro
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
 type RegistrationEventHandler = func(pubkey r.IDCommitment, index r.MembershipIndex) error
 
-func processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) error {
+func (rln *WakuRLNRelay) processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) error {
 	if evt == nil {
 		return nil
 	}
@@ -115,7 +115,11 @@ func processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHa
 	var pubkey r.IDCommitment = r.Bytes32(evt.Pubkey.Bytes())
 
 	index := r.MembershipIndex(uint(evt.Index.Int64()))
+	if index <= rln.lastIndexLoaded {
+		return nil
+	}
 
+	rln.lastIndexLoaded = index
 	return handler(pubkey, index)
 }
 
@@ -171,7 +175,7 @@ func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler Regis
 			return logIterator.Error()
 		}
 
-		err = processLogs(logIterator.Event, handler)
+		err = rln.processLogs(logIterator.Event, handler)
 		if err != nil {
 			return err
 		}
@@ -192,6 +196,9 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 			errCh <- err
 			subs.Unsubscribe()
 		}
+
+		rln.log.Error("subscribing to rln events", zap.Error(err))
+
 		return subs, err
 	})
 	defer subs.Unsubscribe()
@@ -201,7 +208,7 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 	for {
 		select {
 		case evt := <-logSink:
-			err := processLogs(evt, handler)
+			err := rln.processLogs(evt, handler)
 			if err != nil {
 				rln.log.Error("processing rln log", zap.Error(err))
 			}
