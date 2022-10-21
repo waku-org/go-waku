@@ -36,13 +36,6 @@ func RlnRelayStatic(
 		return nil, err
 	}
 
-	// add members to the Merkle tree
-	for _, member := range group {
-		if err := rlnInstance.InsertMember(member); err != nil {
-			return nil, err
-		}
-	}
-
 	// create the WakuRLNRelay
 	rlnPeer := &WakuRLNRelay{
 		ctx:               ctx,
@@ -53,6 +46,20 @@ func RlnRelayStatic(
 		contentTopic:      contentTopic,
 		log:               log,
 		nullifierLog:      make(map[r.Epoch][]r.ProofMetadata),
+	}
+
+	root, err := rlnPeer.RLN.GetMerkleRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	rlnPeer.validMerkleRoots = append(rlnPeer.validMerkleRoots, root)
+
+	// add members to the Merkle tree
+	for _, member := range group {
+		if err := rlnPeer.insertMember(member); err != nil {
+			return nil, err
+		}
 	}
 
 	// adds a topic validator for the supplied pubsub topic at the relay protocol
@@ -106,6 +113,13 @@ func RlnRelayDynamic(
 		registrationHandler:       registrationHandler,
 	}
 
+	root, err := rlnPeer.RLN.GetMerkleRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	rlnPeer.validMerkleRoots = append(rlnPeer.validMerkleRoots, root)
+
 	// prepare rln membership key pair
 	if memKeyPair == nil && ethAccountPrivateKey != nil {
 		log.Debug("no rln-relay key is provided, generating one")
@@ -130,9 +144,7 @@ func RlnRelayDynamic(
 	}
 
 	handler := func(pubkey r.IDCommitment, index r.MembershipIndex) error {
-		log.Debug("a new key is added", zap.Binary("pubkey", pubkey[:]))
-		// assuming all the members arrive in order
-		return rlnInstance.InsertMember(pubkey)
+		return rlnPeer.insertMember(pubkey)
 	}
 
 	errChan := make(chan error)

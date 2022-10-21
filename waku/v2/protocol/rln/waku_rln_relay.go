@@ -30,6 +30,8 @@ const MAX_EPOCH_GAP = int64(MAX_CLOCK_GAP_SECONDS / r.EPOCH_UNIT_SECONDS)
 
 type RegistrationHandler = func(tx *types.Transaction)
 
+const AcceptableRootWindowSize = 5
+
 type WakuRLNRelay struct {
 	ctx context.Context
 
@@ -51,6 +53,8 @@ type WakuRLNRelay struct {
 	// pubsubTopic is the topic for which rln relay is mounted
 	pubsubTopic  string
 	contentTopic string
+
+	validMerkleRoots []r.MerkleNode
 
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
 	nullifierLogLock sync.RWMutex
@@ -305,6 +309,25 @@ func (r *WakuRLNRelay) MembershipIndex() r.MembershipIndex {
 
 func (r *WakuRLNRelay) MembershipContractAddress() common.Address {
 	return r.membershipContractAddress
+}
+
+func (r *WakuRLNRelay) insertMember(pubkey [32]byte) error {
+	r.log.Debug("a new key is added", zap.Binary("pubkey", pubkey[:]))
+	// assuming all the members arrive in order
+	err := r.RLN.InsertMember(pubkey)
+	if err == nil {
+		newRoot, err := r.RLN.GetMerkleRoot()
+		if err != nil {
+			r.log.Error("inserting member into merkletree", zap.Error(err))
+			return err
+		}
+		r.validMerkleRoots = append(r.validMerkleRoots, newRoot)
+		if len(r.validMerkleRoots) > AcceptableRootWindowSize {
+			r.validMerkleRoots = r.validMerkleRoots[1:]
+		}
+	}
+
+	return err
 }
 
 type SpamHandler = func(message *pb.WakuMessage) error
