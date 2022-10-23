@@ -6,8 +6,6 @@ replace github.com/status-im/go-waku => ../..
 
 replace github.com/ethereum/go-ethereum v1.10.25 => github.com/status-im/go-ethereum v1.10.4-status.2
 
-replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
-
 require (
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/ipfs/go-log v1.0.5
@@ -122,6 +120,7 @@ require (
 	github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b // indirect
 	github.com/status-im/go-zerokit-rln v0.1.5 // indirect
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 // indirect
+	github.com/status-im/noise v1.0.1 // indirect
 	github.com/status-im/status-go/extkeys v1.1.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect

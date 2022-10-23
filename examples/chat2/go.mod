@@ -6,8 +6,6 @@ replace github.com/status-im/go-waku => ../..
 
 replace github.com/ethereum/go-ethereum v1.10.21 => github.com/status-im/go-ethereum v1.10.4-status.2
 
-replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
-
 require (
 	github.com/charmbracelet/bubbles v0.13.0
 	github.com/charmbracelet/bubbletea v0.22.0
@@ -127,6 +125,7 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e // indirect
 	github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b // indirect
+	github.com/status-im/noise v1.0.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect

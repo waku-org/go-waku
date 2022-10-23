@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/flynn/noise"
+	"github.com/status-im/noise"
 	"github.com/stretchr/testify/require"
 )
 
