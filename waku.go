@@ -333,6 +333,18 @@ func main() {
 			Destination: &options.DiscV5.AutoUpdate,
 		},
 		&cli.BoolFlag{
+			Name:        "peer-exchange",
+			Usage:       "Enable waku peer exchange protocol (responder side)",
+			Destination: &options.PeerExchange.Enable,
+		},
+		&cli.GenericFlag{
+			Name:  "peer-exchange-node",
+			Usage: "Peer multiaddr to send peer exchange requests to. (enables peer exchange protocol requester side)",
+			Value: &cliutils.MultiaddrValue{
+				Value: &options.PeerExchange.Node,
+			},
+		},
+		&cli.BoolFlag{
 			Name:        "dns-discovery",
 			Usage:       "Enable DNS discovery",
 			Destination: &options.DNSDiscovery.Enable,

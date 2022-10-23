@@ -32,6 +32,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/status-im/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/protocol/swap"
@@ -78,7 +79,8 @@ type WakuNode struct {
 
 	addrChan chan ma.Multiaddr
 
-	discoveryV5 *discv5.DiscoveryV5
+	discoveryV5  *discv5.DiscoveryV5
+	peerExchange *peer_exchange.WakuPeerExchange
 
 	bcaster v2.Broadcaster
 
@@ -291,6 +293,13 @@ func (w *WakuNode) Start() error {
 		}
 	}
 
+	if w.opts.enablePeerExchange {
+		err := w.mountPeerExchange()
+		if err != nil {
+			return err
+		}
+	}
+
 	if w.opts.enableDiscV5 {
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.discoveryV5, w.opts.discV5Opts...))
 	}
@@ -343,6 +352,14 @@ func (w *WakuNode) Stop() {
 
 	if w.filter != nil {
 		w.filter.Stop()
+	}
+
+	if w.peerExchange != nil {
+		w.peerExchange.Stop()
+	}
+
+	if w.discoveryV5 != nil {
+		w.discoveryV5.Stop()
 	}
 
 	w.relay.Stop()
@@ -403,6 +420,11 @@ func (w *WakuNode) Lightpush() *lightpush.WakuLightPush {
 // DiscV5 is used to access any operation related to DiscoveryV5
 func (w *WakuNode) DiscV5() *discv5.DiscoveryV5 {
 	return w.discoveryV5
+}
+
+// PeerExchange is used to access any operation related to Peer Exchange
+func (w *WakuNode) PeerExchange() *peer_exchange.WakuPeerExchange {
+	return w.peerExchange
 }
 
 // Broadcaster is used to access the message broadcaster that is used to push
@@ -472,6 +494,11 @@ func (w *WakuNode) mountDiscV5() error {
 	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.opts.privKey, w.localNode, w.log, discV5Options...)
 
 	return err
+}
+
+func (w *WakuNode) mountPeerExchange() error {
+	w.peerExchange = peer_exchange.NewWakuPeerExchange(w.ctx, w.host, w.discoveryV5, w.log)
+	return w.peerExchange.Start()
 }
 
 func (w *WakuNode) startStore() {

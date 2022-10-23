@@ -77,6 +77,8 @@ type WakuNodeParameters struct {
 	discV5Opts       []pubsub.DiscoverOpt
 	discV5autoUpdate bool
 
+	enablePeerExchange bool
+
 	enableRLN                    bool
 	rlnRelayMemIndex             uint
 	rlnRelayPubsubTopic          string
@@ -273,6 +275,14 @@ func WithDiscoveryV5(udpPort int, bootnodes []*enode.Node, autoUpdate bool, disc
 		params.discV5bootnodes = bootnodes
 		params.discV5Opts = discoverOpts
 		params.discV5autoUpdate = autoUpdate
+		return nil
+	}
+}
+
+// WithPeerExchange is a WakuOption used to enable Peer Exchange
+func WithPeerExchange() WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enablePeerExchange = true
 		return nil
 	}
 }
