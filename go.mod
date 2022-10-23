@@ -6,8 +6,6 @@ replace github.com/raulk/go-watchdog v1.3.0 => github.com/status-im/go-watchdog 
 
 replace github.com/ethereum/go-ethereum v1.10.25 => github.com/status-im/go-ethereum v1.10.4-status.2
 
-replace github.com/flynn/noise v1.0.0 => github.com/status-im/noise v1.0.1-handshakeMessages
-
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
@@ -36,10 +34,10 @@ require (
 )
 
 require (
-	github.com/flynn/noise v1.0.0
 	github.com/gorilla/mux v1.8.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/status-im/go-zerokit-rln v0.1.5
+	github.com/status-im/noise v1.0.1
 	golang.org/x/text v0.4.0
 )
 
@@ -61,6 +59,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
+	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
