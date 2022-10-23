@@ -21,7 +21,7 @@ import (
 )
 
 type DiscoveryV5 struct {
-	sync.Mutex
+	sync.RWMutex
 
 	discovery.Discovery
 
@@ -33,6 +33,7 @@ type DiscoveryV5 struct {
 	localnode *enode.LocalNode
 	NAT       nat.Interface
 	quit      chan struct{}
+	started   bool
 
 	log *zap.Logger
 
@@ -43,13 +44,14 @@ type DiscoveryV5 struct {
 
 type peerCache struct {
 	sync.RWMutex
-	recs map[peer.ID]peerRecord
+	recs map[peer.ID]PeerRecord
 	rng  *rand.Rand
 }
 
-type peerRecord struct {
+type PeerRecord struct {
 	expire int64
-	peer   peer.AddrInfo
+	Peer   peer.AddrInfo
+	Node   enode.Node
 }
 
 type discV5Parameters struct {
@@ -115,7 +117,7 @@ func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.Loc
 		wg:     &sync.WaitGroup{},
 		peerCache: peerCache{
 			rng:  rand.New(rand.NewSource(rand.Int63())),
-			recs: make(map[peer.ID]peerRecord),
+			recs: make(map[peer.ID]PeerRecord),
 		},
 		localnode: localnode,
 		config: discover.Config{
@@ -135,6 +137,10 @@ func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.Loc
 		},
 		log: logger,
 	}, nil
+}
+
+func (d *DiscoveryV5) Node() *enode.Node {
+	return d.localnode.Node()
 }
 
 func (d *DiscoveryV5) listen() error {
@@ -174,9 +180,14 @@ func (d *DiscoveryV5) Start() error {
 	d.Lock()
 	defer d.Unlock()
 
+	if d.started {
+		return nil
+	}
+
 	d.wg.Wait() // Waiting for other go routines to stop
 
 	d.quit = make(chan struct{}, 1)
+	d.started = true
 
 	err := d.listen()
 	if err != nil {
@@ -190,10 +201,15 @@ func (d *DiscoveryV5) Stop() {
 	d.Lock()
 	defer d.Unlock()
 
+	if !d.started {
+		return
+	}
+
 	close(d.quit)
 
 	d.listener.Close()
 	d.listener = nil
+	d.started = false
 
 	d.log.Info("stopped Discovery V5")
 
@@ -293,9 +309,10 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 		}
 
 		for _, p := range peerAddrs {
-			d.peerCache.recs[p.ID] = peerRecord{
+			d.peerCache.recs[p.ID] = PeerRecord{
 				expire: time.Now().Unix() + 3600, // Expires in 1hr
-				peer:   p,
+				Peer:   p,
+				Node:   *iterator.Node(),
 			}
 		}
 
@@ -320,7 +337,7 @@ func (d *DiscoveryV5) removeExpiredPeers() int {
 	return newCacheSize
 }
 
-func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...discovery.Option) (<-chan peer.AddrInfo, error) {
+func (d *DiscoveryV5) FindNodes(ctx context.Context, topic string, opts ...discovery.Option) ([]PeerRecord, error) {
 	// Get options
 	var options discovery.Options
 	err := options.Apply(opts...)
@@ -328,7 +345,7 @@ func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...disco
 		return nil, err
 	}
 
-	const maxLimit = 100
+	const maxLimit = 600
 	limit := options.Limit
 	if limit == 0 || limit > maxLimit {
 		limit = maxLimit
@@ -368,29 +385,43 @@ func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...disco
 		count = limit
 	}
 
-	chPeer := make(chan peer.AddrInfo, count)
-
 	perm := d.peerCache.rng.Perm(len(d.peerCache.recs))[0:count]
 	permSet := make(map[int]int)
 	for i, v := range perm {
 		permSet[v] = i
 	}
 
-	sendLst := make([]*peer.AddrInfo, count)
+	sendLst := make([]PeerRecord, count)
 	iter := 0
 	for k := range d.peerCache.recs {
 		if sendIndex, ok := permSet[iter]; ok {
-			peerInfo := d.peerCache.recs[k].peer
-			sendLst[sendIndex] = &peerInfo
+			sendLst[sendIndex] = d.peerCache.recs[k]
 		}
 		iter++
 	}
 
-	for _, send := range sendLst {
-		chPeer <- *send
+	return sendLst, err
+}
+
+func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...discovery.Option) (<-chan peer.AddrInfo, error) {
+	records, err := d.FindNodes(ctx, topic, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	chPeer := make(chan peer.AddrInfo, len(records))
+	for _, r := range records {
+		chPeer <- r.Peer
 	}
 
 	close(chPeer)
 
 	return chPeer, err
+}
+
+func (d *DiscoveryV5) IsStarted() bool {
+	d.RLock()
+	defer d.RUnlock()
+
+	return d.started
 }

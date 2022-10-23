@@ -18,6 +18,7 @@ var (
 	FilterSubscriptions = stats.Int64("filter_subscriptions", "Number of filter subscriptions", stats.UnitDimensionless)
 	StoreErrors         = stats.Int64("errors", "Number of errors in store protocol", stats.UnitDimensionless)
 	LightpushErrors     = stats.Int64("errors", "Number of errors in lightpush protocol", stats.UnitDimensionless)
+	PeerExchangeError   = stats.Int64("errors", "Number of errors in peer exchange protocol", stats.UnitDimensionless)
 )
 
 var (
@@ -75,6 +76,12 @@ var (
 
 func RecordLightpushError(ctx context.Context, tagType string) {
 	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(ErrorType, tagType)}, LightpushErrors.M(1)); err != nil {
+		utils.Logger().Error("failed to record with tags", zap.Error(err))
+	}
+}
+
+func RecordPeerExchangeError(ctx context.Context, tagType string) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(ErrorType, tagType)}, PeerExchangeError.M(1)); err != nil {
 		utils.Logger().Error("failed to record with tags", zap.Error(err))
 	}
 }

@@ -131,6 +131,12 @@ type WSOptions struct {
 	CertPath string
 }
 
+// PeerExchangeOptions are settings used with the peer exchange protocol
+type PeerExchangeOptions struct {
+	Enable bool
+	Node   *multiaddr.Multiaddr
+}
+
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
@@ -156,6 +162,7 @@ type Options struct {
 	PersistPeers     bool
 	UserAgent        string
 
+	PeerExchange PeerExchangeOptions
 	Websocket    WSOptions
 	Relay        RelayOptions
 	Store        StoreOptions
