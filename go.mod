@@ -2,8 +2,6 @@ module github.com/status-im/go-waku
 
 go 1.17
 
-replace github.com/raulk/go-watchdog v1.3.0 => github.com/status-im/go-watchdog v1.2.0-ios-nolibproc
-
 replace github.com/ethereum/go-ethereum v1.10.25 => github.com/status-im/go-ethereum v1.10.4-status.2
 
 require (

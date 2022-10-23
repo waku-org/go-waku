@@ -148,7 +148,7 @@ mobile-android:
 mobile-ios:
 	gomobile init && \
 	${GOBIN} get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -target=ios -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/Gowaku.xcframework ./mobile
+	gomobile bind -target=ios -ldflags="-s -w" -tags="nowatchdog ${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/Gowaku.xcframework ./mobile
 	@echo "IOS library built:"
 	@ls -la ./build/lib/*.xcframework
 
