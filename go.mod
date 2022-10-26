@@ -22,7 +22,6 @@ require (
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e
-	github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b
 	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a
 	github.com/urfave/cli/v2 v2.20.2

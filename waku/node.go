@@ -32,7 +32,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
-	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/metrics"
 	"github.com/status-im/go-waku/waku/persistence"
@@ -194,13 +193,6 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
 	}
 
-	if options.RendezvousServer.Enable {
-		db, err := persistence.NewRendezVousLevelDB(options.RendezvousServer.DBPath)
-		failOnErr(err, "RendezvousDB")
-		storage := rendezvous.NewStorage(db)
-		nodeOpts = append(nodeOpts, node.WithRendezvousServer(storage))
-	}
-
 	if options.Filter.Enable {
 		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
 	}
@@ -215,10 +207,6 @@ func Execute(options Options) {
 
 	if options.LightPush.Enable {
 		nodeOpts = append(nodeOpts, node.WithLightPush())
-	}
-
-	if options.Rendezvous.Enable {
-		nodeOpts = append(nodeOpts, node.WithRendezvous(pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
 	var discoveredNodes []dnsdisc.DiscoveredNode
@@ -268,7 +256,6 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
-	addPeers(wakuNode, options.Rendezvous.Nodes, string(rendezvous.RendezvousID_v001))
 	addPeers(wakuNode, options.Store.Nodes, string(store.StoreID_v20beta4))
 	addPeers(wakuNode, options.LightPush.Nodes, string(lightpush.LightPushID_v20beta1))
 	addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))

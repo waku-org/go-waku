@@ -24,7 +24,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
 
-	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/logging"
 	"github.com/status-im/go-waku/waku/try"
 	v2 "github.com/status-im/go-waku/waku/v2"
@@ -67,14 +66,13 @@ type WakuNode struct {
 	opts *WakuNodeParameters
 	log  *zap.Logger
 
-	relay      *relay.WakuRelay
-	filter     *filter.WakuFilter
-	lightPush  *lightpush.WakuLightPush
-	rendezvous *rendezvous.RendezvousService
-	store      store.Store
-	swap       *swap.WakuSwap
-	rlnRelay   RLNRelay
-	wakuFlag   utils.WakuEnrBitfield
+	relay     *relay.WakuRelay
+	filter    *filter.WakuFilter
+	lightPush *lightpush.WakuLightPush
+	store     store.Store
+	swap      *swap.WakuSwap
+	rlnRelay  RLNRelay
+	wakuFlag  utils.WakuEnrBitfield
 
 	localNode *enode.LocalNode
 
@@ -281,11 +279,6 @@ func (w *WakuNode) Start() error {
 		w.filter = filter
 	}
 
-	if w.opts.enableRendezvous {
-		rendezvous := rendezvous.NewRendezvousDiscovery(w.host)
-		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(rendezvous, w.opts.rendezvousOpts...))
-	}
-
 	err := w.setupENR(w.ListenAddresses())
 	if err != nil {
 		return err
@@ -321,13 +314,6 @@ func (w *WakuNode) Start() error {
 		}
 	}
 
-	if w.opts.enableRendezvousServer {
-		err := w.mountRendezvous()
-		if err != nil {
-			return err
-		}
-	}
-
 	// Subscribe store to topic
 	if w.opts.storeMsgs {
 		w.log.Info("Subscribing store to broadcaster")
@@ -354,10 +340,6 @@ func (w *WakuNode) Stop() {
 	defer w.protocolEventSub.Close()
 	defer w.identificationEventSub.Close()
 	defer w.addressChangesSub.Close()
-
-	if w.rendezvous != nil {
-		w.rendezvous.Stop()
-	}
 
 	if w.filter != nil {
 		w.filter.Stop()
@@ -490,17 +472,6 @@ func (w *WakuNode) mountDiscV5() error {
 	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.opts.privKey, w.localNode, w.log, discV5Options...)
 
 	return err
-}
-
-func (w *WakuNode) mountRendezvous() error {
-	w.rendezvous = rendezvous.NewRendezvousService(w.host, w.opts.rendevousStorage)
-
-	if err := w.rendezvous.Start(); err != nil {
-		return err
-	}
-
-	w.log.Info("Rendezvous service started")
-	return nil
 }
 
 func (w *WakuNode) startStore() {

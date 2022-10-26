@@ -1,6 +1,6 @@
 module basic2
 
-go 1.17
+go 1.18
 
 replace github.com/status-im/go-waku => ../..
 
@@ -117,7 +117,6 @@ require (
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e // indirect
-	github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b // indirect
 	github.com/status-im/go-zerokit-rln v0.1.5 // indirect
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 // indirect
 	github.com/status-im/noise v1.0.1 // indirect

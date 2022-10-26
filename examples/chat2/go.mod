@@ -1,6 +1,6 @@
-module chat3
+module chat2
 
-go 1.17
+go 1.18
 
 replace github.com/status-im/go-waku => ../..
 
@@ -15,7 +15,6 @@ require (
 	github.com/ipfs/go-log v1.0.5
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/libp2p/go-libp2p v0.23.2
-	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/muesli/reflow v0.3.0
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/status-im/go-waku v0.0.0-00010101000000-000000000000
@@ -124,7 +123,6 @@ require (
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e // indirect
-	github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b // indirect
 	github.com/status-im/noise v1.0.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect

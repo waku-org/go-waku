@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/multiformats/go-multiaddr"
-	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/tests"
 	"github.com/status-im/go-waku/waku/persistence"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
@@ -41,8 +40,6 @@ func TestWakuOptions(t *testing.T) {
 		WithPrivateKey(prvKey),
 		WithLibP2POptions(),
 		WithWakuRelay(),
-		WithRendezvous(),
-		WithRendezvousServer(rendezvous.NewStorage(nil)),
 		WithWakuFilter(true),
 		WithDiscoveryV5(123, nil, false),
 		WithWakuStore(true, true),

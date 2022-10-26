@@ -9,20 +9,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// RendezvousOptions are settings for enabling the rendezvous protocol for
-// discovering new nodes
-type RendezvousOptions struct {
-	Enable bool
-	Nodes  []multiaddr.Multiaddr
-}
-
-// RendezvousServerOptions are settings to enable the waku node to act as a
-// rendezvous server
-type RendezvousServerOptions struct {
-	Enable bool
-	DBPath string
-}
-
 // DiscV5Options are settings to enable a modified version of Ethereum’s Node
 // Discovery Protocol v5 as a means for ambient node discovery.
 type DiscV5Options struct {
@@ -167,18 +153,16 @@ type Options struct {
 	NAT              string
 	PersistPeers     bool
 
-	Websocket        WSOptions
-	Relay            RelayOptions
-	Store            StoreOptions
-	Swap             SwapOptions
-	Filter           FilterOptions
-	LightPush        LightpushOptions
-	RLNRelay         RLNRelayOptions
-	DiscV5           DiscV5Options
-	Rendezvous       RendezvousOptions
-	RendezvousServer RendezvousServerOptions
-	DNSDiscovery     DNSDiscoveryOptions
-	Metrics          MetricsOptions
-	RPCServer        RPCServerOptions
-	RESTServer       RESTServerOptions
+	Websocket    WSOptions
+	Relay        RelayOptions
+	Store        StoreOptions
+	Swap         SwapOptions
+	Filter       FilterOptions
+	LightPush    LightpushOptions
+	RLNRelay     RLNRelayOptions
+	DiscV5       DiscV5Options
+	DNSDiscovery DNSDiscoveryOptions
+	Metrics      MetricsOptions
+	RPCServer    RPCServerOptions
+	RESTServer   RESTServerOptions
 }
