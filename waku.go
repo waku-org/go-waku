@@ -187,6 +187,12 @@ func main() {
 				Value:   &options.LogEncoding,
 			},
 		},
+		&cli.StringFlag{
+			Name:        "agent-string",
+			Value:       "go-waku",
+			Usage:       "client id to advertise",
+			Destination: &options.UserAgent,
+		},
 		&cli.BoolFlag{
 			Name:        "relay",
 			Value:       true,

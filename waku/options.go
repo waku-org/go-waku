@@ -152,6 +152,7 @@ type Options struct {
 	LogEncoding      string
 	NAT              string
 	PersistPeers     bool
+	UserAgent        string
 
 	Websocket    WSOptions
 	Relay        RelayOptions

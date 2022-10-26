@@ -152,6 +152,10 @@ func Execute(options Options) {
 		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
 	}
 
+	if options.UserAgent != "" {
+		libp2pOpts = append(libp2pOpts, libp2p.UserAgent(options.UserAgent))
+	}
+
 	if options.Websocket.Enable {
 		nodeOpts = append(nodeOpts, node.WithWebsockets(options.Websocket.Address, options.Websocket.WSPort))
 	}

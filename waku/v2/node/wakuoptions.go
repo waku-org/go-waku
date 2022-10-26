@@ -405,7 +405,8 @@ var DefaultLibP2POptions = []libp2p.Option{
 	libp2p.ChainOptions(
 		libp2p.Transport(tcp.NewTCPTransport),
 		libp2p.Transport(quic.NewTransport),
-	), libp2p.UserAgent(userAgent),
+	),
+	libp2p.UserAgent(userAgent),
 	libp2p.ChainOptions(
 		libp2p.Muxer("/yamux/1.0.0", yamux.DefaultTransport),
 		libp2p.Muxer("/mplex/6.7.0", mplex.DefaultTransport),
