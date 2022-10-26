@@ -1,7 +1,7 @@
 package main
 
 import (
-	"chat3/pb"
+	"chat2/pb"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"

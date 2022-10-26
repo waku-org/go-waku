@@ -321,29 +321,6 @@ func main() {
 			Destination: &options.DiscV5.AutoUpdate,
 		},
 		&cli.BoolFlag{
-			Name:        "rendezvous",
-			Usage:       "Enable rendezvous protocol for peer discovery",
-			Destination: &options.Rendezvous.Enable,
-		},
-		&cli.GenericFlag{
-			Name:  "rendezvous-node",
-			Usage: "Multiaddr of a waku2 rendezvous node. Option may be repeated",
-			Value: &cliutils.MultiaddrSlice{
-				Values: &options.Rendezvous.Nodes,
-			},
-		},
-		&cli.BoolFlag{
-			Name:        "rendezvous-server",
-			Usage:       "Node will act as rendezvous server",
-			Destination: &options.RendezvousServer.Enable,
-		},
-		&cli.PathFlag{
-			Name:        "rendezvous-db-path",
-			Value:       "/tmp/rendezvous",
-			Usage:       "Path where peer records database will be stored",
-			Destination: &options.RendezvousServer.DBPath,
-		},
-		&cli.BoolFlag{
 			Name:        "dns-discovery",
 			Usage:       "Enable DNS discovery",
 			Destination: &options.DNSDiscovery.Enable,

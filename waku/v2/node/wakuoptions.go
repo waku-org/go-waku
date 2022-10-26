@@ -23,7 +23,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
-	rendezvous "github.com/status-im/go-waku-rendezvous"
 	"github.com/status-im/go-waku/waku/v2/protocol/filter"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
@@ -71,11 +70,6 @@ type WakuNodeParameters struct {
 	swapMode                int
 	swapDisconnectThreshold int
 	swapPaymentThreshold    int
-
-	enableRendezvous       bool
-	enableRendezvousServer bool
-	rendevousStorage       rendezvous.Storage
-	rendezvousOpts         []pubsub.DiscoverOpt
 
 	enableDiscV5     bool
 	udpPort          int
@@ -279,26 +273,6 @@ func WithDiscoveryV5(udpPort int, bootnodes []*enode.Node, autoUpdate bool, disc
 		params.discV5bootnodes = bootnodes
 		params.discV5Opts = discoverOpts
 		params.discV5autoUpdate = autoUpdate
-		return nil
-	}
-}
-
-// WithRendezvous is a WakuOption used to enable go-waku-rendezvous discovery.
-// It accepts an optional list of DiscoveryOpt options
-func WithRendezvous(discoverOpts ...pubsub.DiscoverOpt) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableRendezvous = true
-		params.rendezvousOpts = discoverOpts
-		return nil
-	}
-}
-
-// WithRendezvousServer is a WakuOption used to set the node as a rendezvous
-// point, using an specific storage for the peer information
-func WithRendezvousServer(storage rendezvous.Storage) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableRendezvousServer = true
-		params.rendevousStorage = storage
 		return nil
 	}
 }

@@ -975,8 +975,6 @@ github.com/libp2p/go-libp2p v0.23.2 h1:yqyTeKQJyofWXxEv/eEVUvOrGdt/9x+0PIQ4N1kax
 github.com/libp2p/go-libp2p v0.23.2/go.mod h1:s9DEa5NLR4g+LZS+md5uGU4emjMWFiqkZr6hBTY8UxI=
 github.com/libp2p/go-libp2p-asn-util v0.2.0 h1:rg3+Os8jbnO5DxkC7K/Utdi+DkY3q/d1/1q+8WeNAsw=
 github.com/libp2p/go-libp2p-asn-util v0.2.0/go.mod h1:WoaWxbHKBymSN41hWSq/lGKJEca7TNm58+gGJi2WsLI=
-github.com/libp2p/go-libp2p-core v0.20.1 h1:fQz4BJyIFmSZAiTbKV8qoYhEH5Dtv/cVhZbG3Ib/+Cw=
-github.com/libp2p/go-libp2p-core v0.20.1/go.mod h1:6zR8H7CvQWgYLsbG4on6oLNSGcyKaYFSEYyDt51+bIY=
 github.com/libp2p/go-libp2p-pubsub v0.8.1 h1:hSw09NauFUaA0FLgQPBJp6QOy0a2n+HSkb8IeOx8OnY=
 github.com/libp2p/go-libp2p-pubsub v0.8.1/go.mod h1:e4kT+DYjzPUYGZeWk4I+oxCSYTXizzXii5LDRRhjKSw=
 github.com/libp2p/go-mplex v0.7.0 h1:BDhFZdlk5tbr0oyFq/xv/NPGfjbnrsDam1EvutpBDbY=
@@ -1410,8 +1408,6 @@ github.com/spf13/viper v1.4.0/go.mod h1:PTJ7Z/lr49W6bUbkmS1V3by4uWynFiR9p7+dSq/y
 github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
 github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e h1:fDm8hqKGFy8LMNV8zedT3W+QYVPVDfb0F9Fr7fVf9rQ=
 github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e/go.mod h1:u1s0ACIlweIjmJrgXyljRPSOflZLaS6ezb044+92W3c=
-github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b h1:0hfwE6usp+dCdGbEaQjrCuBmVBjCzSaHTejW3xG+yH8=
-github.com/status-im/go-waku-rendezvous v0.0.0-20221019192605-ef843e5c7d5b/go.mod h1:rRqjTHCbxRbulvSw0VKnt45LIYvZOBxCsmfJZOqijdo=
 github.com/status-im/go-zerokit-rln v0.1.5 h1:Tx39c6DLpPjLbMFj0K2ft4eS43toezWOXs026tbLPhU=
 github.com/status-im/go-zerokit-rln v0.1.5/go.mod h1:buDqUAAFez13mhNTGAJKD03XyEe8PdlTKdsTbfi8imI=
 github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=
