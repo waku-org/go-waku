@@ -1,6 +1,6 @@
 module github.com/status-im/go-waku
 
-go 1.17
+go 1.18
 
 replace github.com/ethereum/go-ethereum v1.10.25 => github.com/status-im/go-ethereum v1.10.4-status.2
 
