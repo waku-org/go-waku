@@ -1,7 +1,7 @@
 package noise
 
 import (
-	n "github.com/status-im/noise"
+	n "github.com/waku-org/noise"
 )
 
 /*

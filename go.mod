@@ -21,7 +21,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
-	github.com/status-im/go-discover v0.0.0-20220406135310-85a2ce36f63e
 	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a
 	github.com/urfave/cli/v2 v2.20.2
@@ -33,8 +32,9 @@ require (
 require (
 	github.com/gorilla/mux v1.8.0
 	github.com/ipfs/go-log v1.0.5
-	github.com/status-im/go-zerokit-rln v0.1.5
-	github.com/status-im/noise v1.0.1
+	github.com/waku-org/go-discover v0.0.0-20221027130446-2f43d5f6c73f
+	github.com/waku-org/go-zerokit-rln v0.1.6
+	github.com/waku-org/noise v1.0.2
 	golang.org/x/text v0.4.0
 )
 

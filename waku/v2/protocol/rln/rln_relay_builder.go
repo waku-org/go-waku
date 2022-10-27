@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
-	r "github.com/status-im/go-zerokit-rln/rln"
+	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 

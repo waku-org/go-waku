@@ -18,7 +18,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/utils"
-	r "github.com/status-im/go-zerokit-rln/rln"
+	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 

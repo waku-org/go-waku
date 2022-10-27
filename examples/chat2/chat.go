@@ -22,7 +22,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/status-im/go-waku/waku/v2/utils"
-	"github.com/status-im/go-zerokit-rln/rln"
+	"github.com/waku-org/go-zerokit-rln/rln"
 	"golang.org/x/crypto/pbkdf2"
 	"google.golang.org/protobuf/proto"
 )
