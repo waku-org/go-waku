@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-zerokit-rln/rln"
+	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 

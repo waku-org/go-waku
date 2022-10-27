@@ -10,8 +10,8 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/relay"
 	"github.com/status-im/go-waku/waku/v2/utils"
-	r "github.com/status-im/go-zerokit-rln/rln"
 	"github.com/stretchr/testify/suite"
+	r "github.com/waku-org/go-zerokit-rln/rln"
 )
 
 const RLNRELAY_PUBSUB_TOPIC = "waku/2/rlnrelay/proto"

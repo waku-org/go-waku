@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	n "github.com/status-im/noise"
+	n "github.com/waku-org/noise"
 )
 
 // WakuNoiseProtocolID indicates the protocol ID defined according to https://rfc.vac.dev/spec/35/#specification

@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/status-im/noise"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/noise"
 )
 
 func generateRandomBytes(t *testing.T, n int) []byte {
