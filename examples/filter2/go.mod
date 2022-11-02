@@ -8,7 +8,7 @@ replace github.com/ethereum/go-ethereum v1.10.25 => github.com/status-im/go-ethe
 
 require (
 	github.com/ethereum/go-ethereum v1.10.25
-	github.com/ipfs/go-log v1.0.5
+	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/status-im/go-waku v0.0.0-20220218174911-0db40c7de58b
 )
 
@@ -54,7 +54,7 @@ require (
 	github.com/holiman/uint256 v1.2.0 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
 	github.com/ipfs/go-cid v0.3.2 // indirect
-	github.com/ipfs/go-log/v2 v2.5.1 // indirect
+	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/karalabe/usb v0.0.2 // indirect

@@ -3,6 +3,7 @@
 *.db-wal
 nodekey
 rlnCredentials.txt
+*.log
 
 # Binaries for programs and plugins
 *.exe

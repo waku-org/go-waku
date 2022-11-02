@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/wordwrap"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 const viewportMargin = 6
@@ -213,9 +214,11 @@ func (m UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case ErrorMessageType:
 				line += m.breaklineIfNeeded(i, ErrorMessageType)
 				line += wordwrap.String(errorStyle("ERROR:")+" "+msg.err.Error(), m.width-10)
+				utils.Logger().Error(msg.content)
 			case InfoMessageType:
 				line += m.breaklineIfNeeded(i, InfoMessageType)
 				line += wordwrap.String(infoStyle("INFO:")+" "+msg.content, m.width-10)
+				utils.Logger().Info(msg.content)
 			}
 
 			sb.WriteString(line + "\n")
