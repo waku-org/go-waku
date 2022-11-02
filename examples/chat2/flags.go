@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/status-im/go-waku/waku/cliutils"
 	wcli "github.com/status-im/go-waku/waku/cliutils"
 	"github.com/status-im/go-waku/waku/v2/protocol"
 
@@ -60,6 +61,15 @@ func getFlags() []cli.Flag {
 			Value:       60000,
 			Usage:       "Listening UDP port for Node Discovery v5.",
 			Destination: &options.DiscV5.Port,
+		},
+		&cli.GenericFlag{
+			Name:    "log-level",
+			Aliases: []string{"l"},
+			Value: &cliutils.ChoiceValue{
+				Choices: []string{"DEBUG", "INFO", "WARN", "ERROR", "DPANIC", "PANIC", "FATAL"},
+				Value:   &options.LogLevel,
+			},
+			Usage: "Define the logging level,",
 		},
 		&cli.StringFlag{
 			Name:        "content-topic",

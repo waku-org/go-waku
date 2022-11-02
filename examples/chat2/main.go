@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -14,19 +14,13 @@ func main() {
 	app := &cli.App{
 		Flags: getFlags(),
 		Action: func(c *cli.Context) error {
-			// for go-libp2p loggers
-			logLevel := "panic" // to mute output from logs
-			lvl, err := logging.LevelFromString(logLevel)
+			utils.InitLogger("console", "file:chat2.log")
+
+			lvl, err := logging.LevelFromString(options.LogLevel)
 			if err != nil {
 				return err
 			}
 			logging.SetAllLoggers(lvl)
-
-			// go-waku logger
-			err = utils.SetLogLevel(logLevel)
-			if err != nil {
-				return err
-			}
 
 			execute(options)
 			return nil

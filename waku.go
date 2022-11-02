@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/status-im/go-waku/waku"
 	"github.com/status-im/go-waku/waku/cliutils"
 	"github.com/status-im/go-waku/waku/v2/utils"
@@ -173,19 +173,25 @@ func main() {
 			},
 			Usage: "Define the logging level,",
 		},
+		&cli.GenericFlag{
+			Name:  "log-encoding",
+			Usage: "Define the encoding used for the logs",
+			Value: &cliutils.ChoiceValue{
+				Choices: []string{"console", "nocolor", "json"},
+				Value:   &options.LogEncoding,
+			},
+		},
+		&cli.StringFlag{
+			Name:        "log-output",
+			Value:       "stdout",
+			Usage:       "specifies where logging output should be written  (stdout, file, file:./filename.log)",
+			Destination: &options.LogOutput,
+		},
 		&cli.BoolFlag{
 			Name:        "version",
 			Value:       false,
 			Usage:       "prints the version",
 			Destination: &options.Version,
-		},
-		&cli.GenericFlag{
-			Name:  "log-encoding",
-			Usage: "Define the encoding used for the logs",
-			Value: &cliutils.ChoiceValue{
-				Choices: []string{"console", "json"},
-				Value:   &options.LogEncoding,
-			},
 		},
 		&cli.StringFlag{
 			Name:        "agent-string",
@@ -441,22 +447,13 @@ func main() {
 	app := &cli.App{
 		Flags: cliFlags,
 		Action: func(c *cli.Context) error {
-			// for go-libp2p loggers
+			utils.InitLogger(options.LogEncoding, options.LogOutput)
+
 			lvl, err := logging.LevelFromString(options.LogLevel)
 			if err != nil {
 				return err
 			}
 			logging.SetAllLoggers(lvl)
-
-			// go-waku logger
-			err = utils.SetLogLevel(options.LogLevel)
-			if err != nil {
-				return err
-			}
-
-			// Set encoding for logs (console, json, ...)
-			// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
-			utils.InitLogger(options.LogEncoding)
 
 			waku.Execute(options)
 			return nil

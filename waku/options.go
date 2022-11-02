@@ -150,6 +150,7 @@ type Options struct {
 	ShowAddresses    bool
 	LogLevel         string
 	LogEncoding      string
+	LogOutput        string
 	NAT              string
 	PersistPeers     bool
 	UserAgent        string

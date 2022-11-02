@@ -14,7 +14,7 @@ import (
 	"net"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -156,12 +156,6 @@ func NewNode(configJSON string) string {
 		return MakeJSONResponse(err)
 	}
 	logging.SetAllLoggers(lvl)
-
-	// go-waku logger
-	err = utils.SetLogLevel(*config.LogLevel)
-	if err != nil {
-		return MakeJSONResponse(err)
-	}
 
 	ctx := context.Background()
 	w, err := node.New(ctx, opts...)

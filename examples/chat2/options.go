@@ -130,6 +130,7 @@ type Options struct {
 	ContentTopic string
 	UsePayloadV1 bool
 	Nickname     string
+	LogLevel     string
 	StaticNodes  []multiaddr.Multiaddr
 
 	Relay        RelayOptions

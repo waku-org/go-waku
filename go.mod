@@ -22,7 +22,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/stretchr/testify v1.8.0
-	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a
+	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/urfave/cli/v2 v2.20.2
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.23.0
@@ -31,7 +31,6 @@ require (
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/ipfs/go-log v1.0.5
 	github.com/waku-org/go-discover v0.0.0-20221027130446-2f43d5f6c73f
 	github.com/waku-org/go-zerokit-rln v0.1.6
 	github.com/waku-org/noise v1.0.2
@@ -80,6 +79,7 @@ require (
 	github.com/huin/goupnp v1.0.3 // indirect
 	github.com/ipfs/go-cid v0.3.2 // indirect
 	github.com/ipfs/go-datastore v0.6.0 // indirect
+	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
@@ -133,7 +133,6 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
-	github.com/raulk/clock v1.1.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
