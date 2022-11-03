@@ -3,6 +3,7 @@ package relay
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,6 +17,7 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/waku-org/go-waku/logging"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
@@ -184,6 +186,8 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 
 	hash := pb.Hash(out)
 
+	w.log.Info("waku.relay published", zap.String("hash", hex.EncodeToString(hash)))
+
 	return hash, nil
 }
 
@@ -340,6 +344,8 @@ func (w *WakuRelay) subscribeToTopic(t string, subscription *Subscription, sub *
 			}
 
 			envelope := waku_proto.NewEnvelope(wakuMessage, utils.GetUnixEpoch(), string(t))
+
+			w.log.Info("waku.relay received", logging.HexString("hash", envelope.Hash()))
 
 			if w.bcaster != nil {
 				w.bcaster.Submit(envelope)

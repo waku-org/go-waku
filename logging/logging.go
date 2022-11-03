@@ -7,6 +7,7 @@
 package logging
 
 import (
+	"encoding/hex"
 	"net"
 	"time"
 
@@ -18,6 +19,31 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+// List of []byte
+type byteArr [][]byte
+
+// HexArray creates a field with an array of bytes that will be shown as a hexadecimal string in logs
+func HexArray(key string, byteVal ...[]byte) zapcore.Field {
+	return zap.Array(key, byteArr(byteVal))
+}
+
+func (bArr byteArr) MarshalLogArray(encoder zapcore.ArrayEncoder) error {
+	for _, b := range bArr {
+		encoder.AppendString("0x" + hex.EncodeToString(b))
+	}
+	return nil
+}
+
+type hexByte []byte
+
+func HexString(key string, byteVal []byte) zapcore.Field {
+	return zap.Stringer(key, hexByte(byteVal))
+}
+
+func (h hexByte) String() string {
+	return "0x" + hex.EncodeToString(h)
+}
 
 // List of multiaddrs
 type multiaddrs []multiaddr.Multiaddr
