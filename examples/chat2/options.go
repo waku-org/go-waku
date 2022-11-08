@@ -30,6 +30,7 @@ type RelayOptions struct {
 type RLNRelayOptions struct {
 	Enable                    bool
 	CredentialsPath           string
+	CredentialsPassword       string
 	MembershipIndex           int
 	PubsubTopic               string
 	ContentTopic              string

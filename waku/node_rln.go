@@ -12,8 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var loadedCredentialsFromFile bool = false
-
 func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeOption) {
 	if options.RLNRelay.Enable {
 		if !options.Relay.Enable {
@@ -27,11 +25,14 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 			if options.RLNRelay.ETHPrivateKey != nil {
 				ethPrivKey = options.RLNRelay.ETHPrivateKey
 			}
-
-			loaded, membershipCredentials, err := getMembershipCredentials(logger, options)
+			membershipCredentials, err := node.GetMembershipCredentials(
+				logger,
+				options.RLNRelay.CredentialsPath,
+				options.RLNRelay.CredentialsPassword,
+				options.RLNRelay.MembershipContractAddress,
+				uint(options.RLNRelay.MembershipIndex),
+			)
 			failOnErr(err, "Invalid membership credentials")
-
-			loadedCredentialsFromFile = loaded
 
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
@@ -47,8 +48,8 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 }
 
 func onStartRLN(wakuNode *node.WakuNode, options Options) {
-	if options.RLNRelay.Enable && options.RLNRelay.Dynamic && !loadedCredentialsFromFile && options.RLNRelay.CredentialsPath != "" {
-		err := writeRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress(), options.RLNRelay.CredentialsPath, []byte(options.KeyPasswd), options.Overwrite)
+	if options.RLNRelay.Enable && options.RLNRelay.Dynamic && options.RLNRelay.CredentialsPath != "" {
+		err := node.WriteRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress(), options.RLNRelay.CredentialsPath, []byte(options.RLNRelay.CredentialsPassword))
 		failOnErr(err, "Could not write membership credentials file")
 	}
 }

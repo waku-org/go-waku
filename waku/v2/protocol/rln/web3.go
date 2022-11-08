@@ -195,9 +195,8 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 			}
 			errCh <- err
 			subs.Unsubscribe()
+			rln.log.Error("subscribing to rln events", zap.Error(err))
 		}
-
-		rln.log.Error("subscribing to rln events", zap.Error(err))
 
 		return subs, err
 	})
