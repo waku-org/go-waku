@@ -30,10 +30,17 @@ const StoreID_v20beta4 = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta4")
 // MaxPageSize is the maximum number of waku messages to return per page
 const MaxPageSize = 100
 
+// MaxContentFilters is the maximum number of allowed content filters in a query
+const MaxContentFilters = 10
+
 // MaxTimeVariance is the maximum duration in the future allowed for a message timestamp
 const MaxTimeVariance = time.Duration(20) * time.Second
 
 var (
+	// ErrMaxContentFilters is returned when the number of content topics in the query
+	// exceeds the limit
+	ErrMaxContentFilters = errors.New("exceeds the maximum number of content filters allowed")
+
 	// ErrNoPeersAvailable is returned when there are no store peers in the peer store
 	// that could be used to retrieve message history
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
@@ -60,6 +67,10 @@ func findMessages(query *pb.HistoryQuery, msgProvider MessageProvider) ([]*pb.Wa
 
 	if query.PagingInfo.PageSize == 0 || query.PagingInfo.PageSize > uint64(MaxPageSize) {
 		query.PagingInfo.PageSize = MaxPageSize
+	}
+
+	if len(query.ContentFilters) > MaxContentFilters {
+		return nil, nil, ErrMaxContentFilters
 	}
 
 	cursor, queryResult, err := msgProvider.Query(query)
@@ -434,6 +445,10 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 
 	for _, cf := range query.ContentTopics {
 		q.ContentFilters = append(q.ContentFilters, &pb.ContentFilter{ContentTopic: cf})
+	}
+
+	if len(q.ContentFilters) > MaxContentFilters {
+		return nil, ErrMaxContentFilters
 	}
 
 	params := new(HistoryRequestParameters)
