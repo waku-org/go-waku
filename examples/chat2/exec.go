@@ -14,6 +14,7 @@ import (
 	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
 	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/status-im/go-waku/waku/v2/protocol/store"
+	"github.com/status-im/go-waku/waku/v2/utils"
 )
 
 func execute(options Options) {
@@ -48,7 +49,13 @@ func execute(options Options) {
 		}
 
 		if options.RLNRelay.Dynamic {
-			membershipCredentials, err := getMembershipCredentials(options.RLNRelay)
+			membershipCredentials, err := node.GetMembershipCredentials(
+				utils.Logger(),
+				options.RLNRelay.CredentialsPath,
+				options.RLNRelay.CredentialsPassword,
+				options.RLNRelay.MembershipContractAddress,
+				uint(options.RLNRelay.MembershipIndex),
+			)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -114,7 +121,7 @@ func execute(options Options) {
 	}
 
 	if options.RLNRelay.Enable && options.RLNRelay.Dynamic {
-		err := writeRLNMembershipCredentialsToFile(options.RLNRelay.CredentialsPath, wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress())
+		err := node.WriteRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress(), options.RLNRelay.CredentialsPath, []byte(options.RLNRelay.CredentialsPassword))
 		if err != nil {
 			fmt.Println(err.Error())
 			return

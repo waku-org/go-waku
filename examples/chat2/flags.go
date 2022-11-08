@@ -218,6 +218,12 @@ func getFlags() []cli.Flag {
 			Value:       "",
 			Destination: &options.RLNRelay.CredentialsPath,
 		},
+		&cli.StringFlag{
+			Name:        "rln-relay-cred-password",
+			Value:       "",
+			Usage:       "Password for encrypting RLN credentials",
+			Destination: &options.RLNRelay.CredentialsPassword,
+		},
 		// TODO: this is a good candidate option for subcommands
 		// TODO: consider accepting a private key file and passwd
 		&cli.GenericFlag{
