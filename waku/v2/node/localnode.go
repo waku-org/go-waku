@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/logging"
-	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 

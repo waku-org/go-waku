@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
-	"github.com/status-im/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/runmetrics"
 	"go.opencensus.io/stats/view"

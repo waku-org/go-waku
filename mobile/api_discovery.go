@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/status-im/go-waku/waku/v2/dnsdisc"
+	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 )
 
 func DnsDiscovery(url string, nameserver string, ms int) string {

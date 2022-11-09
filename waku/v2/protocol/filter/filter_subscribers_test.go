@@ -6,8 +6,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/test"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/stretchr/testify/assert"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 const TOPIC = "/test/topic"

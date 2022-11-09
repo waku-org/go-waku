@@ -18,11 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/status-im/go-waku/tests"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
-	"github.com/status-im/go-waku/waku/v2/protocol/rln/contracts"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/suite"
+	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 const ETH_CLIENT_ADDRESS = "ws://localhost:8545"

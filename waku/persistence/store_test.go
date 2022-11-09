@@ -6,10 +6,10 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
-	"github.com/status-im/go-waku/tests"
-	"github.com/status-im/go-waku/waku/v2/protocol"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 

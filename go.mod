@@ -1,4 +1,4 @@
-module github.com/status-im/go-waku
+module github.com/waku-org/go-waku
 
 go 1.18
 

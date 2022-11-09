@@ -4,7 +4,7 @@
 package waku
 
 import (
-	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/node"
 	"go.uber.org/zap"
 )
 

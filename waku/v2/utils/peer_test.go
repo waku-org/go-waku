@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/status-im/go-waku/tests"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/tests"
 )
 
 func TestSelectPeer(t *testing.T) {

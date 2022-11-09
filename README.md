@@ -2,11 +2,11 @@
 A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v2/waku-v2).
 
 <p align="left">
-  <a href="https://goreportcard.com/report/github.com/status-im/go-waku"><img src="https://goreportcard.com/badge/github.com/status-im/go-waku" /></a>
-  <a href="https://godoc.org/github.com/status-im/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
+  <a href="https://goreportcard.com/report/github.com/waku-org/go-waku"><img src="https://goreportcard.com/badge/github.com/waku-org/go-waku" /></a>
+  <a href="https://godoc.org/github.com/waku-org/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
   <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.18.0-orange.svg?style=flat-square" /></a>
-  <a href="https://lgtm.com/projects/g/status-im/go-waku/alerts/"><img alt="Total alerts" src="https://img.shields.io/lgtm/alerts/g/status-im/go-waku.svg?logo=lgtm&logoWidth=18"/></a> 
-  <a href="https://codeclimate.com/github/status-im/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/25b76a20113236b175d8/maintainability" /></a>
+  <a href="https://lgtm.com/projects/g/waku-org/go-waku/alerts/"><img alt="Total alerts" src="https://img.shields.io/lgtm/alerts/g/waku-org/go-waku.svg?logo=lgtm&logoWidth=18"/></a> 
+  <a href="https://codeclimate.com/github/waku-org/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/25b76a20113236b175d8/maintainability" /></a>
   <br>
 </p>
 
@@ -14,7 +14,7 @@ A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v
 
 #### Building from source
 ```
-git clone https://github.com/status-im/go-waku
+git clone https://github.com/waku-org/go-waku
 cd go-waku
 make
 
@@ -40,7 +40,7 @@ Windows requires the following tools to be installed
 
 ## Library
 ```
-go get github.com/status-im/go-waku
+go get github.com/waku-org/go-waku
 ```
 
 ## C Bindings
@@ -92,7 +92,7 @@ git config core.hooksPath hooks
 
 ## Bugs, Questions & Features
 
-If you encounter any bug or would like to propose new features, feel free to [open an issue](https://github.com/status-im/go-waku/issues/new/).
+If you encounter any bug or would like to propose new features, feel free to [open an issue](https://github.com/waku-org/go-waku/issues/new/).
 
 For more general discussion, help and latest news,  join **#go-waku** on [Vac Discord](https://discord.com/channels/864066763682218004/865466710924460034) or [Telegram](https://t.me/vacp2p).
 

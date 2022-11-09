@@ -5,10 +5,10 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/status-im/go-waku/waku"
-	"github.com/status-im/go-waku/waku/cliutils"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/urfave/cli/v2"
+	"github.com/waku-org/go-waku/waku"
+	"github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 var options waku.Options

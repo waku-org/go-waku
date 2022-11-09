@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
 type DebugService struct {

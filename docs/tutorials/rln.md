@@ -44,7 +44,7 @@ You can test it by connecting two chat2 clients (running Waku-RLN-Relay) directl
 
 2. Clone the repository
 ```
-git clone https://github.com/status-im/go-waku
+git clone https://github.com/waku-org/go-waku
 cd go-waku
 ```
 ## Build chat2

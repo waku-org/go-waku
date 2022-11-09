@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func makeRelayService(t *testing.T) *RelayService {

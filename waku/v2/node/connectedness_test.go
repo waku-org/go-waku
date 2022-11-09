@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/status-im/go-waku/waku/persistence"
-	"github.com/status-im/go-waku/waku/persistence/sqlite"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func goCheckConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan ConnStatus, clientNode *WakuNode, node *WakuNode, nodeShouldBeConnected bool, shouldBeOnline bool, shouldHaveHistory bool, expectedPeers int) {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 // HexBytes is marshalled to a hex string

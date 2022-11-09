@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/status-im/go-waku/waku/v2/node"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestWakuRest(t *testing.T) {

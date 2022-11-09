@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/status-im/go-waku/waku/cliutils"
-	wcli "github.com/status-im/go-waku/waku/cliutils"
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/cliutils"
+	wcli "github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 
 	"github.com/urfave/cli/v2"
 )

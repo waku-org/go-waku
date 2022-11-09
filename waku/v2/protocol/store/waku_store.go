@@ -15,13 +15,13 @@ import (
 	"github.com/libp2p/go-msgio/protoio"
 	"go.uber.org/zap"
 
-	"github.com/status-im/go-waku/logging"
-	"github.com/status-im/go-waku/waku/persistence"
-	"github.com/status-im/go-waku/waku/v2/metrics"
-	"github.com/status-im/go-waku/waku/v2/protocol"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/protocol/swap"
-	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/swap"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 // StoreID_v20beta4 is the current Waku Store protocol identifier

@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/status-im/go-waku/tests"
-	"github.com/status-im/go-waku/waku/persistence"
-	"github.com/status-im/go-waku/waku/persistence/sqlite"
-	"github.com/status-im/go-waku/waku/v2/protocol/filter"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
-	"github.com/status-im/go-waku/waku/v2/protocol/store"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestWakuNode2(t *testing.T) {

@@ -24,20 +24,20 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
 
-	"github.com/status-im/go-waku/logging"
-	"github.com/status-im/go-waku/waku/try"
-	v2 "github.com/status-im/go-waku/waku/v2"
-	"github.com/status-im/go-waku/waku/v2/discv5"
-	"github.com/status-im/go-waku/waku/v2/metrics"
-	"github.com/status-im/go-waku/waku/v2/protocol/filter"
-	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
-	"github.com/status-im/go-waku/waku/v2/protocol/peer_exchange"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
-	"github.com/status-im/go-waku/waku/v2/protocol/store"
-	"github.com/status-im/go-waku/waku/v2/protocol/swap"
+	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/try"
+	v2 "github.com/waku-org/go-waku/waku/v2"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
+	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/protocol/swap"
 
-	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type Peer struct {

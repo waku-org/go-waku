@@ -12,7 +12,7 @@ To manually build library, run following commands:
 
 ```
 gomobile init
-gomobile bind -v -target=ios -ldflags="-s -w" github.com/status-im/go-waku/mobile
+gomobile bind -v -target=ios -ldflags="-s -w" github.com/waku-org/go-waku/mobile
 ```
 This will produce `gowaku.framework` file in the current directory, which can be used in iOS project.
 
@@ -22,7 +22,7 @@ This will produce `gowaku.framework` file in the current directory, which can be
 export ANDROID_NDK_HOME=/path/to/android/ndk
 export ANDROID_HOME=/path/to/android/sdk/
 gomobile init
-gomobile bind -v -target=android -ldflags="-s -w" github.com/status-im/go-waku/mobile
+gomobile bind -v -target=android -ldflags="-s -w" github.com/waku-org/go-waku/mobile
 ```
 This will generate `gowaku.aar` file in the current dir.
 

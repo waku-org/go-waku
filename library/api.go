@@ -9,8 +9,8 @@ import "C"
 import (
 	"unsafe"
 
-	mobile "github.com/status-im/go-waku/mobile"
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	mobile "github.com/waku-org/go-waku/mobile"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 func main() {}

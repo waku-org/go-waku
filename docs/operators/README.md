@@ -19,10 +19,10 @@ and use existing tools for monitoring and maintaining a running node.
 
 ## Getting in touch or reporting an issue
 
-For an inquiry, or if you would like to propose new features, feel free to [open a general issue](https://github.com/status-im/go-waku/issues/new/).
+For an inquiry, or if you would like to propose new features, feel free to [open a general issue](https://github.com/waku-org/go-waku/issues/new/).
 
-For bug reports, please [tag your issue with the `bug` label](https://github.com/status-im/go-waku/issues/new/).
+For bug reports, please [tag your issue with the `bug` label](https://github.com/waku-org/go-waku/issues/new/).
 
-If you believe the reported issue requires critical attention, please [use the `critical` label](https://github.com/status-im/go-waku/issues/new?labels=critical,bug) to assist with triaging.
+If you believe the reported issue requires critical attention, please [use the `critical` label](https://github.com/waku-org/go-waku/issues/new?labels=critical,bug) to assist with triaging.
 
 To get help, or participate in the conversation, join the [Vac Discord](https://discord.gg/KNj3ctuZvZ) server.

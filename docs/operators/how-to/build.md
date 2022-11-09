@@ -36,7 +36,7 @@ brew install cmake
 ### 1. Clone the nwaku repository
 
 ```sh
-git clone https://github.com/status-im/go-waku
+git clone https://github.com/waku-org/go-waku
 cd nwaku
 ```
 

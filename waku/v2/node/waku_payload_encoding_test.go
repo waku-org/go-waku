@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 func createTestMsg(version uint32) *pb.WakuMessage {

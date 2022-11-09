@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/status-im/go-waku/waku/v2/node"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
 func TestGetV1Info(t *testing.T) {

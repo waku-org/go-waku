@@ -4,8 +4,8 @@ import (
 	"os"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/urfave/cli/v2"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 var options Options

@@ -3,7 +3,7 @@ package relay
 import (
 	"sync"
 
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 // Subscription handles the subscrition to a particular pubsub topic

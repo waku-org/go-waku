@@ -17,10 +17,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/tests"
-	"github.com/status-im/go-waku/waku/v2/discv5"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"

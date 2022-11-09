@@ -1,8 +1,8 @@
 package rest
 
 import (
-	v2 "github.com/status-im/go-waku/waku/v2"
-	"github.com/status-im/go-waku/waku/v2/protocol"
+	v2 "github.com/waku-org/go-waku/waku/v2"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 type Adder func(msg *protocol.Envelope)

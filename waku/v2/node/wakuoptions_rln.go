@@ -7,7 +7,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/status-im/go-waku/waku/v2/protocol/rln"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 )
 

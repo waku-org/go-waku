@@ -14,8 +14,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
-	"github.com/status-im/go-waku/waku/v2/noise"
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/noise"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 // KeyKind indicates the type of encryption to apply

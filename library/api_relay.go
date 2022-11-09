@@ -3,7 +3,7 @@ package main
 import (
 	"C"
 
-	mobile "github.com/status-im/go-waku/mobile"
+	mobile "github.com/waku-org/go-waku/mobile"
 )
 
 //export waku_relay_enough_peers

@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/status-im/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )

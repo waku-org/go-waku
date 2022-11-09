@@ -36,7 +36,7 @@ fpm_build () {
     --architecture x86_64 \
     --depends libc6 \
     --description "Go implementation of Waku v2 protocol" \
-    --url "https://github.com/status-im/go-waku" \
+    --url "https://github.com/waku-org/go-waku" \
     --maintainer "Richard Ramos <richard@status.im>" \
     waku=/usr/bin/waku
 }

@@ -9,7 +9,7 @@ pipeline {
     /* Prevent Jenkins jobs from running forever */
     timeout(time: 30, unit: 'MINUTES')
     /* Go requires a certain directory structure */
-    checkoutToSubdirectory('src/github.com/status-im/go-waku')
+    checkoutToSubdirectory('src/github.com/waku-org/go-waku')
     /* Limit builds retained */
     buildDiscarder(logRotator(
       numToKeepStr: '10',
@@ -25,7 +25,7 @@ pipeline {
     CC="gcc-10"
     /* Other stuff */
     TARGET   = 'android'
-    REPO   = "${env.WORKSPACE}/src/github.com/status-im/go-waku"
+    REPO   = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
     GOPATH = "${env.WORKSPACE}"
     PATH   = "/usr/local/go/bin:${env.PATH}:${env.GOPATH}/bin"
     /* Android SDK */

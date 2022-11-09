@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/status-im/go-waku/waku/persistence"
-	"github.com/status-im/go-waku/waku/persistence/sqlite"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func MemoryDB(t *testing.T) *persistence.DBStore {

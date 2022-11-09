@@ -12,7 +12,7 @@ However, [Waku Store](https://rfc.vac.dev/spec/13/) peers do save messages they 
 import (
     "context"
     
-    "github.com/status-im/go-waku/waku/v2/protocol/store"
+    "github.com/go-waku/go-waku/waku/v2/protocol/store"
 )
 
 ...

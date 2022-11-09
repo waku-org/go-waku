@@ -42,9 +42,9 @@ package main
 import (
     "fmt"
 
-    "github.com/status-im/go-waku/waku/v2/utils"
-    "github.com/status-im/go-waku/waku/v2/node"
-    "github.com/status-im/go-waku/waku/v2/protocol/pb"
+    "github.com/waku-org/go-waku/waku/v2/utils"
+    "github.com/waku-org/go-waku/waku/v2/node"
+    "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 func main(){
@@ -81,9 +81,9 @@ package main
 import (
     "fmt"
 
-    "github.com/status-im/go-waku/waku/v2/utils"
-    "github.com/status-im/go-waku/waku/v2/node"
-    "github.com/status-im/go-waku/waku/v2/protocol/pb"
+    "github.com/waku-org/go-waku/waku/v2/utils"
+    "github.com/waku-org/go-waku/waku/v2/node"
+    "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 func main(){
@@ -126,9 +126,9 @@ package main
 import (
     "fmt"
 
-    "github.com/status-im/go-waku/waku/v2/utils"
-    "github.com/status-im/go-waku/waku/v2/node"
-    "github.com/status-im/go-waku/waku/v2/protocol/pb"
+    "github.com/waku-org/go-waku/waku/v2/utils"
+    "github.com/waku-org/go-waku/waku/v2/node"
+    "github.com/waku-org/go-waku/waku/v2/protocol/pb"
     "github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -166,9 +166,9 @@ package main
 import (
     "fmt"
 
-    "github.com/status-im/go-waku/waku/v2/utils"
-    "github.com/status-im/go-waku/waku/v2/node"
-    "github.com/status-im/go-waku/waku/v2/protocol/pb"
+    "github.com/waku-org/go-waku/waku/v2/utils"
+    "github.com/waku-org/go-waku/waku/v2/node"
+    "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 func main(){

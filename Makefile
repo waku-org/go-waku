@@ -2,7 +2,7 @@
 CC_TEST_REPORTER_ID := 343d0af350b29aaf08d1e5bb4465d0e21df6298a27240acd2434457a9984c74a
 GO_HTML_COV         := ./coverage.html
 GO_TEST_OUTFILE     := ./c.out
-CC_PREFIX       	:= github.com/status-im/go-waku
+CC_PREFIX       	:= github.com/waku-org/go-waku
 
 SHELL := bash # the shell used internally by Make
 
@@ -35,8 +35,8 @@ GIT_COMMIT = $(shell git rev-parse --short HEAD)
 VERSION = $(shell cat ./VERSION)
 
 BUILD_FLAGS ?= $(shell echo "-ldflags='\
-	-X github.com/status-im/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT) \
-	-X github.com/status-im/go-waku/waku/v2/node.Version=$(VERSION)'")
+	-X github.com/waku-org/waku/v2/node.GitCommit=$(GIT_COMMIT) \
+	-X github.com/waku-org/waku/v2/node.Version=$(VERSION)'")
 
 
 # control rln code compilation
@@ -176,5 +176,5 @@ stop-ganache:
 
 test-onchain: BUILD_TAGS += include_onchain_tests
 test-onchain:
-	${GOBIN} test -v -count 1 -tags="${BUILD_TAGS}" github.com/status-im/go-waku/waku/v2/protocol/rln
+	${GOBIN} test -v -count 1 -tags="${BUILD_TAGS}" github.com/waku-org/go-waku/waku/v2/protocol/rln
 

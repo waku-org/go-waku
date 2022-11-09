@@ -3,8 +3,8 @@ package filter
 import (
 	"testing"
 
-	"github.com/status-im/go-waku/waku/v2/protocol"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 func TestFilterMap(t *testing.T) {

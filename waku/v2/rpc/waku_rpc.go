@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc/v2"
-	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/node"
 	"go.uber.org/zap"
 )
 

@@ -3,7 +3,7 @@ package protocol
 import (
 	"crypto/sha256"
 
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
 // Envelope contains information about the pubsub topic of a WakuMessage

@@ -3,7 +3,7 @@ package main
 import (
 	"C"
 
-	mobile "github.com/status-im/go-waku/mobile"
+	mobile "github.com/waku-org/go-waku/mobile"
 )
 
 // RetrieveNodes returns a list of multiaddress given a url to a DNS discoverable ENR tree

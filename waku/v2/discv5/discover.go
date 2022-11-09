@@ -14,9 +14,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/status-im/go-waku/logging"
-	"github.com/status-im/go-waku/waku/v2/utils"
 	"github.com/waku-org/go-discover/discover"
+	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 

@@ -7,10 +7,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/status-im/go-waku/tests"
-	"github.com/status-im/go-waku/waku/persistence"
-	"github.com/status-im/go-waku/waku/v2/protocol/store"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
 func TestWakuOptions(t *testing.T) {

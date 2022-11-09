@@ -2,7 +2,7 @@
 FROM ubuntu:18.04
 
 LABEL maintainer="richard@status.im"
-LABEL source="https://github.com/status-im/go-waku"
+LABEL source="https://github.com/waku-org/go-waku"
 LABEL description="go-waku: deb/rpm builder"
 
 RUN export DEBIAN_FRONTEND=noninteractive \

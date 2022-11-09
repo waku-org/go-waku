@@ -13,7 +13,7 @@
 These instructions should be executed in git bash: 
 ```bash
 # Clone the repository
-git clone https://github.com/status-im/go-waku.git
+git clone https://github.com/waku-org/go-waku.git
 cd go-waku
 
 # Build the .dll

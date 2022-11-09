@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/status-im/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/status-im/go-waku/waku/v2/protocol/lightpush"
+	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 )
 
 func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms int) (string, error) {

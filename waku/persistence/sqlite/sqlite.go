@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
-	"github.com/status-im/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence"
 )
 
 // Queries are the sqlite queries for a given table.

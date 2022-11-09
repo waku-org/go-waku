@@ -19,7 +19,7 @@ FROM alpine:3.16
 ARG GIT_COMMIT=unknown
 
 LABEL maintainer="richard@status.im"
-LABEL source="https://github.com/status-im/go-waku"
+LABEL source="https://github.com/waku-org/go-waku"
 LABEL description="go-waku: Waku V2 node"
 LABEL commit=$GIT_COMMIT
 

@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/status-im/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )

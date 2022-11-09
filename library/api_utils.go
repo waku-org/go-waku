@@ -9,7 +9,7 @@ import (
 	"encoding/base64"
 	"unsafe"
 
-	mobile "github.com/status-im/go-waku/mobile"
+	mobile "github.com/waku-org/go-waku/mobile"
 )
 
 // Decode a base64 string (useful for reading the payload from waku messages)

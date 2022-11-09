@@ -4,8 +4,8 @@
 package main
 
 import (
-	wcli "github.com/status-im/go-waku/waku/cliutils"
 	"github.com/urfave/cli/v2"
+	wcli "github.com/waku-org/go-waku/waku/cliutils"
 )
 
 func rlnFlags() []cli.Flag {

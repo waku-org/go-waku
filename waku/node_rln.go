@@ -7,7 +7,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 
-	"github.com/status-im/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )

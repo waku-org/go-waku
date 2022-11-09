@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/cruxic/go-hmac-drbg/hmacdrbg"
-	"github.com/status-im/go-waku/waku/v2/utils"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
