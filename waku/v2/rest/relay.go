@@ -128,8 +128,9 @@ func (d *RelayService) postV1Subscriptions(w http.ResponseWriter, r *http.Reques
 			d.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
 		} else {
 			d.node.Broadcaster().Unregister(&topicToSubscribe, sub.C)
-
+			d.messagesMutex.Lock()
 			d.messages[topic] = []*pb.WakuMessage{}
+			d.messagesMutex.Unlock()
 		}
 	}
 

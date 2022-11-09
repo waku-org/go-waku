@@ -116,7 +116,9 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
 			return err
 		}
+		r.messagesMutex.Lock()
 		r.messages[topic] = make([]*pb.WakuMessage, 0)
+		r.messagesMutex.Unlock()
 	}
 
 	*reply = true
