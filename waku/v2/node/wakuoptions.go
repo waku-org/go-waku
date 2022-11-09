@@ -404,6 +404,7 @@ func WithSecureWebsockets(address string, port int, certPath string, keyPath str
 		}
 		params.tlsConfig = &tls.Config{
 			Certificates: []tls.Certificate{certificate},
+			MinVersion:   tls.VersionTLS12,
 		}
 
 		return nil
