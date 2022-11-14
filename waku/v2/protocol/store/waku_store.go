@@ -169,9 +169,12 @@ type WakuStore struct {
 	swap        *swap.WakuSwap
 }
 
+type criteriaFN = func(msg *pb.WakuMessage) (bool, error)
+
 type Store interface {
 	Start(ctx context.Context)
 	Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error)
+	Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*pb.WakuMessage, error)
 	Next(ctx context.Context, r *Result) (*Result, error)
 	Resume(ctx context.Context, pubsubTopic string, peerList []peer.ID) (int, error)
 	MessageChannel() chan *protocol.Envelope
@@ -497,6 +500,42 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	}
 
 	return result, nil
+}
+
+// Find the first message that matches a criteria. criteriaCB is a function that will be invoked for each message and returns true if the message matches the criteria
+func (store *WakuStore) Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*pb.WakuMessage, error) {
+	if cb == nil {
+		return nil, errors.New("callback can't be null")
+	}
+
+	result, err := store.Query(ctx, query, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		for _, m := range result.Messages {
+			found, err := cb(m)
+			if err != nil {
+				return nil, err
+			}
+
+			if found {
+				return m, nil
+			}
+		}
+
+		if result.IsComplete() {
+			break
+		}
+
+		result, err = store.Next(ctx, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, nil
 }
 
 // Next is used with to retrieve the next page of rows from a query response.
