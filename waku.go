@@ -212,7 +212,6 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:        "relay-peer-exchange",
-			Aliases:     []string{"peer-exchange"},
 			Value:       false,
 			Usage:       "Enable GossipSub Peer Exchange",
 			Destination: &options.Relay.PeerExchange,
