@@ -24,8 +24,8 @@ import (
 type byteArr [][]byte
 
 // HexArray creates a field with an array of bytes that will be shown as a hexadecimal string in logs
-func HexArray(key string, byteVal ...[]byte) zapcore.Field {
-	return zap.Array(key, byteArr(byteVal))
+func HexArray(key string, byteVal byteArr) zapcore.Field {
+	return zap.Array(key, byteVal)
 }
 
 func (bArr byteArr) MarshalLogArray(encoder zapcore.ArrayEncoder) error {
@@ -37,7 +37,7 @@ func (bArr byteArr) MarshalLogArray(encoder zapcore.ArrayEncoder) error {
 
 type hexByte []byte
 
-func HexString(key string, byteVal []byte) zapcore.Field {
+func HexString(key string, byteVal hexByte) zapcore.Field {
 	return zap.Stringer(key, hexByte(byteVal))
 }
 
