@@ -237,6 +237,16 @@ func (w *WakuNode) setupENR(addrs []ma.Multiaddr) error {
 				return err
 			} else {
 				w.log.Info("enr record", logging.ENode("enr", w.localNode.Node()))
+				// Restarting DiscV5
+				if w.discoveryV5 != nil && w.discoveryV5.IsStarted() {
+					w.log.Info("restarting discv5")
+					w.discoveryV5.Stop()
+					err = w.discoveryV5.Start()
+					if err != nil {
+						w.log.Error("could not restart discv5", zap.Error(err))
+						return err
+					}
+				}
 			}
 		} else {
 			localNode, err := w.newLocalnode(w.opts.privKey, wsAddresses, ipAddr, w.opts.udpPort, w.wakuFlag, w.opts.advertiseAddr, w.log)
