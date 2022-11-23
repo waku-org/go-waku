@@ -481,7 +481,11 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		q.PagingInfo.Direction = pb.PagingInfo_BACKWARD
 	}
 
-	q.PagingInfo.PageSize = params.pageSize
+	pageSize := params.pageSize
+	if pageSize == 0 || pageSize > uint64(MaxPageSize) {
+		pageSize = MaxPageSize
+	}
+	q.PagingInfo.PageSize = pageSize
 
 	response, err := store.queryFrom(ctx, q, params.selectedPeer, params.requestId)
 	if err != nil {
