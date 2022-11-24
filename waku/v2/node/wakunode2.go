@@ -521,7 +521,7 @@ func (w *WakuNode) startStore() {
 					case <-w.quit:
 						return
 					case <-ticker.C:
-						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta4), w.log)
+						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta4), nil, w.log)
 						if err == nil {
 							break peerVerif
 						}
