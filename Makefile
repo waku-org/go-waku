@@ -35,8 +35,8 @@ GIT_COMMIT = $(shell git rev-parse --short HEAD)
 VERSION = $(shell cat ./VERSION)
 
 BUILD_FLAGS ?= $(shell echo "-ldflags='\
-	-X github.com/waku-org/waku/v2/node.GitCommit=$(GIT_COMMIT) \
-	-X github.com/waku-org/waku/v2/node.Version=$(VERSION)'")
+	-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT) \
+	-X github.com/waku-org/go-waku/waku/v2/node.Version=$(VERSION)'")
 
 
 # control rln code compilation

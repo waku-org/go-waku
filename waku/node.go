@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
+
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -78,6 +80,8 @@ const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
+	utils.Logger().Info("Version details ", zap.String("version", node.Version), zap.String("commit", node.GitCommit))
+
 	if options.GenerateKey {
 		if err := writePrivateKeyToFile(options.KeyFile, []byte(options.KeyPasswd), options.Overwrite); err != nil {
 			failOnErr(err, "nodekey error")
@@ -118,6 +122,7 @@ func Execute(options Options) {
 	if options.Metrics.Enable {
 		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
 		go metricsServer.Start()
+		wmetrics.RecordVersion(context.Background(), node.Version, node.GitCommit)
 	}
 
 	nodeOpts := []node.WakuNodeOption{
