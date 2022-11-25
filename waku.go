@@ -125,8 +125,8 @@ func main() {
 		},
 		&cli.DurationFlag{
 			Name:        "keep-alive",
-			Value:       20 * time.Second,
-			Usage:       "Interval in seconds for pinging peers to keep the connection alive.",
+			Value:       5 * time.Minute,
+			Usage:       "Interval of time for pinging peers to keep the connection alive.",
 			Destination: &options.KeepAlive,
 		},
 		&cli.BoolFlag{
