@@ -63,8 +63,8 @@ type WakuNodeParameters struct {
 
 	enableStore     bool
 	enableSwap      bool
-	shouldResume    bool
 	storeMsgs       bool
+	resumeNodes     []multiaddr.Multiaddr
 	messageProvider store.MessageProvider
 
 	swapMode                int
@@ -300,11 +300,11 @@ func WithWakuFilter(fullNode bool, filterOpts ...filter.Option) WakuNodeOption {
 
 // WithWakuStore enables the Waku V2 Store protocol and if the messages should
 // be stored or not in a message provider
-func WithWakuStore(shouldStoreMessages bool, shouldResume bool) WakuNodeOption {
+func WithWakuStore(shouldStoreMessages bool, resumeNodes []multiaddr.Multiaddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableStore = true
 		params.storeMsgs = shouldStoreMessages
-		params.shouldResume = shouldResume
+		params.resumeNodes = resumeNodes
 		return nil
 	}
 }

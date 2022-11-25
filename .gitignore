@@ -1,9 +1,14 @@
-*.db
-*.db-shm
-*.db-wal
 nodekey
 rlnCredentials.txt
 *.log
+
+# sqlite db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 
 # Binaries for programs and plugins
 *.exe

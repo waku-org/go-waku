@@ -42,7 +42,7 @@ func TestWakuOptions(t *testing.T) {
 		WithWakuRelay(),
 		WithWakuFilter(true),
 		WithDiscoveryV5(123, nil, false),
-		WithWakuStore(true, true),
+		WithWakuStore(true, nil),
 		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),
 		WithKeepAlive(time.Hour),

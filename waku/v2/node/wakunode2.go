@@ -502,38 +502,28 @@ func (w *WakuNode) mountPeerExchange() error {
 func (w *WakuNode) startStore() {
 	w.store.Start(w.ctx)
 
-	if w.opts.shouldResume {
+	if len(w.opts.resumeNodes) != 0 {
 		// TODO: extract this to a function and run it when you go offline
 		// TODO: determine if a store is listening to a topic
+
+		var peerIDs []peer.ID
+		for _, n := range w.opts.resumeNodes {
+			pID, err := w.AddPeer(n, string(store.StoreID_v20beta4))
+			if err != nil {
+				w.log.Warn("adding peer to peerstore", logging.MultiAddrs("peer", n), zap.Error(err))
+			}
+			peerIDs = append(peerIDs, pID)
+		}
+
 		w.wg.Add(1)
 		go func() {
 			defer w.wg.Done()
 
-			ticker := time.NewTicker(time.Second)
-			defer ticker.Stop()
-
-			for {
-			peerVerif:
-				for {
-					select {
-					case <-w.quit:
-						return
-					case <-ticker.C:
-						_, err := utils.SelectPeer(w.host, string(store.StoreID_v20beta4), nil, w.log)
-						if err == nil {
-							break peerVerif
-						}
-					}
-				}
-
-				ctxWithTimeout, ctxCancel := context.WithTimeout(w.ctx, 20*time.Second)
-				defer ctxCancel()
-				if _, err := w.store.Resume(ctxWithTimeout, string(relay.DefaultWakuTopic), nil); err != nil {
-					w.log.Info("Retrying in 10s...")
-					time.Sleep(10 * time.Second)
-				} else {
-					break
-				}
+			ctxWithTimeout, ctxCancel := context.WithTimeout(w.ctx, 20*time.Second)
+			defer ctxCancel()
+			if _, err := w.store.Resume(ctxWithTimeout, string(relay.DefaultWakuTopic), peerIDs); err != nil {
+				w.log.Error("Could not resume history", zap.Error(err))
+				time.Sleep(10 * time.Second)
 			}
 		}()
 	}
@@ -551,13 +541,13 @@ func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...string) error {
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, protocols ...string) (*peer.ID, error) {
+func (w *WakuNode) AddPeer(address ma.Multiaddr, protocols ...string) (peer.ID, error) {
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &info.ID, w.addPeer(info, protocols...)
+	return info.ID, w.addPeer(info, protocols...)
 }
 
 // DialPeerWithMultiAddress is used to connect to a peer using a multiaddress

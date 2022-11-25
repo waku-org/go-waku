@@ -68,9 +68,10 @@ type LightpushOptions struct {
 // node and provide message history to nodes that ask for it.
 type StoreOptions struct {
 	Enable               bool
-	ShouldResume         bool
+	DatabaseURL          string
 	RetentionTime        time.Duration
 	RetentionMaxMessages int
+	ResumeNodes          []multiaddr.Multiaddr
 	Nodes                []multiaddr.Multiaddr
 }
 
@@ -150,8 +151,6 @@ type Options struct {
 	Overwrite        bool
 	StaticNodes      []multiaddr.Multiaddr
 	KeepAlive        time.Duration
-	UseDB            bool
-	DBPath           string
 	AdvertiseAddress string
 	ShowAddresses    bool
 	LogLevel         string
