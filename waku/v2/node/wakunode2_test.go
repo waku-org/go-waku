@@ -100,7 +100,7 @@ func Test5000(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTimer(20 * time.Second)
+		ticker := time.NewTimer(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -118,7 +118,7 @@ func Test5000(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTimer(20 * time.Second)
+		ticker := time.NewTimer(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -177,7 +177,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	wakuNode2, err := New(ctx,
 		WithHostAddress(hostAddr2),
 		WithWakuFilter(false),
-		WithWakuStore(true, false),
+		WithWakuStore(true, nil),
 		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)

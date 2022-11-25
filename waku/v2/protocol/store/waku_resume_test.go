@@ -150,12 +150,6 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
 	require.NoError(t, err)
 
-	msgCount, err := s2.Resume(ctx, "test", []peer.ID{})
-
-	require.NoError(t, err)
-	require.Equal(t, 1, msgCount)
-
-	allMsgs, err := s2.msgProvider.GetAll()
-	require.NoError(t, err)
-	require.Len(t, allMsgs, 1)
+	_, err = s2.Resume(ctx, "test", []peer.ID{})
+	require.Error(t, err)
 }

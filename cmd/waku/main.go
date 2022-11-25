@@ -131,12 +131,6 @@ func main() {
 			Destination: &options.KeepAlive,
 		},
 		&cli.BoolFlag{
-			Name:        "use-db",
-			Aliases:     []string{"sqlite-store"},
-			Usage:       "Use SQLiteDB to persist information",
-			Destination: &options.UseDB,
-		},
-		&cli.BoolFlag{
 			Name:        "persist-peers",
 			Usage:       "Enable peer persistence",
 			Destination: &options.PersistPeers,
@@ -147,13 +141,6 @@ func main() {
 			Usage:       "TODO: Not implemented yet. Specify method to use for determining public address: any, none ('any' will attempt upnp/pmp)",
 			Value:       "any",
 			Destination: &options.NAT, // TODO: accept none,any,upnp,extaddr
-		},
-		&cli.PathFlag{
-			Name:        "db-path",
-			Aliases:     []string{"dbpath"},
-			Value:       "./store.db",
-			Usage:       "Path to DB file",
-			Destination: &options.DBPath,
 		},
 		&cli.StringFlag{
 			Name:        "advertise-address",
@@ -217,33 +204,41 @@ func main() {
 			Usage:       "Minimum number of peers to publish to Relay",
 			Destination: &options.Relay.MinRelayPeersToPublish,
 		},
-		&cli.BoolFlag{
-			Name:        "store",
-			Usage:       "Enable store protocol to persist messages",
-			Destination: &options.Store.Enable,
-		},
-		&cli.BoolFlag{
-			Name:        "resume",
-			Usage:       "Fix the gaps in message history",
-			Destination: &options.Store.ShouldResume,
-		},
-		&cli.DurationFlag{
-			Name:        "store-duration",
-			Value:       time.Hour * 24 * 30,
-			Usage:       "maximum number of seconds before a message is removed from the store",
-			Destination: &options.Store.RetentionTime,
-		},
-		&cli.IntFlag{
-			Name:        "store-capacity",
-			Value:       50000,
-			Usage:       "maximum number of messages to store",
-			Destination: &options.Store.RetentionMaxMessages,
-		},
 		&cli.GenericFlag{
 			Name:  "storenode",
 			Usage: "Multiaddr of a peer that supports store protocol. Option may be repeated",
 			Value: &cliutils.MultiaddrSlice{
 				Values: &options.Store.Nodes,
+			},
+		},
+		&cli.BoolFlag{
+			Name:        "store",
+			Usage:       "Enable store protocol to persist messages",
+			Destination: &options.Store.Enable,
+		},
+		&cli.StringFlag{
+			Name:        "store-message-db-url",
+			Usage:       "The database connection URL for peristent storage. (Set empty to use in memory db)",
+			Value:       "sqlite://store.sqlite3",
+			Destination: &options.Store.DatabaseURL,
+		},
+		&cli.DurationFlag{
+			Name:        "store-message-retention-time",
+			Value:       time.Hour * 24 * 2,
+			Usage:       "maximum number of seconds before a message is removed from the store. Set to 0 to disable it",
+			Destination: &options.Store.RetentionTime,
+		},
+		&cli.IntFlag{
+			Name:        "store-message-retention-capacity",
+			Value:       0,
+			Usage:       "maximum number of messages to store. Set to 0 to disable it",
+			Destination: &options.Store.RetentionMaxMessages,
+		},
+		&cli.GenericFlag{
+			Name:  "store-resume-peer",
+			Usage: "Peer multiaddress to resume the message store at boot. Option may be repeated",
+			Value: &cliutils.MultiaddrSlice{
+				Values: &options.Store.ResumeNodes,
 			},
 		},
 		&cli.BoolFlag{

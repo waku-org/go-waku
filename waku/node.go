@@ -11,6 +11,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
@@ -76,6 +78,14 @@ func freePort() (int, error) {
 	return port, nil
 }
 
+func validateDBUrl(val string) error {
+	matched, err := regexp.Match(`^[\w\+]+:\/\/[\w\/\\\.\:\@]+$`, []byte(val))
+	if !matched || err != nil {
+		return errors.New("invalid 'db url' option format")
+	}
+	return nil
+}
+
 const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
@@ -100,20 +110,33 @@ func Execute(options Options) {
 	failOnErr(err, "deriving peer ID from private key")
 	logger := utils.Logger().With(logging.HostID("node", id))
 
-	if options.DBPath == "" && options.UseDB {
-		failOnErr(errors.New("dbpath can't be null"), "")
-	}
-
 	var db *sql.DB
-	if options.UseDB {
-		db, err = sqlite.NewDB(options.DBPath)
-		failOnErr(err, "Could not connect to DB")
-		logger.Debug("using database: ", zap.String("path", options.DBPath))
+	if options.Store.Enable {
+		dbURL := ""
+		if options.Store.DatabaseURL != "" {
+			err := validateDBUrl(options.Store.DatabaseURL)
+			failOnErr(err, "connecting to the db")
+			dbURL = options.Store.DatabaseURL
+		} else {
+			// In memoryDB
+			dbURL = "sqlite://:memory:"
+		}
 
-	} else {
-		db, err = sqlite.NewDB(":memory:")
-		failOnErr(err, "Could not create in-memory DB")
-		logger.Debug("using in-memory database")
+		// TODO: this should be refactored to use any kind of DB, not just sqlite
+		// Extract to separate module
+
+		dbURLParts := strings.Split(dbURL, "://")
+		dbEngine := dbURLParts[0]
+		dbParams := dbURLParts[1]
+		switch dbEngine {
+		case "sqlite":
+			db, err = sqlite.NewDB(dbParams)
+			failOnErr(err, "Could not connect to DB")
+			logger.Info("using database: ", zap.String("path", dbParams))
+		default:
+			failOnErr(errors.New("unknown database engine"), fmt.Sprintf("%s is not supported by go-waku", dbEngine))
+		}
+
 	}
 
 	ctx := context.Background()
@@ -175,19 +198,17 @@ func Execute(options Options) {
 		return
 	}
 
-	if options.UseDB {
-		if options.PersistPeers {
-			// Create persistent peerstore
-			queries, err := sqlite.NewQueries("peerstore", db)
-			failOnErr(err, "Peerstore")
+	if options.Store.Enable && options.PersistPeers {
+		// Create persistent peerstore
+		queries, err := sqlite.NewQueries("peerstore", db)
+		failOnErr(err, "Peerstore")
 
-			datastore := dssql.NewDatastore(db, queries)
-			opts := pstoreds.DefaultOpts()
-			peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
-			failOnErr(err, "Peerstore")
+		datastore := dssql.NewDatastore(db, queries)
+		opts := pstoreds.DefaultOpts()
+		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
+		failOnErr(err, "Peerstore")
 
-			libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
-		}
+		libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
 	}
 
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
@@ -202,8 +223,8 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
 	}
 
-	nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.Enable, options.Store.ShouldResume))
-	if options.Store.Enable && options.UseDB {
+	nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.Enable, options.Store.ResumeNodes))
+	if options.Store.Enable {
 		dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime))
 		failOnErr(err, "DBStore")
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
@@ -288,7 +309,7 @@ func Execute(options Options) {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
 			desiredOutDegree := 6 // TODO: obtain this from gossipsub D
-			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(*peerId)); err != nil {
+			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(peerId)); err != nil {
 				logger.Error("requesting peers via peer exchange", zap.Error(err))
 			}
 		}
@@ -373,7 +394,7 @@ func Execute(options Options) {
 		failOnErr(err, "MetricsClose")
 	}
 
-	if options.UseDB {
+	if options.Store.Enable {
 		err = db.Close()
 		failOnErr(err, "DBClose")
 	}
