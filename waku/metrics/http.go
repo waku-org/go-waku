@@ -57,6 +57,7 @@ func NewMetricsServer(address string, port int, log *zap.Logger) *Server {
 		metrics.StoreMessagesView,
 		metrics.PeersView,
 		metrics.DialsView,
+		metrics.VersionView,
 	); err != nil {
 		p.log.Fatal("registering views", zap.Error(err))
 	}
