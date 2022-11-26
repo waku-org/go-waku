@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -36,6 +35,6 @@ func (d *DebugService) GetV1Info(r *http.Request, args *InfoArgs, reply *InfoRep
 type VersionResponse string
 
 func (d *DebugService) GetV1Version(r *http.Request, args *InfoArgs, reply *VersionResponse) error {
-	*reply = VersionResponse(fmt.Sprintf("%s-%s", node.Version, node.GitCommit))
+	*reply = VersionResponse(node.GetVersionInfo().String())
 	return nil
 }

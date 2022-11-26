@@ -153,7 +153,6 @@ type Options struct {
 	UseDB            bool
 	DBPath           string
 	AdvertiseAddress string
-	Version          bool // TODO: use vflag from urcli
 	ShowAddresses    bool
 	LogLevel         string
 	LogEncoding      string

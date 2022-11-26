@@ -8,6 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -186,12 +187,6 @@ func main() {
 			Value:       "stdout",
 			Usage:       "specifies where logging output should be written  (stdout, file, file:./filename.log)",
 			Destination: &options.LogOutput,
-		},
-		&cli.BoolFlag{
-			Name:        "version",
-			Value:       false,
-			Usage:       "prints the version",
-			Destination: &options.Version,
 		},
 		&cli.StringFlag{
 			Name:        "agent-string",
@@ -455,8 +450,15 @@ func main() {
 	rlnFlags := rlnFlags()
 	cliFlags = append(cliFlags, rlnFlags...)
 
+	cli.VersionFlag = &cli.BoolFlag{
+		Name:  "version",
+		Usage: "prints the version",
+	}
+
 	app := &cli.App{
-		Flags: cliFlags,
+		Name:    "gowaku",
+		Version: node.GetVersionInfo().String(),
+		Flags:   cliFlags,
 		Action: func(c *cli.Context) error {
 			utils.InitLogger(options.LogEncoding, options.LogOutput)
 
