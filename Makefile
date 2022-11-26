@@ -33,6 +33,9 @@ endif
 
 GIT_COMMIT = $(shell git rev-parse --short HEAD)
 VERSION = $(shell cat ./VERSION)
+UID := $(shell id -u)
+GID := $(shell id -g)
+
 
 BUILD_FLAGS ?= $(shell echo "-ldflags='\
 	-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT) \
@@ -49,7 +52,7 @@ all: build
 deps: lint-install
 
 build:
-	${GOBIN} build -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku
+	${GOBIN} build -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku ./cmd/waku
 
 chat2:
 	pushd ./examples/chat2 && \
@@ -163,6 +166,7 @@ install-gomobile: install-xtools
 	${GOBIN} install golang.org/x/mobile/cmd/gobind@v0.0.0-20220518205345-8578da9835fd
 
 build-linux-pkg:
+	docker build --build-arg UID=${UID} --build-arg GID=${GID} -f ./scripts/linux/Dockerfile -t statusteam/gowaku-linux-pkgs:latest .
 	./scripts/linux/docker-run.sh
 	ls -la ./build/*.rpm ./build/*.deb
 
