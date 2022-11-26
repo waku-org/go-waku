@@ -175,11 +175,6 @@ func Execute(options Options) {
 		return
 	}
 
-	if options.Version {
-		fmt.Printf("version / git commit hash: %s-%s\n", node.Version, node.GitCommit)
-		return
-	}
-
 	if options.UseDB {
 		if options.PersistPeers {
 			// Create persistent peerstore

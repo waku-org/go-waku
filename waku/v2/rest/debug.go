@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -48,6 +47,6 @@ func (d *DebugService) getV1Info(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *DebugService) getV1Version(w http.ResponseWriter, r *http.Request) {
-	response := VersionResponse(fmt.Sprintf("%s-%s", node.Version, node.GitCommit))
+	response := VersionResponse(node.GetVersionInfo().String())
 	writeErrOrResponse(w, nil, response)
 }
