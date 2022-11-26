@@ -1,7 +1,6 @@
 #!/bin/bash
 
 git config --global --add safe.directory /go-waku
-
 make
 
 cd /go-waku/scripts/linux
@@ -18,13 +17,13 @@ fi
 
 tmpdir=`mktemp -d`
 
+chmod 777 ${tmpdir}
+
 cp ${parent_path}/build/waku ${tmpdir}
 
 strip --strip-unneeded ${tmpdir}/waku
 
 pushd ${tmpdir}
-
-ls .
 
 fpm_build () {
     fpm \
@@ -43,6 +42,10 @@ fpm_build () {
 
 fpm_build "deb"
 fpm_build "rpm"
+
+echo "./././.asasdasd"
+
+ls
 
 mv *.deb *.rpm ${parent_path}/build/.
 
