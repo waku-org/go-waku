@@ -3,7 +3,6 @@ package discv5
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"math/rand"
 	"net"
 	"sync"
@@ -380,10 +379,6 @@ func (d *DiscoveryV5) FindNodes(ctx context.Context, topic string, opts ...disco
 	limit := options.Limit
 	if limit == 0 || limit > MaxPeersToDiscover {
 		limit = MaxPeersToDiscover
-	}
-
-	if limit > MaxPeersToDiscover {
-		return nil, errors.New("limit should be less than allowed maximum")
 	}
 
 	// We are ignoring the topic. Future versions might use a map[string]*peerCache instead where the string represents the pubsub topic
