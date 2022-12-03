@@ -277,19 +277,19 @@ func Execute(options Options) {
 		if err = wakuNode.DiscV5().Start(); err != nil {
 			logger.Fatal("starting discovery v5", zap.Error(err))
 		}
+	}
 
-		// retrieve and connect to peer exchange peers
-		if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
-			logger.Info("retrieving peer info via peer exchange protocol")
+	// retrieve and connect to peer exchange peers
+	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
+		logger.Info("retrieving peer info via peer exchange protocol")
 
-			peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, string(peer_exchange.PeerExchangeID_v20alpha1))
-			if err != nil {
-				logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
-			} else {
-				desiredOutDegree := 6 // TODO: obtain this from gossipsub D
-				if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(*peerId)); err != nil {
-					logger.Error("requesting peers via peer exchange", zap.Error(err))
-				}
+		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, string(peer_exchange.PeerExchangeID_v20alpha1))
+		if err != nil {
+			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
+		} else {
+			desiredOutDegree := 6 // TODO: obtain this from gossipsub D
+			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(*peerId)); err != nil {
+				logger.Error("requesting peers via peer exchange", zap.Error(err))
 			}
 		}
 	}
