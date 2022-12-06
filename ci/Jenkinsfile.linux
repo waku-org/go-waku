@@ -1,0 +1,78 @@
+library 'status-jenkins-lib@v1.3.3'
+
+pipeline {
+  agent { 
+    dockerfile {
+      label 'linux'
+      dir 'src/github.com/waku-org/go-waku/scripts/linux'
+    }  
+  }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    /* Prevent Jenkins jobs from running forever */
+    timeout(time: 30, unit: 'MINUTES')
+    /* Go requires a certain directory structure */
+    checkoutToSubdirectory('src/github.com/waku-org/go-waku')
+    /* Limit builds retained */
+    buildDiscarder(logRotator(
+      numToKeepStr: '10',
+      daysToKeepStr: '20',
+      artifactNumToKeepStr: '10',
+    ))
+    /* Allows combined build to copy */
+    copyArtifactPermission('/go-waku/*')
+  }
+
+  environment {
+    BUILD_PLATFORM   = 'linux'
+    /* Other stuff */
+    TARGET   = 'linux'
+    REPO   = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
+    GOPATH = "${env.WORKSPACE}"
+    PATH   = "/usr/local/go/bin:${env.PATH}:${env.GOPATH}/bin"
+  }
+
+  stages {
+
+    stage('Prep') { steps { dir(env.REPO) { script {
+      env.DEB_ARTIFACT = "${env.REPO}/pkg/" + utils.pkgFilename(
+        name: "go-waku",
+        type: "x86_64",
+        ext: "deb"
+      )
+    } } } }
+
+    stage('Build') { steps { dir(env.REPO) {
+      sh "make"
+      dir('./scripts/linux') {
+        sh "./fpm-build.sh"
+      }
+      dir('build') {
+        sh "cp gowaku*.deb ${env.DEB_ARTIFACT}"
+      }
+    } } }
+
+    stage('Parallel Upload') {
+      parallel {
+        stage('Archive') {
+          steps { script {
+            archiveArtifacts(env.DEB_ARTIFACT.minus("${env.WORKSPACE}/"))
+          } }
+        }
+        stage('Upload') {
+          steps { script {
+            env.PKG_URL = s3.uploadArtifact(env.DEB_ARTIFACT)
+            jenkins.setBuildDesc(x86_64_deb: env.PKG_URL)
+          } }
+        }
+      }
+    }
+  }
+  post {
+    success { script { github.notifyPR(true) } }
+    failure { script { github.notifyPR(false) } }
+    always { cleanWs() }
+  }
+}
