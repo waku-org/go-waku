@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -46,7 +47,8 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool
 	return wrpc
 }
 
-func (r *WakuRest) Start() {
+func (r *WakuRest) Start(wg *sync.WaitGroup) {
+	defer wg.Done()
 	go r.relayService.Start()
 	go func() {
 		_ = r.server.ListenAndServe()

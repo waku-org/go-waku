@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -362,12 +363,16 @@ func Execute(options Options) {
 		rpcServer.Start()
 	}
 
+	var wg sync.WaitGroup
+
 	var restServer *rest.WakuRest
 	if options.RESTServer.Enable {
+		wg.Add(1)
 		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.RESTServer.Admin, options.RESTServer.Private, options.RESTServer.RelayCacheCapacity, logger)
-		restServer.Start()
+		restServer.Start(&wg)
 	}
 
+	wg.Wait()
 	logger.Info("Node setup complete")
 
 	// Wait for a SIGINT or SIGTERM signal
