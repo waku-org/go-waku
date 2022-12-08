@@ -24,7 +24,8 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 		ticker := time.NewTicker(t)
 		defer ticker.Stop()
 
-		lastTimeExecuted := <-ticker.C
+		lastTimeExecuted := time.Now()
+
 		sleepDetectionInterval := int64(t) * 3
 
 		for {
