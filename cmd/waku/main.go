@@ -49,6 +49,7 @@ func main() {
 		MinRelayPeersToPublish,
 		StoreNodeFlag,
 		StoreFlag,
+		StoreMessageDBURL,
 		StoreMessageRetentionTime,
 		StoreMessageRetentionCapacity,
 		StoreResumePeer,

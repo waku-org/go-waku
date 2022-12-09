@@ -216,6 +216,12 @@ var (
 		Usage:       "maximum number of messages to store. Set to 0 to disable it",
 		Destination: &options.Store.RetentionMaxMessages,
 	}
+	StoreMessageDBURL = &cli.StringFlag{
+		Name:        "store-message-db-url",
+		Usage:       "The database connection URL for peristent storage.",
+		Value:       "sqlite://store.sqlite3",
+		Destination: &options.Store.DatabaseURL,
+	}
 	StoreResumePeer = &cli.GenericFlag{
 		Name:  "store-resume-peer",
 		Usage: "Peer multiaddress to resume the message store at boot. Option may be repeated",
