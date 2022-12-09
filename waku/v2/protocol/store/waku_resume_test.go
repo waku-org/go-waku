@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -21,7 +22,7 @@ func TestFindLastSeenMessage(t *testing.T) {
 	msg4 := protocol.NewEnvelope(tests.CreateWakuMessage("4", 4), utils.GetUnixEpoch(), "test")
 	msg5 := protocol.NewEnvelope(tests.CreateWakuMessage("5", 5), utils.GetUnixEpoch(), "test")
 
-	s := NewWakuStore(nil, nil, MemoryDB(t), utils.Logger())
+	s := NewWakuStore(nil, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	_ = s.storeMessage(msg1)
 	_ = s.storeMessage(msg3)
 	_ = s.storeMessage(msg5)
@@ -41,8 +42,10 @@ func TestResume(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, MemoryDB(t), utils.Logger())
-	s1.Start(ctx)
+	s1 := NewWakuStore(host1, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s1.Start(ctx)
+	require.NoError(t, err)
+
 	defer s1.Stop()
 
 	for i := 0; i < 10; i++ {
@@ -59,8 +62,9 @@ func TestResume(t *testing.T) {
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(host2, nil, MemoryDB(t), utils.Logger())
-	s2.Start(ctx)
+	s2 := NewWakuStore(host2, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s2.Start(ctx)
+	require.NoError(t, err)
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
@@ -95,8 +99,10 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, MemoryDB(t), utils.Logger())
-	s1.Start(ctx)
+	s1 := NewWakuStore(host1, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s1.Start(ctx)
+	require.NoError(t, err)
+
 	defer s1.Stop()
 
 	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: 0}
@@ -106,8 +112,9 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(host2, nil, MemoryDB(t), utils.Logger())
-	s2.Start(ctx)
+	s2 := NewWakuStore(host2, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s2.Start(ctx)
+	require.NoError(t, err)
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
@@ -131,8 +138,10 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(host1, nil, MemoryDB(t), utils.Logger())
-	s1.Start(ctx)
+	s1 := NewWakuStore(host1, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s1.Start(ctx)
+	require.NoError(t, err)
+
 	defer s1.Stop()
 
 	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: 0}
@@ -142,8 +151,10 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(host2, nil, MemoryDB(t), utils.Logger())
-	s2.Start(ctx)
+	s2 := NewWakuStore(host2, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s2.Start(ctx)
+	require.NoError(t, err)
+
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)

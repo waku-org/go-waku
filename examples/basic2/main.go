@@ -46,6 +46,7 @@ func main() {
 	wakuNode, err := node.New(ctx,
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
+		node.WithNTP(),
 		node.WithWakuRelay(),
 	)
 	if err != nil {
@@ -84,7 +85,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	contentTopic := protocol.NewContentTopic("basic2", 1, "test", "proto")
 
 	var version uint32 = 0
-	var timestamp int64 = utils.GetUnixEpoch()
+	var timestamp int64 = utils.GetUnixEpoch(wakuNode.Timesource())
 
 	p := new(node.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)

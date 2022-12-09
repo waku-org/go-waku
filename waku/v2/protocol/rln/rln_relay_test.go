@@ -10,6 +10,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 )
@@ -32,7 +33,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, utils.Logger())
+	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
 	defer relay.Stop()
 	s.Require().NoError(err)
 
@@ -49,7 +50,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	// index also represents the index of the leaf in the Merkle tree that contains node's commitment key
 	index := r.MembershipIndex(5)
 
-	wakuRLNRelay, err := RlnRelayStatic(context.TODO(), relay, groupIDCommitments, groupKeyPairs[index], index, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, utils.Logger())
+	wakuRLNRelay, err := RlnRelayStatic(context.TODO(), relay, groupIDCommitments, groupKeyPairs[index], index, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	// get the root of Merkle tree which is constructed inside the mountRlnRelay proc

@@ -36,6 +36,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/swap"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -63,9 +64,10 @@ type RLNRelay interface {
 }
 
 type WakuNode struct {
-	host host.Host
-	opts *WakuNodeParameters
-	log  *zap.Logger
+	host       host.Host
+	opts       *WakuNodeParameters
+	log        *zap.Logger
+	timesource timesource.Timesource
 
 	relay     *relay.WakuRelay
 	filter    *filter.WakuFilter
@@ -105,7 +107,7 @@ type WakuNode struct {
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
-	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.log)
+	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.timesource, w.log)
 }
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
@@ -173,6 +175,12 @@ func New(ctx context.Context, opts ...WakuNodeOption) (*WakuNode, error) {
 	w.addrChan = make(chan ma.Multiaddr, 1024)
 	w.keepAliveFails = make(map[peer.ID]int)
 	w.wakuFlag = utils.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilter, w.opts.enableStore, w.opts.enableRelay)
+
+	if params.enableNTP {
+		w.timesource = timesource.NewNTPTimesource(w.opts.ntpURLs, w.log)
+	} else {
+		w.timesource = timesource.NewDefaultClock()
+	}
 
 	if params.storeFactory != nil {
 		w.storeFactory = params.storeFactory
@@ -259,6 +267,13 @@ func (w *WakuNode) checkForAddressChanges() {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start() error {
+	if w.opts.enableNTP {
+		err := w.timesource.Start()
+		if err != nil {
+			return err
+		}
+	}
+
 	if w.opts.enableSwap {
 		w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
 			swap.WithMode(w.opts.swapMode),
@@ -268,11 +283,14 @@ func (w *WakuNode) Start() error {
 
 	w.store = w.storeFactory(w)
 	if w.opts.enableStore {
-		w.startStore()
+		err := w.startStore()
+		if err != nil {
+			return err
+		}
 	}
 
 	if w.opts.enableFilter {
-		filter, err := filter.NewWakuFilter(w.ctx, w.host, w.opts.isFilterFullNode, w.log, w.opts.filterOpts...)
+		filter, err := filter.NewWakuFilter(w.ctx, w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
 		if err != nil {
 			return err
 		}
@@ -302,9 +320,11 @@ func (w *WakuNode) Start() error {
 		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.discoveryV5, w.opts.discV5Opts...))
 	}
 
-	err = w.mountRelay(w.opts.minRelayPeersToPublish, w.opts.wOpts...)
-	if err != nil {
-		return err
+	if w.opts.enableRelay {
+		err = w.mountRelay(w.opts.minRelayPeersToPublish, w.opts.wOpts...)
+		if err != nil {
+			return err
+		}
 	}
 
 	if w.opts.enableRLN {
@@ -360,10 +380,18 @@ func (w *WakuNode) Stop() {
 		w.discoveryV5.Stop()
 	}
 
-	w.relay.Stop()
+	if w.opts.enableRelay {
+		w.relay.Stop()
+	}
+
 	w.lightPush.Stop()
 	w.store.Stop()
 	_ = w.stopRlnRelay()
+
+	err := w.timesource.Stop()
+	if err != nil {
+		w.log.Error("stopping timesource", zap.Error(err))
+	}
 
 	w.host.Close()
 
@@ -393,6 +421,12 @@ func (w *WakuNode) ListenAddresses() []ma.Multiaddr {
 // ENR returns the ENR address of the node
 func (w *WakuNode) ENR() *enode.Node {
 	return w.localNode.Node()
+}
+
+// Timesource returns the timesource used by this node to obtain the current wall time
+// Depending on the configuration it will be the local time or a ntp syncd time
+func (w *WakuNode) Timesource() timesource.Timesource {
+	return w.timesource
 }
 
 // Relay is used to access any operation related to Waku Relay protocol
@@ -461,7 +495,7 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 
 func (w *WakuNode) mountRelay(minRelayPeersToPublish int, opts ...pubsub.Option) error {
 	var err error
-	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.log, opts...)
+	w.relay, err = relay.NewWakuRelay(w.ctx, w.host, w.bcaster, minRelayPeersToPublish, w.timesource, w.log, opts...)
 	if err != nil {
 		return err
 	}
@@ -499,8 +533,12 @@ func (w *WakuNode) mountPeerExchange() error {
 	return w.peerExchange.Start()
 }
 
-func (w *WakuNode) startStore() {
-	w.store.Start(w.ctx)
+func (w *WakuNode) startStore() error {
+	err := w.store.Start(w.ctx)
+	if err != nil {
+		w.log.Error("starting store", zap.Error(err))
+		return err
+	}
 
 	if len(w.opts.resumeNodes) != 0 {
 		// TODO: extract this to a function and run it when you go offline
@@ -527,6 +565,7 @@ func (w *WakuNode) startStore() {
 			}
 		}()
 	}
+	return nil
 }
 
 func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...string) error {

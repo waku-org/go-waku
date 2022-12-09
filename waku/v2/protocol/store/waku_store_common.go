@@ -9,6 +9,7 @@ import (
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/swap"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 )
 
@@ -46,9 +47,10 @@ var (
 )
 
 type WakuStore struct {
-	ctx  context.Context
-	MsgC chan *protocol.Envelope
-	wg   *sync.WaitGroup
+	ctx        context.Context
+	timesource timesource.Timesource
+	MsgC       chan *protocol.Envelope
+	wg         *sync.WaitGroup
 
 	log *zap.Logger
 
@@ -61,7 +63,7 @@ type WakuStore struct {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, log *zap.Logger) *WakuStore {
+func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.h = host
@@ -69,6 +71,7 @@ func NewWakuStore(host host.Host, swap *swap.WakuSwap, p MessageProvider, log *z
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.log = log.Named("store")
 	wakuStore.quit = make(chan struct{})
+	wakuStore.timesource = timesource
 
 	return wakuStore
 }
