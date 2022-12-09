@@ -8,9 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -18,6 +15,10 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
+
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/nat"
 )
 
 type DiscoveryV5 struct {
@@ -208,7 +209,7 @@ func (d *DiscoveryV5) Start() error {
 }
 
 func (d *DiscoveryV5) SetBootnodes(nodes []*enode.Node) error {
-  return d.listener.SetFallbackNodes(nodes)
+	return d.listener.SetFallbackNodes(nodes)
 }
 
 func (d *DiscoveryV5) Stop() {
