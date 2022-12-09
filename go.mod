@@ -31,7 +31,7 @@ require (
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/waku-org/go-discover v0.0.0-20221027130446-2f43d5f6c73f
+	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
 	github.com/waku-org/go-zerokit-rln v0.1.7-wakuorg
 	github.com/waku-org/noise v1.0.2
 	golang.org/x/text v0.4.0
