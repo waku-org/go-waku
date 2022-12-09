@@ -15,19 +15,29 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 var testTopic = "test"
 
-func makeFilterService(t *testing.T) *FilterService {
-	n, err := node.New(context.Background(), node.WithWakuFilter(true), node.WithWakuRelay())
+func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
+	var nodeOpts []node.WakuNodeOption
+
+	nodeOpts = append(nodeOpts, node.WithWakuFilter(isFullNode))
+	if isFullNode {
+		nodeOpts = append(nodeOpts, node.WithWakuRelay())
+	}
+
+	n, err := node.New(context.Background(), nodeOpts...)
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
 
-	_, err = n.Relay().SubscribeToTopic(context.Background(), testTopic)
-	require.NoError(t, err)
+	if isFullNode {
+		_, err = n.Relay().SubscribeToTopic(context.Background(), testTopic)
+		require.NoError(t, err)
+	}
 
 	return NewFilterService(n, 30, utils.Logger())
 }
@@ -39,15 +49,15 @@ func TestFilterSubscription(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	node, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10), 0, utils.Logger())
+	node, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10), 0, timesource.NewDefaultClock(), utils.Logger())
 	require.NoError(t, err)
 
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	_, _ = filter.NewWakuFilter(context.Background(), host, false, utils.Logger())
+	_, _ = filter.NewWakuFilter(context.Background(), host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
 
-	d := makeFilterService(t)
+	d := makeFilterService(t, true)
 	defer d.node.Stop()
 
 	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
@@ -83,10 +93,10 @@ func TestFilterSubscription(t *testing.T) {
 }
 
 func TestFilterGetV1Messages(t *testing.T) {
-	serviceA := makeFilterService(t)
+	serviceA := makeFilterService(t, true)
 	var reply SuccessReply
 
-	serviceB := makeFilterService(t)
+	serviceB := makeFilterService(t, false)
 	go serviceB.Start()
 	defer serviceB.Stop()
 

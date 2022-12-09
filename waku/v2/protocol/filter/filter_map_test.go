@@ -4,11 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
 func TestFilterMap(t *testing.T) {
-	fmap := NewFilterMap()
+	fmap := NewFilterMap(v2.NewBroadcaster(100), timesource.NewDefaultClock())
 
 	filter := Filter{
 		PeerID:         "id",
