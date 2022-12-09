@@ -10,7 +10,7 @@ import (
 )
 
 func TestWakuRest(t *testing.T) {
-	options := node.WithWakuStore(false, nil)
+	options := node.WithWakuStore(false)
 	n, err := node.New(context.Background(), options)
 	require.NoError(t, err)
 

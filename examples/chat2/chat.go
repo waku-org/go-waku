@@ -291,7 +291,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	if c.options.RLNRelay.Enable {
 		// for future version when we support more than one rln protected content topic,
 		// we should check the message content topic as well
-		err = c.node.RLNRelay().AppendRLNProof(wakuMsg, t)
+		err = c.node.RLNRelay().AppendRLNProof(wakuMsg, c.node.Timesource().Now())
 		if err != nil {
 			return err
 		}
