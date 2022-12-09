@@ -6,13 +6,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestStorePersistence(t *testing.T) {
 	db := MemoryDB(t)
 
-	s1 := NewWakuStore(nil, nil, db, utils.Logger())
+	s1 := NewWakuStore(nil, nil, db, timesource.NewDefaultClock(), utils.Logger())
 
 	defaultPubSubTopic := "test"
 	defaultContentTopic := "1"

@@ -213,6 +213,7 @@ func Execute(options Options) {
 	}
 
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
+	nodeOpts = append(nodeOpts, node.WithNTP())
 
 	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option

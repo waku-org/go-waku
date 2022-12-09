@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -20,7 +21,7 @@ func TestWakuRelay(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := NewWakuRelay(context.Background(), host, nil, 0, utils.Logger())
+	relay, err := NewWakuRelay(context.Background(), host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
 	defer relay.Stop()
 	require.NoError(t, err)
 

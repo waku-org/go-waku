@@ -17,7 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/utils"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
 // MaxTimeVariance is the maximum duration in the future allowed for a message timestamp
@@ -78,12 +78,13 @@ type MessageProvider interface {
 	Query(query *pb.HistoryQuery) (*pb.Index, []persistence.StoredMessage, error)
 	Put(env *protocol.Envelope) error
 	MostRecentTimestamp() (int64, error)
+	Start(timesource timesource.Timesource) error
 	Stop()
 	Count() (int, error)
 }
 
 type Store interface {
-	Start(ctx context.Context)
+	Start(ctx context.Context) error
 	Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error)
 	Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*pb.WakuMessage, error)
 	Next(ctx context.Context, r *Result) (*Result, error)
@@ -98,14 +99,20 @@ func (store *WakuStore) SetMessageProvider(p MessageProvider) {
 }
 
 // Start initializes the WakuStore by enabling the protocol and fetching records from a message provider
-func (store *WakuStore) Start(ctx context.Context) {
+func (store *WakuStore) Start(ctx context.Context) error {
 	if store.started {
-		return
+		return nil
 	}
 
 	if store.msgProvider == nil {
 		store.log.Info("Store protocol started (no message provider)")
-		return
+		return nil
+	}
+
+	err := store.msgProvider.Start(store.timesource)
+	if err != nil {
+		store.log.Error("Error starting message provider", zap.Error(err))
+		return nil
 	}
 
 	store.started = true
@@ -119,6 +126,8 @@ func (store *WakuStore) Start(ctx context.Context) {
 	go store.updateMetrics(ctx)
 
 	store.log.Info("Store protocol started")
+
+	return nil
 }
 
 func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
@@ -226,6 +235,7 @@ func (store *WakuStore) Stop() {
 	}
 
 	if store.msgProvider != nil {
+		store.msgProvider.Stop()
 		store.quit <- struct{}{}
 	}
 
@@ -298,14 +308,13 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 		return 0, errors.New("can't resume: store has not started")
 	}
 
-	currentTime := utils.GetUnixEpoch()
 	lastSeenTime, err := store.findLastSeen()
 	if err != nil {
 		return 0, err
 	}
 
 	var offset int64 = int64(20 * time.Nanosecond)
-	currentTime = currentTime + offset
+	currentTime := store.timesource.Now().UnixNano() + offset
 	lastSeenTime = max(lastSeenTime-offset, 0)
 
 	rpc := &pb.HistoryQuery{
@@ -330,7 +339,7 @@ func (store *WakuStore) Resume(ctx context.Context, pubsubTopic string, peerList
 
 	msgCount := 0
 	for _, msg := range messages {
-		if err = store.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic)); err == nil {
+		if err = store.storeMessage(protocol.NewEnvelope(msg, store.timesource.Now().UnixNano(), pubsubTopic)); err == nil {
 			msgCount++
 		}
 	}

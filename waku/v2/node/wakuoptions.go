@@ -26,6 +26,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -44,6 +45,9 @@ type WakuNodeParameters struct {
 	addressFactory basichost.AddrsFactory
 	privKey        *ecdsa.PrivateKey
 	libP2POpts     []libp2p.Option
+
+	enableNTP bool
+	ntpURLs   []string
 
 	enableWS  bool
 	wsPort    int
@@ -106,7 +110,6 @@ type WakuNodeOption func(*WakuNodeParameters) error
 // Default options used in the libp2p node
 var DefaultWakuNodeOptions = []WakuNodeOption{
 	WithLogger(utils.Logger()),
-	WithWakuRelay(),
 }
 
 // MultiAddresses return the list of multiaddresses configured in the node
@@ -230,6 +233,21 @@ func WithMultiaddress(addresses []multiaddr.Multiaddr) WakuNodeOption {
 func WithPrivateKey(privKey *ecdsa.PrivateKey) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.privKey = privKey
+		return nil
+	}
+}
+
+// WithNTP is used to use ntp for any operation that requires obtaining time
+// A list of ntp servers can be passed but if none is specified, some defaults
+// will be used
+func WithNTP(ntpURLs ...string) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		if len(ntpURLs) == 0 {
+			ntpURLs = timesource.DefaultServers
+		}
+
+		params.enableNTP = true
+		params.ntpURLs = ntpURLs
 		return nil
 	}
 }

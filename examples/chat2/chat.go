@@ -249,7 +249,7 @@ func (c *Chat) SendMessage(line string) {
 
 func (c *Chat) publish(ctx context.Context, message string) error {
 	msg := &pb.Chat2Message{
-		Timestamp: uint64(time.Now().Unix()),
+		Timestamp: uint64(c.node.Timesource().Now().Unix()),
 		Nick:      c.nick,
 		Payload:   []byte(message),
 	}
@@ -260,8 +260,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	}
 
 	var version uint32
-	var t = time.Now()
-	var timestamp int64 = utils.GetUnixEpochFrom(t)
+	var timestamp int64 = utils.GetUnixEpochFrom(c.node.Timesource().Now())
 	var keyInfo *node.KeyInfo = &node.KeyInfo{}
 
 	if c.options.UsePayloadV1 { // Use WakuV1 encryption

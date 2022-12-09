@@ -31,8 +31,9 @@ func execute(options Options) {
 
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(options.NodeKey),
+		node.WithNTP(),
 		node.WithHostAddress(hostAddr),
-		node.WithWakuStore(false, false),
+		node.WithWakuStore(false, nil),
 	}
 
 	if options.Relay.Enable {

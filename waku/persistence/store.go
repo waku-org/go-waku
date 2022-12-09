@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence/migrations"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -20,6 +21,7 @@ type MessageProvider interface {
 	Put(env *protocol.Envelope) error
 	Query(query *pb.HistoryQuery) ([]StoredMessage, error)
 	MostRecentTimestamp() (int64, error)
+	Start(timesource timesource.Timesource) error
 	Stop()
 }
 
@@ -31,8 +33,9 @@ const WALMode = "wal"
 // DBStore is a MessageProvider that has a *sql.DB connection
 type DBStore struct {
 	MessageProvider
-	db  *sql.DB
-	log *zap.Logger
+	db         *sql.DB
+	timesource timesource.Timesource
+	log        *zap.Logger
 
 	maxMessages int
 	maxDuration time.Duration
@@ -146,15 +149,21 @@ func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 		}
 	}
 
-	err = result.cleanOlderRecords()
+	return result, nil
+}
+
+func (d *DBStore) Start(timesource timesource.Timesource) error {
+	d.timesource = timesource
+
+	err := d.cleanOlderRecords()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	result.wg.Add(1)
-	go result.checkForOlderRecords(60 * time.Second)
+	d.wg.Add(1)
+	go d.checkForOlderRecords(60 * time.Second)
 
-	return result, nil
+	return nil
 }
 
 func (d *DBStore) cleanOlderRecords() error {
@@ -164,7 +173,7 @@ func (d *DBStore) cleanOlderRecords() error {
 	if d.maxDuration > 0 {
 		start := time.Now()
 		sqlStmt := `DELETE FROM message WHERE receiverTimestamp < ?`
-		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(time.Now().Add(-d.maxDuration)))
+		_, err := d.db.Exec(sqlStmt, utils.GetUnixEpochFrom(d.timesource.Now().Add(-d.maxDuration)))
 		if err != nil {
 			return err
 		}

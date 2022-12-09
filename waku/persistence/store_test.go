@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -28,6 +29,9 @@ func TestDbStore(t *testing.T) {
 	store, err := NewDBStore(utils.Logger(), option)
 	require.NoError(t, err)
 
+	err = store.Start(timesource.NewDefaultClock())
+	require.NoError(t, err)
+
 	res, err := store.GetAll()
 	require.NoError(t, err)
 	require.Empty(t, res)
@@ -43,6 +47,9 @@ func TestDbStore(t *testing.T) {
 func TestStoreRetention(t *testing.T) {
 	db := NewMock()
 	store, err := NewDBStore(utils.Logger(), WithDB(db), WithRetentionPolicy(5, 20*time.Second))
+	require.NoError(t, err)
+
+	err = store.Start(timesource.NewDefaultClock())
 	require.NoError(t, err)
 
 	insertTime := time.Now()
@@ -63,6 +70,9 @@ func TestStoreRetention(t *testing.T) {
 	// This step simulates starting go-waku again from scratch
 
 	store, err = NewDBStore(utils.Logger(), WithDB(db), WithRetentionPolicy(5, 40*time.Second))
+	require.NoError(t, err)
+
+	err = store.Start(timesource.NewDefaultClock())
 	require.NoError(t, err)
 
 	dbResults, err = store.GetAll()
