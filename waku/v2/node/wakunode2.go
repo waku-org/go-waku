@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/libp2p/go-libp2p"
+	"go.uber.org/zap"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/libp2p/go-libp2p"
-	"go.uber.org/zap"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -671,6 +672,12 @@ func (w *WakuNode) PeerStats() PeerStats {
 		p[peerID] = protocols
 	}
 	return p
+}
+
+// Set the bootnodes on discv5
+func (w *WakuNode) SetDiscV5Bootnodes(nodes []*enode.Node) error {
+	w.opts.discV5bootnodes = nodes
+	return w.discoveryV5.SetBootnodes(nodes)
 }
 
 // Peers return the list of peers, addresses, protocols supported and connection status
