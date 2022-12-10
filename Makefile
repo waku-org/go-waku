@@ -1,5 +1,5 @@
 
-CC_TEST_REPORTER_ID := 343d0af350b29aaf08d1e5bb4465d0e21df6298a27240acd2434457a9984c74a
+CC_TEST_REPORTER_ID := 48e13d82e65f754f0fbdd2b8b6e12897422f068f5f6b8dac482bddb7e0a12cd4
 GO_HTML_COV         := ./coverage.html
 GO_TEST_OUTFILE     := ./c.out
 CC_PREFIX       	:= github.com/waku-org/go-waku
