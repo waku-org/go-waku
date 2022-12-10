@@ -80,9 +80,9 @@ func freePort() (int, error) {
 }
 
 func validateDBUrl(val string) error {
-	matched, err := regexp.Match(`^[\w\+]+:\/\/[\w\/\\\.\:\@]+$`, []byte(val))
+	matched, err := regexp.Match(`^[\w\+]+:\/\/[\w\/\\\.\:\@]+\?.*$`, []byte(val))
 	if !matched || err != nil {
-		return errors.New("invalid 'db url' option format")
+		return errors.New("invalid db url option format")
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func Execute(options Options) {
 		dbEngine := dbURLParts[0]
 		dbParams := dbURLParts[1]
 		switch dbEngine {
-		case "sqlite":
+		case "sqlite3":
 			db, err = sqlite.NewDB(dbParams)
 			failOnErr(err, "Could not connect to DB")
 			logger.Info("using database: ", zap.String("path", dbParams))
@@ -146,7 +146,7 @@ func Execute(options Options) {
 	if options.Metrics.Enable {
 		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
 		go metricsServer.Start()
-		wmetrics.RecordVersion(context.Background(), node.Version, node.GitCommit)
+		wmetrics.RecordVersion(ctx, node.Version, node.GitCommit)
 	}
 
 	nodeOpts := []node.WakuNodeOption{

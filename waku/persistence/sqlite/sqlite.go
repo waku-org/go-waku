@@ -87,7 +87,10 @@ func (q Queries) GetSize() string {
 
 // WithDB is a DBOption that lets you use a sqlite3 DBStore.
 func WithDB(path string) persistence.DBOption {
-	return persistence.WithDriver("sqlite3", path)
+	return persistence.WithDriver("sqlite3", path, persistence.ConnectionPoolOptions{
+		// Disable concurrent access as not supported by the driver
+		MaxOpenConnections: 1,
+	})
 }
 
 // NewDB creates a sqlite3 DB in the specified path
@@ -96,6 +99,10 @@ func NewDB(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Disable concurrent access as not supported by the driver
+	db.SetMaxOpenConns(1)
+
 	return db, nil
 }
 
