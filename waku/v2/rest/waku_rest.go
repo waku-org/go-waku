@@ -47,9 +47,9 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool
 	return wrpc
 }
 
-func (r *WakuRest) Start(wg *sync.WaitGroup) {
+func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
-	go r.relayService.Start()
+	go r.relayService.Start(ctx)
 	go func() {
 		_ = r.server.ListenAndServe()
 	}()

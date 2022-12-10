@@ -370,7 +370,7 @@ func Execute(options Options) {
 	if options.RESTServer.Enable {
 		wg.Add(1)
 		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.RESTServer.Admin, options.RESTServer.Private, options.RESTServer.RelayCacheCapacity, logger)
-		restServer.Start(&wg)
+		restServer.Start(ctx, &wg)
 	}
 
 	wg.Wait()
