@@ -191,9 +191,9 @@ func TestPKCSPaddingUnpadding(t *testing.T) {
 	maxMessageLength := 3 * NoisePaddingBlockSize
 	for messageLen := 0; messageLen <= maxMessageLength; messageLen++ {
 		message := generateRandomBytes(t, messageLen)
-		padded, err := PKCS7_Pad(message, NoisePaddingBlockSize)
+		padded, err := PKCS7Pad(message, NoisePaddingBlockSize)
 		require.NoError(t, err)
-		unpadded, err := PKCS7_Unpad(padded, NoisePaddingBlockSize)
+		unpadded, err := PKCS7Unpad(padded, NoisePaddingBlockSize)
 		require.NoError(t, err)
 
 		require.Greater(t, len(padded), 0)

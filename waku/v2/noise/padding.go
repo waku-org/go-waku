@@ -4,9 +4,9 @@ import (
 	"errors"
 )
 
-// PKCS7_Pad pads a payload according to PKCS#7 as per
+// PKCS7Pad pads a payload according to PKCS#7 as per
 // RFC 5652 https://datatracker.ietf.org/doc/html/rfc5652#section-6.3
-func PKCS7_Pad(payload []byte, paddingSize int) ([]byte, error) {
+func PKCS7Pad(payload []byte, paddingSize int) ([]byte, error) {
 	if paddingSize >= 256 {
 		return nil, errors.New("invalid padding size")
 	}
@@ -28,9 +28,9 @@ func PKCS7_Pad(payload []byte, paddingSize int) ([]byte, error) {
 	return append(payload, padding...), nil
 }
 
-// PKCS7_Unpad unpads a payload according to PKCS#7 as per
+// PKCS7Unpad unpads a payload according to PKCS#7 as per
 // RFC 5652 https://datatracker.ietf.org/doc/html/rfc5652#section-6.3
-func PKCS7_Unpad(payload []byte, paddingSize int) ([]byte, error) {
+func PKCS7Unpad(payload []byte, paddingSize int) ([]byte, error) {
 	if paddingSize >= 256 {
 		return nil, errors.New("invalid padding size")
 	}

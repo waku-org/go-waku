@@ -124,7 +124,7 @@ func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte) (*H
 		// We initialize a payload v2 and we set proper protocol ID (if supported)
 		result.Payload2.ProtocolId = hs.protocolID
 
-		payload, err := PKCS7_Pad(transportMessage, NoisePaddingBlockSize)
+		payload, err := PKCS7Pad(transportMessage, NoisePaddingBlockSize)
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +158,7 @@ func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte) (*H
 
 		// We retrieve, and store the (unpadded decrypted) received transport message
 
-		payload, err := PKCS7_Unpad(msg, NoisePaddingBlockSize)
+		payload, err := PKCS7Unpad(msg, NoisePaddingBlockSize)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +199,7 @@ func (hs *Handshake) Encrypt(plaintext []byte) (*PayloadV2, error) {
 		return nil, errors.New("tried to encrypt empty plaintext")
 	}
 
-	paddedTransportMessage, err := PKCS7_Pad(plaintext, NoisePaddingBlockSize)
+	paddedTransportMessage, err := PKCS7Pad(plaintext, NoisePaddingBlockSize)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (hs *Handshake) Decrypt(payload *PayloadV2) ([]byte, error) {
 		return nil, err
 	}
 
-	return PKCS7_Unpad(paddedMessage, NoisePaddingBlockSize)
+	return PKCS7Unpad(paddedMessage, NoisePaddingBlockSize)
 }
 
 // NewHandshake_XX_25519_ChaChaPoly_SHA256 creates a handshake where the initiator and receiver are not aware of each other static keys
