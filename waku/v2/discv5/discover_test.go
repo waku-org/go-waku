@@ -106,7 +106,7 @@ func TestDiscV5(t *testing.T) {
 	ip1, _ := extractIP(host1.Addrs()[0])
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d1, err := NewDiscoveryV5(context.Background(), host1, prvKey1, l1, utils.Logger(), WithUDPPort(udpPort1))
+	d1, err := NewDiscoveryV5(host1, prvKey1, l1, utils.Logger(), WithUDPPort(udpPort1))
 	require.NoError(t, err)
 
 	// H2
@@ -116,7 +116,7 @@ func TestDiscV5(t *testing.T) {
 	require.NoError(t, err)
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d2, err := NewDiscoveryV5(context.Background(), host2, prvKey2, l2, utils.Logger(), WithUDPPort(udpPort2), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	d2, err := NewDiscoveryV5(host2, prvKey2, l2, utils.Logger(), WithUDPPort(udpPort2), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
 	require.NoError(t, err)
 
 	// H3
@@ -126,20 +126,20 @@ func TestDiscV5(t *testing.T) {
 	require.NoError(t, err)
 	l3, err := newLocalnode(prvKey3, ip3, udpPort3, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d3, err := NewDiscoveryV5(context.Background(), host3, prvKey3, l3, utils.Logger(), WithUDPPort(udpPort3), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	d3, err := NewDiscoveryV5(host3, prvKey3, l3, utils.Logger(), WithUDPPort(udpPort3), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 
 	defer d1.Stop()
 	defer d2.Stop()
 	defer d3.Stop()
 
-	err = d1.Start()
+	err = d1.Start(context.Background())
 	require.NoError(t, err)
 
-	err = d2.Start()
+	err = d2.Start(context.Background())
 	require.NoError(t, err)
 
-	err = d3.Start()
+	err = d3.Start(context.Background())
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second) // Wait for nodes to be discovered
@@ -205,7 +205,7 @@ func TestDiscV5(t *testing.T) {
 	}
 
 	// Restart peer search
-	err = d3.Start()
+	err = d3.Start(context.Background())
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second) // Wait for nodes to be discovered

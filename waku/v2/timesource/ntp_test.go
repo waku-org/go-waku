@@ -1,6 +1,7 @@
 package timesource
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -174,12 +175,15 @@ func TestComputeOffset(t *testing.T) {
 func TestNTPTimeSource(t *testing.T) {
 	for _, tc := range newTestCases() {
 		t.Run(tc.description, func(t *testing.T) {
+			_, cancel := context.WithCancel(context.Background())
 			source := &NTPTimeSource{
 				servers:         tc.servers,
 				allowedFailures: tc.allowedFailures,
 				timeQuery:       tc.query,
 				log:             utils.Logger(),
+				cancel:          cancel,
 			}
+
 			assert.WithinDuration(t, time.Now(), source.Now(), clockCompareDelta)
 			err := source.updateOffset()
 			if tc.expectError {
@@ -202,6 +206,7 @@ func TestRunningPeriodically(t *testing.T) {
 	slowHits := 1
 
 	t.Run(tc.description, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
 		source := &NTPTimeSource{
 			servers:           tc.servers,
 			allowedFailures:   tc.allowedFailures,
@@ -209,11 +214,12 @@ func TestRunningPeriodically(t *testing.T) {
 			fastNTPSyncPeriod: time.Duration(fastHits*10) * time.Millisecond,
 			slowNTPSyncPeriod: time.Duration(slowHits*10) * time.Millisecond,
 			log:               utils.Logger(),
+			cancel:            cancel,
 		}
 		lastCall := time.Now()
 		// we're simulating a calls to updateOffset, testing ntp calls happens
 		// on NTPTimeSource specified periods (fastNTPSyncPeriod & slowNTPSyncPeriod)
-		err := source.runPeriodically(func() error {
+		err := source.runPeriodically(ctx, func() error {
 			mu.Lock()
 			periods = append(periods, time.Since(lastCall))
 			mu.Unlock()

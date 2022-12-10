@@ -297,7 +297,7 @@ func Execute(options Options) {
 	}
 
 	if options.DiscV5.Enable {
-		if err = wakuNode.DiscV5().Start(); err != nil {
+		if err = wakuNode.DiscV5().Start(ctx); err != nil {
 			logger.Fatal("starting discovery v5", zap.Error(err))
 		}
 	}
