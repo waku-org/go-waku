@@ -219,7 +219,7 @@ var (
 	StoreMessageDBURL = &cli.StringFlag{
 		Name:        "store-message-db-url",
 		Usage:       "The database connection URL for peristent storage.",
-		Value:       "sqlite://store.sqlite3",
+		Value:       "sqlite3://store.db?_journal=WAL&_timeout=5000",
 		Destination: &options.Store.DatabaseURL,
 	}
 	StoreResumePeer = &cli.GenericFlag{
