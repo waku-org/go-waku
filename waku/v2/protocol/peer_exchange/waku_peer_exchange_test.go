@@ -105,7 +105,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	ip1, _ := extractIP(host1.Addrs()[0])
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d1, err := discv5.NewDiscoveryV5(context.Background(), host1, prvKey1, l1, utils.Logger(), discv5.WithUDPPort(udpPort1))
+	d1, err := discv5.NewDiscoveryV5(host1, prvKey1, l1, utils.Logger(), discv5.WithUDPPort(udpPort1))
 	require.NoError(t, err)
 
 	// H2
@@ -115,7 +115,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	require.NoError(t, err)
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d2, err := discv5.NewDiscoveryV5(context.Background(), host2, prvKey2, l2, utils.Logger(), discv5.WithUDPPort(udpPort2), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
+	d2, err := discv5.NewDiscoveryV5(host2, prvKey2, l2, utils.Logger(), discv5.WithUDPPort(udpPort2), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
 	require.NoError(t, err)
 
 	// H3
@@ -127,22 +127,22 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	defer host2.Close()
 	defer host3.Close()
 
-	err = d1.Start()
+	err = d1.Start(context.Background())
 	require.NoError(t, err)
 
-	err = d2.Start()
+	err = d2.Start(context.Background())
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second) // Wait some time for peers to be discovered
 
 	// mount peer exchange
-	px1 := NewWakuPeerExchange(context.Background(), host1, d1, utils.Logger())
-	px3 := NewWakuPeerExchange(context.Background(), host3, nil, utils.Logger())
+	px1 := NewWakuPeerExchange(host1, d1, utils.Logger())
+	px3 := NewWakuPeerExchange(host3, nil, utils.Logger())
 
-	err = px1.Start()
+	err = px1.Start(context.Background())
 	require.NoError(t, err)
 
-	err = px3.Start()
+	err = px3.Start(context.Background())
 	require.NoError(t, err)
 
 	host3.Peerstore().AddAddrs(host1.ID(), host1.Addrs(), peerstore.PermanentAddrTTL)
