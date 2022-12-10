@@ -6,7 +6,7 @@ A Go implementation of the [Waku v2 protocol](https://specs.vac.dev/specs/waku/v
   <a href="https://godoc.org/github.com/waku-org/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
   <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.18.0-orange.svg?style=flat-square" /></a>
   <a href="https://lgtm.com/projects/g/waku-org/go-waku/alerts/"><img alt="Total alerts" src="https://img.shields.io/lgtm/alerts/g/waku-org/go-waku.svg?logo=lgtm&logoWidth=18"/></a> 
-  <a href="https://codeclimate.com/github/waku-org/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/25b76a20113236b175d8/maintainability" /></a>
+  <a href="https://codeclimate.com/github/waku-org/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/426bdff6a339ff4d536b/maintainability" /></a>
   <br>
 </p>
 
