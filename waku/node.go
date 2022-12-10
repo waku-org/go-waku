@@ -80,7 +80,7 @@ func freePort() (int, error) {
 }
 
 func validateDBUrl(val string) error {
-	matched, err := regexp.Match(`^[\w\+]+:\/\/[\w\/\\\.\:\@]+\?.*$`, []byte(val))
+	matched, err := regexp.Match(`^[\w\+]+:\/\/[\w\/\\\.\:\@]+\?{0,1}.*$`, []byte(val))
 	if !matched || err != nil {
 		return errors.New("invalid db url option format")
 	}

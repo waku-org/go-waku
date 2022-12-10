@@ -3,6 +3,7 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -85,17 +86,33 @@ func (q Queries) GetSize() string {
 	return q.getSizeQuery
 }
 
+func addSqliteURLDefaults(dburl string) string {
+	if !strings.Contains(dburl, "?") {
+		dburl += "?"
+	}
+
+	if !strings.Contains(dburl, "_journal=") {
+		dburl += "&_journal=WAL"
+	}
+
+	if !strings.Contains(dburl, "_timeout=") {
+		dburl += "&_timeout=5000"
+	}
+
+	return dburl
+}
+
 // WithDB is a DBOption that lets you use a sqlite3 DBStore.
-func WithDB(path string) persistence.DBOption {
-	return persistence.WithDriver("sqlite3", path, persistence.ConnectionPoolOptions{
+func WithDB(dburl string) persistence.DBOption {
+	return persistence.WithDriver("sqlite3", addSqliteURLDefaults(dburl), persistence.ConnectionPoolOptions{
 		// Disable concurrent access as not supported by the driver
 		MaxOpenConnections: 1,
 	})
 }
 
 // NewDB creates a sqlite3 DB in the specified path
-func NewDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path)
+func NewDB(dburl string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", addSqliteURLDefaults(dburl))
 	if err != nil {
 		return nil, err
 	}
