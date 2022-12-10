@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -18,8 +19,9 @@ const ROUTE_RELAY_SUBSCRIPTIONSV1 = "/relay/v1/subscriptions"
 const ROUTE_RELAY_MESSAGESV1 = "/relay/v1/messages/{topic}"
 
 type RelayService struct {
-	node *node.WakuNode
-	mux  *mux.Router
+	node   *node.WakuNode
+	mux    *mux.Router
+	cancel context.CancelFunc
 
 	log *zap.Logger
 
@@ -65,18 +67,21 @@ func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
 	r.messages[envelope.PubsubTopic()] = append(r.messages[envelope.PubsubTopic()], envelope.Message())
 }
 
-func (r *RelayService) Start() {
+func (r *RelayService) Start(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	r.cancel = cancel
+
 	// Node may already be subscribed to some topics when Relay API handlers are installed. Let's add these
 	for _, topic := range r.node.Relay().Topics() {
 		r.log.Info("adding topic handler for existing subscription", zap.String("topic", topic))
 		r.messages[topic] = []*pb.WakuMessage{}
 	}
 
-	r.runner.Start()
+	r.runner.Start(ctx)
 }
 
 func (r *RelayService) Stop() {
-	r.runner.Stop()
+	r.cancel()
 }
 
 func (d *RelayService) deleteV1Subscriptions(w http.ResponseWriter, r *http.Request) {

@@ -54,7 +54,7 @@ func TestPostV1Message(t *testing.T) {
 func TestRelaySubscription(t *testing.T) {
 	d := makeRelayService(t)
 
-	go d.Start()
+	go d.Start(context.Background())
 	defer d.Stop()
 
 	topics := []string{"test"}
@@ -96,10 +96,10 @@ func TestRelaySubscription(t *testing.T) {
 
 func TestRelayGetV1Messages(t *testing.T) {
 	serviceA := makeRelayService(t)
-	go serviceA.Start()
+	go serviceA.Start(context.Background())
 	defer serviceA.Stop()
 	serviceB := makeRelayService(t)
-	go serviceB.Start()
+	go serviceB.Start(context.Background())
 	defer serviceB.Stop()
 
 	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
