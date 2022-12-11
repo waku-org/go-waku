@@ -427,4 +427,9 @@ var (
 		Usage:       "Enable access to REST HTTP Private API",
 		Destination: &options.RESTServer.Private,
 	}
+	PProf = &cli.BoolFlag{
+		Name:        "pprof",
+		Usage:       "provides runtime profiling data at /debug/pprof in both REST and RPC servers if they're enabled",
+		Destination: &options.PProf,
+	}
 )

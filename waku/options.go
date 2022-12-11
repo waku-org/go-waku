@@ -159,6 +159,7 @@ type Options struct {
 	NAT              string
 	PersistPeers     bool
 	UserAgent        string
+	PProf            bool
 
 	PeerExchange PeerExchangeOptions
 	Websocket    WSOptions

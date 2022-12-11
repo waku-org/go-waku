@@ -360,7 +360,7 @@ func Execute(options Options) {
 
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, options.RPCServer.RelayCacheCapacity, logger)
+		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.RPCServer.Private, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
 		rpcServer.Start()
 	}
 
@@ -369,7 +369,7 @@ func Execute(options Options) {
 	var restServer *rest.WakuRest
 	if options.RESTServer.Enable {
 		wg.Add(1)
-		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.RESTServer.Admin, options.RESTServer.Private, options.RESTServer.RelayCacheCapacity, logger)
+		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.RESTServer.Admin, options.RESTServer.Private, options.PProf, options.RESTServer.RelayCacheCapacity, logger)
 		restServer.Start(ctx, &wg)
 	}
 
