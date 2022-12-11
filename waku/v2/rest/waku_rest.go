@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -20,11 +21,16 @@ type WakuRest struct {
 	relayService *RelayService
 }
 
-func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, relayCacheCapacity int, log *zap.Logger) *WakuRest {
+func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, enablePProf bool, relayCacheCapacity int, log *zap.Logger) *WakuRest {
 	wrpc := new(WakuRest)
 	wrpc.log = log.Named("rest")
 
 	mux := mux.NewRouter()
+
+	if enablePProf {
+		mux.PathPrefix("/debug/").Handler(http.DefaultServeMux)
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+	}
 
 	_ = NewDebugService(node, mux)
 	relayService := NewRelayService(node, mux, relayCacheCapacity, log)

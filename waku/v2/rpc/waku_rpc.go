@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -24,7 +25,7 @@ type WakuRpc struct {
 	adminService   *AdminService
 }
 
-func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, cacheCapacity int, log *zap.Logger) *WakuRpc {
+func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, enablePProf bool, cacheCapacity int, log *zap.Logger) *WakuRpc {
 	wrpc := new(WakuRpc)
 	wrpc.log = log.Named("rpc")
 
@@ -38,6 +39,11 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		s.ServeHTTP(w, r)
 		wrpc.log.Info("served request", zap.String("path", r.URL.Path), zap.Duration("duration", time.Since(t)))
 	})
+
+	if enablePProf {
+		mux.PathPrefix("/debug/").Handler(http.DefaultServeMux)
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+	}
 
 	debugService := NewDebugService(node)
 	err := s.RegisterService(debugService, "Debug")
@@ -109,6 +115,7 @@ func (r *WakuRpc) Start() {
 	if r.privateService != nil {
 		go r.privateService.Start()
 	}
+
 	go func() {
 		_ = r.server.ListenAndServe()
 	}()

@@ -87,6 +87,7 @@ func main() {
 		RESTRelayCacheCapacity,
 		RESTAdmin,
 		RESTPrivate,
+		PProf,
 	}
 
 	rlnFlags := rlnFlags()
