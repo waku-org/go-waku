@@ -41,6 +41,7 @@ BUILD_FLAGS ?= $(shell echo "-ldflags='\
 	-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=$(GIT_COMMIT) \
 	-X github.com/waku-org/go-waku/waku/v2/node.Version=$(VERSION)'")
 
+ANDROID_TARGET ?= 23
 
 # control rln code compilation
 ifeq ($(RLN), true)
@@ -142,9 +143,10 @@ endif
 	@ls -la ./build/lib/libgowaku.*
 
 mobile-android:
+	@echo "Android target: ${ANDROID_TARGET} (override with ANDROID_TARGET var)"
 	gomobile init && \
 	${GOBIN} get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -v -target=android -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
+	gomobile bind -v -target=android -androidapi=${ANDROID_TARGET} -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 
