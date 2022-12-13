@@ -130,3 +130,7 @@ func (f *FilterService) GetV1Messages(req *http.Request, args *ContentTopicArgs,
 	f.messages[args.ContentTopic] = make([]*pb.WakuMessage, 0)
 	return nil
 }
+
+func (f *FilterService) PostV1Message(req *http.Request, args interface{}, reply *SuccessReply) error {
+	panic("not implemented")
+}

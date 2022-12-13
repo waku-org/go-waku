@@ -73,3 +73,27 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 	}
 	return nil
 }
+
+func (s *StoreService) Start() {
+	panic("not implemented")
+}
+
+func (s *StoreService) Stop() {
+	panic("not implemented")
+}
+
+func (s *StoreService) addEnvelope(envelope *protocol.Envelope) {
+	panic("not implemented")
+}
+
+func (s *StoreService) PostV1Message(req *http.Request, args interface{}s, reply *SuccessReply) error {
+	panic("not implemented")
+}
+
+func (s *StoreService) PostV1Subscription(req *http.Request, args interface{}, reply *SuccessReply) error {
+	panic("not implemented")
+}
+
+func (s *StoreService) DeleteV1Subscription(req *http.Request, args interface{}, reply *SuccessReply) error {
+	panic("not implemented")
+}
