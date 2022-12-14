@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 )
 
-//  Commits a public key pk for randomness r as H(pk || s)
+// CommitPublicKey commits a public key pk for randomness r as H(pk || s)
 func CommitPublicKey(publicKey ed25519.PublicKey, r []byte) []byte {
 	input := []byte{}
 	input = append(input, []byte(publicKey)...)
