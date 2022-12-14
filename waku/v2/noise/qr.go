@@ -11,7 +11,7 @@ type QR struct {
 	applicationName    string
 	applicationVersion string
 	shardId            string
-	ephemeralKey       ed25519.PublicKey
+	ephemeralPublicKey ed25519.PublicKey
 	committedStaticKey []byte
 }
 
@@ -20,7 +20,7 @@ func NewQR(applicationName, applicationVersion, shardId string, ephemeralKey ed2
 		applicationName:    applicationName,
 		applicationVersion: applicationVersion,
 		shardId:            shardId,
-		ephemeralKey:       ephemeralKey,
+		ephemeralPublicKey: ephemeralKey,
 		committedStaticKey: committedStaticKey,
 	}
 }
@@ -30,7 +30,7 @@ func (qr QR) String() string {
 	return b64.StdEncoding.EncodeToString([]byte(qr.applicationName)) + ":" +
 		b64.StdEncoding.EncodeToString([]byte(qr.applicationVersion)) + ":" +
 		b64.StdEncoding.EncodeToString([]byte(qr.shardId)) + ":" +
-		b64.StdEncoding.EncodeToString(qr.ephemeralKey) + ":" +
+		b64.StdEncoding.EncodeToString(qr.ephemeralPublicKey) + ":" +
 		b64.StdEncoding.EncodeToString(qr.committedStaticKey[:])
 }
 
@@ -74,7 +74,7 @@ func StringToQR(qrString string) (QR, error) {
 		applicationName:    string(applicationName),
 		applicationVersion: string(applicationVersion),
 		shardId:            string(shardId),
-		ephemeralKey:       ephemeralKey,
+		ephemeralPublicKey: ephemeralKey,
 		committedStaticKey: committedStaticKey,
 	}, nil
 }

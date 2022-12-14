@@ -44,7 +44,7 @@ func TestWakuPairing(t *testing.T) {
 	require.Equal(t, applicationName, readQR.applicationName)
 	require.Equal(t, applicationVersion, readQR.applicationVersion)
 	require.Equal(t, shardId, readQR.shardId)
-	require.True(t, bytes.Equal(bobEphemeralKey.Public, readQR.ephemeralKey))
+	require.True(t, bytes.Equal(bobEphemeralKey.Public, readQR.ephemeralPublicKey))
 	require.True(t, bytes.Equal(bobCommittedStaticKey[:], readQR.committedStaticKey[:]))
 
 	// Pre-handshake message
