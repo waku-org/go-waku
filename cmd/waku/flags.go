@@ -147,11 +147,11 @@ var (
 			Choices: []string{"DEBUG", "INFO", "WARN", "ERROR", "DPANIC", "PANIC", "FATAL"},
 			Value:   &options.LogLevel,
 		},
-		Usage: "Define the logging level,",
+		Usage: "Define the logging level (allowed values: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL)",
 	}
 	LogEncoding = &cli.GenericFlag{
 		Name:  "log-encoding",
-		Usage: "Define the encoding used for the logs",
+		Usage: "Define the encoding used for the logs (allowed values: console, nocolor, json)",
 		Value: &cliutils.ChoiceValue{
 			Choices: []string{"console", "nocolor", "json"},
 			Value:   &options.LogEncoding,

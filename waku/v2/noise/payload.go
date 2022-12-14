@@ -116,6 +116,7 @@ type PayloadV2 struct {
 	ProtocolId       byte
 	HandshakeMessage []*NoisePublicKey
 	TransportMessage []byte
+	MessageNametag   MessageNametag
 }
 
 // Checks equality between two PayloadsV2 objects
@@ -165,7 +166,8 @@ func (p *PayloadV2) Serialize() ([]byte, error) {
 	// payload = ( protocolId || serializedHandshakeMessageLen || serializedHandshakeMessage || transportMessageLen || transportMessage)
 
 	// We declare it as a byte sequence of length accordingly to the PayloadV2 information read
-	payload := make([]byte, 0, 1+ // 1 byte for protocol ID
+	payload := make([]byte, 0, MessageNametagLength+
+		1+ // 1 byte for protocol ID
 		1+ // 1 byte for length of serializedHandshakeMessage field
 		serializedHandshakeMessageLen+ // serializedHandshakeMessageLen bytes for serializedHandshakeMessage
 		8+ // 8 bytes for transportMessageLen
@@ -173,6 +175,10 @@ func (p *PayloadV2) Serialize() ([]byte, error) {
 	)
 
 	payloadBuf := bytes.NewBuffer(payload)
+
+	if _, err := payloadBuf.Write(p.MessageNametag[:]); err != nil {
+		return nil, err
+	}
 
 	//  The protocol ID (1 byte) and handshake message length (1 byte) can be directly casted to byte to allow direct copy to the payload byte sequence
 	if err := payloadBuf.WriteByte(p.ProtocolId); err != nil {
@@ -215,7 +221,12 @@ func DeserializePayloadV2(payload []byte) (*PayloadV2, error) {
 
 	result := &PayloadV2{}
 
-	// We start reading the Protocol ID
+	// We start by reading the messageNametag
+	if err := binary.Read(payloadBuf, binary.BigEndian, &result.MessageNametag); err != nil {
+		return nil, err
+	}
+
+	// We read the Protocol ID
 	// TODO: when the list of supported protocol ID is defined, check if read protocol ID is supported
 	if err := binary.Read(payloadBuf, binary.BigEndian, &result.ProtocolId); err != nil {
 		return nil, err

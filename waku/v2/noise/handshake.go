@@ -1,22 +1,28 @@
 package noise
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"hash"
+	"io"
+	"math/big"
 
 	n "github.com/waku-org/noise"
+	"golang.org/x/crypto/hkdf"
 )
 
 // WakuNoiseProtocolID indicates the protocol ID defined according to https://rfc.vac.dev/spec/35/#specification
 type WakuNoiseProtocolID = byte
 
 var (
-	None                                 = WakuNoiseProtocolID(0)
-	Noise_K1K1_25519_ChaChaPoly_SHA256   = WakuNoiseProtocolID(10)
-	Noise_XK1_25519_ChaChaPoly_SHA256    = WakuNoiseProtocolID(11)
-	Noise_XX_25519_ChaChaPoly_SHA256     = WakuNoiseProtocolID(12)
-	Noise_XXpsk0_25519_ChaChaPoly_SHA256 = WakuNoiseProtocolID(13)
-	ChaChaPoly                           = WakuNoiseProtocolID(30)
+	None                                      = WakuNoiseProtocolID(0)
+	Noise_K1K1_25519_ChaChaPoly_SHA256        = WakuNoiseProtocolID(10)
+	Noise_XK1_25519_ChaChaPoly_SHA256         = WakuNoiseProtocolID(11)
+	Noise_XX_25519_ChaChaPoly_SHA256          = WakuNoiseProtocolID(12)
+	Noise_XXpsk0_25519_ChaChaPoly_SHA256      = WakuNoiseProtocolID(13)
+	Noise_WakuPairing_25519_ChaChaPoly_SHA256 = WakuNoiseProtocolID(14)
+	ChaChaPoly                                = WakuNoiseProtocolID(30)
 )
 
 const NoisePaddingBlockSize = 248
@@ -26,7 +32,7 @@ var ErrorHandshakeComplete = errors.New("handshake complete")
 // All protocols share same cipher suite
 var cipherSuite = n.NewCipherSuite(n.DH25519, n.CipherChaChaPoly, n.HashSHA256)
 
-func newHandshakeState(pattern n.HandshakePattern, initiator bool, staticKeypair n.DHKey, prologue []byte, presharedKey []byte, peerStatic []byte, peerEphemeral []byte) (hs *n.HandshakeState, err error) {
+func newHandshakeState(pattern n.HandshakePattern, initiator bool, staticKeypair n.DHKey, ephemeralKeyPair n.DHKey, prologue []byte, presharedKey []byte, peerStatic []byte, peerEphemeral []byte) (hs *n.HandshakeState, err error) {
 	defer func() {
 		if rerr := recover(); rerr != nil {
 			err = fmt.Errorf("panic in Noise handshake: %s", rerr)
@@ -34,14 +40,15 @@ func newHandshakeState(pattern n.HandshakePattern, initiator bool, staticKeypair
 	}()
 
 	cfg := n.Config{
-		CipherSuite:   cipherSuite,
-		Pattern:       pattern,
-		Initiator:     initiator,
-		StaticKeypair: staticKeypair,
-		Prologue:      prologue,
-		PresharedKey:  presharedKey,
-		PeerStatic:    peerStatic,
-		PeerEphemeral: peerEphemeral,
+		CipherSuite:      cipherSuite,
+		Pattern:          pattern,
+		Initiator:        initiator,
+		StaticKeypair:    staticKeypair,
+		EphemeralKeypair: ephemeralKeyPair,
+		Prologue:         prologue,
+		PresharedKey:     presharedKey,
+		PeerStatic:       peerStatic,
+		PeerEphemeral:    peerEphemeral,
 	}
 
 	return n.NewHandshakeState(cfg)
@@ -54,8 +61,10 @@ type Handshake struct {
 
 	hsBuff []byte
 
-	enc *n.CipherState
-	dec *n.CipherState
+	enc              *n.CipherState
+	dec              *n.CipherState
+	nametagsInbound  *MessageNametagBuffer
+	nametagsOutbound *MessageNametagBuffer
 
 	initiator   bool
 	shouldWrite bool
@@ -77,19 +86,21 @@ func getHandshakePattern(protocol WakuNoiseProtocolID) (n.HandshakePattern, erro
 		return HandshakeXX, nil
 	case Noise_XXpsk0_25519_ChaChaPoly_SHA256:
 		return HandshakeXXpsk0, nil
+	case Noise_WakuPairing_25519_ChaChaPoly_SHA256:
+		return HandshakeWakuPairing, nil
 	default:
 		return n.HandshakePattern{}, errors.New("unsupported handshake pattern")
 	}
 }
 
 // NewHandshake creates a new handshake using aa WakuNoiseProtocolID that is maped to a handshake pattern.
-func NewHandshake(protocolID WakuNoiseProtocolID, initiator bool, staticKeypair n.DHKey, prologue []byte, presharedKey []byte, peerStatic []byte, peerEphemeral []byte) (*Handshake, error) {
+func NewHandshake(protocolID WakuNoiseProtocolID, initiator bool, staticKeypair n.DHKey, ephemeralKeyPair n.DHKey, prologue []byte, presharedKey []byte, peerStatic []byte, peerEphemeral []byte) (*Handshake, error) {
 	hsPattern, err := getHandshakePattern(protocolID)
 	if err != nil {
 		return nil, err
 	}
 
-	hsState, err := newHandshakeState(hsPattern, initiator, staticKeypair, prologue, presharedKey, peerStatic, peerEphemeral)
+	hsState, err := newHandshakeState(hsPattern, initiator, staticKeypair, ephemeralKeyPair, prologue, presharedKey, peerStatic, peerEphemeral)
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +114,24 @@ func NewHandshake(protocolID WakuNoiseProtocolID, initiator bool, staticKeypair 
 	}, nil
 }
 
+func (hs *Handshake) Hash() hash.Hash {
+	return hs.state.Hash()
+}
+
+func (hs *Handshake) H() []byte {
+	return hs.state.H()
+}
+
+func (hs *Handshake) RS() []byte {
+	return hs.state.RS()
+}
+
 // Step advances a step in the handshake. Each user in a handshake alternates writing and reading of handshake messages.
 // If the user is writing the handshake message, the transport message (if not empty) has to be passed to transportMessage and readPayloadV2 can be left to its default value
 // It the user is reading the handshake message, the read payload v2 has to be passed to readPayloadV2 and the transportMessage can be left to its default values.
-// TODO: this might be refactored into a separate `sendHandshakeMessage` and `receiveHandshakeMessage`
-func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte) (*HandshakeStepResult, error) {
+// TODO: this might be refactored into a separate `sendHandshakeMessage` and `receiveHandshakeMessage`.
+// The messageNameTag is an optional value and can be used to identify missing messages
+func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte, messageNametag *MessageNametag) (*HandshakeStepResult, error) {
 	if hs.enc != nil || hs.dec != nil {
 		return nil, ErrorHandshakeComplete
 	}
@@ -129,12 +153,21 @@ func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte) (*H
 			return nil, err
 		}
 
-		msg, noisePubKeys, cs1, cs2, err = hs.state.WriteMessageAndGetPK(hs.hsBuff, [][]byte{}, payload)
+		var mtag MessageNametag
+		if messageNametag != nil {
+			mtag = *messageNametag
+		}
+
+		msg, noisePubKeys, cs1, cs2, err = hs.state.WriteMessageAndGetPK(hs.hsBuff, [][]byte{}, payload, mtag[:])
 		if err != nil {
 			return nil, err
 		}
 
 		hs.shouldWrite = false
+
+		if messageNametag != nil {
+			result.Payload2.MessageNametag = *messageNametag
+		}
 
 		result.Payload2.TransportMessage = msg
 		for _, npk := range noisePubKeys {
@@ -146,10 +179,20 @@ func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte) (*H
 			return nil, errors.New("readPayloadV2 is required")
 		}
 
+		var mtag MessageNametag
+		if messageNametag != nil {
+			mtag = *messageNametag
+			if !bytes.Equal(readPayloadV2.MessageNametag[:], mtag[:]) {
+				return nil, ErrNametagNotExpected
+			}
+		}
+
 		readTMessage := readPayloadV2.TransportMessage
 
+		// We retrieve and store the (decrypted) received transport message by passing the messageNametag as extra additional data
+
 		// Since we only read, nothing meanigful (i.e. public keys) is returned. (hsBuffer is not affected)
-		msg, cs1, cs2, err = hs.state.ReadMessage(nil, readTMessage)
+		msg, cs1, cs2, err = hs.state.ReadMessage(nil, readTMessage, mtag[:]...)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +210,10 @@ func (hs *Handshake) Step(readPayloadV2 *PayloadV2, transportMessage []byte) (*H
 	}
 
 	if cs1 != nil && cs2 != nil {
-		hs.setCipherStates(cs1, cs2)
+		err = hs.setCipherStates(cs1, cs2)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &result, nil
@@ -179,18 +225,36 @@ func (hs *Handshake) HandshakeComplete() bool {
 }
 
 // This is called when the final handshake message is processed
-func (hs *Handshake) setCipherStates(cs1, cs2 *n.CipherState) {
+func (hs *Handshake) setCipherStates(cs1, cs2 *n.CipherState) error {
+	// Optional: We derive a secret for the nametag derivation
+	nms1, nms2, err := hs.messageNametagSecrets()
+	if err != nil {
+		return err
+	}
+
 	if hs.initiator {
 		hs.enc = cs1
 		hs.dec = cs2
+		// and nametags secrets
+		hs.nametagsInbound = NewMessageNametagBuffer(nms1)
+		hs.nametagsOutbound = NewMessageNametagBuffer(nms2)
 	} else {
 		hs.enc = cs2
 		hs.dec = cs1
+		// and nametags secrets
+		hs.nametagsInbound = NewMessageNametagBuffer(nms2)
+		hs.nametagsOutbound = NewMessageNametagBuffer(nms1)
 	}
+
+	// We initialize the message nametags inbound/outbound buffers
+	hs.nametagsInbound.Init()
+	hs.nametagsOutbound.Init()
+
+	return nil
 }
 
 // Encrypt calls the cipher's encryption. It encrypts the provided plaintext and returns a PayloadV2
-func (hs *Handshake) Encrypt(plaintext []byte) (*PayloadV2, error) {
+func (hs *Handshake) Encrypt(plaintext []byte, outboundMessageNametagBuffer ...*MessageNametagBuffer) (*PayloadV2, error) {
 	if hs.enc == nil {
 		return nil, errors.New("cannot encrypt, handshake incomplete")
 	}
@@ -204,7 +268,15 @@ func (hs *Handshake) Encrypt(plaintext []byte) (*PayloadV2, error) {
 		return nil, err
 	}
 
-	cyphertext, err := hs.enc.Encrypt(nil, nil, paddedTransportMessage)
+	// We set the message nametag using the input buffer
+	var messageNametag MessageNametag
+	if len(outboundMessageNametagBuffer) != 0 {
+		messageNametag = outboundMessageNametagBuffer[0].Pop()
+	} else {
+		messageNametag = hs.nametagsOutbound.Pop()
+	}
+
+	cyphertext, err := hs.enc.Encrypt(nil, messageNametag[:], paddedTransportMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -214,11 +286,12 @@ func (hs *Handshake) Encrypt(plaintext []byte) (*PayloadV2, error) {
 	return &PayloadV2{
 		ProtocolId:       None,
 		TransportMessage: cyphertext,
+		MessageNametag:   messageNametag,
 	}, nil
 }
 
 // Decrypt calls the cipher's decryption. It decrypts the provided payload and returns the message in plaintext
-func (hs *Handshake) Decrypt(payload *PayloadV2) ([]byte, error) {
+func (hs *Handshake) Decrypt(payload *PayloadV2, inboundMessageNametagBuffer ...*MessageNametagBuffer) ([]byte, error) {
 	if hs.dec == nil {
 		return nil, errors.New("cannot decrypt, handshake incomplete")
 	}
@@ -227,34 +300,94 @@ func (hs *Handshake) Decrypt(payload *PayloadV2) ([]byte, error) {
 		return nil, errors.New("no payload to decrypt")
 	}
 
+	// If the message nametag does not correspond to the nametag expected in the inbound message nametag buffer
+	// an error is raised (to be handled externally, i.e. re-request lost messages, discard, etc.)
+	if len(inboundMessageNametagBuffer) != 0 {
+		err := inboundMessageNametagBuffer[0].CheckNametag(payload.MessageNametag)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := hs.nametagsInbound.CheckNametag(payload.MessageNametag)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if len(payload.TransportMessage) == 0 {
 		return nil, errors.New("tried to decrypt empty ciphertext")
 	}
 
-	paddedMessage, err := hs.dec.Decrypt(nil, nil, payload.TransportMessage)
+	// Decryption is done with messageNametag as associated data
+	paddedMessage, err := hs.dec.Decrypt(nil, payload.MessageNametag[:], payload.TransportMessage)
 	if err != nil {
 		return nil, err
 	}
 
+	// The message successfully decrypted, we can delete the first element of the inbound Message Nametag Buffer
+	hs.nametagsInbound.Delete(1)
+
 	return PKCS7_Unpad(paddedMessage, NoisePaddingBlockSize)
+}
+
+func getHKDF(h func() hash.Hash, ck []byte, ikm []byte, numBytes int) ([]byte, error) {
+	hkdf := hkdf.New(h, ikm, ck, nil)
+	result := make([]byte, numBytes)
+	if _, err := io.ReadFull(hkdf, result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Generates an 8 decimal digits authorization code using HKDF and the handshake state
+func (hs *Handshake) Authcode() (string, error) {
+	output0, err := getHKDF(hs.Hash, hs.H(), nil, 8)
+	if err != nil {
+		return "", err
+	}
+	bn := new(big.Int)
+	bn.SetBytes(output0)
+	code := new(big.Int)
+	code.Mod(bn, big.NewInt(100_000_000))
+	return fmt.Sprintf("'%8s'", code.String()), nil
+}
+
+func (hs *Handshake) messageNametagSecrets() (nms1 []byte, nms2 []byte, err error) {
+	output, err := getHKDF(hs.Hash, hs.H(), nil, 64)
+	if err != nil {
+		return nil, nil, err
+	}
+	nms1 = output[0:32]
+	nms2 = output[32:]
+	return
+}
+
+// Uses the cryptographic information stored in the input handshake state to generate a random message nametag
+// In current implementation the messageNametag = HKDF(handshake hash value), but other derivation mechanisms can be implemented
+func (hs *Handshake) ToMessageNametag() (MessageNametag, error) {
+	output, err := getHKDF(hs.Hash, hs.H(), nil, 32)
+	if err != nil {
+		return [16]byte{}, err
+	}
+	return BytesToMessageNametag(output), nil
 }
 
 // NewHandshake_XX_25519_ChaChaPoly_SHA256 creates a handshake where the initiator and receiver are not aware of each other static keys
 func NewHandshake_XX_25519_ChaChaPoly_SHA256(staticKeypair n.DHKey, initiator bool, prologue []byte) (*Handshake, error) {
-	return NewHandshake(Noise_XX_25519_ChaChaPoly_SHA256, initiator, staticKeypair, prologue, nil, nil, nil)
+	return NewHandshake(Noise_XX_25519_ChaChaPoly_SHA256, initiator, staticKeypair, n.DHKey{}, prologue, nil, nil, nil)
 }
 
 // NewHandshake_XXpsk0_25519_ChaChaPoly_SHA256 creates a handshake where the initiator and receiver are not aware of each other static keys
 // and use a preshared secret to strengthen their mutual authentication
 func NewHandshake_XXpsk0_25519_ChaChaPoly_SHA256(staticKeypair n.DHKey, initiator bool, presharedKey []byte, prologue []byte) (*Handshake, error) {
-	return NewHandshake(Noise_XXpsk0_25519_ChaChaPoly_SHA256, initiator, staticKeypair, prologue, presharedKey, nil, nil)
+	return NewHandshake(Noise_XXpsk0_25519_ChaChaPoly_SHA256, initiator, staticKeypair, n.DHKey{}, prologue, presharedKey, nil, nil)
 }
 
 // NewHandshake_K1K1_25519_ChaChaPoly_SHA256 creates a handshake where both initiator and recever know each other handshake. Only ephemeral keys
 // are exchanged. This handshake is useful in case the initiator needs to instantiate a new separate encrypted communication
 // channel with the receiver
 func NewHandshake_K1K1_25519_ChaChaPoly_SHA256(staticKeypair n.DHKey, initiator bool, peerStaticKey []byte, prologue []byte) (*Handshake, error) {
-	return NewHandshake(Noise_K1K1_25519_ChaChaPoly_SHA256, initiator, staticKeypair, prologue, nil, peerStaticKey, nil)
+	return NewHandshake(Noise_K1K1_25519_ChaChaPoly_SHA256, initiator, staticKeypair, n.DHKey{}, prologue, nil, peerStaticKey, nil)
 }
 
 // NewHandshake_XK1_25519_ChaChaPoly_SHA256 creates a handshake where the initiator knows the receiver public static key. Within this handshake,
@@ -265,5 +398,11 @@ func NewHandshake_XK1_25519_ChaChaPoly_SHA256(staticKeypair n.DHKey, initiator b
 	if !initiator && len(peerStaticKey) != 0 {
 		return nil, errors.New("recipient shouldnt know initiator key")
 	}
-	return NewHandshake(Noise_XK1_25519_ChaChaPoly_SHA256, initiator, staticKeypair, prologue, nil, peerStaticKey, nil)
+	return NewHandshake(Noise_XK1_25519_ChaChaPoly_SHA256, initiator, staticKeypair, n.DHKey{}, prologue, nil, peerStaticKey, nil)
+}
+
+// NewHandshake_WakuPairing_25519_ChaChaPoly_SHA256
+func NewHandshake_WakuPairing_25519_ChaChaPoly_SHA256(staticKeypair n.DHKey, ephemeralKeyPair n.DHKey, initiator bool, prologue []byte, presharedKey []byte) (*Handshake, error) {
+	peerEphemeral := presharedKey[0:32]
+	return NewHandshake(Noise_WakuPairing_25519_ChaChaPoly_SHA256, initiator, staticKeypair, ephemeralKeyPair, prologue, presharedKey, nil, peerEphemeral)
 }
