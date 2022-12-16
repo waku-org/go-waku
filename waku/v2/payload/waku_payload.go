@@ -1,4 +1,4 @@
-package node
+package payload
 
 import (
 	"crypto/aes"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
-	"github.com/waku-org/go-waku/waku/v2/noise"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
@@ -449,27 +448,4 @@ func bytesToUintLittleEndian(b []byte) (res uint64) {
 		mul *= 256
 	}
 	return res
-}
-
-// Decodes a WakuMessage to a PayloadV2
-// Currently, this is just a wrapper over deserializePayloadV2 and encryption/decryption is done on top (no KeyInfo)
-func DecodePayloadV2(message *pb.WakuMessage) (*noise.PayloadV2, error) {
-	if message.Version != 2 {
-		return nil, errors.New("wrong message version while decoding payload")
-	}
-	return noise.DeserializePayloadV2(message.Payload)
-}
-
-// Encodes a PayloadV2 to a WakuMessage
-// Currently, this is just a wrapper over serializePayloadV2 and encryption/decryption is done on top (no KeyInfo)
-func EncodePayloadV2(payload2 *noise.PayloadV2) (*pb.WakuMessage, error) {
-	serializedPayload2, err := payload2.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.WakuMessage{
-		Payload: serializedPayload2,
-		Version: 2,
-	}, nil
 }

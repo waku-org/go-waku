@@ -15,10 +15,19 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
+
+func createTestMsg(version uint32) *pb.WakuMessage {
+	message := new(pb.WakuMessage)
+	message.Payload = []byte{0, 1, 2}
+	message.Version = version
+	message.Timestamp = 123456
+	return message
+}
 
 func TestWakuNode2(t *testing.T) {
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")

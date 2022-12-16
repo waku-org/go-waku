@@ -22,6 +22,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -350,7 +351,7 @@ func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {
 	return ecdsa.PublicKey{Curve: secp256k1.S256(), X: x, Y: y}, nil
 }
 
-func extractPubKeyAndSignature(payload *node.DecodedPayload) (pubkey string, signature string) {
+func extractPubKeyAndSignature(payload *payload.DecodedPayload) (pubkey string, signature string) {
 	pkBytes := crypto.FromECDSAPub(payload.PubKey)
 	if len(pkBytes) != 0 {
 		pubkey = hexutil.Encode(pkBytes)
@@ -376,8 +377,8 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 		return MakeJSONResponse(errors.New("unsupported wakumessage version"))
 	}
 
-	keyInfo := &node.KeyInfo{
-		Kind: node.Symmetric,
+	keyInfo := &payload.KeyInfo{
+		Kind: payload.Symmetric,
 	}
 
 	keyInfo.SymKey, err = utils.DecodeHexString(symmetricKey)
@@ -385,7 +386,7 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) string {
 		return MakeJSONResponse(err)
 	}
 
-	payload, err := node.DecodePayload(&msg, keyInfo)
+	payload, err := payload.DecodePayload(&msg, keyInfo)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
@@ -420,8 +421,8 @@ func DecodeAsymmetric(messageJSON string, privateKey string) string {
 		return MakeJSONResponse(errors.New("unsupported wakumessage version"))
 	}
 
-	keyInfo := &node.KeyInfo{
-		Kind: node.Asymmetric,
+	keyInfo := &payload.KeyInfo{
+		Kind: payload.Asymmetric,
 	}
 
 	keyBytes, err := utils.DecodeHexString(privateKey)
@@ -434,7 +435,7 @@ func DecodeAsymmetric(messageJSON string, privateKey string) string {
 		return MakeJSONResponse(err)
 	}
 
-	payload, err := node.DecodePayload(&msg, keyInfo)
+	payload, err := payload.DecodePayload(&msg, keyInfo)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
