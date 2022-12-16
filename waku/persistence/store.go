@@ -224,7 +224,7 @@ func (d *DBStore) Put(env *protocol.Envelope) error {
 	}
 
 	cursor := env.Index()
-	dbKey := NewDBKey(uint64(cursor.SenderTime), env.PubsubTopic(), env.Index().Digest)
+	dbKey := NewDBKey(uint64(cursor.SenderTime), uint64(cursor.ReceiverTime), env.PubsubTopic(), env.Index().Digest)
 	_, err = stmt.Exec(dbKey.Bytes(), cursor.ReceiverTime, env.Message().Timestamp, env.Message().ContentTopic, env.PubsubTopic(), env.Message().Payload, env.Message().Version)
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 	if query.PagingInfo.Cursor != nil {
 		usesCursor = true
 		var exists bool
-		cursorDBKey := NewDBKey(uint64(query.PagingInfo.Cursor.SenderTime), query.PagingInfo.Cursor.PubsubTopic, query.PagingInfo.Cursor.Digest)
+		cursorDBKey := NewDBKey(uint64(query.PagingInfo.Cursor.SenderTime), uint64(query.PagingInfo.Cursor.ReceiverTime), query.PagingInfo.Cursor.PubsubTopic, query.PagingInfo.Cursor.Digest)
 
 		err := d.db.QueryRow("SELECT EXISTS(SELECT 1 FROM message WHERE id = ?)",
 			cursorDBKey.Bytes(),
@@ -301,7 +301,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 	if query.StartTime != 0 {
 		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_BACKWARD {
 			conditions = append(conditions, "id >= ?")
-			startTimeDBKey := NewDBKey(uint64(query.StartTime), "", []byte{})
+			startTimeDBKey := NewDBKey(uint64(query.StartTime), uint64(query.StartTime), "", []byte{})
 			parameters = append(parameters, startTimeDBKey.Bytes())
 		}
 
@@ -310,7 +310,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 	if query.EndTime != 0 {
 		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_FORWARD {
 			conditions = append(conditions, "id <= ?")
-			endTimeDBKey := NewDBKey(uint64(query.EndTime), "", []byte{})
+			endTimeDBKey := NewDBKey(uint64(query.EndTime), uint64(query.EndTime), "", []byte{})
 			parameters = append(parameters, endTimeDBKey.Bytes())
 		}
 	}
