@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 )
 
-type MessageNametag = [MessageNametagLength]byte
+type MessageNametag [MessageNametagLength]byte
 
 const MessageNametagLength = 16
 const MessageNametagBufferSize = 50
@@ -22,6 +23,10 @@ func BytesToMessageNametag(input []byte) MessageNametag {
 	var result MessageNametag
 	copy(result[:], input)
 	return result
+}
+
+func (t MessageNametag) String() string {
+	return hex.EncodeToString(t[:])
 }
 
 type MessageNametagBuffer struct {

@@ -349,7 +349,7 @@ func (hs *Handshake) Authcode() (string, error) {
 	bn.SetBytes(output0)
 	code := new(big.Int)
 	code.Mod(bn, big.NewInt(100_000_000))
-	return fmt.Sprintf("'%8s'", code.String()), nil
+	return fmt.Sprintf("'%08s'", code.String()), nil
 }
 
 func (hs *Handshake) messageNametagSecrets() (nms1 []byte, nms2 []byte, err error) {
