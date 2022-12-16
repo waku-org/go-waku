@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -120,14 +121,14 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 		return fmt.Errorf("invalid symmetric key: %w", err)
 	}
 
-	keyInfo := new(node.KeyInfo)
-	keyInfo.Kind = node.Symmetric
+	keyInfo := new(payload.KeyInfo)
+	keyInfo.Kind = payload.Symmetric
 	keyInfo.SymKey = symKeyBytes
 
 	msg := args.Message.toProto()
 	msg.Version = 1
 
-	err = node.EncodeWakuMessage(msg, keyInfo)
+	err = payload.EncodeWakuMessage(msg, keyInfo)
 	if err != nil {
 		return err
 	}
@@ -147,8 +148,8 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 }
 
 func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *AsymmetricMessageArgs, reply *bool) error {
-	keyInfo := new(node.KeyInfo)
-	keyInfo.Kind = node.Asymmetric
+	keyInfo := new(payload.KeyInfo)
+	keyInfo.Kind = payload.Asymmetric
 
 	pubKeyBytes, err := utils.DecodeHexString(args.PublicKey)
 	if err != nil {
@@ -165,7 +166,7 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 	msg := args.Message.toProto()
 	msg.Version = 1
 
-	err = node.EncodeWakuMessage(msg, keyInfo)
+	err = payload.EncodeWakuMessage(msg, keyInfo)
 	if err != nil {
 		return err
 	}
@@ -203,8 +204,8 @@ func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *Symmetr
 
 	var decodedMessages []*pb.WakuMessage
 	for _, msg := range messages {
-		err := node.DecodeWakuMessage(msg, &node.KeyInfo{
-			Kind:   node.Symmetric,
+		err := payload.DecodeWakuMessage(msg, &payload.KeyInfo{
+			Kind:   payload.Symmetric,
 			SymKey: symKeyBytes,
 		})
 		if err != nil {
@@ -239,8 +240,8 @@ func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *Asymme
 
 	var decodedMessages []*pb.WakuMessage
 	for _, msg := range messages {
-		err := node.DecodeWakuMessage(msg, &node.KeyInfo{
-			Kind:    node.Asymmetric,
+		err := payload.DecodeWakuMessage(msg, &payload.KeyInfo{
+			Kind:    payload.Asymmetric,
 			PrivKey: privKey,
 		})
 		if err != nil {
