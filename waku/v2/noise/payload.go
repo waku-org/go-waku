@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	n "github.com/waku-org/noise"
 )
 
@@ -206,9 +207,13 @@ func (p *PayloadV2) Serialize() ([]byte, error) {
 }
 
 func isProtocolIDSupported(protocolID WakuNoiseProtocolID) bool {
-	return protocolID == Noise_K1K1_25519_ChaChaPoly_SHA256 || protocolID == Noise_XK1_25519_ChaChaPoly_SHA256 ||
-		protocolID == Noise_XX_25519_ChaChaPoly_SHA256 || protocolID == Noise_XXpsk0_25519_ChaChaPoly_SHA256 ||
-		protocolID == ChaChaPoly || protocolID == None
+	return protocolID == Noise_K1K1_25519_ChaChaPoly_SHA256 ||
+		protocolID == Noise_XK1_25519_ChaChaPoly_SHA256 ||
+		protocolID == Noise_XX_25519_ChaChaPoly_SHA256 ||
+		protocolID == Noise_XXpsk0_25519_ChaChaPoly_SHA256 ||
+		protocolID == ChaChaPoly ||
+		protocolID == Noise_WakuPairing_25519_ChaChaPoly_SHA256 ||
+		protocolID == None
 }
 
 const ChaChaPolyTagSize = byte(16)
@@ -227,7 +232,6 @@ func DeserializePayloadV2(payload []byte) (*PayloadV2, error) {
 	}
 
 	// We read the Protocol ID
-	// TODO: when the list of supported protocol ID is defined, check if read protocol ID is supported
 	if err := binary.Read(payloadBuf, binary.BigEndian, &result.ProtocolId); err != nil {
 		return nil, err
 	}
@@ -272,8 +276,7 @@ func DeserializePayloadV2(payload []byte) (*PayloadV2, error) {
 			}
 
 			handshakeMessages = append(handshakeMessages, pk)
-			written += uint8(len(serializedPK))
-
+			written += uint8(1 + pkLen)
 		} else if flag == 1 {
 			// If the key is encrypted, we only read the encrypted X coordinate and the authorization tag, and we deserialize into a Noise Public Key
 			pkLen := ed25519.PublicKeySize + ChaChaPolyTagSize
@@ -294,7 +297,7 @@ func DeserializePayloadV2(payload []byte) (*PayloadV2, error) {
 			}
 
 			handshakeMessages = append(handshakeMessages, pk)
-			written += uint8(len(serializedPK))
+			written += uint8(1 + pkLen)
 			// TODO: duplicated
 		} else {
 			return nil, errors.New("invalid flag for Noise public key")
@@ -314,4 +317,27 @@ func DeserializePayloadV2(payload []byte) (*PayloadV2, error) {
 	}
 
 	return result, nil
+}
+
+// Decodes a WakuMessage to a PayloadV2
+// Currently, this is just a wrapper over deserializePayloadV2 and encryption/decryption is done on top (no KeyInfo)
+func DecodePayloadV2(message *pb.WakuMessage) (*PayloadV2, error) {
+	if message.Version != 2 {
+		return nil, errors.New("wrong message version while decoding payload")
+	}
+	return DeserializePayloadV2(message.Payload)
+}
+
+// Encodes a PayloadV2 to a WakuMessage
+// Currently, this is just a wrapper over serializePayloadV2 and encryption/decryption is done on top (no KeyInfo)
+func EncodePayloadV2(payload2 *PayloadV2) (*pb.WakuMessage, error) {
+	serializedPayload2, err := payload2.Serialize()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.WakuMessage{
+		Payload: serializedPayload2,
+		Version: 2,
+	}, nil
 }
