@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -22,10 +22,10 @@ func wakuMessageSymmetricEncoding(messageJSON string, symmetricKey string, optio
 		return msg, err
 	}
 
-	payload := node.Payload{
+	payload := payload.Payload{
 		Data: msg.Payload,
-		Key: &node.KeyInfo{
-			Kind: node.Symmetric,
+		Key: &payload.KeyInfo{
+			Kind: payload.Symmetric,
 		},
 	}
 
@@ -60,10 +60,10 @@ func wakuMessageAsymmetricEncoding(messageJSON string, publicKey string, optiona
 		return msg, err
 	}
 
-	payload := node.Payload{
+	payload := payload.Payload{
 		Data: msg.Payload,
-		Key: &node.KeyInfo{
-			Kind: node.Asymmetric,
+		Key: &payload.KeyInfo{
+			Kind: payload.Asymmetric,
 		},
 	}
 

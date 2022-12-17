@@ -75,3 +75,13 @@ var HandshakeXXpsk0 = n.HandshakePattern{
 		{n.MessagePatternS, n.MessagePatternDHSE},
 	},
 }
+
+var HandshakeWakuPairing = n.HandshakePattern{
+	Name:                 "WakuPairing",
+	ResponderPreMessages: []n.MessagePattern{n.MessagePatternE},
+	Messages: [][]n.MessagePattern{
+		{n.MessagePatternE, n.MessagePatternDHEE},
+		{n.MessagePatternS, n.MessagePatternDHES},
+		{n.MessagePatternS, n.MessagePatternDHSE, n.MessagePatternDHSS},
+	},
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -42,7 +43,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 	require.NoError(t, err)
 
 	value := <-sub.C
-	payload, err := node.DecodePayload(value.Message(), &node.KeyInfo{Kind: node.None})
+	payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
 	require.NoError(t, err)
 
 	require.Contains(t, string(payload.Data), "test")
@@ -53,9 +54,9 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) erro
 	var version uint32 = 0
 	var timestamp int64 = utils.GetUnixEpoch()
 
-	p := new(node.Payload)
+	p := new(payload.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
-	p.Key = &node.KeyInfo{Kind: node.None}
+	p.Key = &payload.KeyInfo{Kind: payload.None}
 
 	payload, err := p.Encode(version)
 	if err != nil {

@@ -48,11 +48,11 @@ func handshakeTest(t *testing.T, hsAlice *Handshake, hsBob *Handshake) {
 	// By being the handshake initiator, Alice writes a Waku2 payload v2 containing her handshake message
 	// and the (encrypted) transport message
 	sentTransportMessage := generateRandomBytes(t, 32)
-	aliceStep, err := hsAlice.Step(nil, sentTransportMessage)
+	aliceStep, err := hsAlice.Step(nil, sentTransportMessage, nil)
 	require.NoError(t, err)
 
 	// Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
-	bobStep, err := hsBob.Step(&aliceStep.Payload2, nil)
+	bobStep, err := hsBob.Step(&aliceStep.Payload2, nil, nil)
 	require.NoError(t, err)
 
 	// check:
@@ -64,11 +64,11 @@ func handshakeTest(t *testing.T, hsAlice *Handshake, hsBob *Handshake) {
 
 	// At this step, Bob writes and returns a payload
 	sentTransportMessage = generateRandomBytes(t, 32)
-	bobStep, err = hsBob.Step(nil, sentTransportMessage)
+	bobStep, err = hsBob.Step(nil, sentTransportMessage, nil)
 	require.NoError(t, err)
 
 	// While Alice reads and returns the (decrypted) transport message
-	aliceStep, err = hsAlice.Step(&bobStep.Payload2, nil)
+	aliceStep, err = hsAlice.Step(&bobStep.Payload2, nil, nil)
 	require.NoError(t, err)
 
 	// check:
@@ -80,11 +80,11 @@ func handshakeTest(t *testing.T, hsAlice *Handshake, hsBob *Handshake) {
 
 	// Similarly as in first step, Alice writes a Waku2 payload containing the handshake message and the (encrypted) transport message
 	sentTransportMessage = generateRandomBytes(t, 32)
-	aliceStep, err = hsAlice.Step(nil, sentTransportMessage)
+	aliceStep, err = hsAlice.Step(nil, sentTransportMessage, nil)
 	require.NoError(t, err)
 
 	// Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
-	bobStep, err = hsBob.Step(&aliceStep.Payload2, nil)
+	bobStep, err = hsBob.Step(&aliceStep.Payload2, nil, nil)
 	require.NoError(t, err)
 
 	// check:
@@ -95,10 +95,10 @@ func handshakeTest(t *testing.T, hsAlice *Handshake, hsBob *Handshake) {
 	require.True(t, hsAlice.HandshakeComplete())
 	require.True(t, hsBob.HandshakeComplete())
 
-	_, err = hsAlice.Step(nil, generateRandomBytes(t, 32))
+	_, err = hsAlice.Step(nil, generateRandomBytes(t, 32), nil)
 	require.ErrorIs(t, err, ErrorHandshakeComplete)
 
-	_, err = hsBob.Step(nil, generateRandomBytes(t, 32))
+	_, err = hsBob.Step(nil, generateRandomBytes(t, 32), nil)
 	require.ErrorIs(t, err, ErrorHandshakeComplete)
 
 	// #########################
@@ -107,14 +107,16 @@ func handshakeTest(t *testing.T, hsAlice *Handshake, hsBob *Handshake) {
 
 	// We test read/write of random messages exchanged between Alice and Bob
 
+	defaultMessageNametagBuffer := NewMessageNametagBuffer(nil)
+
 	for i := 0; i < 10; i++ {
 		// Alice writes to Bob
 		message := generateRandomBytes(t, 32)
 
-		encryptedPayload, err := hsAlice.Encrypt(message)
+		encryptedPayload, err := hsAlice.Encrypt(message, defaultMessageNametagBuffer)
 		require.NoError(t, err)
 
-		plaintext, err := hsBob.Decrypt(encryptedPayload)
+		plaintext, err := hsBob.Decrypt(encryptedPayload, defaultMessageNametagBuffer)
 		require.NoError(t, err)
 
 		require.Equal(t, message, plaintext)
@@ -122,10 +124,10 @@ func handshakeTest(t *testing.T, hsAlice *Handshake, hsBob *Handshake) {
 		// Bob writes to Alice
 		message = generateRandomBytes(t, 32)
 
-		encryptedPayload, err = hsBob.Encrypt(message)
+		encryptedPayload, err = hsBob.Encrypt(message, defaultMessageNametagBuffer)
 		require.NoError(t, err)
 
-		plaintext, err = hsAlice.Decrypt(encryptedPayload)
+		plaintext, err = hsAlice.Decrypt(encryptedPayload, defaultMessageNametagBuffer)
 		require.NoError(t, err)
 
 		require.Equal(t, message, plaintext)

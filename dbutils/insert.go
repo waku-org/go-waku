@@ -134,7 +134,7 @@ func main() {
 			}
 
 			envelope := protocol.NewEnvelope(&msg, msg.Timestamp, pubsubTopic)
-			dbKey := persistence.NewDBKey(uint64(msg.Timestamp), pubsubTopic, envelope.Index().Digest)
+			dbKey := persistence.NewDBKey(uint64(msg.Timestamp), uint64(time.Now().UnixNano()), pubsubTopic, envelope.Index().Digest)
 
 			_, err = stmt.Exec(dbKey.Bytes(), msg.Timestamp, msg.Timestamp, msg.ContentTopic, pubsubTopic, msg.Payload, msg.Version)
 			if err != nil {
