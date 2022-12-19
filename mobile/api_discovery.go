@@ -2,6 +2,7 @@ package gowaku
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -36,4 +37,26 @@ func DnsDiscovery(url string, nameserver string, ms int) string {
 	}
 
 	return PrepareJSONResponse(ma, nil)
+}
+
+func StartDiscoveryV5() string {
+	if wakuNode == nil {
+		return MakeJSONResponse(errWakuNodeNotReady)
+	}
+	if wakuNode.DiscV5() == nil {
+		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
+	}
+	err := wakuNode.DiscV5().Start(context.Background())
+	return MakeJSONResponse(err)
+}
+
+func StopDiscoveryV5() string {
+	if wakuNode == nil {
+		return MakeJSONResponse(errWakuNodeNotReady)
+	}
+	if wakuNode.DiscV5() == nil {
+		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
+	}
+	err := wakuNode.DiscV5().Start(context.Background())
+	return MakeJSONResponse(err)
 }
