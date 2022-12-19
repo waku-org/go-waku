@@ -19,6 +19,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -42,15 +45,18 @@ func randomHex(n int) (string, error) {
 }
 
 type wakuConfig struct {
-	Host              *string `json:"host,omitempty"`
-	Port              *int    `json:"port,omitempty"`
-	AdvertiseAddress  *string `json:"advertiseAddr,omitempty"`
-	NodeKey           *string `json:"nodeKey,omitempty"`
-	LogLevel          *string `json:"logLevel,omitempty"`
-	KeepAliveInterval *int    `json:"keepAliveInterval,omitempty"`
-	EnableRelay       *bool   `json:"relay"`
-	EnableFilter      *bool   `json:"filter"`
-	MinPeersToPublish *int    `json:"minPeersToPublish"`
+	Host                 *string  `json:"host,omitempty"`
+	Port                 *int     `json:"port,omitempty"`
+	AdvertiseAddress     *string  `json:"advertiseAddr,omitempty"`
+	NodeKey              *string  `json:"nodeKey,omitempty"`
+	LogLevel             *string  `json:"logLevel,omitempty"`
+	KeepAliveInterval    *int     `json:"keepAliveInterval,omitempty"`
+	EnableRelay          *bool    `json:"relay"`
+	EnableFilter         *bool    `json:"filter"`
+	MinPeersToPublish    *int     `json:"minPeersToPublish"`
+	EnableDiscV5         *bool    `json:"discV5"`
+	DiscV5BootstrapNodes []string `json:"discV5BootstrapNodes"`
+	DiscV5UDPPort        *int     `json:"discV5UDPPort"`
 }
 
 var defaultHost = "0.0.0.0"
@@ -59,6 +65,8 @@ var defaultKeepAliveInterval = 20
 var defaultEnableRelay = true
 var defaultMinPeersToPublish = 0
 var defaultEnableFilter = false
+var defaultEnableDiscV5 = false
+var defaultDiscV5UDPPort = 9000
 var defaultLogLevel = "INFO"
 
 func getConfig(configJSON string) (wakuConfig, error) {
@@ -82,12 +90,20 @@ func getConfig(configJSON string) (wakuConfig, error) {
 		config.EnableFilter = &defaultEnableFilter
 	}
 
+	if config.EnableDiscV5 == nil {
+		config.EnableDiscV5 = &defaultEnableDiscV5
+	}
+
 	if config.Host == nil {
 		config.Host = &defaultHost
 	}
 
 	if config.Port == nil {
 		config.Port = &defaultPort
+	}
+
+	if config.DiscV5UDPPort == nil {
+		config.DiscV5UDPPort = &defaultDiscV5UDPPort
 	}
 
 	if config.KeepAliveInterval == nil {
@@ -149,6 +165,18 @@ func NewNode(configJSON string) string {
 
 	if *config.EnableFilter {
 		opts = append(opts, node.WithWakuFilter(false))
+	}
+
+	if *config.EnableDiscV5 {
+		var bootnodes []*enode.Node
+		for _, addr := range config.DiscV5BootstrapNodes {
+			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
+			if err != nil {
+				return MakeJSONResponse(err)
+			}
+			bootnodes = append(bootnodes, bootnode)
+		}
+		opts = append(opts, node.WithDiscoveryV5(*config.DiscV5UDPPort, bootnodes, true, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
 	}
 
 	// for go-libp2p loggers
