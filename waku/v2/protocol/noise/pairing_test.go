@@ -11,12 +11,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/stretchr/testify/require"
+	n "github.com/waku-org/go-noise"
 	"github.com/waku-org/go-waku/tests"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
-	n "github.com/waku-org/noise"
 )
 
 func createRelayNode(t *testing.T) (host.Host, *relay.WakuRelay) {
@@ -49,8 +49,8 @@ func TestPairingObj1Success(t *testing.T) {
 
 	time.Sleep(2 * time.Second) // Wait for relay to form mesh
 
-	bobStaticKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
-	bobEphemeralKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
+	bobStaticKey, _ := n.DH25519.GenerateKeypair()
+	bobEphemeralKey, _ := n.DH25519.GenerateKeypair()
 
 	bobMessenger, err := NewWakuRelayMessenger(context.Background(), relay1, nil, timesource.NewDefaultClock())
 	require.NoError(t, err)
@@ -91,8 +91,8 @@ func TestPairingObj1Success(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	aliceStaticKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
-	aliceEphemeralKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
+	aliceStaticKey, _ := n.DH25519.GenerateKeypair()
+	aliceEphemeralKey, _ := n.DH25519.GenerateKeypair()
 
 	aliceMessenger, err := NewWakuRelayMessenger(context.Background(), relay2, nil, timesource.NewDefaultClock())
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestPairingObj1Success(t *testing.T) {
 	// We test read/write of random messages exchanged between Alice and Bob
 	// Note that we exchange more than the number of messages contained in the nametag buffer to test if they are filled correctly as the communication proceeds
 	// We assume messages are sent via one of waku protocols
-	for i := 0; i < 10*MessageNametagBufferSize; i++ {
+	for i := 0; i < 10*n.MessageNametagBufferSize; i++ {
 		// Alice writes to Bob
 		message := generateRandomBytes(t, 32)
 		msg, err := alicePairingObj.Encrypt(message)
@@ -165,8 +165,8 @@ func TestPairingObj1ShouldTimeout(t *testing.T) {
 
 	time.Sleep(2 * time.Second) // Wait for relay to form mesh
 
-	bobStaticKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
-	bobEphemeralKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
+	bobStaticKey, _ := n.DH25519.GenerateKeypair()
+	bobEphemeralKey, _ := n.DH25519.GenerateKeypair()
 
 	bobMessenger, err := NewWakuRelayMessenger(context.Background(), relay1, nil, timesource.NewDefaultClock())
 	require.NoError(t, err)
@@ -174,8 +174,8 @@ func TestPairingObj1ShouldTimeout(t *testing.T) {
 	bobPairingObj, err := NewPairing(bobStaticKey, bobEphemeralKey, WithDefaultResponderParameters(), bobMessenger, utils.Logger())
 	require.NoError(t, err)
 
-	aliceStaticKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
-	aliceEphemeralKey, _ := n.DH25519.GenerateKeypair(rand.Reader)
+	aliceStaticKey, _ := n.DH25519.GenerateKeypair()
+	aliceEphemeralKey, _ := n.DH25519.GenerateKeypair()
 
 	aliceMessenger, err := NewWakuRelayMessenger(context.Background(), relay2, nil, timesource.NewDefaultClock())
 	require.NoError(t, err)
