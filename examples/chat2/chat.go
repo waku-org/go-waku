@@ -15,6 +15,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -261,18 +262,18 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 
 	var version uint32
 	var timestamp int64 = utils.GetUnixEpochFrom(c.node.Timesource().Now())
-	var keyInfo *node.KeyInfo = &node.KeyInfo{}
+	var keyInfo *payload.KeyInfo = &payload.KeyInfo{}
 
 	if c.options.UsePayloadV1 { // Use WakuV1 encryption
-		keyInfo.Kind = node.Symmetric
+		keyInfo.Kind = payload.Symmetric
 		keyInfo.SymKey = generateSymKey(c.options.ContentTopic)
 		version = 1
 	} else {
-		keyInfo.Kind = node.None
+		keyInfo.Kind = payload.None
 		version = 0
 	}
 
-	p := new(node.Payload)
+	p := new(payload.Payload)
 	p.Data = msgBytes
 	p.Key = keyInfo
 
@@ -318,15 +319,15 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 }
 
 func decodeMessage(useV1Payload bool, contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
-	var keyInfo *node.KeyInfo = &node.KeyInfo{}
+	var keyInfo *payload.KeyInfo = &payload.KeyInfo{}
 	if useV1Payload { // Use WakuV1 encryption
-		keyInfo.Kind = node.Symmetric
+		keyInfo.Kind = payload.Symmetric
 		keyInfo.SymKey = generateSymKey(contentTopic)
 	} else {
-		keyInfo.Kind = node.None
+		keyInfo.Kind = payload.None
 	}
 
-	payload, err := node.DecodePayload(wakumsg, keyInfo)
+	payload, err := payload.DecodePayload(wakumsg, keyInfo)
 	if err != nil {
 		return nil, err
 	}

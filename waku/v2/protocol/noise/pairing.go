@@ -5,18 +5,19 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"sync"
 
+	n "github.com/waku-org/go-noise"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	n "github.com/waku-org/noise"
 	"go.uber.org/zap"
 )
 
 var ErrPairingTimeout = errors.New("pairing has timed out")
 
 type Sender interface {
-	Publish(ctx context.Context, contentTopic string, payload PayloadV2) error
+	Publish(ctx context.Context, contentTopic string, payload *n.PayloadV2) error
 }
 
 type Receiver interface {
@@ -31,7 +32,7 @@ type Pairing struct {
 	randomFixLenVal      []byte
 	myCommittedStaticKey []byte
 	params               PairingParameters
-	handshake            *Handshake
+	handshake            *n.Handshake
 	authCode             string
 	authCodeEmitted      chan string
 	authCodeConfirmed    chan bool
@@ -40,11 +41,12 @@ type Pairing struct {
 
 	started   bool
 	completed bool
+	hsResult  *n.HandshakeResult
 }
 
 type PairingParameterOption func(*PairingParameters) error
 
-func WithInitiatorParameters(qrString string, qrMessageNametag MessageNametag) PairingParameterOption {
+func WithInitiatorParameters(qrString string, qrMessageNametag n.MessageNametag) PairingParameterOption {
 	return func(params *PairingParameters) error {
 		params.initiator = true
 		qr, err := StringToQR(qrString)
@@ -57,16 +59,16 @@ func WithInitiatorParameters(qrString string, qrMessageNametag MessageNametag) P
 	}
 }
 
-func WithResponderParameters(applicationName, applicationVersion, shardId string, qrMessageNameTag *MessageNametag) PairingParameterOption {
+func WithResponderParameters(applicationName, applicationVersion, shardId string, qrMessageNameTag *n.MessageNametag) PairingParameterOption {
 	return func(params *PairingParameters) error {
 		params.initiator = false
 		if qrMessageNameTag == nil {
-			b := make([]byte, MessageNametagLength)
+			b := make([]byte, n.MessageNametagLength)
 			_, err := rand.Read(b)
 			if err != nil {
 				return err
 			}
-			params.qrMessageNametag = BytesToMessageNametag(b)
+			params.qrMessageNametag = n.BytesToMessageNametag(b)
 		} else {
 			params.qrMessageNametag = *qrMessageNameTag
 		}
@@ -88,17 +90,17 @@ type PairingParameters struct {
 	ephemeralPublicKey  ed25519.PublicKey
 	initiator           bool
 	qr                  QR
-	qrMessageNametag    MessageNametag
+	qrMessageNametag    n.MessageNametag
 }
 
-func NewPairing(myStaticKey n.DHKey, myEphemeralKey n.DHKey, opts PairingParameterOption, messenger NoiseMessenger, logger *zap.Logger) (*Pairing, error) {
+func NewPairing(myStaticKey n.Keypair, myEphemeralKey n.Keypair, opts PairingParameterOption, messenger NoiseMessenger, logger *zap.Logger) (*Pairing, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
 		return nil, err
 	}
 
-	myCommitedStaticKey := CommitPublicKey(myStaticKey.Public, b)
+	myCommitedStaticKey := n.CommitPublicKey(sha256.New, myStaticKey.Public, b)
 
 	var params PairingParameters
 	params.myCommitedStaticKey = myCommitedStaticKey
@@ -108,8 +110,7 @@ func NewPairing(myStaticKey n.DHKey, myEphemeralKey n.DHKey, opts PairingParamet
 		return nil, err
 	}
 
-	preMessagePKs := params.qr.ephemeralPublicKey
-	hs, err := NewHandshake_WakuPairing_25519_ChaChaPoly_SHA256(myStaticKey, myEphemeralKey, params.initiator, params.qr.Bytes(), preMessagePKs)
+	hs, err := n.NewHandshake_WakuPairing_25519_ChaChaPoly_SHA256(myStaticKey, myEphemeralKey, params.initiator, params.qr.Bytes(), params.qr.ephemeralPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func NewPairing(myStaticKey n.DHKey, myEphemeralKey n.DHKey, opts PairingParamet
 	}, nil
 }
 
-func (p *Pairing) PairingInfo() (qrString string, qrMessageNametag MessageNametag) {
+func (p *Pairing) PairingInfo() (qrString string, qrMessageNametag n.MessageNametag) {
 	p.RLock()
 	defer p.RUnlock()
 	return p.params.qr.String(), p.params.qrMessageNametag
@@ -180,7 +181,7 @@ func (p *Pairing) isAuthCodeConfirmed(ctx context.Context) (bool, error) {
 	}
 }
 
-func (p *Pairing) executeReadStepWithNextMessage(ctx context.Context, nextMsgChan <-chan *pb.WakuMessage, messageNametag MessageNametag) (*HandshakeStepResult, error) {
+func (p *Pairing) executeReadStepWithNextMessage(ctx context.Context, nextMsgChan <-chan *pb.WakuMessage, messageNametag n.MessageNametag) (*n.HandshakeStepResult, error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -191,9 +192,9 @@ func (p *Pairing) executeReadStepWithNextMessage(ctx context.Context, nextMsgCha
 				return nil, err
 			}
 
-			step, err := p.handshake.Step(payload, nil, &messageNametag)
+			step, err := p.handshake.Step(payload, nil, messageNametag)
 			if err != nil {
-				if errors.Is(err, ErrNametagNotExpected) {
+				if errors.Is(err, n.ErrNametagNotExpected) || errors.Is(err, n.ErrUnexpectedMessageNametag) {
 					p.logger.Debug(err.Error())
 					continue
 				} else {
@@ -210,11 +211,10 @@ func (p *Pairing) initiatorHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 
 	go func() {
 		defer close(doneCh)
-
 		// The handshake initiator writes a Waku2 payload v2 containing the handshake message
 		// and the (encrypted) transport message
 		// The message is sent with a messageNametag equal to the one received through the QR code
-		hsStep, err := p.handshake.Step(nil, p.myCommittedStaticKey, &p.params.qrMessageNametag)
+		hsStep, err := p.handshake.Step(nil, p.myCommittedStaticKey, p.params.qrMessageNametag)
 		if err != nil {
 			doneCh <- err
 			return
@@ -222,12 +222,11 @@ func (p *Pairing) initiatorHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 
 		// We prepare a message from initiator's payload2
 		// At this point wakuMsg is sent over the Waku network to receiver content topic
-		err = p.messenger.Publish(ctx, p.ContentTopic, hsStep.Payload2)
+		err = p.messenger.Publish(ctx, p.ContentTopic, hsStep.PayloadV2)
 		if err != nil {
 			doneCh <- err
 			return
 		}
-
 		// We generate an authorization code using the handshake state
 		// this check has to be confirmed with a user interaction, comparing auth codes in both ends
 		authCode, err := p.handshake.Authcode()
@@ -270,7 +269,7 @@ func (p *Pairing) initiatorHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 		}
 
 		// Initiator further checks if receiver's commitment opens to receiver's static key received
-		expectedReceiverCommittedStaticKey := CommitPublicKey(p.handshake.RS(), hsStep.TransportMessage)
+		expectedReceiverCommittedStaticKey := n.CommitPublicKey(sha256.New, p.handshake.RemoteStaticPublicKey(), hsStep.TransportMessage)
 		if !bytes.Equal(expectedReceiverCommittedStaticKey, p.params.qr.committedStaticKey) {
 			doneCh <- errors.New("expected committed static key does not match the receiver actual committed static key")
 			return
@@ -285,25 +284,32 @@ func (p *Pairing) initiatorHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 			return
 		}
 
-		hsStep, err = p.handshake.Step(nil, p.randomFixLenVal, &hsMessageNametag)
+		hsStep, err = p.handshake.Step(nil, p.randomFixLenVal, hsMessageNametag)
 		if err != nil {
 			doneCh <- err
 			return
 		}
 
-		err = p.messenger.Publish(ctx, p.ContentTopic, hsStep.Payload2)
+		err = p.messenger.Publish(ctx, p.ContentTopic, hsStep.PayloadV2)
+		if err != nil {
+			doneCh <- err
+			return
+		}
+
+		hsResult, err := p.handshake.FinalizeHandshake()
 		if err != nil {
 			doneCh <- err
 			return
 		}
 
 		// Secure Transfer Phase
-		if !p.handshake.HandshakeComplete() {
+		if !p.handshake.IsComplete() {
 			doneCh <- errors.New("handshake is in undefined state")
 			return
 		}
 
 		p.Lock()
+		p.hsResult = hsResult
 		p.completed = true
 		p.Unlock()
 	}()
@@ -363,14 +369,14 @@ func (p *Pairing) responderHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 			return
 		}
 
-		hsStep, err = p.handshake.Step(nil, p.randomFixLenVal, &hsMessageNametag)
+		hsStep, err = p.handshake.Step(nil, p.randomFixLenVal, hsMessageNametag)
 		if err != nil {
 			doneCh <- err
 			return
 		}
 
 		// We prepare a Waku message from receiver's payload2
-		err = p.messenger.Publish(ctx, p.ContentTopic, hsStep.Payload2)
+		err = p.messenger.Publish(ctx, p.ContentTopic, hsStep.PayloadV2)
 		if err != nil {
 			doneCh <- err
 			return
@@ -392,20 +398,27 @@ func (p *Pairing) responderHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 		}
 
 		// The receiver further checks if the initiator's commitment opens to the initiator's static key received
-		expectedInitiatorCommittedStaticKey := CommitPublicKey(p.handshake.RS(), hsStep.TransportMessage)
+		expectedInitiatorCommittedStaticKey := n.CommitPublicKey(sha256.New, p.handshake.RemoteStaticPublicKey(), hsStep.TransportMessage)
 		if !bytes.Equal(expectedInitiatorCommittedStaticKey, initiatorCommittedStaticKey) {
 			doneCh <- errors.New("expected committed static key does not match the initiator actual committed static key")
 			return
 		}
 
+		hsResult, err := p.handshake.FinalizeHandshake()
+		if err != nil {
+			doneCh <- err
+			return
+		}
+
 		// Secure Transfer Phase
-		if !p.handshake.HandshakeComplete() {
+		if !p.handshake.IsComplete() {
 			doneCh <- errors.New("handshake is in undefined state")
 			return
 		}
 
 		p.Lock()
 		p.completed = true
+		p.hsResult = hsResult
 		p.Unlock()
 	}()
 	return doneCh
@@ -419,20 +432,39 @@ func (p *Pairing) HandshakeComplete() bool {
 
 // Returns a WakuMessage with version 2 and encrypted payload
 func (p *Pairing) Encrypt(plaintext []byte) (*pb.WakuMessage, error) {
-	payload, err := p.handshake.Encrypt(plaintext)
+	p.RLock()
+	defer p.RUnlock()
+	if !p.completed {
+		return nil, errors.New("pairing is not complete")
+	}
+
+	payload, err := p.hsResult.WriteMessage(plaintext, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return EncodePayloadV2(payload)
+	encodedPayload, err := EncodePayloadV2(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedPayload.ContentTopic = p.ContentTopic
+
+	return encodedPayload, nil
 }
 
 func (p *Pairing) Decrypt(msg *pb.WakuMessage) ([]byte, error) {
+	p.RLock()
+	defer p.RUnlock()
+	if !p.completed {
+		return nil, errors.New("pairing is not complete")
+	}
+
 	payload, err := DecodePayloadV2(msg)
 	if err != nil {
 		return nil, err
 	}
-	return p.handshake.Decrypt(payload)
+	return p.hsResult.ReadMessage(payload, nil)
 }
 
 func (p *Pairing) ConfirmAuthCode(confirmed bool) error {

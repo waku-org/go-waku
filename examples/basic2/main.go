@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -87,9 +88,9 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	var version uint32 = 0
 	var timestamp int64 = utils.GetUnixEpoch(wakuNode.Timesource())
 
-	p := new(node.Payload)
+	p := new(payload.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
-	p.Key = &node.KeyInfo{Kind: node.None}
+	p.Key = &payload.KeyInfo{Kind: payload.None}
 
 	payload, err := p.Encode(version)
 	if err != nil {
@@ -125,7 +126,7 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	}
 
 	for value := range sub.C {
-		payload, err := node.DecodePayload(value.Message(), &node.KeyInfo{Kind: node.None})
+		payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
 		if err != nil {
 			fmt.Println(err)
 			return
