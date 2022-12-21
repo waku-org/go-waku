@@ -117,6 +117,9 @@ func Test5000(t *testing.T) {
 			case <-ticker.C:
 				require.Fail(t, "Timeout Sub1")
 			case msg := <-sub1.C:
+				if msg == nil {
+					return
+				}
 				if bytes.Equal(msg.Message().Payload, maxMsgBytes) {
 					return
 				}
@@ -135,6 +138,9 @@ func Test5000(t *testing.T) {
 			case <-ticker.C:
 				require.Fail(t, "Timeout Sub2")
 			case msg := <-sub2.C:
+				if msg == nil {
+					return
+				}
 				if bytes.Equal(msg.Message().Payload, maxMsgBytes) {
 					return
 				}
