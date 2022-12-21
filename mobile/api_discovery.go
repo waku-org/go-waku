@@ -57,6 +57,6 @@ func StopDiscoveryV5() string {
 	if wakuNode.DiscV5() == nil {
 		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
 	}
-	err := wakuNode.DiscV5().Start(context.Background())
-	return MakeJSONResponse(err)
+	wakuNode.DiscV5().Stop()
+	return MakeJSONResponse(nil)
 }
