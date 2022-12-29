@@ -21,7 +21,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/urfave/cli/v2 v2.20.2
 	go.opencensus.io v0.23.0
@@ -33,9 +33,10 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
 	github.com/waku-org/go-zerokit-rln v0.1.7-wakuorg
-	github.com/waku-org/noise v1.0.3
 	golang.org/x/text v0.4.0
 )
+
+require github.com/waku-org/go-noise v0.0.4
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
@@ -149,7 +150,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220920183852-bf014ff85ad5 // indirect

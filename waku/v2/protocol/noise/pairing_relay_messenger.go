@@ -3,6 +3,7 @@ package noise
 import (
 	"context"
 
+	n "github.com/waku-org/go-noise"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -110,9 +111,9 @@ func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-c
 	return sub.msgChan
 }
 
-func (r *NoiseWakuRelay) Publish(ctx context.Context, contentTopic string, payload PayloadV2) error {
+func (r *NoiseWakuRelay) Publish(ctx context.Context, contentTopic string, payload *n.PayloadV2) error {
 
-	message, err := EncodePayloadV2(&payload)
+	message, err := EncodePayloadV2(payload)
 	if err != nil {
 		return err
 	}

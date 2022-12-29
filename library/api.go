@@ -29,6 +29,9 @@ func main() {}
 // - relay: Enable WakuRelay. Default `true`
 // - minPeersToPublish: The minimum number of peers required on a topic to allow broadcasting a message. Default `0`
 // - filter: Enable Filter. Default `false`
+// - discV5: Enable DiscoveryV5. Default `false`
+// - discV5BootstrapNodes: Array of bootstrap nodes ENR
+// - discV5UDPPort: UDP port for DiscoveryV5
 // - logLevel: Set the log level. Default `INFO`. Allowed values "DEBUG", "INFO", "WARN", "ERROR", "DPANIC", "PANIC", "FATAL"
 //
 //export waku_new

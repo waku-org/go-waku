@@ -271,8 +271,11 @@ interface JsonConfig {
     nodeKey?: string;
     keepAliveInterval?: number;
     relay?: boolean;
-    minPeersToPublish?: number
+    minPeersToPublish?: number;
     filter?: boolean;
+    discV5?: boolean;
+    discV5BootstrapNodes?: Array<string>;
+    discV5UDPPort?: number;
 }
 ```
 
@@ -300,7 +303,12 @@ If a key is `undefined`, or `null`, a default value will be set.
   Default `0`.
 - `filter`: Enable filter protocol.
   Default `false`.
-
+- `discV5`: Enable DiscoveryV5.
+  Default `false`
+- `discV5BootstrapNodes`: Array of bootstrap nodes ENR
+- `discV5UDPPort`: UDP port for DiscoveryV5
+  Default `9000`
+  
 For example:
 ```json
 {
@@ -1049,7 +1057,39 @@ An `error` message otherwise.
 }
 ```
 
+## DiscoveryV5
 
+### `extern char* waku_discv5_start()`
+Starts the DiscoveryV5 service to discover and connect to new peers
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field is set to `true`.
+
+For example:
+
+```json
+{
+  "result": true
+}
+```
+
+### `extern char* waku_discv5_stop()`
+Stops the DiscoveryV5 service
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field is set to `true`.
+
+For example:
+
+```json
+{
+  "result": true
+}
+```
 ## Utils
 
 ### `extern char* waku_utils_base64_encode(char* data)`

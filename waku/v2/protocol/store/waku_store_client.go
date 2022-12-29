@@ -342,10 +342,16 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 		return nil, errors.New("invalid cursor")
 	}
 
-	return &Result{
+	result := &Result{
 		Messages: response.Messages,
-		cursor:   response.PagingInfo.Cursor,
 		query:    q,
 		peerId:   r.PeerID(),
-	}, nil
+	}
+
+	if response.PagingInfo != nil {
+		result.cursor = response.PagingInfo.Cursor
+	}
+
+	return result, nil
+
 }
