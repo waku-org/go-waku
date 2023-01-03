@@ -11,11 +11,14 @@ type MultiaddrSlice struct {
 }
 
 func (k *MultiaddrSlice) Set(value string) error {
-	ma, err := multiaddr.NewMultiaddr(value)
-	if err != nil {
-		return err
+	addresses := strings.Split(value, ",")
+	for _, addr := range addresses {
+		ma, err := multiaddr.NewMultiaddr(addr)
+		if err != nil {
+			return err
+		}
+		*k.Values = append(*k.Values, ma)
 	}
-	*k.Values = append(*k.Values, ma)
 	return nil
 }
 
