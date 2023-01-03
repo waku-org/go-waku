@@ -192,7 +192,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	wakuNode2, err := New(ctx,
 		WithHostAddress(hostAddr2),
 		WithWakuFilter(false),
-		WithWakuStore(true),
+		WithWakuStore(),
 		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)
