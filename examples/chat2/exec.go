@@ -33,7 +33,6 @@ func execute(options Options) {
 		node.WithPrivateKey(options.NodeKey),
 		node.WithNTP(),
 		node.WithHostAddress(hostAddr),
-		node.WithWakuStore(false),
 	}
 
 	if options.Relay.Enable {
