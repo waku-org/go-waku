@@ -33,7 +33,6 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool
 	}
 
 	_ = NewDebugService(node, mux)
-	relayService := NewRelayService(node, mux, relayCacheCapacity, log)
 
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
 
@@ -42,20 +41,27 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool
 		Handler: mux,
 	}
 
-	server.RegisterOnShutdown(func() {
-		relayService.Stop()
-	})
-
 	wrpc.node = node
 	wrpc.server = server
-	wrpc.relayService = relayService
+
+	if node.Relay() != nil {
+		relayService := NewRelayService(node, mux, relayCacheCapacity, log)
+		server.RegisterOnShutdown(func() {
+			relayService.Stop()
+		})
+		wrpc.relayService = relayService
+	}
 
 	return wrpc
 }
 
 func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
-	go r.relayService.Start(ctx)
+
+	if r.node.Relay() != nil {
+		go r.relayService.Start(ctx)
+	}
+
 	go func() {
 		_ = r.server.ListenAndServe()
 	}()
