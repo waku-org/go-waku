@@ -51,10 +51,13 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		wrpc.log.Error("registering debug service", zap.Error(err))
 	}
 
-	relayService := NewRelayService(node, cacheCapacity, log)
-	err = s.RegisterService(relayService, "Relay")
-	if err != nil {
-		wrpc.log.Error("registering relay service", zap.Error(err))
+	var relayService *RelayService
+	if node.Relay() != nil {
+		relayService = NewRelayService(node, cacheCapacity, log)
+		err = s.RegisterService(relayService, "Relay")
+		if err != nil {
+			wrpc.log.Error("registering relay service", zap.Error(err))
+		}
 	}
 
 	err = s.RegisterService(&StoreService{node, log}, "Store")
@@ -95,7 +98,10 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 
 	server.RegisterOnShutdown(func() {
 		filterService.Stop()
-		relayService.Stop()
+
+		if relayService != nil {
+			relayService.Stop()
+		}
 		if wrpc.privateService != nil {
 			wrpc.privateService.Stop()
 		}
@@ -110,7 +116,10 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 }
 
 func (r *WakuRpc) Start() {
-	go r.relayService.Start()
+	if r.relayService != nil {
+		go r.relayService.Start()
+	}
+
 	go r.filterService.Start()
 	if r.privateService != nil {
 		go r.privateService.Start()
