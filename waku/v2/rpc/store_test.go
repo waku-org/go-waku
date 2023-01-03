@@ -10,7 +10,7 @@ import (
 )
 
 func makeStoreService(t *testing.T) *StoreService {
-	options := node.WithWakuStore(false)
+	options := node.WithWakuStore()
 	n, err := node.New(context.Background(), options)
 	require.NoError(t, err)
 	err = n.Start()

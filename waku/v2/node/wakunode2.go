@@ -341,7 +341,7 @@ func (w *WakuNode) Start() error {
 	}
 
 	// Subscribe store to topic
-	if w.opts.storeMsgs {
+	if w.opts.enableStore {
 		w.log.Info("Subscribing store to broadcaster")
 		w.bcaster.Register(nil, w.store.MessageChannel())
 	}

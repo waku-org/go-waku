@@ -80,7 +80,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	node3, err := New(ctx,
 		WithHostAddress(hostAddr3),
 		WithWakuRelay(),
-		WithWakuStore(false),
+		WithWakuStore(),
 		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)

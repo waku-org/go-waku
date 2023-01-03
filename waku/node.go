@@ -225,8 +225,8 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
 	}
 
-	nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.Enable, options.Store.ResumeNodes...))
 	if options.Store.Enable {
+		nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.ResumeNodes...))
 		dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime))
 		failOnErr(err, "DBStore")
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
