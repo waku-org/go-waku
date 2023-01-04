@@ -182,9 +182,9 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	defer wakuNode1.Stop()
 
 	// NODE2: Filter Client/Store
-	db, err := sqlite.NewDB(":memory:")
+	db, migration, err := sqlite.NewDB(":memory:")
 	require.NoError(t, err)
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db))
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migration))
 	require.NoError(t, err)
 
 	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")

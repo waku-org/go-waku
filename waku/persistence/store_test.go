@@ -5,14 +5,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
+
+func Migrate(db *sql.DB) error {
+	migrationDriver, err := sqlite3.WithInstance(db, &sqlite3.Config{
+		MigrationsTable: "gowaku_" + sqlite3.DefaultMigrationsTable,
+	})
+	if err != nil {
+		return err
+	}
+	return migrations.Migrate(db, migrationDriver)
+}
 
 func NewMock() *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -25,8 +37,7 @@ func NewMock() *sql.DB {
 
 func TestDbStore(t *testing.T) {
 	db := NewMock()
-	option := WithDB(db)
-	store, err := NewDBStore(utils.Logger(), option)
+	store, err := NewDBStore(utils.Logger(), WithDB(db), WithMigrations(Migrate))
 	require.NoError(t, err)
 
 	err = store.Start(timesource.NewDefaultClock())
@@ -46,7 +57,7 @@ func TestDbStore(t *testing.T) {
 
 func TestStoreRetention(t *testing.T) {
 	db := NewMock()
-	store, err := NewDBStore(utils.Logger(), WithDB(db), WithRetentionPolicy(5, 20*time.Second))
+	store, err := NewDBStore(utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
 	err = store.Start(timesource.NewDefaultClock())

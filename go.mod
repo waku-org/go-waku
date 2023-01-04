@@ -36,7 +36,10 @@ require (
 	golang.org/x/text v0.4.0
 )
 
-require github.com/waku-org/go-noise v0.0.4
+require (
+	github.com/lib/pq v1.10.0
+	github.com/waku-org/go-noise v0.0.4
+)
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
