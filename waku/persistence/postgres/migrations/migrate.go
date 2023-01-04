@@ -7,30 +7,22 @@ import (
 	"database/sql"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	"github.com/golang-migrate/migrate/v4/database"
+
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 )
 
 // Migrate applies migrations.
-func Migrate(db *sql.DB) error {
+func Migrate(db *sql.DB, driver database.Driver) error {
 	return migrateDB(db, bindata.Resource(
 		AssetNames(),
-		func(name string) ([]byte, error) {
-			return Asset(name)
-		},
-	))
+		Asset,
+	), driver)
 }
 
 // Migrate database using provided resources.
-func migrateDB(db *sql.DB, resources *bindata.AssetSource) error {
+func migrateDB(db *sql.DB, resources *bindata.AssetSource, driver database.Driver) error {
 	source, err := bindata.WithInstance(resources)
-	if err != nil {
-		return err
-	}
-
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{
-		MigrationsTable: "gowaku_" + sqlite3.DefaultMigrationsTable,
-	})
 	if err != nil {
 		return err
 	}
@@ -38,7 +30,7 @@ func migrateDB(db *sql.DB, resources *bindata.AssetSource) error {
 	m, err := migrate.NewWithInstance(
 		"go-bindata",
 		source,
-		"sqlite",
+		"gowakudb",
 		driver)
 	if err != nil {
 		return err

@@ -1,18 +1,17 @@
-package sqlite
+package postgres
 
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/lib/pq"
 	"github.com/waku-org/go-waku/waku/persistence"
-	"github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
+	"github.com/waku-org/go-waku/waku/persistence/postgres/migrations"
 )
 
-// Queries are the sqlite queries for a given table.
+// Queries are the postgresql queries for a given table.
 type Queries struct {
 	deleteQuery  string
 	existsQuery  string
@@ -25,7 +24,7 @@ type Queries struct {
 	getSizeQuery string
 }
 
-// NewQueries creates a new SQLite set of queries for the passed table
+// NewQueries creates a new Postgresql set of queries for the passed table
 func NewQueries(tbl string, db *sql.DB) (*Queries, error) {
 	err := CreateTable(db, tbl)
 	if err != nil {
@@ -89,29 +88,10 @@ func (q Queries) GetSize() string {
 	return q.getSizeQuery
 }
 
-func addSqliteURLDefaults(dburl string) string {
-	if !strings.Contains(dburl, "?") {
-		dburl += "?"
-	}
-
-	if !strings.Contains(dburl, "_journal=") {
-		dburl += "&_journal=WAL"
-	}
-
-	if !strings.Contains(dburl, "_timeout=") {
-		dburl += "&_timeout=5000"
-	}
-
-	return dburl
-}
-
-// WithDB is a DBOption that lets you use a sqlite3 DBStore and run migrations
+// WithDB is a DBOption that lets you use a postgresql DBStore and run migrations
 func WithDB(dburl string, migrate bool) persistence.DBOption {
 	return func(d *persistence.DBStore) error {
-		driverOption := persistence.WithDriver("sqlite3", addSqliteURLDefaults(dburl), persistence.ConnectionPoolOptions{
-			// Disable concurrent access as not supported by the driver
-			MaxOpenConnections: 1,
-		})
+		driverOption := persistence.WithDriver("postgres", dburl)
 		err := driverOption(d)
 		if err != nil {
 			return err
@@ -131,17 +111,20 @@ func WithDB(dburl string, migrate bool) persistence.DBOption {
 	}
 }
 
-// NewDB creates a sqlite3 DB in the specified path
+// NewDB connects to postgres DB in the specified path
 func NewDB(dburl string) (*sql.DB, func(*sql.DB) error, error) {
-	db, err := sql.Open("sqlite3", addSqliteURLDefaults(dburl))
+	db, err := sql.Open("postgres", dburl)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Disable concurrent access as not supported by the driver
-	db.SetMaxOpenConns(1)
-
 	return db, Migrate, nil
+}
+
+func migrationDriver(db *sql.DB) (database.Driver, error) {
+	return postgres.WithInstance(db, &postgres.Config{
+		MigrationsTable: "gowaku_" + postgres.DefaultMigrationsTable,
+	})
 }
 
 // CreateTable creates the table that will persist the peers
@@ -152,12 +135,6 @@ func CreateTable(db *sql.DB, tableName string) error {
 		return err
 	}
 	return nil
-}
-
-func migrationDriver(db *sql.DB) (database.Driver, error) {
-	return sqlite3.WithInstance(db, &sqlite3.Config{
-		MigrationsTable: "gowaku_" + sqlite3.DefaultMigrationsTable,
-	})
 }
 
 func Migrate(db *sql.DB) error {

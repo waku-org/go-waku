@@ -5,14 +5,11 @@ import (
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
-	"regexp"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -79,14 +76,6 @@ func freePort() (int, error) {
 	return port, nil
 }
 
-func validateDBUrl(val string) error {
-	matched, err := regexp.Match(`^[\w\+]+:\/\/[\w\/\\\.\:\@]+\?{0,1}.*$`, []byte(val))
-	if !matched || err != nil {
-		return errors.New("invalid db url option format")
-	}
-	return nil
-}
-
 const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
@@ -112,32 +101,10 @@ func Execute(options Options) {
 	logger := utils.Logger().With(logging.HostID("node", id))
 
 	var db *sql.DB
+	var migrationFn func(*sql.DB) error
 	if options.Store.Enable {
-		dbURL := ""
-		if options.Store.DatabaseURL != "" {
-			err := validateDBUrl(options.Store.DatabaseURL)
-			failOnErr(err, "connecting to the db")
-			dbURL = options.Store.DatabaseURL
-		} else {
-			// In memoryDB
-			dbURL = "sqlite://:memory:"
-		}
-
-		// TODO: this should be refactored to use any kind of DB, not just sqlite
-		// Extract to separate module
-
-		dbURLParts := strings.Split(dbURL, "://")
-		dbEngine := dbURLParts[0]
-		dbParams := dbURLParts[1]
-		switch dbEngine {
-		case "sqlite3":
-			db, err = sqlite.NewDB(dbParams)
-			failOnErr(err, "Could not connect to DB")
-			logger.Info("using database: ", zap.String("path", dbParams))
-		default:
-			failOnErr(errors.New("unknown database engine"), fmt.Sprintf("%s is not supported by go-waku", dbEngine))
-		}
-
+		db, migrationFn, err = extractDBAndMigration(options.Store.DatabaseURL)
+		failOnErr(err, "Could not connect to DB")
 	}
 
 	ctx := context.Background()
@@ -227,10 +194,13 @@ func Execute(options Options) {
 
 	if options.Store.Enable {
 		nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.ResumeNodes...))
-		dbStore, err := persistence.NewDBStore(logger, persistence.WithDB(db), persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime))
+		dbStore, err := persistence.NewDBStore(logger,
+			persistence.WithDB(db),
+			persistence.WithMigrations(migrationFn),
+			persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime),
+		)
 		failOnErr(err, "DBStore")
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
-
 	}
 
 	if options.LightPush.Enable {

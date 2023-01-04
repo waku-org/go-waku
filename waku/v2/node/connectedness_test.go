@@ -69,9 +69,9 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node2.Start()
 	require.NoError(t, err)
 
-	db, err := sqlite.NewDB(":memory:")
+	db, migration, err := sqlite.NewDB(":memory:")
 	require.NoError(t, err)
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db))
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migration))
 	require.NoError(t, err)
 
 	// Node3: Relay + Store
