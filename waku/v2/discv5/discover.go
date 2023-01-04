@@ -209,11 +209,13 @@ func (d *DiscoveryV5) Stop() {
 
 	d.cancel()
 
-	d.listener.Close()
-	d.listener = nil
 	d.started = false
 
-	d.log.Info("stopped Discovery V5")
+	if d.listener != nil {
+		d.listener.Close()
+		d.listener = nil
+		d.log.Info("stopped Discovery V5")
+	}
 
 	d.wg.Wait()
 }
