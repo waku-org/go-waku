@@ -17,17 +17,3 @@ func waku_dns_discovery(url *C.char, nameserver *C.char, ms C.int) *C.char {
 	response := mobile.DnsDiscovery(C.GoString(url), C.GoString(nameserver), int(ms))
 	return C.CString(response)
 }
-
-// Starts DiscoveryV5 service to discover and connect to new peers
-//export waku_discv5_start
-func waku_discv5_start() *C.char {
-	response := mobile.StartDiscoveryV5()
-	return C.CString(response)
-}
-
-// Stops DiscoveryV5 service
-//export waku_discv5_stop
-func waku_discv5_stop() *C.char {
-	response := mobile.StopDiscoveryV5()
-	return C.CString(response)
-}

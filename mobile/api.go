@@ -207,6 +207,13 @@ func Start() string {
 		return MakeJSONResponse(err)
 	}
 
+	if wakuNode.DiscV5() != nil {
+		if err := wakuNode.DiscV5().Start(context.Background()); err != nil {
+			wakuNode.Stop()
+			return MakeJSONResponse(err)
+		}
+	}
+
 	wakuStarted = true
 
 	return MakeJSONResponse(nil)
