@@ -207,8 +207,11 @@ func (d *DiscoveryV5) Stop() {
 	d.Lock()
 	defer d.Unlock()
 
-	d.cancel()
+	if d.cancel == nil {
+		return
+	}
 
+	d.cancel()
 	d.started = false
 
 	if d.listener != nil {

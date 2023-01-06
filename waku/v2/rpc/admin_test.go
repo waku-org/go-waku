@@ -21,9 +21,9 @@ import (
 
 func makeAdminService(t *testing.T) *AdminService {
 	options := node.WithWakuRelay()
-	n, err := node.New(context.Background(), options)
+	n, err := node.New(options)
 	require.NoError(t, err)
-	err = n.Start()
+	err = n.Start(context.Background())
 	require.NoError(t, err)
 	return &AdminService{n, utils.Logger()}
 }
@@ -34,7 +34,8 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	err = relay.Start(context.Background())
 	require.NoError(t, err)
 	defer relay.Stop()
 

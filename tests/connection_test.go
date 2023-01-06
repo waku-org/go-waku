@@ -26,7 +26,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 
 	ctx := context.Background()
 
-	wakuNode, err := node.New(ctx,
+	wakuNode, err := node.New(
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithWakuRelay(),
@@ -34,7 +34,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, wakuNode)
 
-	err = wakuNode.Start()
+	err = wakuNode.Start(ctx)
 	require.NoError(t, err)
 
 	require.NoError(t, write(ctx, wakuNode, "test"))

@@ -33,9 +33,10 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
-	defer relay.Stop()
+	relay := relay.NewWakuRelay(host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	err = relay.Start(context.Background())
 	s.Require().NoError(err)
+	defer relay.Stop()
 
 	groupKeyPairs, root, err := r.CreateMembershipList(100)
 	s.Require().NoError(err)

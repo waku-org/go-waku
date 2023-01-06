@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,7 +10,7 @@ import (
 
 func TestWakuRpc(t *testing.T) {
 	options := node.WithWakuStore()
-	n, err := node.New(context.Background(), options)
+	n, err := node.New(options)
 	require.NoError(t, err)
 
 	rpc := NewWakuRpc(n, "127.0.0.1", 8080, true, true, false, 30, utils.Logger())

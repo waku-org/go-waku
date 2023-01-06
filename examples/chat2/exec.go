@@ -91,7 +91,7 @@ func execute(options Options) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	wakuNode, err := node.New(ctx, opts...)
+	wakuNode, err := node.New(opts...)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -115,7 +115,7 @@ func execute(options Options) {
 		return
 	}
 
-	if err := wakuNode.Start(); err != nil {
+	if err := wakuNode.Start(ctx); err != nil {
 		fmt.Println(err.Error())
 		return
 	}

@@ -21,9 +21,10 @@ func TestWakuRelay(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := NewWakuRelay(context.Background(), host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
-	defer relay.Stop()
+	relay := NewWakuRelay(host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	err = relay.Start(context.Background())
 	require.NoError(t, err)
+	defer relay.Stop()
 
 	sub, err := relay.subscribe(testTopic)
 	defer sub.Cancel()

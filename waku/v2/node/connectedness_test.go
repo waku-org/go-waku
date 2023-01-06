@@ -49,24 +49,24 @@ func TestConnectionStatusChanges(t *testing.T) {
 	// Node1: Only Relay
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
-	node1, err := New(ctx,
+	node1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
 		WithConnectionStatusChannel(connStatusChan),
 	)
 	require.NoError(t, err)
-	err = node1.Start()
+	err = node1.Start(ctx)
 	require.NoError(t, err)
 
 	// Node2: Relay
 	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
-	node2, err := New(ctx,
+	node2, err := New(
 		WithHostAddress(hostAddr2),
 		WithWakuRelay(),
 	)
 	require.NoError(t, err)
-	err = node2.Start()
+	err = node2.Start(ctx)
 	require.NoError(t, err)
 
 	db, migration, err := sqlite.NewDB(":memory:")
@@ -77,14 +77,14 @@ func TestConnectionStatusChanges(t *testing.T) {
 	// Node3: Relay + Store
 	hostAddr3, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
-	node3, err := New(ctx,
+	node3, err := New(
 		WithHostAddress(hostAddr3),
 		WithWakuRelay(),
 		WithWakuStore(),
 		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)
-	err = node3.Start()
+	err = node3.Start(ctx)
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup

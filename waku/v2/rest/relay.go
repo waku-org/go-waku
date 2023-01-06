@@ -81,6 +81,9 @@ func (r *RelayService) Start(ctx context.Context) {
 }
 
 func (r *RelayService) Stop() {
+	if r.cancel == nil {
+		return
+	}
 	r.cancel()
 }
 

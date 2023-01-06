@@ -17,7 +17,7 @@ const maxPublishAttempt = 5
 // startKeepAlive creates a go routine that periodically pings connected peers.
 // This is necessary because TCP connections are automatically closed due to inactivity,
 // and doing a ping will avoid this (with a small bandwidth cost)
-func (w *WakuNode) startKeepAlive(t time.Duration) {
+func (w *WakuNode) startKeepAlive(ctx context.Context, t time.Duration) {
 	go func() {
 		defer w.wg.Done()
 		w.log.Info("setting up ping protocol", zap.Duration("duration", t))
@@ -49,12 +49,12 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 				for _, p := range w.host.Network().Peers() {
 					if p != w.host.ID() {
 						w.wg.Add(1)
-						go w.pingPeer(p)
+						go w.pingPeer(ctx, p)
 					}
 				}
 
 				lastTimeExecuted = w.timesource.Now()
-			case <-w.ctx.Done():
+			case <-ctx.Done():
 				w.log.Info("stopping ping protocol")
 				return
 			}
@@ -62,12 +62,12 @@ func (w *WakuNode) startKeepAlive(t time.Duration) {
 	}()
 }
 
-func (w *WakuNode) pingPeer(peer peer.ID) {
+func (w *WakuNode) pingPeer(ctx context.Context, peer peer.ID) {
 	w.keepAliveMutex.Lock()
 	defer w.keepAliveMutex.Unlock()
 	defer w.wg.Done()
 
-	ctx, cancel := context.WithTimeout(w.ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
 
 	logger := w.log.With(logging.HostID("peer", peer))

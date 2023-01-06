@@ -35,7 +35,6 @@ func TestKeepAlive(t *testing.T) {
 
 	w := &WakuNode{
 		host:           host1,
-		ctx:            ctx2,
 		wg:             wg,
 		log:            utils.Logger(),
 		keepAliveMutex: sync.Mutex{},
@@ -43,7 +42,7 @@ func TestKeepAlive(t *testing.T) {
 	}
 
 	w.wg.Add(1)
-	w.pingPeer(host2.ID())
+	w.pingPeer(ctx2, host2.ID())
 
 	require.NoError(t, ctx.Err())
 }

@@ -24,7 +24,8 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*rel
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay, err := relay.NewWakuRelay(context.Background(), host, broadcaster, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(host, broadcaster, 0, timesource.NewDefaultClock(), utils.Logger())
+	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
 	sub, err := relay.SubscribeToTopic(context.Background(), topic)
@@ -40,7 +41,9 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	filter, _ := NewWakuFilter(context.Background(), host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	filter := NewWakuFilter(host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	err = filter.Start(context.Background())
+	require.NoError(t, err)
 
 	return filter, host
 }
@@ -70,11 +73,14 @@ func TestWakuFilter(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter, _ := NewWakuFilter(ctx, host2, broadcaster, true, timesource.NewDefaultClock(), utils.Logger())
-	broadcaster.Register(&testTopic, node2Filter.MsgC)
+	node2Filter := NewWakuFilter(host2, broadcaster, true, timesource.NewDefaultClock(), utils.Logger())
+	err := node2Filter.Start(ctx)
+	require.NoError(t, err)
+
+	broadcaster.Register(&testTopic, node2Filter.MessageChannel())
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err := host1.Peerstore().AddProtocols(host2.ID(), string(FilterID_v20beta1))
+	err = host1.Peerstore().AddProtocols(host2.ID(), string(FilterID_v20beta1))
 	require.NoError(t, err)
 
 	contentFilter := &ContentFilter{
@@ -155,11 +161,14 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter, _ := NewWakuFilter(ctx, host2, v2.NewBroadcaster(10), true, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(3*time.Second))
-	broadcaster.Register(&testTopic, node2Filter.MsgC)
+	node2Filter := NewWakuFilter(host2, v2.NewBroadcaster(10), true, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(3*time.Second))
+	err := node2Filter.Start(ctx)
+	require.NoError(t, err)
+
+	broadcaster.Register(&testTopic, node2Filter.MessageChannel())
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err := host1.Peerstore().AddProtocols(host2.ID(), string(FilterID_v20beta1))
+	err = host1.Peerstore().AddProtocols(host2.ID(), string(FilterID_v20beta1))
 	require.NoError(t, err)
 
 	contentFilter := &ContentFilter{

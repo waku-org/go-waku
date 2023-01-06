@@ -13,9 +13,9 @@ import (
 )
 
 func makePrivateService(t *testing.T) *PrivateService {
-	n, err := node.New(context.Background(), node.WithWakuRelayAndMinPeers(0))
+	n, err := node.New(node.WithWakuRelayAndMinPeers(0))
 	require.NoError(t, err)
-	err = n.Start()
+	err = n.Start(context.Background())
 	require.NoError(t, err)
 
 	return NewPrivateService(n, 30, utils.Logger())

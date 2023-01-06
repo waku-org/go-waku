@@ -12,10 +12,10 @@ import (
 )
 
 func TestGetV1Info(t *testing.T) {
-	wakuNode1, err := node.New(context.Background())
+	wakuNode1, err := node.New()
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
-	err = wakuNode1.Start()
+	err = wakuNode1.Start(context.Background())
 	require.NoError(t, err)
 
 	d := &DebugService{

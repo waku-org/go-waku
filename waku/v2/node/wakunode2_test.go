@@ -39,17 +39,17 @@ func TestWakuNode2(t *testing.T) {
 
 	ctx := context.Background()
 
-	wakuNode, err := New(ctx,
+	wakuNode, err := New(
 		WithPrivateKey(prvKey),
 		WithHostAddress(hostAddr),
 		WithWakuRelay(),
 	)
 	require.NoError(t, err)
 
-	err = wakuNode.Start()
-	defer wakuNode.Stop()
-
+	err = wakuNode.Start(ctx)
 	require.NoError(t, err)
+
+	defer wakuNode.Stop()
 }
 
 func int2Bytes(i int) []byte {
@@ -74,23 +74,23 @@ func Test5000(t *testing.T) {
 	key2, _ := tests.RandomHex(32)
 	prvKey2, _ := crypto.HexToECDSA(key2)
 
-	wakuNode1, err := New(ctx,
+	wakuNode1, err := New(
 		WithPrivateKey(prvKey1),
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
 	)
 	require.NoError(t, err)
-	err = wakuNode1.Start()
+	err = wakuNode1.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
 
-	wakuNode2, err := New(ctx,
+	wakuNode2, err := New(
 		WithPrivateKey(prvKey2),
 		WithHostAddress(hostAddr2),
 		WithWakuRelay(),
 	)
 	require.NoError(t, err)
-	err = wakuNode2.Start()
+	err = wakuNode2.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode2.Stop()
 
@@ -171,13 +171,13 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	// NODE1: Relay Node + Filter Server
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
-	wakuNode1, err := New(ctx,
+	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
 		WithWakuFilter(true),
 	)
 	require.NoError(t, err)
-	err = wakuNode1.Start()
+	err = wakuNode1.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
 
@@ -189,14 +189,14 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
-	wakuNode2, err := New(ctx,
+	wakuNode2, err := New(
 		WithHostAddress(hostAddr2),
 		WithWakuFilter(false),
 		WithWakuStore(),
 		WithMessageProvider(dbStore),
 	)
 	require.NoError(t, err)
-	err = wakuNode2.Start()
+	err = wakuNode2.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode2.Stop()
 
@@ -238,12 +238,12 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	// NODE3: Query from NODE2
 	hostAddr3, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
-	wakuNode3, err := New(ctx,
+	wakuNode3, err := New(
 		WithHostAddress(hostAddr3),
 		WithWakuFilter(false),
 	)
 	require.NoError(t, err)
-	err = wakuNode3.Start()
+	err = wakuNode3.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode3.Stop()
 

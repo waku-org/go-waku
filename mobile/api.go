@@ -186,9 +186,7 @@ func NewNode(configJSON string) string {
 	}
 	logging.SetAllLoggers(lvl)
 
-	ctx := context.Background()
-	w, err := node.New(ctx, opts...)
-
+	w, err := node.New(opts...)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
@@ -203,7 +201,8 @@ func Start() string {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	if err := wakuNode.Start(); err != nil {
+	ctx := context.Background()
+	if err := wakuNode.Start(ctx); err != nil {
 		return MakeJSONResponse(err)
 	}
 

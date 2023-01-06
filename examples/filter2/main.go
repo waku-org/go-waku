@@ -34,8 +34,8 @@ func main() {
 	}
 	logging.SetAllLoggers(lvl)
 
-	hostAddr1, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:60000"))
-	hostAddr2, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:60001"))
+	hostAddr1, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60000")
+	hostAddr2, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60001")
 
 	key1, err := randomHex(32)
 	if err != nil {
@@ -62,19 +62,22 @@ func main() {
 
 	ctx := context.Background()
 
-	fullNode, err := node.New(ctx,
+	fullNode, err := node.New(
 		node.WithPrivateKey(prvKey1),
 		node.WithHostAddress(hostAddr1),
 		node.WithWakuRelay(),
 		node.WithWakuFilter(true),
 	)
-
-	err = fullNode.Start()
 	if err != nil {
 		panic(err)
 	}
 
-	lightNode, err := node.New(ctx,
+	err = fullNode.Start(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	lightNode, err := node.New(
 		node.WithPrivateKey(prvKey2),
 		node.WithHostAddress(hostAddr2),
 		node.WithWakuFilter(false),
@@ -88,7 +91,7 @@ func main() {
 		log.Info("Error adding filter peer on light node ", err)
 	}
 
-	err = lightNode.Start()
+	err = lightNode.Start(ctx)
 	if err != nil {
 		panic(err)
 	}
