@@ -7,12 +7,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	r "github.com/waku-org/go-zerokit-rln/rln"
 	"math/big"
 	"sync"
 	"testing"
 	"time"
-
-	r "github.com/waku-org/go-zerokit-rln/rln"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,6 +21,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -122,7 +122,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	s.Require().NoError(err)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(1)
 
 	handler := func(pubkey r.IDCommitment, index r.MembershipIndex) error {
 		if pubkey == keyPair.IDCommitment || pubkey == keyPair2.IDCommitment {
@@ -228,20 +228,21 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	host, err := tests.MakeHost(context.TODO(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay, err := relay.NewWakuRelay(context.TODO(), host, nil, 0, utils.Logger())
-	defer relay.Stop()
+	relay := relay.NewWakuRelay(host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	err = relay.Start(context.TODO())
 	s.Require().NoError(err)
+	defer relay.Stop()
 
 	sub, err := relay.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
 	s.Require().NoError(err)
 	defer sub.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay, err := RlnRelayDynamic(context.TODO(), relay, ETH_CLIENT_ADDRESS, nil, s.rlnAddr, keyPair1, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, utils.Logger())
+	rlnRelay, err := RlnRelayDynamic(context.TODO(), relay, ETH_CLIENT_ADDRESS, nil, s.rlnAddr, keyPair1, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	// wait for the event to reach the group handler
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// rln pks are inserted into the rln peer's Merkle tree and the resulting root
 	// is expected to be the same as the calculatedRoot i.e., the one calculated outside of the mountRlnRelayDynamic proc
@@ -260,16 +261,17 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	host1, err := tests.MakeHost(context.TODO(), port1, rand.Reader)
 	s.Require().NoError(err)
 
-	relay1, err := relay.NewWakuRelay(context.TODO(), host1, nil, 0, utils.Logger())
-	defer relay1.Stop()
+	relay1 := relay.NewWakuRelay(host1, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay1.Start(context.TODO())
 	s.Require().NoError(err)
+	defer relay1.Stop()
 
 	sub1, err := relay1.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
 	s.Require().NoError(err)
 	defer sub1.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay1, err := RlnRelayDynamic(context.TODO(), relay1, ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, utils.Logger())
+	rlnRelay1, err := RlnRelayDynamic(context.TODO(), relay1, ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	// Node 2 ============================================================
@@ -279,16 +281,17 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	host2, err := tests.MakeHost(context.TODO(), port2, rand.Reader)
 	s.Require().NoError(err)
 
-	relay2, err := relay.NewWakuRelay(context.TODO(), host2, nil, 0, utils.Logger())
-	defer relay2.Stop()
+	relay2 := relay.NewWakuRelay(host2, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	err = relay2.Start(context.TODO())
 	s.Require().NoError(err)
+	defer relay2.Stop()
 
 	sub2, err := relay2.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
 	s.Require().NoError(err)
 	defer sub2.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay2, err := RlnRelayDynamic(context.TODO(), relay2, ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, utils.Logger())
+	rlnRelay2, err := RlnRelayDynamic(context.TODO(), relay2, ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	// ==================================

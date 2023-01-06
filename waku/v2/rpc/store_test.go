@@ -11,9 +11,9 @@ import (
 
 func makeStoreService(t *testing.T) *StoreService {
 	options := node.WithWakuStore()
-	n, err := node.New(context.Background(), options)
+	n, err := node.New(options)
 	require.NoError(t, err)
-	err = n.Start()
+	err = n.Start(context.Background())
 	require.NoError(t, err)
 	return &StoreService{n, utils.Logger()}
 }

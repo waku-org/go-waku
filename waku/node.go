@@ -254,7 +254,7 @@ func Execute(options Options) {
 
 	checkForRLN(logger, options, &nodeOpts)
 
-	wakuNode, err := node.New(ctx, nodeOpts...)
+	wakuNode, err := node.New(nodeOpts...)
 
 	failOnErr(err, "Wakunode")
 
@@ -262,7 +262,7 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.LightPush.Nodes, string(lightpush.LightPushID_v20beta1))
 	addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
 
-	if err = wakuNode.Start(); err != nil {
+	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
 

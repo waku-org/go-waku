@@ -126,6 +126,10 @@ func (r *NoiseWakuRelay) Publish(ctx context.Context, contentTopic string, paylo
 }
 
 func (r *NoiseWakuRelay) Stop() {
+	if r.cancel == nil {
+		return
+	}
+
 	r.cancel()
 	for _, contentTopicSubscriptions := range r.subscriptionChPerContentTopic {
 		for _, c := range contentTopicSubscriptions {

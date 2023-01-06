@@ -22,9 +22,9 @@ import (
 
 func makeRelayService(t *testing.T) *RelayService {
 	options := node.WithWakuRelayAndMinPeers(0)
-	n, err := node.New(context.Background(), options)
+	n, err := node.New(options)
 	require.NoError(t, err)
-	err = n.Start()
+	err = n.Start(context.Background())
 	require.NoError(t, err)
 
 	mux := mux.NewRouter()

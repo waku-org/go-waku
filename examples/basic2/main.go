@@ -44,7 +44,7 @@ func main() {
 
 	ctx := context.Background()
 
-	wakuNode, err := node.New(ctx,
+	wakuNode, err := node.New(
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithNTP(),
@@ -55,7 +55,7 @@ func main() {
 		return
 	}
 
-	if err := wakuNode.Start(); err != nil {
+	if err := wakuNode.Start(ctx); err != nil {
 		log.Error(err)
 		return
 	}

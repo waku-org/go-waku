@@ -39,6 +39,9 @@ func (r *runnerService) Start(ctx context.Context) {
 }
 
 func (r *runnerService) Stop() {
+	if r.cancel == nil {
+		return
+	}
 	r.cancel()
 	r.broadcaster.Unregister(nil, r.ch)
 	close(r.ch)

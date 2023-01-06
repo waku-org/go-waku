@@ -16,10 +16,10 @@ func TestGetV1Info(t *testing.T) {
 	request, err := http.NewRequest(http.MethodPost, "url", bytes.NewReader([]byte("")))
 	require.NoError(t, err)
 
-	wakuNode1, err := node.New(context.Background())
+	wakuNode1, err := node.New()
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
-	err = wakuNode1.Start()
+	err = wakuNode1.Start(context.Background())
 	require.NoError(t, err)
 
 	d := &DebugService{

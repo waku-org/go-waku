@@ -29,9 +29,9 @@ func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
 		nodeOpts = append(nodeOpts, node.WithWakuRelay())
 	}
 
-	n, err := node.New(context.Background(), nodeOpts...)
+	n, err := node.New(nodeOpts...)
 	require.NoError(t, err)
-	err = n.Start()
+	err = n.Start(context.Background())
 	require.NoError(t, err)
 
 	if isFullNode {
@@ -49,13 +49,16 @@ func TestFilterSubscription(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	node, err := relay.NewWakuRelay(context.Background(), host, v2.NewBroadcaster(10), 0, timesource.NewDefaultClock(), utils.Logger())
+	node := relay.NewWakuRelay(host, v2.NewBroadcaster(10), 0, timesource.NewDefaultClock(), utils.Logger())
+	err = node.Start(context.Background())
 	require.NoError(t, err)
 
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	_, _ = filter.NewWakuFilter(context.Background(), host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	f := filter.NewWakuFilter(host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	err = f.Start(context.Background())
+	require.NoError(t, err)
 
 	d := makeFilterService(t, true)
 	defer d.node.Stop()
