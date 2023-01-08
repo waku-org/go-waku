@@ -196,25 +196,22 @@ func WithAdvertiseAddress(address *net.TCPAddr) WakuNodeOption {
 			return err
 		}
 
-		params.addressFactory = func([]multiaddr.Multiaddr) []multiaddr.Multiaddr {
-			var result []multiaddr.Multiaddr
-			result = append(result, advertiseAddress)
-			if params.enableWS || params.enableWSS {
-				if params.enableWSS {
-					wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address.IP, params.wssPort))
-					if err != nil {
-						panic(err)
-					}
-					result = append(result, wsMa)
-				} else {
-					wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address.IP, params.wsPort))
-					if err != nil {
-						panic(err)
-					}
-					result = append(result, wsMa)
+		params.addressFactory = func([]multiaddr.Multiaddr) (addresses []multiaddr.Multiaddr) {
+			addresses = append(addresses, advertiseAddress)
+			if params.enableWSS {
+				wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address.IP, params.wssPort))
+				if err != nil {
+					panic(err)
 				}
+				addresses = append(addresses, wsMa)
+			} else if params.enableWS {
+				wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address.IP, params.wsPort))
+				if err != nil {
+					panic(err)
+				}
+				addresses = append(addresses, wsMa)
 			}
-			return result
+			return addresses
 		}
 		return nil
 	}
