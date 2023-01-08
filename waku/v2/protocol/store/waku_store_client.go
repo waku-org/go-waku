@@ -26,11 +26,12 @@ type Query struct {
 
 // Result represents a valid response from a store node
 type Result struct {
+	started  bool
 	Messages []*pb.WakuMessage
-
-	query  *pb.HistoryQuery
-	cursor *pb.Index
-	peerId peer.ID
+	store    Store
+	query    *pb.HistoryQuery
+	cursor   *pb.Index
+	peerId   peer.ID
 }
 
 func (r *Result) Cursor() *pb.Index {
@@ -47,6 +48,34 @@ func (r *Result) PeerID() peer.ID {
 
 func (r *Result) Query() *pb.HistoryQuery {
 	return r.query
+}
+
+func (r *Result) Next(ctx context.Context) (bool, error) {
+	if !r.started {
+		r.started = true
+		return len(r.Messages) != 0, nil
+	}
+
+	if r.IsComplete() {
+		return false, nil
+	}
+
+	newResult, err := r.store.Next(ctx, r)
+	if err != nil {
+		return false, err
+	}
+
+	r.cursor = newResult.cursor
+	r.Messages = newResult.Messages
+
+	return true, nil
+}
+
+func (r *Result) GetMessages() []*pb.WakuMessage {
+	if !r.started {
+		return nil
+	}
+	return r.Messages
 }
 
 type criteriaFN = func(msg *pb.WakuMessage) (bool, error)
@@ -254,6 +283,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	store.log.Info("waku.store retrieved", logging.HexArray("hashes", messageIDs))
 
 	result := &Result{
+		store:    store,
 		Messages: response.Messages,
 		query:    q,
 		peerId:   params.selectedPeer,
@@ -309,6 +339,8 @@ func (store *WakuStore) Find(ctx context.Context, query Query, cb criteriaFN, op
 func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 	if r.IsComplete() {
 		return &Result{
+			store:    store,
+			started:  true,
 			Messages: []*pb.WakuMessage{},
 			cursor:   nil,
 			query:    r.query,
@@ -343,6 +375,8 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 	}
 
 	result := &Result{
+		started:  true,
+		store:    store,
 		Messages: response.Messages,
 		query:    q,
 		peerId:   r.PeerID(),
