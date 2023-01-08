@@ -40,6 +40,19 @@ type RLNRelayOptions struct {
 	MembershipContractAddress common.Address
 }
 
+func nodePeerID(node *multiaddr.Multiaddr) (peer.ID, error) {
+	if node == nil {
+		return peer.ID(""), errors.New("node is nil")
+	}
+
+	peerID, err := (*node).ValueForProtocol(multiaddr.P_P2P)
+	if err != nil {
+		return peer.ID(""), err
+	}
+
+	return peer.Decode(peerID)
+}
+
 // FilterOptions are settings used to enable filter protocol. This is a protocol
 // that enables subscribing to messages that a peer receives. This is a more
 // lightweight version of WakuRelay specifically designed for bandwidth
@@ -50,16 +63,7 @@ type FilterOptions struct {
 }
 
 func (f FilterOptions) NodePeerID() (peer.ID, error) {
-	if f.Node == nil {
-		return peer.ID(""), errors.New("node is nil")
-	}
-
-	peerID, err := (*f.Node).ValueForProtocol(multiaddr.P_P2P)
-	if err != nil {
-		return peer.ID(""), err
-	}
-
-	return peer.Decode(peerID)
+	return nodePeerID(f.Node)
 }
 
 // LightpushOptions are settings used to enable the lightpush protocol. This is
@@ -74,16 +78,7 @@ type LightpushOptions struct {
 }
 
 func (f LightpushOptions) NodePeerID() (peer.ID, error) {
-	if f.Node == nil {
-		return peer.ID(""), errors.New("node is nil")
-	}
-
-	peerID, err := (*f.Node).ValueForProtocol(multiaddr.P_P2P)
-	if err != nil {
-		return peer.ID(""), err
-	}
-
-	return peer.Decode(peerID)
+	return nodePeerID(f.Node)
 }
 
 // StoreOptions are settings used for enabling the store protocol, used to
@@ -94,16 +89,7 @@ type StoreOptions struct {
 }
 
 func (f StoreOptions) NodePeerID() (peer.ID, error) {
-	if f.Node == nil {
-		return peer.ID(""), errors.New("node is nil")
-	}
-
-	peerID, err := (*f.Node).ValueForProtocol(multiaddr.P_P2P)
-	if err != nil {
-		return peer.ID(""), err
-	}
-
-	return peer.Decode(peerID)
+	return nodePeerID(f.Node)
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery

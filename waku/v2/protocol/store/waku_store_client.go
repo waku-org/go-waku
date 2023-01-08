@@ -107,7 +107,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption 
 	return func(params *HistoryRequestParameters) {
 		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), fromThesePeers, params.s.log)
 		if err == nil {
-			params.selectedPeer = *p
+			params.selectedPeer = p
 		} else {
 			params.s.log.Info("selecting peer", zap.Error(err))
 		}
@@ -122,7 +122,7 @@ func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Hi
 	return func(params *HistoryRequestParameters) {
 		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), fromThesePeers, params.s.log)
 		if err == nil {
-			params.selectedPeer = *p
+			params.selectedPeer = p
 		} else {
 			params.s.log.Info("selecting peer", zap.Error(err))
 		}

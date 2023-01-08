@@ -81,31 +81,24 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(s network.Strea
 		}
 
 		logger.Info("request received")
-
 		if requestPushRPC.Query != nil {
 			logger.Info("push request")
 			response := new(pb.PushResponse)
-			if !wakuLP.relayIsNotAvailable() {
-				pubSubTopic := requestPushRPC.Query.PubsubTopic
-				message := requestPushRPC.Query.Message
 
-				// TODO: Assumes success, should probably be extended to check for network, peers, etc
-				// It might make sense to use WithReadiness option here?
+			pubSubTopic := requestPushRPC.Query.PubsubTopic
+			message := requestPushRPC.Query.Message
 
-				_, err := wakuLP.relay.PublishToTopic(ctx, message, pubSubTopic)
+			// TODO: Assumes success, should probably be extended to check for network, peers, etc
+			// It might make sense to use WithReadiness option here?
 
-				if err != nil {
-					logger.Error("publishing message", zap.Error(err))
-					response.IsSuccess = false
-					response.Info = "Could not publish message"
-				} else {
-					response.IsSuccess = true
-					response.Info = "Totally" // TODO: ask about this
-				}
+			_, err := wakuLP.relay.PublishToTopic(ctx, message, pubSubTopic)
+
+			if err != nil {
+				logger.Error("publishing message", zap.Error(err))
+				response.Info = "Could not publish message"
 			} else {
-				logger.Debug("no relay protocol present, unsuccessful push")
-				response.IsSuccess = false
-				response.Info = "No relay protocol"
+				response.IsSuccess = true
+				response.Info = "Totally" // TODO: ask about this
 			}
 
 			responsePushRPC := &pb.PushRPC{}
@@ -136,8 +129,7 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, o
 	params.host = wakuLP.h
 	params.log = wakuLP.log
 
-	optList := DefaultOptions(wakuLP.h)
-	optList = append(optList, opts...)
+	optList := append(DefaultOptions(wakuLP.h), opts...)
 	for _, opt := range optList {
 		opt(params)
 	}

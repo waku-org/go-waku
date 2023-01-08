@@ -286,7 +286,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 
 	if w.opts.keepAliveInterval > time.Duration(0) {
 		w.wg.Add(1)
-		w.startKeepAlive(ctx, w.opts.keepAliveInterval)
+		go w.startKeepAlive(ctx, w.opts.keepAliveInterval)
 	}
 
 	if w.opts.enableNTP {
