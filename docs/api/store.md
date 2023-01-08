@@ -24,23 +24,24 @@ query := store.Query{
 }
 
 result, err := wakuNode.Store().Query(context.Background(), query, WithPaging(true, 20));
+if err != nil {
+    // Handle error ...
+}
+
 for {
+    hasNext, err := result.Next(ctx)
     if err != nil {
-        fmt.Println(err)
+        // Handle error ...
         break
     }
 
-    if len(result.messages) == 0 {
-        // No more messages available
+    if !hasNext { // No more messages available
         break
     }
 
-    for _, msg := range result.messages {
-        fmt.Println(string(msg.Payload))
+    for _, msg := range result.GetMessages() {
+        // Do something with the messages
     }
-
-    // Fetch more messages
-    result, err := wakuNode.Store().Next(context.Background(), result)
 }
 ```
 
