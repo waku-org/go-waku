@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -181,18 +181,20 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		w.log.Error("creating localnode", zap.Error(err))
 	}
 
-	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
-	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
-	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
-
 	if w.opts.enableDiscV5 {
 		err := w.mountDiscV5()
 		if err != nil {
 			return nil, err
 		}
+
+		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.DiscV5(), w.opts.discV5Opts...))
 	}
 
 	w.peerExchange = peer_exchange.NewWakuPeerExchange(w.host, w.DiscV5(), w.log)
+
+	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
+	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
+	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
 
 	if w.opts.enableSwap {
 		w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
@@ -347,10 +349,6 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	if w.opts.enableDiscV5 {
-		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.DiscV5(), w.opts.discV5Opts...))
 	}
 
 	if w.opts.enableRLN {
