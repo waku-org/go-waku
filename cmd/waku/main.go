@@ -4,7 +4,8 @@ import (
 	"os"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
 	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -18,6 +19,7 @@ func main() {
 	options.LogEncoding = "console"
 
 	cliFlags := []cli.Flag{
+		&cli.StringFlag{Name: "config-file", Usage: "loads configuration from a TOML file (cmd-line parameters take precedence)"},
 		TcpPort,
 		Address,
 		WebsocketSupport,
@@ -101,6 +103,7 @@ func main() {
 	app := &cli.App{
 		Name:    "gowaku",
 		Version: node.GetVersionInfo().String(),
+		Before:  altsrc.InitInputSourceWithContext(cliFlags, altsrc.NewTomlSourceFromFlagFunc("config-file")),
 		Flags:   cliFlags,
 		Action: func(c *cli.Context) error {
 			utils.InitLogger(options.LogEncoding, options.LogOutput)

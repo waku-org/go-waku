@@ -23,7 +23,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
-	github.com/urfave/cli/v2 v2.20.2
+	github.com/urfave/cli/v2 v2.23.7
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/sync v0.1.0
@@ -40,6 +40,8 @@ require (
 	github.com/lib/pq v1.10.0
 	github.com/waku-org/go-noise v0.0.4
 )
+
+require github.com/BurntSushi/toml v1.2.1 // indirect
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
