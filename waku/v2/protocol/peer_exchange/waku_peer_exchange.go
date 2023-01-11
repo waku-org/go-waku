@@ -18,6 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/libp2p/go-msgio/protoio"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
@@ -32,7 +33,7 @@ import (
 const PeerExchangeID_v20alpha1 = libp2pProtocol.ID("/vac/waku/peer-exchange/2.0.0-alpha1")
 const MaxCacheSize = 1000
 const CacheCleanWindow = 200
-const dialTimeout = 7 * time.Second
+const dialTimeout = 30 * time.Second
 
 var (
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
@@ -40,7 +41,7 @@ var (
 )
 
 type peerRecord struct {
-	node enode.Node
+	node *enode.Node
 	idx  int
 }
 
@@ -50,24 +51,36 @@ type WakuPeerExchange struct {
 
 	log *zap.Logger
 
-	cancel  context.CancelFunc
-	started bool
-	wg      sync.WaitGroup
-
+	cancel        context.CancelFunc
+	started       bool
+	wg            sync.WaitGroup
+	connector     *backoff.BackoffConnector
 	enrCache      map[enode.ID]peerRecord // todo: next step: ring buffer; future: implement cache satisfying https://rfc.vac.dev/spec/34/
 	enrCacheMutex sync.RWMutex
 	rng           *rand.Rand
 }
 
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
-func NewWakuPeerExchange(h host.Host, disc *discv5.DiscoveryV5, log *zap.Logger) *WakuPeerExchange {
+func NewWakuPeerExchange(h host.Host, disc *discv5.DiscoveryV5, log *zap.Logger) (*WakuPeerExchange, error) {
 	wakuPX := new(WakuPeerExchange)
 	wakuPX.h = h
 	wakuPX.disc = disc
 	wakuPX.log = log.Named("wakupx")
 	wakuPX.enrCache = make(map[enode.ID]peerRecord)
 	wakuPX.rng = rand.New(rand.NewSource(rand.Int63()))
-	return wakuPX
+
+	cacheSize := 600
+	rngSrc := rand.NewSource(rand.Int63())
+	minBackoff, maxBackoff := time.Second*30, time.Hour
+	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
+	connector, err := backoff.NewBackoffConnector(h, cacheSize, dialTimeout, bkf)
+
+	if err != nil {
+		return nil, err
+	}
+	wakuPX.connector = connector
+
+	return wakuPX, nil
 }
 
 // Start inits the peer exchange protocol
@@ -122,6 +135,13 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 
 	if len(peers) != 0 {
 		log.Info("connecting to newly discovered peers", zap.Int("count", len(peers)))
+
+		ch := make(chan peer.AddrInfo, len(peers))
+		for _, p := range peers {
+			ch <- p
+		}
+
+		wakuPX.connector.Connect(ctx, ch)
 		for _, p := range peers {
 			func(p peer.AddrInfo) {
 				ctx, cancel := context.WithTimeout(ctx, dialTimeout)

@@ -136,8 +136,11 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	time.Sleep(3 * time.Second) // Wait some time for peers to be discovered
 
 	// mount peer exchange
-	px1 := NewWakuPeerExchange(host1, d1, utils.Logger())
-	px3 := NewWakuPeerExchange(host3, nil, utils.Logger())
+	px1, err := NewWakuPeerExchange(host1, d1, utils.Logger())
+	require.NoError(t, err)
+
+	px3, err := NewWakuPeerExchange(host3, nil, utils.Logger())
+	require.NoError(t, err)
 
 	err = px1.Start(context.Background())
 	require.NoError(t, err)

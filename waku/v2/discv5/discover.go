@@ -52,7 +52,7 @@ type peerCache struct {
 type PeerRecord struct {
 	expire int64
 	Peer   peer.AddrInfo
-	Node   enode.Node
+	Node   *enode.Node
 }
 
 type discV5Parameters struct {
@@ -126,10 +126,6 @@ func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.Loc
 		config: discover.Config{
 			PrivateKey: priv,
 			Bootnodes:  params.bootnodes,
-			ValidNodeFn: func(n enode.Node) bool {
-				// TODO: track https://github.com/status-im/nim-waku/issues/770 for improvements over validation func
-				return evaluateNode(&n)
-			},
 			V5Config: discover.V5Config{
 				ProtocolID: &protocolID,
 			},
@@ -291,7 +287,7 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 
 	for {
 		if len(d.peerCache.recs) >= limit {
-			break
+			time.Sleep(1 * time.Minute)
 		}
 
 		if ctx.Err() != nil {
@@ -317,10 +313,15 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 
 		d.peerCache.Lock()
 		for _, p := range peerAddrs {
+			_, ok := d.peerCache.recs[p.ID]
+			if ok {
+				continue
+			}
+
 			d.peerCache.recs[p.ID] = PeerRecord{
 				expire: time.Now().Unix() + 3600, // Expires in 1hr
 				Peer:   p,
-				Node:   *iterator.Node(),
+				Node:   iterator.Node(),
 			}
 		}
 		d.peerCache.Unlock()
