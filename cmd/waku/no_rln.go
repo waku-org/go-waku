@@ -3,7 +3,7 @@
 
 package main
 
-import "github.com/urfave/cli/v2"
+import cli "github.com/urfave/cli/v2"
 
 func rlnFlags() []cli.Flag {
 	return nil

@@ -4,7 +4,7 @@
 package main
 
 import (
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
 )
 
