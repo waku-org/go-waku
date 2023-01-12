@@ -52,6 +52,36 @@ func FindFreePort(t *testing.T, host string, maxAttempts int) (int, error) {
 	return 0, fmt.Errorf("no free port found")
 }
 
+// FindFreePort returns an available port number
+func FindFreeUDPPort(t *testing.T, host string, maxAttempts int) (int, error) {
+	t.Helper()
+
+	if host == "" {
+		host = "localhost"
+	}
+
+	for i := 0; i < maxAttempts; i++ {
+		addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(host, "0"))
+		if err != nil {
+			t.Logf("unable to resolve tcp addr: %v", err)
+			continue
+		}
+		l, err := net.ListenUDP("udp", addr)
+		if err != nil {
+			l.Close()
+			t.Logf("unable to listen on addr %q: %v", addr, err)
+			continue
+		}
+
+		port := l.LocalAddr().(*net.UDPAddr).Port
+		l.Close()
+		return port, nil
+
+	}
+
+	return 0, fmt.Errorf("no free port found")
+}
+
 // MakeHost creates a Libp2p host with a random key on a specific port
 func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, error) {
 	// Creates a new RSA key pair for this host.

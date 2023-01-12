@@ -56,7 +56,7 @@ type wakuConfig struct {
 	MinPeersToPublish    *int     `json:"minPeersToPublish"`
 	EnableDiscV5         *bool    `json:"discV5"`
 	DiscV5BootstrapNodes []string `json:"discV5BootstrapNodes"`
-	DiscV5UDPPort        *int     `json:"discV5UDPPort"`
+	DiscV5UDPPort        *uint    `json:"discV5UDPPort"`
 }
 
 var defaultHost = "0.0.0.0"
@@ -66,7 +66,7 @@ var defaultEnableRelay = true
 var defaultMinPeersToPublish = 0
 var defaultEnableFilter = false
 var defaultEnableDiscV5 = false
-var defaultDiscV5UDPPort = 9000
+var defaultDiscV5UDPPort = uint(9000)
 var defaultLogLevel = "INFO"
 
 func getConfig(configJSON string) (wakuConfig, error) {

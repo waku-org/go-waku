@@ -14,7 +14,7 @@ import (
 type DiscV5Options struct {
 	Enable     bool
 	Nodes      cli.StringSlice
-	Port       int
+	Port       uint
 	AutoUpdate bool
 }
 
