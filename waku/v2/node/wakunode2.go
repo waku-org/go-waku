@@ -83,8 +83,6 @@ type WakuNode struct {
 
 	localNode *enode.LocalNode
 
-	addrChan chan ma.Multiaddr
-
 	bcaster v2.Broadcaster
 
 	connectionNotif        ConnectionNotifier
@@ -166,7 +164,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.opts = params
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
-	w.addrChan = make(chan ma.Multiaddr, 1024)
 	w.keepAliveFails = make(map[peer.ID]int)
 	w.wakuFlag = utils.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilter, w.opts.enableStore, w.opts.enableRelay)
 
@@ -228,14 +225,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	return w, nil
 }
 
-func (w *WakuNode) onAddrChange() {
-	for m := range w.addrChan {
-		_ = m
-		// TODO: determine if still needed. Otherwise remove
-	}
-}
-
-func (w *WakuNode) checkForAddressChanges(ctx context.Context) {
+func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 	defer w.wg.Done()
 
 	addrs := w.ListenAddresses()
@@ -244,7 +234,6 @@ func (w *WakuNode) checkForAddressChanges(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			close(w.addrChan)
 			return
 		case <-first:
 			w.log.Info("listening", logging.MultiAddrs("multiaddr", addrs...))
@@ -264,9 +253,6 @@ func (w *WakuNode) checkForAddressChanges(ctx context.Context) {
 			if diff {
 				addrs = newAddrs
 				w.log.Info("listening addresses update received", logging.MultiAddrs("multiaddr", addrs...))
-				for _, addr := range addrs {
-					w.addrChan <- addr
-				}
 				_ = w.setupENR(ctx, addrs)
 			}
 		}
@@ -281,10 +267,10 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	w.connectionNotif = NewConnectionNotifier(ctx, w.host, w.log)
 	w.host.Network().Notify(w.connectionNotif)
 
-	w.wg.Add(2)
+	w.wg.Add(3)
 	go w.connectednessListener(ctx)
-	go w.checkForAddressChanges(ctx)
-	go w.onAddrChange()
+	go w.watchMultiaddressChanges(ctx)
+	go w.watchENRChanges(ctx)
 
 	if w.opts.keepAliveInterval > time.Duration(0) {
 		w.wg.Add(1)
@@ -403,6 +389,31 @@ func (w *WakuNode) Host() host.Host {
 // ID returns the base58 encoded ID from the host
 func (w *WakuNode) ID() string {
 	return w.host.ID().Pretty()
+}
+
+func (w *WakuNode) watchENRChanges(ctx context.Context) {
+	defer w.wg.Done()
+
+	timer := time.NewTicker(1 * time.Second)
+	var prevNodeVal string
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			if w.localNode != nil {
+				currNodeVal := w.localNode.Node().String()
+				if prevNodeVal != currNodeVal {
+					if prevNodeVal == "" {
+						w.log.Info("enr record", logging.ENode("enr", w.localNode.Node()))
+					} else {
+						w.log.Info("new enr record", logging.ENode("enr", w.localNode.Node()))
+					}
+					prevNodeVal = currNodeVal
+				}
+			}
+		}
+	}
 }
 
 // ListenAddresses returns all the multiaddresses used by the host

@@ -58,7 +58,7 @@ type PeerRecord struct {
 type discV5Parameters struct {
 	autoUpdate    bool
 	bootnodes     []*enode.Node
-	udpPort       int
+	udpPort       uint
 	advertiseAddr *net.IP
 }
 
@@ -84,7 +84,7 @@ func WithAdvertiseAddr(addr net.IP) DiscoveryV5Option {
 	}
 }
 
-func WithUDPPort(port int) DiscoveryV5Option {
+func WithUDPPort(port uint) DiscoveryV5Option {
 	return func(params *discV5Parameters) {
 		params.udpPort = port
 	}
@@ -126,17 +126,13 @@ func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.Loc
 		config: discover.Config{
 			PrivateKey: priv,
 			Bootnodes:  params.bootnodes,
-			ValidNodeFn: func(n enode.Node) bool {
-				// TODO: track https://github.com/status-im/nim-waku/issues/770 for improvements over validation func
-				return evaluateNode(&n)
-			},
 			V5Config: discover.V5Config{
 				ProtocolID: &protocolID,
 			},
 		},
 		udpAddr: &net.UDPAddr{
 			IP:   net.IPv4zero,
-			Port: params.udpPort,
+			Port: int(params.udpPort),
 		},
 		log: logger,
 	}, nil
@@ -254,6 +250,8 @@ func hasTCPPort(node *enode.Node) bool {
 }
 
 func evaluateNode(node *enode.Node) bool {
+	// TODO: track https://github.com/status-im/nim-waku/issues/770 for improvements over validation func
+
 	if node == nil || node.IP() == nil {
 		return false
 	}
@@ -291,7 +289,7 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 
 	for {
 		if len(d.peerCache.recs) >= limit {
-			break
+			time.Sleep(1 * time.Minute)
 		}
 
 		if ctx.Err() != nil {

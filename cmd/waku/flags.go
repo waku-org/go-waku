@@ -342,7 +342,7 @@ var (
 		Destination: &options.DiscV5.Nodes,
 		EnvVars:     []string{"WAKUNODE2_DISCV5_BOOTSTRAP_NODE"},
 	})
-	Discv5UDPPort = altsrc.NewIntFlag(&cli.IntFlag{
+	Discv5UDPPort = altsrc.NewUintFlag(&cli.UintFlag{
 		Name:        "discv5-udp-port",
 		Value:       9000,
 		Usage:       "Listening UDP port for Node Discovery v5.",

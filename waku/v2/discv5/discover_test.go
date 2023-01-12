@@ -101,32 +101,32 @@ func TestDiscV5(t *testing.T) {
 
 	// H1
 	host1, _, prvKey1 := createHost(t)
-	udpPort1, err := tests.FindFreePort(t, "127.0.0.1", 3)
+	udpPort1, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
 	ip1, _ := extractIP(host1.Addrs()[0])
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d1, err := NewDiscoveryV5(host1, prvKey1, l1, utils.Logger(), WithUDPPort(udpPort1))
+	d1, err := NewDiscoveryV5(host1, prvKey1, l1, utils.Logger(), WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
 
 	// H2
 	host2, _, prvKey2 := createHost(t)
 	ip2, _ := extractIP(host2.Addrs()[0])
-	udpPort2, err := tests.FindFreePort(t, "127.0.0.1", 3)
+	udpPort2, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d2, err := NewDiscoveryV5(host2, prvKey2, l2, utils.Logger(), WithUDPPort(udpPort2), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	d2, err := NewDiscoveryV5(host2, prvKey2, l2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
 	require.NoError(t, err)
 
 	// H3
 	host3, _, prvKey3 := createHost(t)
 	ip3, _ := extractIP(host3.Addrs()[0])
-	udpPort3, err := tests.FindFreePort(t, "127.0.0.1", 3)
+	udpPort3, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
 	l3, err := newLocalnode(prvKey3, ip3, udpPort3, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d3, err := NewDiscoveryV5(host3, prvKey3, l3, utils.Logger(), WithUDPPort(udpPort3), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	d3, err := NewDiscoveryV5(host3, prvKey3, l3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 
 	defer d1.Stop()
