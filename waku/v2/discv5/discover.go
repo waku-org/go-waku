@@ -10,7 +10,9 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -20,6 +22,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 )
+
+const dialTimeout = 30 * time.Second
 
 type DiscoveryV5 struct {
 	sync.RWMutex
@@ -33,6 +37,7 @@ type DiscoveryV5 struct {
 	listener  *discover.UDPv5
 	localnode *enode.LocalNode
 	NAT       nat.Interface
+	connector *backoff.BackoffConnector
 
 	log *zap.Logger
 
@@ -113,11 +118,21 @@ func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.Loc
 		NAT = nat.Any()
 	}
 
+	cacheSize := 600
+	rngSrc := rand.NewSource(rand.Int63())
+	minBackoff, maxBackoff := time.Second*30, time.Hour
+	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
+	connector, err := backoff.NewBackoffConnector(host, cacheSize, dialTimeout, bkf)
+	if err != nil {
+		return nil, err
+	}
+
 	return &DiscoveryV5{
-		host:   host,
-		params: params,
-		NAT:    NAT,
-		wg:     &sync.WaitGroup{},
+		host:      host,
+		connector: connector,
+		params:    params,
+		NAT:       NAT,
+		wg:        &sync.WaitGroup{},
 		peerCache: peerCache{
 			rng:  rand.New(rand.NewSource(rand.Int63())),
 			recs: make(map[peer.ID]PeerRecord),
@@ -190,6 +205,7 @@ func (d *DiscoveryV5) Start(ctx context.Context) error {
 		return err
 	}
 
+	d.wg.Add(1)
 	go d.runDiscoveryV5Loop(ctx)
 
 	return nil
@@ -269,21 +285,8 @@ func evaluateNode(node *enode.Node) bool {
 	return true
 }
 
-func (d *DiscoveryV5) Advertise(ctx context.Context, ns string, opts ...discovery.Option) (time.Duration, error) {
-	// Get options
-	var options discovery.Options
-	err := options.Apply(opts...)
-	if err != nil {
-		return 0, err
-	}
-
-	// TODO: once discv5 spec introduces capability and topic discovery, implement this function
-
-	return 20 * time.Minute, nil
-}
-
-func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limit int) {
-	defer d.wg.Done()
+func (d *DiscoveryV5) iterate(ctx context.Context, wg *sync.WaitGroup, iterator enode.Iterator, limit int, outOfPeers chan struct{}) {
+	defer wg.Done()
 
 	for {
 		if len(d.peerCache.recs) >= limit {
@@ -296,6 +299,7 @@ func (d *DiscoveryV5) iterate(ctx context.Context, iterator enode.Iterator, limi
 
 		exists := iterator.Next()
 		if !exists {
+			outOfPeers <- struct{}{}
 			break
 		}
 
@@ -345,16 +349,35 @@ func (d *DiscoveryV5) removeExpiredPeers() int {
 }
 
 func (d *DiscoveryV5) runDiscoveryV5Loop(ctx context.Context) {
-	iterator := d.listener.RandomNodes()
-	iterator = enode.Filter(iterator, evaluateNode)
-	defer iterator.Close()
+	defer d.wg.Done()
 
-	d.wg.Add(1)
+	ch := make(chan struct{}, 1)
+	ch <- struct{}{} // Initial execution
 
-	go d.iterate(ctx, iterator, MaxPeersToDiscover)
+	var iterator enode.Iterator = nil
 
-	<-ctx.Done()
+	iteratorWg := sync.WaitGroup{}
 
+restartLoop:
+	for {
+		select {
+		case <-ch:
+			if iterator != nil {
+				iterator.Close()
+			}
+			if d.listener == nil {
+				break
+			}
+			iterator := d.listener.RandomNodes()
+			iterator = enode.Filter(iterator, evaluateNode)
+			iteratorWg.Add(1)
+			go d.iterate(ctx, &iteratorWg, iterator, MaxPeersToDiscover, ch)
+		case <-ctx.Done():
+			iteratorWg.Wait()
+			close(ch)
+			break restartLoop
+		}
+	}
 	d.log.Warn("Discv5 loop stopped")
 }
 
@@ -402,20 +425,50 @@ func (d *DiscoveryV5) FindNodes(ctx context.Context, topic string, opts ...disco
 	return sendLst, err
 }
 
-func (d *DiscoveryV5) FindPeers(ctx context.Context, topic string, opts ...discovery.Option) (<-chan peer.AddrInfo, error) {
-	records, err := d.FindNodes(ctx, topic, opts...)
-	if err != nil {
-		return nil, err
+func (d *DiscoveryV5) Discover(ctx context.Context, numPeers int) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			currPeers := len(d.host.Network().Peers())
+			if currPeers < numPeers {
+				d.peerCache.Lock()
+				d.removeExpiredPeers()
+
+				peersToConnect := numPeers - currPeers
+
+				// Randomize and fill channel with available records
+				count := len(d.peerCache.recs)
+				if peersToConnect < count {
+					count = peersToConnect
+				}
+
+				perm := d.peerCache.rng.Perm(len(d.peerCache.recs))[0:count]
+				permSet := make(map[int]int)
+				for i, v := range perm {
+					permSet[v] = i
+				}
+
+				chPeer := make(chan peer.AddrInfo, count)
+				iter := 0
+				for k, p := range d.peerCache.recs {
+					if _, ok := permSet[iter]; ok {
+						if d.host.Network().Connectedness(k) == network.NotConnected {
+							chPeer <- d.peerCache.recs[k].Peer
+							p.expire -= 900 // Make the peers expire earlier (reduce 15m)
+							d.peerCache.recs[k] = p
+						}
+					}
+					iter++
+				}
+
+				d.connector.Connect(ctx, chPeer)
+
+				defer d.peerCache.Unlock()
+			}
+		}
 	}
-
-	chPeer := make(chan peer.AddrInfo, len(records))
-	for _, r := range records {
-		chPeer <- r.Peer
-	}
-
-	close(chPeer)
-
-	return chPeer, err
 }
 
 func (d *DiscoveryV5) IsStarted() bool {

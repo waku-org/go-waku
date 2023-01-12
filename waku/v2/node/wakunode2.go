@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -186,8 +185,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.DiscV5(), w.opts.discV5Opts...))
 	}
 
 	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.host, w.DiscV5(), w.log)

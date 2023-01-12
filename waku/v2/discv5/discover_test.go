@@ -23,6 +23,7 @@ import (
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 )
 
 func createHost(t *testing.T) (host.Host, int, *ecdsa.PrivateKey) {
@@ -144,50 +145,23 @@ func TestDiscV5(t *testing.T) {
 
 	time.Sleep(3 * time.Second) // Wait for nodes to be discovered
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	peerChan, err := d3.FindPeers(ctx, "", discovery.Limit(2))
-	require.NoError(t, err)
-
-	foundHost1 := false
-	foundHost2 := false
-	for p := range peerChan {
-		if p.Addrs[0].String() == host1.Addrs()[0].String() {
-			foundHost1 = true
-		}
-
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
-
-		}
-	}
-
+	d3.Discover(ctx, 2)
+	foundHost1 := host3.Network().Connectedness(host1.ID()) == network.Connected
+	foundHost2 := host3.Network().Connectedness(host2.ID()) == network.Connected
 	require.True(t, foundHost1 && foundHost2)
 
 	// Should return nodes from the cache
-
 	d3.Stop()
-
-	foundHost1 = false
-	foundHost2 = false
 
 	ctx1, cancel1 := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel1()
 
-	peerChan, err = d3.FindPeers(ctx1, "", discovery.Limit(2))
+	results, err := d3.FindNodes(ctx1, "", discovery.Limit(2))
 	require.NoError(t, err)
-	for p := range peerChan {
-		if p.Addrs[0].String() == host1.Addrs()[0].String() {
-			foundHost1 = true
-		}
-
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
-		}
-	}
-
-	require.True(t, foundHost1 && foundHost2)
+	require.Len(t, results, 2)
 
 	// Simulate empty cache
 
@@ -198,11 +172,9 @@ func TestDiscV5(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel2()
 
-	peerChan, err = d3.FindPeers(ctx2, "", discovery.Limit(2))
+	results, err = d3.FindNodes(ctx2, "", discovery.Limit(2))
 	require.NoError(t, err)
-	for range peerChan {
-		require.Fail(t, "Should not have peers")
-	}
+	require.Len(t, results, 0)
 
 	// Restart peer search
 	err = d3.Start(context.Background())
@@ -210,23 +182,12 @@ func TestDiscV5(t *testing.T) {
 
 	time.Sleep(3 * time.Second) // Wait for nodes to be discovered
 
-	foundHost1 = false
-	foundHost2 = false
-
-	ctx3, cancel3 := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx3, cancel3 := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel3()
 
-	peerChan, err = d3.FindPeers(ctx3, "", discovery.Limit(2))
-	require.NoError(t, err)
-	for p := range peerChan {
-		if p.Addrs[0].String() == host1.Addrs()[0].String() {
-			foundHost1 = true
-		}
-
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
-		}
-	}
+	d3.Discover(ctx3, 2)
+	foundHost1 = host3.Network().Connectedness(host1.ID()) == network.Connected
+	foundHost2 = host3.Network().Connectedness(host2.ID()) == network.Connected
 
 	require.True(t, foundHost1 && foundHost2)
 

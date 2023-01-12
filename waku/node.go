@@ -26,7 +26,6 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
-	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
@@ -245,7 +244,7 @@ func Execute(options Options) {
 			}
 		}
 
-		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate, pubsub.WithDiscoveryOpts(discovery.Limit(45), discovery.TTL(time.Duration(20)*time.Second))))
+		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate))
 	}
 
 	if options.PeerExchange.Enable {
@@ -270,6 +269,8 @@ func Execute(options Options) {
 		if err = wakuNode.DiscV5().Start(ctx); err != nil {
 			logger.Fatal("starting discovery v5", zap.Error(err))
 		}
+
+		wakuNode.DiscV5().Discover(ctx, 45)
 	}
 
 	// retrieve and connect to peer exchange peers
