@@ -142,16 +142,6 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 		}
 
 		wakuPX.connector.Connect(ctx, ch)
-		for _, p := range peers {
-			func(p peer.AddrInfo) {
-				ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-				defer cancel()
-				err := wakuPX.h.Connect(ctx, p)
-				if err != nil {
-					log.Info("connecting to peer", zap.String("peer", p.ID.Pretty()), zap.Error(err))
-				}
-			}(p)
-		}
 	}
 
 	return nil
