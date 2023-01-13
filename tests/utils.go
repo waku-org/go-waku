@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
@@ -114,4 +116,50 @@ func RandomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+type TestPeerDiscoverer struct {
+	sync.RWMutex
+	peerMap map[peer.ID]struct{}
+	peerCh  chan peer.AddrInfo
+}
+
+func NewTestPeerDiscoverer() *TestPeerDiscoverer {
+	result := &TestPeerDiscoverer{
+		peerMap: make(map[peer.ID]struct{}),
+		peerCh:  make(chan peer.AddrInfo, 10),
+	}
+
+	go func() {
+		for p := range result.peerCh {
+			result.Lock()
+			result.peerMap[p.ID] = struct{}{}
+			result.Unlock()
+		}
+	}()
+
+	return result
+}
+
+func (t *TestPeerDiscoverer) PeerChannel() chan<- peer.AddrInfo {
+	return t.peerCh
+}
+
+func (t *TestPeerDiscoverer) HasPeer(p peer.ID) bool {
+	t.RLock()
+	defer t.RUnlock()
+	_, ok := t.peerMap[p]
+	return ok
+}
+
+func (t *TestPeerDiscoverer) PeerCount() int {
+	t.RLock()
+	defer t.RUnlock()
+	return len(t.peerMap)
+}
+
+func (t *TestPeerDiscoverer) Clear() {
+	t.Lock()
+	defer t.Unlock()
+	t.peerMap = make(map[peer.ID]struct{})
 }

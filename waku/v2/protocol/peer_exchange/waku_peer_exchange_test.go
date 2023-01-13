@@ -105,7 +105,8 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	ip1, _ := extractIP(host1.Addrs()[0])
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d1, err := discv5.NewDiscoveryV5(host1, prvKey1, l1, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
+	discv5PeerConn1 := tests.NewTestPeerDiscoverer()
+	d1, err := discv5.NewDiscoveryV5(host1, prvKey1, l1, discv5PeerConn1, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
 
 	// H2
@@ -115,7 +116,8 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	require.NoError(t, err)
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d2, err := discv5.NewDiscoveryV5(host2, prvKey2, l2, utils.Logger(), discv5.WithUDPPort(uint(udpPort2)), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
+	discv5PeerConn2 := tests.NewTestPeerDiscoverer()
+	d2, err := discv5.NewDiscoveryV5(host2, prvKey2, l2, discv5PeerConn2, utils.Logger(), discv5.WithUDPPort(uint(udpPort2)), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
 	require.NoError(t, err)
 
 	// H3
@@ -136,10 +138,12 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	time.Sleep(3 * time.Second) // Wait some time for peers to be discovered
 
 	// mount peer exchange
-	px1, err := NewWakuPeerExchange(host1, d1, utils.Logger())
+	pxPeerConn1 := tests.NewTestPeerDiscoverer()
+	px1, err := NewWakuPeerExchange(host1, d1, pxPeerConn1, utils.Logger())
 	require.NoError(t, err)
 
-	px3, err := NewWakuPeerExchange(host3, nil, utils.Logger())
+	pxPeerConn3 := tests.NewTestPeerDiscoverer()
+	px3, err := NewWakuPeerExchange(host3, nil, pxPeerConn3, utils.Logger())
 	require.NoError(t, err)
 
 	err = px1.Start(context.Background())
@@ -157,8 +161,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 
 	time.Sleep(3 * time.Second) //  Give the algorithm some time to work its magic
 
-	peer2Info := host3.Peerstore().PeerInfo(host2.ID())
-	require.Equal(t, host2.Addrs()[0], peer2Info.Addrs[0])
+	require.True(t, pxPeerConn3.HasPeer(host2.ID()))
 
 	px1.Stop()
 	px3.Stop()
