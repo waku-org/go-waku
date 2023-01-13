@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,6 +21,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
@@ -70,14 +71,15 @@ type WakuNode struct {
 	log        *zap.Logger
 	timesource timesource.Timesource
 
-	relay        Service
-	lightPush    Service
-	swap         Service
-	discoveryV5  Service
-	peerExchange Service
-	filter       ReceptorService
-	store        ReceptorService
-	rlnRelay     RLNRelay
+	relay         Service
+	lightPush     Service
+	swap          Service
+	peerConnector PeerConnectorService
+	discoveryV5   Service
+	peerExchange  Service
+	filter        ReceptorService
+	store         ReceptorService
+	rlnRelay      RLNRelay
 
 	wakuFlag utils.WakuEnrBitfield
 
@@ -178,16 +180,24 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		w.log.Error("creating localnode", zap.Error(err))
 	}
 
+	// Setup peer connection strategy
+	cacheSize := 600
+	rngSrc := rand.NewSource(rand.Int63())
+	minBackoff, maxBackoff := time.Second*30, time.Hour
+	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
+	w.peerConnector, err = v2.NewPeerConnectionStrategy(host, cacheSize, w.opts.discoveryMinPeers, network.DialPeerTimeout, bkf, w.log)
+	if err != nil {
+		w.log.Error("creating peer connection strategy", zap.Error(err))
+	}
+
 	if w.opts.enableDiscV5 {
 		err := w.mountDiscV5()
 		if err != nil {
 			return nil, err
 		}
-
-		w.opts.wOpts = append(w.opts.wOpts, pubsub.WithDiscovery(w.DiscV5(), w.opts.discV5Opts...))
 	}
 
-	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.host, w.DiscV5(), w.log)
+	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.host, w.DiscV5(), w.peerConnector, w.log)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +290,11 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		go w.startKeepAlive(ctx, w.opts.keepAliveInterval)
 	}
 
+	err := w.peerConnector.Start(ctx)
+	if err != nil {
+		return err
+	}
+
 	if w.opts.enableNTP {
 		err := w.timesource.Start(ctx)
 		if err != nil {
@@ -328,7 +343,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		w.bcaster.Register(nil, w.filter.MessageChannel())
 	}
 
-	err := w.setupENR(ctx, w.ListenAddresses())
+	err = w.setupENR(ctx, w.ListenAddresses())
 	if err != nil {
 		return err
 	}
@@ -374,6 +389,8 @@ func (w *WakuNode) Stop() {
 	if w.opts.enableDiscV5 {
 		w.discoveryV5.Stop()
 	}
+
+	w.peerConnector.Stop()
 
 	_ = w.stopRlnRelay()
 
@@ -531,7 +548,7 @@ func (w *WakuNode) mountDiscV5() error {
 	}
 
 	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.opts.privKey, w.localNode, w.log, discV5Options...)
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.Host(), w.opts.privKey, w.localNode, w.peerConnector, w.log, discV5Options...)
 
 	return err
 }

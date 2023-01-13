@@ -21,7 +21,6 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
 )
 
@@ -106,7 +105,8 @@ func TestDiscV5(t *testing.T) {
 	ip1, _ := extractIP(host1.Addrs()[0])
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d1, err := NewDiscoveryV5(host1, prvKey1, l1, utils.Logger(), WithUDPPort(uint(udpPort1)))
+	peerconn1 := tests.NewTestPeerDiscoverer()
+	d1, err := NewDiscoveryV5(host1, prvKey1, l1, peerconn1, utils.Logger(), WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
 
 	// H2
@@ -116,7 +116,8 @@ func TestDiscV5(t *testing.T) {
 	require.NoError(t, err)
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d2, err := NewDiscoveryV5(host2, prvKey2, l2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	peerconn2 := tests.NewTestPeerDiscoverer()
+	d2, err := NewDiscoveryV5(host2, prvKey2, l2, peerconn2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
 	require.NoError(t, err)
 
 	// H3
@@ -126,7 +127,8 @@ func TestDiscV5(t *testing.T) {
 	require.NoError(t, err)
 	l3, err := newLocalnode(prvKey3, ip3, udpPort3, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
-	d3, err := NewDiscoveryV5(host3, prvKey3, l3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	peerconn3 := tests.NewTestPeerDiscoverer()
+	d3, err := NewDiscoveryV5(host3, prvKey3, l3, peerconn3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 
 	defer d1.Stop()
@@ -142,92 +144,18 @@ func TestDiscV5(t *testing.T) {
 	err = d3.Start(context.Background())
 	require.NoError(t, err)
 
-	time.Sleep(3 * time.Second) // Wait for nodes to be discovered
+	time.Sleep(2 * time.Second) // Wait for nodes to be discovered
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	peerChan, err := d3.FindPeers(ctx, "", discovery.Limit(2))
-	require.NoError(t, err)
-
-	foundHost1 := false
-	foundHost2 := false
-	for p := range peerChan {
-		if p.Addrs[0].String() == host1.Addrs()[0].String() {
-			foundHost1 = true
-		}
-
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
-
-		}
-	}
-
-	require.True(t, foundHost1 && foundHost2)
-
-	// Should return nodes from the cache
+	require.True(t, peerconn3.HasPeer(host1.ID()) && peerconn3.HasPeer(host2.ID()))
 
 	d3.Stop()
-
-	foundHost1 = false
-	foundHost2 = false
-
-	ctx1, cancel1 := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel1()
-
-	peerChan, err = d3.FindPeers(ctx1, "", discovery.Limit(2))
-	require.NoError(t, err)
-	for p := range peerChan {
-		if p.Addrs[0].String() == host1.Addrs()[0].String() {
-			foundHost1 = true
-		}
-
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
-		}
-	}
-
-	require.True(t, foundHost1 && foundHost2)
-
-	// Simulate empty cache
-
-	for i := range d3.peerCache.recs {
-		delete(d3.peerCache.recs, i)
-	}
-
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel2()
-
-	peerChan, err = d3.FindPeers(ctx2, "", discovery.Limit(2))
-	require.NoError(t, err)
-	for range peerChan {
-		require.Fail(t, "Should not have peers")
-	}
+	peerconn3.Clear()
 
 	// Restart peer search
 	err = d3.Start(context.Background())
 	require.NoError(t, err)
 
-	time.Sleep(3 * time.Second) // Wait for nodes to be discovered
+	time.Sleep(2 * time.Second) // Wait for nodes to be discovered
 
-	foundHost1 = false
-	foundHost2 = false
-
-	ctx3, cancel3 := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel3()
-
-	peerChan, err = d3.FindPeers(ctx3, "", discovery.Limit(2))
-	require.NoError(t, err)
-	for p := range peerChan {
-		if p.Addrs[0].String() == host1.Addrs()[0].String() {
-			foundHost1 = true
-		}
-
-		if p.Addrs[0].String() == host2.Addrs()[0].String() {
-			foundHost2 = true
-		}
-	}
-
-	require.True(t, foundHost1 && foundHost2)
-
+	require.True(t, peerconn3.HasPeer(host1.ID()) && peerconn3.HasPeer(host2.ID()))
 }
