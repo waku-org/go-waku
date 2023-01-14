@@ -12,6 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -26,7 +27,7 @@ func (w *WakuNode) newLocalnode(priv *ecdsa.PrivateKey) (*enode.LocalNode, error
 	return enode.NewLocalNode(db, priv), nil
 }
 
-func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, wsAddr []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
+func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, wsAddr []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, circuitRelayPubkey []byte, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
 	localnode.SetFallbackUDP(int(udpPort))
 	localnode.Set(enr.WithEntry(utils.WakuENRField, wakuFlags))
 	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
@@ -69,6 +70,10 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, wsAddr []ma.Multi
 		}
 	}
 
+	if circuitRelayPubkey != nil {
+		localnode.Set(enr.WithEntry(utils.P2PCircuit, circuitRelayPubkey))
+	}
+
 	// Adding websocket multiaddresses
 	var fieldRaw []byte
 
@@ -108,6 +113,10 @@ func isExternal(addr candidateAddr) bool {
 
 func isLoopback(addr candidateAddr) bool {
 	return addr.ip.IP.IsLoopback()
+}
+
+func noRelay(addr candidateAddr) bool {
+	return !utils.IsCircuitRelayAddress(addr.maddr)
 }
 
 func filterIP(ss []candidateAddr, fn func(candidateAddr) bool) (ret []candidateAddr) {
@@ -171,6 +180,10 @@ func selectMostExternalAddress(addresses []ma.Multiaddr) (ma.Multiaddr, *net.TCP
 
 	externalIPs := filterIP(ipAddrs, isExternal)
 	if len(externalIPs) > 0 {
+		noRelayAddrs := filterIP(externalIPs, noRelay)
+		if len(noRelayAddrs) > 0 {
+			return noRelayAddrs[0].maddr, noRelayAddrs[0].ip, nil
+		}
 		return externalIPs[0].maddr, externalIPs[0].ip, nil
 	}
 
@@ -245,7 +258,19 @@ func (w *WakuNode) setupENR(ctx context.Context, addrs []ma.Multiaddr) error {
 		return err
 	}
 
-	err = w.updateLocalNode(w.localNode, wsAddresses, ipAddr, w.opts.udpPort, w.wakuFlag, w.opts.advertiseAddr, w.opts.discV5autoUpdate, w.log)
+	var relayPeerPubkey []byte
+	if utils.IsCircuitRelayAddress(extAddr) {
+		addr, _ := multiaddr.SplitFunc(extAddr, func(c ma.Component) bool {
+			return c.Protocol().Code == ma.P_CIRCUIT
+		})
+
+		_, relayPeerPubkey, err = utils.P2PAddr(addr)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = w.updateLocalNode(w.localNode, wsAddresses, ipAddr, w.opts.udpPort, relayPeerPubkey, w.wakuFlag, w.opts.advertiseAddr, w.opts.discV5autoUpdate, w.log)
 	if err != nil {
 		w.log.Error("obtaining ENR record from multiaddress", logging.MultiAddrs("multiaddr", extAddr), zap.Error(err))
 		return err

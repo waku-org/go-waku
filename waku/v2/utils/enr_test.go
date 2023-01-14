@@ -49,14 +49,26 @@ func TestMultiaddr(t *testing.T) {
 	key, _ := gcrypto.GenerateKey()
 	pubKey := EcdsaPubKeyToSecp256k1PublicKey(&key.PublicKey)
 	id, _ := peer.IDFromPublicKey(pubKey)
-	ogMultiaddress, _ := ma.NewMultiaddr("/ip4/10.0.0.241/tcp/60001/ws/p2p/" + id.Pretty())
-	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
 
-	node, _, err := GetENRandIP(ogMultiaddress, wakuFlag, key)
-	require.NoError(t, err)
+	addrToVerify := []string{
+		"/ip4/192.168.11.2/tcp/8000/wss/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ/p2p-circuit/p2p/" + id.Pretty(),
+		"/ip4/192.168.11.2/tcp/8000/wss/p2p/" + id.Pretty(),
+		"/ip4/192.168.11.2/tcp/8000/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ/p2p-circuit/p2p/" + id.Pretty(),
+		"/ip4/192.168.11.2/tcp/8000/p2p/" + id.Pretty(),
+	}
 
-	multiaddresses, err := Multiaddress(node)
-	require.NoError(t, err)
-	require.Len(t, multiaddresses, 1)
-	require.True(t, ogMultiaddress.Equal(multiaddresses[0]))
+	for _, strAddr := range addrToVerify {
+
+		ogMultiaddress, err := ma.NewMultiaddr(strAddr)
+		require.NoError(t, err)
+		wakuFlag := NewWakuEnrBitfield(true, true, true, true)
+
+		node, _, err := GetENRandIP(ogMultiaddress, wakuFlag, key)
+		require.NoError(t, err)
+
+		multiaddresses, err := Multiaddress(node)
+		require.NoError(t, err)
+		require.Len(t, multiaddresses, 1)
+		require.True(t, ogMultiaddress.Equal(multiaddresses[0]))
+	}
 }
