@@ -35,9 +35,8 @@ func TestGetENRandIP(t *testing.T) {
 
 	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
 
-	node, resTCPAddr, err := GetENRandIP(ogMultiaddress, wakuFlag, key)
+	node, err := GetENRandIP([]ma.Multiaddr{ogMultiaddress}, wakuFlag, key)
 	require.NoError(t, err)
-	require.Equal(t, hostAddr, resTCPAddr)
 
 	parsedNode := enode.MustParse(node.String())
 	resMultiaddress, err := enodeToMultiAddr(parsedNode)
@@ -49,14 +48,19 @@ func TestMultiaddr(t *testing.T) {
 	key, _ := gcrypto.GenerateKey()
 	pubKey := EcdsaPubKeyToSecp256k1PublicKey(&key.PublicKey)
 	id, _ := peer.IDFromPublicKey(pubKey)
-	ogMultiaddress, _ := ma.NewMultiaddr("/ip4/10.0.0.241/tcp/60001/ws/p2p/" + id.Pretty())
 	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
 
-	node, _, err := GetENRandIP(ogMultiaddress, wakuFlag, key)
+	normalMultiaddr, _ := ma.NewMultiaddr("/ip4/192.1.168.241/tcp/60000/p2p/" + id.Pretty())
+	wsMultiaddress, _ := ma.NewMultiaddr("/ip4/10.0.0.241/tcp/60001/ws/p2p/" + id.Pretty())
+
+	node, err := GetENRandIP([]ma.Multiaddr{normalMultiaddr, wsMultiaddress}, wakuFlag, key)
 	require.NoError(t, err)
 
 	multiaddresses, err := Multiaddress(node)
+	fmt.Println(multiaddresses)
+
 	require.NoError(t, err)
-	require.Len(t, multiaddresses, 1)
-	require.True(t, ogMultiaddress.Equal(multiaddresses[0]))
+	require.Len(t, multiaddresses, 2)
+	require.True(t, normalMultiaddr.Equal(multiaddresses[0]))
+	require.True(t, wsMultiaddress.Equal(multiaddresses[1]))
 }
