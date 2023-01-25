@@ -27,6 +27,7 @@ func main() {}
 // - nodeKey: secp256k1 private key. Default random
 // - keepAliveInterval: interval in seconds to ping all peers
 // - relay: Enable WakuRelay. Default `true`
+// - relayTopics: Array of pubsub topics that WakuRelay will automatically subscribe to when the node starts
 // - minPeersToPublish: The minimum number of peers required on a topic to allow broadcasting a message. Default `0`
 // - filter: Enable Filter. Default `false`
 // - discV5: Enable DiscoveryV5. Default `false`

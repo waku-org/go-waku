@@ -271,6 +271,7 @@ interface JsonConfig {
     nodeKey?: string;
     keepAliveInterval?: number;
     relay?: boolean;
+    relayTopics?: Array<string>;
     minPeersToPublish?: number;
     filter?: boolean;
     discV5?: boolean;
@@ -299,6 +300,8 @@ If a key is `undefined`, or `null`, a default value will be set.
   Default `20`.
 - `relay`: Enable relay protocol.
   Default `true`.
+- `relayTopics`:  Array of pubsub topics that WakuRelay will automatically subscribe to when the node starts
+  Default `[]`
 - `minPeersToPublish`: The minimum number of peers required on a topic to allow broadcasting a message.
   Default `0`.
 - `filter`: Enable filter protocol.
