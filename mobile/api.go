@@ -30,6 +30,7 @@ import (
 )
 
 var wakuNode *node.WakuNode
+var wakuRelayTopics []string
 var wakuStarted = false
 
 var errWakuNodeNotReady = errors.New("go-waku not initialized")
@@ -50,6 +51,7 @@ type wakuConfig struct {
 	LogLevel             *string  `json:"logLevel,omitempty"`
 	KeepAliveInterval    *int     `json:"keepAliveInterval,omitempty"`
 	EnableRelay          *bool    `json:"relay"`
+	RelayTopics          []string `json:"relayTopics,omitempty"`
 	EnableFilter         *bool    `json:"filter"`
 	MinPeersToPublish    *int     `json:"minPeersToPublish"`
 	EnableDiscV5         *bool    `json:"discV5"`
@@ -155,6 +157,7 @@ func NewNode(configJSON string) string {
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(*config.KeepAliveInterval) * time.Second),
+		node.NoDefaultWakuTopic(),
 	}
 
 	if *config.EnableRelay {
@@ -176,6 +179,8 @@ func NewNode(configJSON string) string {
 		}
 		opts = append(opts, node.WithDiscoveryV5(*config.DiscV5UDPPort, bootnodes, true))
 	}
+
+	wakuRelayTopics = config.RelayTopics
 
 	// for go-libp2p loggers
 	lvl, err := logging.LevelFromString(*config.LogLevel)
@@ -209,6 +214,16 @@ func Start() string {
 			wakuNode.Stop()
 			return MakeJSONResponse(err)
 		}
+	}
+
+	for _, topic := range wakuRelayTopics {
+		topic := topic
+		sub, err := wakuNode.Relay().SubscribeToTopic(ctx, topic)
+		if err != nil {
+			wakuNode.Stop()
+			return MakeJSONResponse(fmt.Errorf("could not subscribe to topic: %s, %w", topic, err))
+		}
+		wakuNode.Broadcaster().Unregister(&topic, sub.C)
 	}
 
 	wakuStarted = true
