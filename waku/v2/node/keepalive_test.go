@@ -42,7 +42,7 @@ func TestKeepAlive(t *testing.T) {
 	}
 
 	w.wg.Add(1)
-	w.pingPeer(ctx2, host2.ID())
+	w.pingPeer(ctx2, w.wg, host2.ID())
 
 	require.NoError(t, ctx.Err())
 }
