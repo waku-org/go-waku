@@ -1,16 +1,19 @@
 package utils
 
 import (
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"math"
 	"net"
 	"testing"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	ma "github.com/multiformats/go-multiaddr"
-	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestEnodeToMultiAddr(t *testing.T) {
@@ -23,44 +26,99 @@ func TestEnodeToMultiAddr(t *testing.T) {
 	require.Equal(t, expectedMultiAddr, actualMultiAddr.String())
 }
 
-func TestGetENRandIP(t *testing.T) {
-	key, _ := gcrypto.GenerateKey()
-	pubKey := EcdsaPubKeyToSecp256k1PublicKey(&key.PublicKey)
-	id, _ := peer.IDFromPublicKey(pubKey)
+// TODO: this function is duplicated in localnode.go. Extract to utils
+func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
+	localnode.SetFallbackUDP(int(udpPort))
+	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
+	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 
-	hostAddr := &net.TCPAddr{IP: net.ParseIP("192.168.0.1"), Port: 9999}
-	hostMultiAddr, _ := manet.FromNetAddr(hostAddr)
-	hostInfo, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", id.Pretty()))
-	ogMultiaddress := hostMultiAddr.Encapsulate(hostInfo)
+	if udpPort > math.MaxUint16 {
+		return errors.New("invalid udp port number")
+	}
 
-	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
+	if advertiseAddr != nil {
+		// An advertised address disables libp2p address updates
+		// and discv5 predictions
+		localnode.SetStaticIP(*advertiseAddr)
+		localnode.Set(enr.TCP(uint16(ipAddr.Port))) // TODO: ipv6?
+	} else if !shouldAutoUpdate {
+		// We received a libp2p address update. Autoupdate is disabled
+		// Using a static ip will disable endpoint prediction.
+		localnode.SetStaticIP(ipAddr.IP)
+		localnode.Set(enr.TCP(uint16(ipAddr.Port))) // TODO: ipv6?
+	} else {
+		// We received a libp2p address update, but we should still
+		// allow discv5 to update the enr record. We set the localnode
+		// keys manually. It's possible that the ENR record might get
+		// updated automatically
+		ip4 := ipAddr.IP.To4()
+		ip6 := ipAddr.IP.To16()
+		if ip4 != nil && !ip4.IsUnspecified() {
+			localnode.Set(enr.IPv4(ip4))
+			localnode.Set(enr.TCP(uint16(ipAddr.Port)))
+		} else {
+			localnode.Delete(enr.IPv4{})
+			localnode.Delete(enr.TCP(0))
+		}
 
-	node, err := GetENRandIP([]ma.Multiaddr{ogMultiaddress}, wakuFlag, key)
-	require.NoError(t, err)
+		if ip6 != nil && !ip6.IsUnspecified() {
+			localnode.Set(enr.IPv6(ip6))
+			localnode.Set(enr.TCP6(ipAddr.Port))
+		} else {
+			localnode.Delete(enr.IPv6{})
+			localnode.Delete(enr.TCP6(0))
+		}
+	}
 
-	parsedNode := enode.MustParse(node.String())
-	resMultiaddress, err := enodeToMultiAddr(parsedNode)
-	require.NoError(t, err)
-	require.Equal(t, ogMultiaddress.String(), resMultiaddress.String())
+	// Adding extra multiaddresses
+	var fieldRaw []byte
+	for _, addr := range multiaddrs {
+		maRaw := addr.Bytes()
+		maSize := make([]byte, 2)
+		binary.BigEndian.PutUint16(maSize, uint16(len(maRaw)))
+
+		fieldRaw = append(fieldRaw, maSize...)
+		fieldRaw = append(fieldRaw, maRaw...)
+	}
+
+	if len(fieldRaw) != 0 {
+		localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
+	}
+
+	return nil
 }
 
 func TestMultiaddr(t *testing.T) {
+
 	key, _ := gcrypto.GenerateKey()
-	pubKey := EcdsaPubKeyToSecp256k1PublicKey(&key.PublicKey)
-	id, _ := peer.IDFromPublicKey(pubKey)
 	wakuFlag := NewWakuEnrBitfield(true, true, true, true)
 
-	normalMultiaddr, _ := ma.NewMultiaddr("/ip4/192.1.168.241/tcp/60000/p2p/" + id.Pretty())
-	wsMultiaddress, _ := ma.NewMultiaddr("/ip4/10.0.0.241/tcp/60001/ws/p2p/" + id.Pretty())
+	//wss, _ := ma.NewMultiaddr("/dns4/www.somedomainname.com/tcp/443/wss")
+	circuit1, _ := ma.NewMultiaddr("/dns4/node-02.gc-us-central1-a.status.prod.statusim.net/tcp/30303/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit")
+	circuit2, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.status.prod.statusim.net/tcp/30303/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit")
 
-	node, err := GetENRandIP([]ma.Multiaddr{normalMultiaddr, wsMultiaddress}, wakuFlag, key)
-	require.NoError(t, err)
+	multiaddrValues := []ma.Multiaddr{
+		//wss,
+		circuit1,
+		circuit2,
+	}
 
-	multiaddresses, err := Multiaddress(node)
-	fmt.Println(multiaddresses)
+	db, _ := enode.OpenDB("")
+	localNode := enode.NewLocalNode(db, key)
+	err := updateLocalNode(localNode, multiaddrValues, &net.TCPAddr{IP: net.IPv4(192, 168, 1, 241), Port: 60000}, 50000, wakuFlag, nil, false, Logger())
+	if err != nil {
+		fmt.Println("ERROR WRITING ENR", err)
+	} else {
+		fmt.Println("==========================================")
+		fmt.Println(localNode.Node())
+		fmt.Println("==========================================")
 
-	require.NoError(t, err)
-	require.Len(t, multiaddresses, 2)
-	require.True(t, normalMultiaddr.Equal(multiaddresses[0]))
-	require.True(t, wsMultiaddress.Equal(multiaddresses[1]))
+		multiaddresses, err := Multiaddress(localNode.Node())
+		require.NoError(t, err)
+
+		for _, a := range multiaddresses {
+			fmt.Println(a)
+		}
+	}
+
 }
