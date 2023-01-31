@@ -317,7 +317,21 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) {
 		wakuPX.log.Debug("obtaining iterator", zap.Error(err))
 		return
 	}
-	defer iterator.Close()
+
+	closeCh := make(chan struct{}, 1)
+	defer close(closeCh)
+
+	// Closing iterator when context is cancelled or function is returning
+	wakuPX.wg.Add(1)
+	go func() {
+		defer wakuPX.wg.Done()
+		select {
+		case <-ctx.Done():
+			iterator.Close()
+		case <-closeCh:
+			iterator.Close()
+		}
+	}()
 
 	for {
 		if ctx.Err() != nil {
