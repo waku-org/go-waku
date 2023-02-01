@@ -28,12 +28,6 @@ var pubSubTopic = protocol.DefaultPubsubTopic()
 const contentTopic = "test"
 
 func main() {
-	lvl, err := logging.LevelFromString("info")
-	if err != nil {
-		panic(err)
-	}
-	logging.SetAllLoggers(lvl)
-
 	hostAddr1, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60000")
 	hostAddr2, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60001")
 
