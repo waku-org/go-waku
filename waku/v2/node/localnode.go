@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	"net"
 	"strconv"
@@ -68,19 +67,47 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 		}
 	}
 
-	// Adding extra multiaddresses
-	var fieldRaw []byte
-	for _, addr := range multiaddrs {
-		maRaw := addr.Bytes()
-		maSize := make([]byte, 2)
-		binary.BigEndian.PutUint16(maSize, uint16(len(maRaw)))
+	// Adding extra multiaddresses. It will to add as many multiaddresses as possible
+	// without exceeding the enr max size of 300bytes
+	var addrAggr []ma.Multiaddr
+	var err error
+	for i := len(multiaddrs) - 1; i >= 0; i-- {
+		addrAggr = append(addrAggr, multiaddrs[0:i]...)
+		err = func() (err error) {
+			defer func() {
+				if e := recover(); e != nil {
+					err = errors.New("could not write enr record")
+				}
+			}()
 
-		fieldRaw = append(fieldRaw, maSize...)
-		fieldRaw = append(fieldRaw, maRaw...)
+			var fieldRaw []byte
+			for _, addr := range addrAggr {
+				maRaw := addr.Bytes()
+				maSize := make([]byte, 2)
+				binary.BigEndian.PutUint16(maSize, uint16(len(maRaw)))
+
+				fieldRaw = append(fieldRaw, maSize...)
+				fieldRaw = append(fieldRaw, maRaw...)
+			}
+
+			if len(fieldRaw) != 0 {
+				localnode.Set(enr.WithEntry(utils.MultiaddrENRField, fieldRaw))
+			}
+
+			// This is to trigger the signing record err due to exceeding 300bytes limit
+			_ = localnode.Node()
+
+			return nil
+		}()
+
+		if err == nil {
+			break
+		}
 	}
 
-	if len(fieldRaw) != 0 {
-		localnode.Set(enr.WithEntry(utils.MultiaddrENRField, fieldRaw))
+	// In case multiaddr could not be populated at all
+	if err != nil {
+		localnode.Delete(enr.WithEntry(utils.MultiaddrENRField, struct{}{}))
 	}
 
 	return nil
@@ -163,8 +190,6 @@ func selectMostExternalAddress(addresses []ma.Multiaddr) (*net.TCPAddr, error) {
 		if err != nil {
 			continue
 		}
-
-		fmt.Println(ipAddr, addr)
 		ipAddrs = append(ipAddrs, ipAddr)
 	}
 
@@ -270,13 +295,18 @@ func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, 
 		return nil, nil, err
 	}
 
-	circuitAddrs, err := selectCircuitRelayListenAddresses(addrs)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	multiaddr = append(multiaddr, wssAddrs...)
-	multiaddr = append(multiaddr, circuitAddrs...)
+
+	// to use WSS, you should have a valid certificate with a domain name.
+	// that means you're reachable. So circuit relay addresses are ignored
+	if len(wssAddrs) == 0 {
+		circuitAddrs, err := selectCircuitRelayListenAddresses(addrs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		multiaddr = append(multiaddr, circuitAddrs...)
+	}
 
 	return
 }
