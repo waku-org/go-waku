@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	"net"
 	"testing"
@@ -26,7 +25,7 @@ func TestEnodeToMultiAddr(t *testing.T) {
 	require.Equal(t, expectedMultiAddr, actualMultiAddr.String())
 }
 
-// TODO: this function is duplicated in localnode.go. Extract to utils
+// TODO: this function is duplicated in localnode.go. Remove duplication
 func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
 	localnode.SetFallbackUDP(int(udpPort))
 	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
@@ -70,19 +69,45 @@ func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAd
 		}
 	}
 
-	// Adding extra multiaddresses
-	var fieldRaw []byte
-	for _, addr := range multiaddrs {
-		maRaw := addr.Bytes()
-		maSize := make([]byte, 2)
-		binary.BigEndian.PutUint16(maSize, uint16(len(maRaw)))
+	var addrAggr []ma.Multiaddr
+	var err error
+	for i := len(multiaddrs) - 1; i >= 0; i-- {
+		addrAggr = append(addrAggr, multiaddrs[0:i]...)
+		err = func() (err error) {
+			defer func() {
+				if e := recover(); e != nil {
+					err = errors.New("could not write enr record")
+				}
+			}()
 
-		fieldRaw = append(fieldRaw, maSize...)
-		fieldRaw = append(fieldRaw, maRaw...)
+			var fieldRaw []byte
+			for _, addr := range addrAggr {
+				maRaw := addr.Bytes()
+				maSize := make([]byte, 2)
+				binary.BigEndian.PutUint16(maSize, uint16(len(maRaw)))
+
+				fieldRaw = append(fieldRaw, maSize...)
+				fieldRaw = append(fieldRaw, maRaw...)
+			}
+
+			if len(fieldRaw) != 0 {
+				localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
+			}
+
+			// This is to trigger the signing record err due to exceeding 300bytes limit
+			_ = localnode.Node()
+
+			return nil
+		}()
+
+		if err == nil {
+			break
+		}
 	}
 
-	if len(fieldRaw) != 0 {
-		localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
+	// In case multiaddr could not be populated at all
+	if err != nil {
+		localnode.Delete(enr.WithEntry(MultiaddrENRField, struct{}{}))
 	}
 
 	return nil
@@ -106,19 +131,10 @@ func TestMultiaddr(t *testing.T) {
 	db, _ := enode.OpenDB("")
 	localNode := enode.NewLocalNode(db, key)
 	err := updateLocalNode(localNode, multiaddrValues, &net.TCPAddr{IP: net.IPv4(192, 168, 1, 241), Port: 60000}, 50000, wakuFlag, nil, false, Logger())
-	if err != nil {
-		fmt.Println("ERROR WRITING ENR", err)
-	} else {
-		fmt.Println("==========================================")
-		fmt.Println(localNode.Node())
-		fmt.Println("==========================================")
+	require.NoError(t, err)
 
-		multiaddresses, err := Multiaddress(localNode.Node())
-		require.NoError(t, err)
+	_ = localNode.Node() // Should not panic
 
-		for _, a := range multiaddresses {
-			fmt.Println(a)
-		}
-	}
-
+	_, err = Multiaddress(localNode.Node())
+	require.NoError(t, err)
 }

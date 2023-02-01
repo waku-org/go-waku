@@ -24,22 +24,25 @@ func TestExternalAddressSelection(t *testing.T) {
 	addrs := []ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11}
 
 	w := &WakuNode{}
-	extAddr, multiaddr, err := w.getENRAddresses(addrs)
+	extAddr, multiaddr, err := w.getENRAddresses([]ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7, a8})
 
 	a5NoP2P, _ := decapsulateP2P(a5)
-	a8RelayNode, _ := decapsulateCircuitRelayAddr(a8)
-
 	require.NoError(t, err)
 	require.Equal(t, extAddr.IP, net.IPv4(192, 168, 0, 106))
 	require.Equal(t, extAddr.Port, 60000)
 	require.Equal(t, multiaddr[0].String(), a5NoP2P.String())
-	require.Equal(t, multiaddr[1].String(), a8RelayNode.String())
-	require.Len(t, multiaddr, 5)
+	require.Len(t, multiaddr, 1) // Should only have 1, without circuit relay
+
 	a12, _ := ma.NewMultiaddr("/ip4/188.23.1.8/tcp/30303/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f") // VALID
 	addrs = append(addrs, a12)
-
 	extAddr, _, err = w.getENRAddresses(addrs)
 	require.NoError(t, err)
 	require.Equal(t, extAddr.IP, net.IPv4(188, 23, 1, 8))
 	require.Equal(t, extAddr.Port, 30303)
+
+	a8RelayNode, _ := decapsulateCircuitRelayAddr(a8)
+	_, multiaddr, err = w.getENRAddresses([]ma.Multiaddr{a1, a8})
+	require.NoError(t, err)
+	require.Len(t, multiaddr, 1)
+	require.Equal(t, multiaddr[0].String(), a8RelayNode.String()) // Should have included circuit-relay addr
 }
