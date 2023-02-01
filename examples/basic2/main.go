@@ -12,33 +12,26 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"go.uber.org/zap"
 )
 
-var log = logging.Logger("basic2")
+var log = utils.Logger().Named("basic2")
 
 func main() {
-	lvl, err := logging.LevelFromString("info")
-	if err != nil {
-		panic(err)
-	}
-	logging.SetAllLoggers(lvl)
-
-	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:0"))
-
+	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	key, err := randomHex(32)
 	if err != nil {
-		log.Error("Could not generate random key")
+		log.Error("Could not generate random key", zap.Error(err))
 		return
 	}
 	prvKey, err := crypto.HexToECDSA(key)
 	if err != nil {
-		log.Error(err)
+		log.Error("Could not convert hex into ecdsa key", zap.Error(err))
 		return
 	}
 
@@ -51,12 +44,12 @@ func main() {
 		node.WithWakuRelay(),
 	)
 	if err != nil {
-		log.Error(err)
+		log.Error("Error creating wakunode", zap.Error(err))
 		return
 	}
 
 	if err := wakuNode.Start(ctx); err != nil {
-		log.Error(err)
+		log.Error("Error starting wakunode", zap.Error(err))
 		return
 	}
 
@@ -94,7 +87,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 
 	payload, err := p.Encode(version)
 	if err != nil {
-		log.Error("Error encoding the payload: ", err)
+		log.Error("Error encoding the payload", zap.Error(err))
 		return
 	}
 
@@ -107,7 +100,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 
 	_, err = wakuNode.Relay().Publish(ctx, msg)
 	if err != nil {
-		log.Error("Error sending a message: ", err)
+		log.Error("Error sending a message", zap.Error(err))
 	}
 }
 
@@ -121,7 +114,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	sub, err := wakuNode.Relay().Subscribe(ctx)
 	if err != nil {
-		log.Error("Could not subscribe: ", err)
+		log.Error("Could not subscribe", zap.Error(err))
 		return
 	}
 
@@ -132,6 +125,6 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 			return
 		}
 
-		log.Info("Received msg, ", string(payload.Data))
+		log.Info("Received msg, ", zap.String("data", string(payload.Data)))
 	}
 }

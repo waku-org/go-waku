@@ -23,6 +23,7 @@ import (
 	dssql "github.com/ipfs/go-ds-sql"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
@@ -79,8 +80,6 @@ const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options Options) {
-	utils.Logger().Info("Version details ", zap.String("version", node.Version), zap.String("commit", node.GitCommit))
-
 	if options.GenerateKey {
 		if err := writePrivateKeyToFile(options.KeyFile, []byte(options.KeyPasswd), options.Overwrite); err != nil {
 			failOnErr(err, "nodekey error")
@@ -115,8 +114,14 @@ func Execute(options Options) {
 		wmetrics.RecordVersion(ctx, node.Version, node.GitCommit)
 	}
 
+	lvl, err := zapcore.ParseLevel(options.LogLevel)
+	if err != nil {
+		failOnErr(err, "log level error")
+	}
+
 	nodeOpts := []node.WakuNodeOption{
 		node.WithLogger(logger),
+		node.WithLogLevel(lvl),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(options.KeepAlive),
@@ -254,6 +259,8 @@ func Execute(options Options) {
 	checkForRLN(logger, options, &nodeOpts)
 
 	wakuNode, err := node.New(nodeOpts...)
+
+	utils.Logger().Info("Version details ", zap.String("version", node.Version), zap.String("commit", node.GitCommit))
 
 	failOnErr(err, "Wakunode")
 

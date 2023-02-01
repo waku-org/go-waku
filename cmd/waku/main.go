@@ -3,12 +3,10 @@ package main
 import (
 	"os"
 
-	logging "github.com/ipfs/go-log/v2"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 var options waku.Options
@@ -106,14 +104,6 @@ func main() {
 		Before:  altsrc.InitInputSourceWithContext(cliFlags, altsrc.NewTomlSourceFromFlagFunc("config-file")),
 		Flags:   cliFlags,
 		Action: func(c *cli.Context) error {
-			utils.InitLogger(options.LogEncoding, options.LogOutput)
-
-			lvl, err := logging.LevelFromString(options.LogLevel)
-			if err != nil {
-				return err
-			}
-			logging.SetAllLoggers(lvl)
-
 			waku.Execute(options)
 			return nil
 		},
