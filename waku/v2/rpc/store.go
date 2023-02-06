@@ -4,8 +4,9 @@ import (
 	"net/http"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +34,7 @@ type StoreMessagesArgs struct {
 }
 
 type StoreMessagesReply struct {
-	Messages   []*pb.WakuMessage  `json:"messages,omitempty"`
+	Messages   []*wpb.WakuMessage `json:"messages,omitempty"`
 	PagingInfo StorePagingOptions `json:"pagingInfo,omitempty"`
 	Error      string             `json:"error,omitempty"`
 }

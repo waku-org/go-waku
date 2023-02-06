@@ -8,6 +8,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestStorePersistence(t *testing.T) {
@@ -39,7 +40,7 @@ func TestStorePersistence(t *testing.T) {
 	allMsgs, err := db.GetAll()
 	require.NoError(t, err)
 	require.Len(t, allMsgs, 1)
-	require.Equal(t, msg, allMsgs[0].Message)
+	require.True(t, proto.Equal(msg, allMsgs[0].Message))
 
 	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
 	err = s1.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), defaultPubSubTopic))

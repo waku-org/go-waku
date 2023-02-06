@@ -7,13 +7,14 @@ import (
 	"math"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-msgio/protoio"
+	"github.com/libp2p/go-msgio/pbio"
 	"go.uber.org/zap"
 
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -27,7 +28,7 @@ type Query struct {
 // Result represents a valid response from a store node
 type Result struct {
 	started  bool
-	Messages []*pb.WakuMessage
+	Messages []*wpb.WakuMessage
 	store    Store
 	query    *pb.HistoryQuery
 	cursor   *pb.Index
@@ -71,14 +72,14 @@ func (r *Result) Next(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (r *Result) GetMessages() []*pb.WakuMessage {
+func (r *Result) GetMessages() []*wpb.WakuMessage {
 	if !r.started {
 		return nil
 	}
 	return r.Messages
 }
 
-type criteriaFN = func(msg *pb.WakuMessage) (bool, error)
+type criteriaFN = func(msg *wpb.WakuMessage) (bool, error)
 
 type HistoryRequestParameters struct {
 	selectedPeer peer.ID
@@ -195,8 +196,8 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 
 	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(requestId)}
 
-	writer := protoio.NewDelimitedWriter(connOpt)
-	reader := protoio.NewDelimitedReader(connOpt, math.MaxInt32)
+	writer := pbio.NewDelimitedWriter(connOpt)
+	reader := pbio.NewDelimitedReader(connOpt, math.MaxInt32)
 
 	err = writer.WriteMsg(historyRequest)
 	if err != nil {
@@ -335,7 +336,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 }
 
 // Find the first message that matches a criteria. criteriaCB is a function that will be invoked for each message and returns true if the message matches the criteria
-func (store *WakuStore) Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*pb.WakuMessage, error) {
+func (store *WakuStore) Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error) {
 	if cb == nil {
 		return nil, errors.New("callback can't be null")
 	}
@@ -379,7 +380,7 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 		return &Result{
 			store:    store,
 			started:  true,
-			Messages: []*pb.WakuMessage{},
+			Messages: []*wpb.WakuMessage{},
 			cursor:   nil,
 			query:    r.query,
 			peerId:   r.PeerID(),

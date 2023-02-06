@@ -6,7 +6,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -31,7 +34,7 @@ func TestStoreQuery(t *testing.T) {
 	})
 
 	require.Len(t, response.Messages, 1)
-	require.Equal(t, msg1, response.Messages[0])
+	require.True(t, proto.Equal(msg1, response.Messages[0]))
 }
 
 func TestStoreQueryMultipleContentFilters(t *testing.T) {
@@ -62,9 +65,8 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 	})
 
 	require.Len(t, response.Messages, 2)
-	require.Contains(t, response.Messages, msg1)
-	require.Contains(t, response.Messages, msg3)
-	require.NotContains(t, response.Messages, msg2)
+	require.True(t, proto.Equal(response.Messages[0], msg1))
+	require.True(t, proto.Equal(response.Messages[1], msg3))
 }
 
 func TestStoreQueryPubsubTopicFilter(t *testing.T) {
@@ -96,7 +98,7 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	})
 
 	require.Len(t, response.Messages, 1)
-	require.Equal(t, msg1, response.Messages[0])
+	require.True(t, proto.Equal(msg1, response.Messages[0]))
 }
 
 func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
@@ -142,9 +144,9 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	})
 
 	require.Len(t, response.Messages, 3)
-	require.Contains(t, response.Messages, msg1)
-	require.Contains(t, response.Messages, msg2)
-	require.Contains(t, response.Messages, msg3)
+	require.True(t, proto.Equal(response.Messages[0], msg1))
+	require.True(t, proto.Equal(response.Messages[1], msg2))
+	require.True(t, proto.Equal(response.Messages[2], msg3))
 }
 
 func TestStoreQueryForwardPagination(t *testing.T) {
@@ -177,7 +179,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 
 	s := NewWakuStore(nil, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	for i := 0; i < 10; i++ {
-		msg := &pb.WakuMessage{
+		msg := &wpb.WakuMessage{
 			Payload:      []byte{byte(i)},
 			ContentTopic: topic1,
 			Version:      0,
@@ -203,7 +205,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 func TestTemporalHistoryQueries(t *testing.T) {
 	s := NewWakuStore(nil, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 
-	var messages []*pb.WakuMessage
+	var messages []*wpb.WakuMessage
 	for i := 0; i < 10; i++ {
 		contentTopic := "1"
 		if i%2 == 0 {

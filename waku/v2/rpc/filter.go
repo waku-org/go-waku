@@ -8,7 +8,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +17,7 @@ type FilterService struct {
 	node *node.WakuNode
 	log  *zap.Logger
 
-	messages      map[string][]*pb.WakuMessage
+	messages      map[string][]*wpb.WakuMessage
 	cacheCapacity int
 	messagesMutex sync.RWMutex
 
@@ -24,8 +25,8 @@ type FilterService struct {
 }
 
 type FilterContentArgs struct {
-	Topic          string             `json:"topic,omitempty"`
-	ContentFilters []pb.ContentFilter `json:"contentFilters,omitempty"`
+	Topic          string                            `json:"topic,omitempty"`
+	ContentFilters []*pb.FilterRequest_ContentFilter `json:"contentFilters,omitempty"`
 }
 
 type ContentTopicArgs struct {
@@ -37,7 +38,7 @@ func NewFilterService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *
 		node:          node,
 		log:           log.Named("filter"),
 		cacheCapacity: cacheCapacity,
-		messages:      make(map[string][]*pb.WakuMessage),
+		messages:      make(map[string][]*wpb.WakuMessage),
 	}
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
 	return s
@@ -91,7 +92,7 @@ func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterConten
 		return err
 	}
 	for _, contentFilter := range args.ContentFilters {
-		f.messages[contentFilter.ContentTopic] = make([]*pb.WakuMessage, 0)
+		f.messages[contentFilter.ContentTopic] = make([]*wpb.WakuMessage, 0)
 	}
 
 	*reply = true
@@ -125,6 +126,6 @@ func (f *FilterService) GetV1Messages(req *http.Request, args *ContentTopicArgs,
 
 	*reply = f.messages[args.ContentTopic]
 
-	f.messages[args.ContentTopic] = make([]*pb.WakuMessage, 0)
+	f.messages[args.ContentTopic] = make([]*wpb.WakuMessage, 0)
 	return nil
 }

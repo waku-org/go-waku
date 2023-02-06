@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 )
 
 const TOPIC = "/test/topic"
@@ -30,7 +30,7 @@ func TestAppend(t *testing.T) {
 	peerId := createPeerId(t)
 	requestId := "request_1"
 	contentTopic := "topic1"
-	request := pb.FilterRequest{
+	request := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
@@ -46,7 +46,7 @@ func TestRemove(t *testing.T) {
 	peerId := createPeerId(t)
 	requestId := "request_1"
 	contentTopic := "topic1"
-	request := pb.FilterRequest{
+	request := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
@@ -64,7 +64,7 @@ func TestRemovePartial(t *testing.T) {
 	requestId := "request_1"
 	topic1 := "topic1"
 	topic2 := "topic2"
-	request := pb.FilterRequest{
+	request := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic1}, {ContentTopic: topic2}},
@@ -83,12 +83,12 @@ func TestRemoveDuplicateSubscriptions(t *testing.T) {
 	topic := "topic"
 	requestId1 := "request_1"
 	requestId2 := "request_2"
-	request1 := pb.FilterRequest{
+	request1 := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
 	}
-	request2 := pb.FilterRequest{
+	request2 := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
@@ -108,12 +108,12 @@ func TestRemoveDuplicateSubscriptionsPartial(t *testing.T) {
 	topic := "topic"
 	requestId1 := "request_1"
 	requestId2 := "request_2"
-	request1 := pb.FilterRequest{
+	request1 := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
 	}
-	request2 := pb.FilterRequest{
+	request2 := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: topic}},
@@ -132,7 +132,7 @@ func TestRemoveBogus(t *testing.T) {
 	peerId := createPeerId(t)
 	requestId := "request_1"
 	contentTopic := "topic1"
-	request := pb.FilterRequest{
+	request := &pb.FilterRequest{
 		Subscribe:      true,
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},

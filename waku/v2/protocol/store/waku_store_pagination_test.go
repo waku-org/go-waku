@@ -6,12 +6,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestIndexComputation(t *testing.T) {
-	msg := &pb.WakuMessage{
+	msg := &wpb.WakuMessage{
 		Payload:   []byte{1, 2, 3},
 		Timestamp: utils.GetUnixEpoch(),
 	}
@@ -22,14 +24,14 @@ func TestIndexComputation(t *testing.T) {
 	require.NotZero(t, idx.Digest)
 	require.Len(t, idx.Digest, 32)
 
-	msg1 := &pb.WakuMessage{
+	msg1 := &wpb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		Timestamp:    123,
 		ContentTopic: "/waku/2/default-content/proto",
 	}
 	idx1 := protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), "test").Index()
 
-	msg2 := &pb.WakuMessage{
+	msg2 := &wpb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		Timestamp:    123,
 		ContentTopic: "/waku/2/default-content/proto",
@@ -43,7 +45,7 @@ func createSampleList(s int) []*protocol.Envelope {
 	var result []*protocol.Envelope
 	for i := 0; i < s; i++ {
 		msg :=
-			&pb.WakuMessage{
+			&wpb.WakuMessage{
 				Payload:   []byte{byte(i)},
 				Timestamp: int64(i),
 			}
@@ -65,7 +67,8 @@ func TestForwardPagination(t *testing.T) {
 	messages, newPagingInfo, err := findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 2)
-	require.Equal(t, []*pb.WakuMessage{msgList[4].Message(), msgList[5].Message()}, messages)
+	require.True(t, proto.Equal(msgList[4].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[5].Message(), messages[1]))
 	require.Equal(t, msgList[5].Index(), newPagingInfo.Cursor)
 
 	// test for an initial pagination request with an empty cursor
@@ -73,7 +76,8 @@ func TestForwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 2)
-	require.Equal(t, []*pb.WakuMessage{msgList[0].Message(), msgList[1].Message()}, messages)
+	require.True(t, proto.Equal(msgList[0].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[1].Message(), messages[1]))
 	require.Equal(t, msgList[1].Index(), newPagingInfo.Cursor)
 
 	// test for an initial pagination request with an empty cursor to fetch the entire history
@@ -81,7 +85,7 @@ func TestForwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 10)
-	require.Equal(t, msgList[9].Message(), messages[9])
+	require.True(t, proto.Equal(msgList[9].Message(), messages[9]))
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for an empty msgList
@@ -96,7 +100,8 @@ func TestForwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 6)
-	require.Equal(t, []*pb.WakuMessage{msgList[4].Message(), msgList[5].Message(), msgList[6].Message(), msgList[7].Message(), msgList[8].Message(), msgList[9].Message()}, messages)
+	require.True(t, proto.Equal(msgList[4].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[9].Message(), messages[5]))
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for a page size larger than the maximum allowed page size
@@ -114,7 +119,7 @@ func TestForwardPagination(t *testing.T) {
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for an invalid cursor
-	invalidIndex := protocol.NewEnvelope(&pb.WakuMessage{Payload: []byte{255, 255, 255}}, utils.GetUnixEpoch(), "test").Index()
+	invalidIndex := protocol.NewEnvelope(&wpb.WakuMessage{Payload: []byte{255, 255, 255}}, utils.GetUnixEpoch(), "test").Index()
 	pagingInfo = &pb.PagingInfo{PageSize: 10, Cursor: invalidIndex, Direction: pb.PagingInfo_FORWARD}
 	_, _, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.ErrorIs(t, err, persistence.ErrInvalidCursor)
@@ -145,7 +150,8 @@ func TestBackwardPagination(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, messages, 2)
 
-	require.Equal(t, []*pb.WakuMessage{msgList[1].Message(), msgList[2].Message()}, messages)
+	require.True(t, proto.Equal(msgList[1].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[2].Message(), messages[1]))
 	require.Equal(t, msgList[1].Index(), newPagingInfo.Cursor)
 
 	// test for an initial pagination request with an empty cursor
@@ -153,7 +159,8 @@ func TestBackwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 2)
-	require.Equal(t, []*pb.WakuMessage{msgList[8].Message(), msgList[9].Message()}, messages)
+	require.True(t, proto.Equal(msgList[8].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[9].Message(), messages[1]))
 	require.Equal(t, msgList[8].Index(), newPagingInfo.Cursor)
 
 	// test for an initial pagination request with an empty cursor to fetch the entire history
@@ -161,8 +168,8 @@ func TestBackwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 10)
-	require.Equal(t, msgList[0].Message(), messages[0])
-	require.Equal(t, msgList[9].Message(), messages[9])
+	require.True(t, proto.Equal(msgList[0].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[9].Message(), messages[9]))
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for an empty msgList
@@ -179,7 +186,8 @@ func TestBackwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 3)
-	require.Equal(t, []*pb.WakuMessage{msgList[0].Message(), msgList[1].Message(), msgList[2].Message()}, messages)
+	require.True(t, proto.Equal(msgList[0].Message(), messages[0]))
+	require.True(t, proto.Equal(msgList[2].Message(), messages[2]))
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for a page size larger than the maximum allowed page size
@@ -198,7 +206,7 @@ func TestBackwardPagination(t *testing.T) {
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for an invalid cursor
-	invalidIndex := protocol.NewEnvelope(&pb.WakuMessage{Payload: []byte{255, 255, 255}}, utils.GetUnixEpoch(), "test").Index()
+	invalidIndex := protocol.NewEnvelope(&wpb.WakuMessage{Payload: []byte{255, 255, 255}}, utils.GetUnixEpoch(), "test").Index()
 	pagingInfo = &pb.PagingInfo{PageSize: 10, Cursor: invalidIndex, Direction: pb.PagingInfo_BACKWARD}
 	_, _, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.ErrorIs(t, err, persistence.ErrInvalidCursor)

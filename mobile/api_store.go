@@ -4,8 +4,9 @@ import (
 	"C"
 	"encoding/json"
 
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
 import (
 	"context"
@@ -21,15 +22,15 @@ type storePagingOptions struct {
 }
 
 type storeMessagesArgs struct {
-	Topic          string             `json:"pubsubTopic,omitempty"`
-	ContentFilters []pb.ContentFilter `json:"contentFilters,omitempty"`
-	StartTime      int64              `json:"startTime,omitempty"`
-	EndTime        int64              `json:"endTime,omitempty"`
-	PagingOptions  storePagingOptions `json:"pagingOptions,omitempty"`
+	Topic          string              `json:"pubsubTopic,omitempty"`
+	ContentFilters []*pb.ContentFilter `json:"contentFilters,omitempty"`
+	StartTime      int64               `json:"startTime,omitempty"`
+	EndTime        int64               `json:"endTime,omitempty"`
+	PagingOptions  storePagingOptions  `json:"pagingOptions,omitempty"`
 }
 
 type storeMessagesReply struct {
-	Messages   []*pb.WakuMessage  `json:"messages,omitempty"`
+	Messages   []*wpb.WakuMessage `json:"messages,omitempty"`
 	PagingInfo storePagingOptions `json:"pagingInfo,omitempty"`
 	Error      string             `json:"error,omitempty"`
 }

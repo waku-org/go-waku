@@ -9,14 +9,14 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-func wakuMessage(messageJSON string) (pb.WakuMessage, error) {
-	var msg pb.WakuMessage
+func wakuMessage(messageJSON string) (*pb.WakuMessage, error) {
+	var msg *pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
 	msg.Version = 0
 	return msg, err
 }
 
-func wakuMessageSymmetricEncoding(messageJSON string, symmetricKey string, optionalSigningKey string) (pb.WakuMessage, error) {
+func wakuMessageSymmetricEncoding(messageJSON string, symmetricKey string, optionalSigningKey string) (*pb.WakuMessage, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return msg, err
@@ -54,7 +54,7 @@ func wakuMessageSymmetricEncoding(messageJSON string, symmetricKey string, optio
 	return msg, err
 }
 
-func wakuMessageAsymmetricEncoding(messageJSON string, publicKey string, optionalSigningKey string) (pb.WakuMessage, error) {
+func wakuMessageAsymmetricEncoding(messageJSON string, publicKey string, optionalSigningKey string) (*pb.WakuMessage, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return msg, err

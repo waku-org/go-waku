@@ -11,13 +11,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-msgio/protoio"
+	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.opencensus.io/tag"
 	"go.uber.org/zap"
@@ -87,7 +87,7 @@ func (wf *WakuFilterFull) onRequest(ctx context.Context) func(s network.Stream) 
 		defer s.Close()
 		logger := wf.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
 
-		reader := protoio.NewDelimitedReader(s, math.MaxInt32)
+		reader := pbio.NewDelimitedReader(s, math.MaxInt32)
 
 		subscribeRequest := &pb.FilterSubscribeRequest{}
 		err := reader.ReadMsg(subscribeRequest)
@@ -125,7 +125,7 @@ func reply(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequ
 		response.StatusDesc = http.StatusText(statusCode)
 	}
 
-	writer := protoio.NewDelimitedWriter(s)
+	writer := pbio.NewDelimitedWriter(s)
 	err := writer.WriteMsg(response)
 	if err != nil {
 		logger.Error("sending response", zap.Error(err))
@@ -251,7 +251,7 @@ func (wf *WakuFilterFull) pushMessage(ctx context.Context, peerID peer.ID, env *
 	}
 
 	defer conn.Close()
-	writer := protoio.NewDelimitedWriter(conn)
+	writer := pbio.NewDelimitedWriter(conn)
 	err = writer.WriteMsg(messagePush)
 	if err != nil {
 		logger.Error("pushing messages to peer", zap.Error(err))

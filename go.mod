@@ -9,15 +9,14 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.10.25
-	github.com/gogo/protobuf v1.3.2
 	github.com/golang-migrate/migrate/v4 v4.15.2
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/rpc v1.2.0
 	github.com/ipfs/go-ds-sql v0.3.0
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/libp2p/go-libp2p v0.23.2
 	github.com/libp2p/go-libp2p-pubsub v0.8.1
-	github.com/libp2p/go-msgio v0.2.0
+	github.com/libp2p/go-msgio v0.3.0
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
@@ -41,7 +40,10 @@ require (
 	github.com/waku-org/go-noise v0.0.4
 )
 
-require github.com/BurntSushi/toml v1.2.1 // indirect
+require (
+	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
+)
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
@@ -162,7 +164,7 @@ require (
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
+	google.golang.org/protobuf v1.28.1
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
