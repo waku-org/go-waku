@@ -7,12 +7,12 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 )
 
 type FilterArgument struct {
-	Topic          string             `json:"pubsubTopic,omitempty"`
-	ContentFilters []pb.ContentFilter `json:"contentFilters,omitempty"`
+	Topic          string                            `json:"pubsubTopic,omitempty"`
+	ContentFilters []*pb.FilterRequest_ContentFilter `json:"contentFilters,omitempty"`
 }
 
 func toContentFilter(filterJSON string) (filter.ContentFilter, error) {

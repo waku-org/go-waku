@@ -28,7 +28,7 @@ func RelayEnoughPeers(topic string) string {
 	return PrepareJSONResponse(wakuNode.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil)
 }
 
-func relayPublish(msg pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
+func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
 	if wakuNode == nil {
 		return "", errWakuNodeNotReady
 	}
@@ -43,7 +43,7 @@ func relayPublish(msg pb.WakuMessage, pubsubTopic string, ms int) (string, error
 		ctx = context.Background()
 	}
 
-	hash, err := wakuNode.Relay().PublishToTopic(ctx, &msg, pubsubTopic)
+	hash, err := wakuNode.Relay().PublishToTopic(ctx, msg, pubsubTopic)
 	return hexutil.Encode(hash), err
 }
 

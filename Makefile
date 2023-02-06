@@ -85,11 +85,7 @@ _after-cc:
 test-ci: _before-cc test _after-cc
 
 generate:
-	${GOBIN} generate ./waku/v2/protocol/pb/generate.go
-	${GOBIN} generate ./waku/persistence/sqlite/migrations/sql
-	${GOBIN} generate ./waku/persistence/postgres/migrations/sql
-	${GOBIN} generate ./waku/v2/protocol/rln/contracts/generate.go
-	${GOBIN} generate ./waku/v2/protocol/rln/doc.go
+	${GOBIN} generate ./...
 	
 
 coverage:

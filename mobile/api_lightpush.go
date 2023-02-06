@@ -11,7 +11,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 )
 
-func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms int) (string, error) {
+func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms int) (string, error) {
 	if wakuNode == nil {
 		return "", errWakuNodeNotReady
 	}
@@ -37,7 +37,7 @@ func lightpushPublish(msg pb.WakuMessage, pubsubTopic string, peerID string, ms 
 		lpOptions = append(lpOptions, lightpush.WithAutomaticPeerSelection())
 	}
 
-	hash, err := wakuNode.Lightpush().PublishToTopic(ctx, &msg, pubsubTopic, lpOptions...)
+	hash, err := wakuNode.Lightpush().PublishToTopic(ctx, msg, pubsubTopic, lpOptions...)
 	return hexutil.Encode(hash), err
 }
 

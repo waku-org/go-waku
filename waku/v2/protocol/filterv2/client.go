@@ -13,12 +13,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-msgio/protoio"
+	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.opencensus.io/tag"
 	"go.uber.org/zap"
@@ -111,7 +112,7 @@ func (wf *WakuFilterLightnode) onRequest(ctx context.Context) func(s network.Str
 		defer s.Close()
 		logger := wf.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
 
-		reader := protoio.NewDelimitedReader(s, math.MaxInt32)
+		reader := pbio.NewDelimitedReader(s, math.MaxInt32)
 
 		messagePush := &pb.MessagePushV2{}
 		err := reader.ReadMsg(messagePush)
@@ -126,7 +127,7 @@ func (wf *WakuFilterLightnode) onRequest(ctx context.Context) func(s network.Str
 	}
 }
 
-func (wf *WakuFilterLightnode) notify(remotePeerID peer.ID, pubsubTopic string, msg *pb.WakuMessage) {
+func (wf *WakuFilterLightnode) notify(remotePeerID peer.ID, pubsubTopic string, msg *wpb.WakuMessage) {
 	envelope := protocol.NewEnvelope(msg, wf.timesource.Now().UnixNano(), pubsubTopic)
 
 	// Broadcasting message so it's stored
@@ -149,8 +150,8 @@ func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscr
 	}
 	defer conn.Close()
 
-	writer := protoio.NewDelimitedWriter(conn)
-	reader := protoio.NewDelimitedReader(conn, math.MaxInt32)
+	writer := pbio.NewDelimitedWriter(conn)
+	reader := pbio.NewDelimitedReader(conn, math.MaxInt32)
 
 	request := &pb.FilterSubscribeRequest{
 		RequestId:           hex.EncodeToString(params.requestId),

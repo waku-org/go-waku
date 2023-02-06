@@ -13,7 +13,8 @@ import (
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -75,7 +76,7 @@ func TestFilterSubscription(t *testing.T) {
 	_, err = d.node.AddPeer(addr, string(filter.FilterID_v20beta1))
 	require.NoError(t, err)
 
-	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []pb.ContentFilter{{ContentTopic: "ct"}}}
+	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: "ct"}}}
 
 	var reply SuccessReply
 	err = d.PostV1Subscription(
@@ -117,7 +118,7 @@ func TestFilterGetV1Messages(t *testing.T) {
 	// Wait for the dial to complete
 	time.Sleep(1 * time.Second)
 
-	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []pb.ContentFilter{{ContentTopic: "ct"}}}
+	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: "ct"}}}
 	err = serviceB.PostV1Subscription(
 		makeRequest(t),
 		args,
@@ -131,7 +132,7 @@ func TestFilterGetV1Messages(t *testing.T) {
 
 	_, err = serviceA.node.Relay().PublishToTopic(
 		context.Background(),
-		&pb.WakuMessage{ContentTopic: "ct"},
+		&wpb.WakuMessage{ContentTopic: "ct"},
 		testTopic,
 	)
 	require.NoError(t, err)
