@@ -67,11 +67,13 @@ func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
 }
 
 func (r *RelayService) Start() {
+	r.messagesMutex.Lock()
 	// Node may already be subscribed to some topics when Relay API handlers are installed. Let's add these
 	for _, topic := range r.node.Relay().Topics() {
 		r.log.Info("adding topic handler for existing subscription", zap.String("topic", topic))
 		r.messages[topic] = make([]*pb.WakuMessage, 0)
 	}
+	r.messagesMutex.Unlock()
 
 	r.runner.Start()
 }
