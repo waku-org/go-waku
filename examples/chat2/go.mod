@@ -16,7 +16,7 @@ require (
 	github.com/libp2p/go-libp2p v0.23.2
 	github.com/muesli/reflow v0.3.0
 	github.com/multiformats/go-multiaddr v0.7.0
-	github.com/urfave/cli/v2 v2.20.2
+	github.com/urfave/cli/v2 v2.23.7
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
 	github.com/waku-org/go-zerokit-rln v0.1.7-wakuorg
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
@@ -25,6 +25,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -154,5 +155,6 @@ require (
 	golang.org/x/tools v0.1.12 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )

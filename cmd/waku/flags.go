@@ -295,6 +295,12 @@ var (
 		Destination: &options.Filter.Enable,
 		EnvVars:     []string{"WAKUNODE2_FILTER"},
 	})
+	FilterV2Flag = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "use-filterv2",
+		Usage:       "Use filterV2 protocol (experimental)",
+		Destination: &options.Filter.UseV2,
+		EnvVars:     []string{"WAKUNODE2_FILTERV2"},
+	})
 	LightClient = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "light-client",
 		Usage:       "Don't accept filter subscribers",

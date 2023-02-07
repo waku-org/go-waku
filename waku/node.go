@@ -193,7 +193,14 @@ func Execute(options Options) {
 	}
 
 	if options.Filter.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
+		if options.Filter.UseV2 {
+			if !options.Filter.DisableFullNode {
+				nodeOpts = append(nodeOpts, node.WithWakuFilterV2FullNode(filter.WithTimeout(options.Filter.Timeout)))
+			}
+			nodeOpts = append(nodeOpts, node.WithWakuFilterV2LightNode())
+		} else {
+			nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
+		}
 	}
 
 	if options.Store.Enable {
@@ -266,7 +273,12 @@ func Execute(options Options) {
 
 	addPeers(wakuNode, options.Store.Nodes, string(store.StoreID_v20beta4))
 	addPeers(wakuNode, options.LightPush.Nodes, string(lightpush.LightPushID_v20beta1))
-	addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
+
+	if options.Filter.UseV2 {
+		addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
+	} else {
+		addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
+	}
 
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))

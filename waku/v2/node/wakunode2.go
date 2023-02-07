@@ -32,6 +32,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
@@ -78,6 +79,7 @@ type WakuNode struct {
 	discoveryV5   Service
 	peerExchange  Service
 	filter        ReceptorService
+	filterV2      ReceptorService
 	store         ReceptorService
 	rlnRelay      RLNRelay
 
@@ -208,6 +210,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
+	w.filterV2 = filterv2.NewWakuFilter(w.host, w.bcaster, w.timesource, w.log, w.opts.filterOpts...)
 	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
 
 	if w.opts.enableSwap {
@@ -353,6 +356,16 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		w.bcaster.Register(nil, w.filter.MessageChannel())
 	}
 
+	if w.opts.enableFilterV2FullNode {
+		err := w.filterV2.Start(ctx)
+		if err != nil {
+			return err
+		}
+
+		w.log.Info("Subscribing filterV2 to broadcaster")
+		w.bcaster.Register(nil, w.filterV2.MessageChannel())
+	}
+
 	err = w.setupENR(ctx, w.ListenAddresses())
 	if err != nil {
 		return err
@@ -394,6 +407,7 @@ func (w *WakuNode) Stop() {
 	w.lightPush.Stop()
 	w.store.Stop()
 	w.filter.Stop()
+	w.filterV2.Stop()
 	w.peerExchange.Stop()
 
 	if w.opts.enableDiscV5 {

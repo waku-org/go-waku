@@ -59,12 +59,14 @@ type WakuNodeParameters struct {
 
 	logger *zap.Logger
 
-	noDefaultWakuTopic bool
-	enableRelay        bool
-	enableFilter       bool
-	isFilterFullNode   bool
-	filterOpts         []filter.Option
-	wOpts              []pubsub.Option
+	noDefaultWakuTopic      bool
+	enableRelay             bool
+	enableFilter            bool
+	isFilterFullNode        bool
+	enableFilterV2LightNode bool
+	enableFilterV2FullNode  bool
+	filterOpts              []filter.Option
+	wOpts                   []pubsub.Option
 
 	minRelayPeersToPublish int
 
@@ -329,12 +331,30 @@ func WithPeerExchange() WakuNodeOption {
 	}
 }
 
-// WithWakuFilter enables the Waku V2 Filter protocol. This WakuNodeOption
+// WithWakuFilter enables the Waku Filter protocol. This WakuNodeOption
 // accepts a list of WakuFilter gossipsub options to setup the protocol
 func WithWakuFilter(fullNode bool, filterOpts ...filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableFilter = true
 		params.isFilterFullNode = fullNode
+		params.filterOpts = filterOpts
+		return nil
+	}
+}
+
+// WithWakuFilterV2 enables the Waku Filter V2 protocol for lightnode functionality
+func WithWakuFilterV2LightNode() WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableFilterV2LightNode = true
+		return nil
+	}
+}
+
+// WithWakuFilterV2FullNode enables the Waku Filter V2 protocol full node functionality.
+// This WakuNodeOption accepts a list of WakuFilter options to setup the protocol
+func WithWakuFilterV2FullNode(filterOpts ...filter.Option) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableFilterV2FullNode = true
 		params.filterOpts = filterOpts
 		return nil
 	}

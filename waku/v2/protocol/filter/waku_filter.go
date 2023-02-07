@@ -80,7 +80,7 @@ func NewWakuFilter(host host.Host, broadcaster v2.Broadcaster, isFullNode bool, 
 	wf.h = host
 	wf.isFullNode = isFullNode
 	wf.filters = NewFilterMap(broadcaster, timesource)
-	wf.subscribers = NewSubscribers(params.timeout)
+	wf.subscribers = NewSubscribers(params.Timeout)
 
 	return wf
 }
@@ -287,7 +287,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 
 	writer := protoio.NewDelimitedWriter(conn)
 	filterRPC := &pb.FilterRPC{RequestId: requestID, Request: &request}
-	wf.log.Info("sending filterRPC", zap.Stringer("rpc", filterRPC))
+	wf.log.Debug("sending filterRPC", zap.Stringer("rpc", filterRPC))
 	err = writer.WriteMsg(filterRPC)
 	if err != nil {
 		wf.log.Error("sending filterRPC", zap.Error(err))
