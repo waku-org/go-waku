@@ -117,7 +117,7 @@ func getFlags() []cli.Flag {
 		},
 		&cli.BoolFlag{
 			Name:        "store",
-			Usage:       "Enable relay protocol",
+			Usage:       "Enable store protocol",
 			Value:       true,
 			Destination: &options.Store.Enable,
 		},
@@ -132,6 +132,11 @@ func getFlags() []cli.Flag {
 			Name:        "filter",
 			Usage:       "Enable filter protocol",
 			Destination: &options.Filter.Enable,
+		},
+		&cli.BoolFlag{
+			Name:        "use-filterv2",
+			Usage:       "Use filterV2 protocol (experimental)",
+			Destination: &options.Filter.UseV2,
 		},
 		&cli.GenericFlag{
 			Name:  "filternode",

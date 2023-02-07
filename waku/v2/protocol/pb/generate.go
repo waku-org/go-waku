@@ -6,3 +6,4 @@ package pb
 //go:generate protoc -I. --gofast_out=. ./waku_store.proto
 //go:generate protoc -I. --gofast_out=. ./waku_swap.proto
 //go:generate protoc -I. --gofast_out=. ./waku_peer_exchange.proto
+//go:generate protoc -I. --gofast_out=. ./waku_filter_v2.proto

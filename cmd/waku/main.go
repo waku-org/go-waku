@@ -58,6 +58,7 @@ func main() {
 		SwapPaymentThreshold,
 		SwapDisconnectThreshold,
 		FilterFlag,
+		FilterV2Flag,
 		LightClient,
 		FilterNode,
 		FilterTimeout,

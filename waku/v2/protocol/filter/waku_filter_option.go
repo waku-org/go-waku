@@ -20,7 +20,7 @@ type (
 	FilterSubscribeOption func(*FilterSubscribeParameters)
 
 	FilterParameters struct {
-		timeout time.Duration
+		Timeout time.Duration
 	}
 
 	Option func(*FilterParameters)
@@ -28,7 +28,7 @@ type (
 
 func WithTimeout(timeout time.Duration) Option {
 	return func(params *FilterParameters) {
-		params.timeout = timeout
+		params.Timeout = timeout
 	}
 }
 
