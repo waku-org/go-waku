@@ -35,6 +35,7 @@ func TestWakuRelay(t *testing.T) {
 	require.Equal(t, testTopic, topics[0])
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	go func() {
 		defer cancel()
 
