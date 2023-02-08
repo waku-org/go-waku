@@ -56,26 +56,6 @@ func failOnErr(err error, msg string) {
 	}
 }
 
-func freePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-
-	port := l.Addr().(*net.TCPAddr).Port
-	err = l.Close()
-	if err != nil {
-		return 0, err
-	}
-
-	return port, nil
-}
-
 const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
@@ -127,21 +107,8 @@ func Execute(options Options) {
 		node.WithKeepAlive(options.KeepAlive),
 	}
 
-	if options.AdvertiseAddress != "" {
-		advertiseAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.AdvertiseAddress, options.Port))
-		failOnErr(err, "Invalid advertise address")
-
-		if advertiseAddr.Port == 0 {
-			for {
-				p, err := freePort()
-				if err == nil {
-					advertiseAddr.Port = p
-					break
-				}
-			}
-		}
-
-		nodeOpts = append(nodeOpts, node.WithAdvertiseAddress(advertiseAddr))
+	if len(options.AdvertiseAddresses) != 0 {
+		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))
 	}
 
 	if options.Dns4DomainName != "" {
@@ -149,7 +116,7 @@ func Execute(options Options) {
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
-	if options.AdvertiseAddress == "" {
+	if len(options.AdvertiseAddresses) == 0 {
 		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
 	}
 

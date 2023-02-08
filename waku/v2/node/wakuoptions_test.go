@@ -27,15 +27,13 @@ func TestWakuOptions(t *testing.T) {
 	addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4000/ws")
 	require.NoError(t, err)
 
-	advertiseAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
-
 	storeFactory := func(w *WakuNode) store.Store {
 		return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.timesource, w.log)
 	}
 
 	options := []WakuNodeOption{
 		WithHostAddress(hostAddr),
-		WithAdvertiseAddress(advertiseAddr),
+		WithAdvertiseAddresses(addr),
 		WithMultiaddress([]multiaddr.Multiaddr{addr}),
 		WithPrivateKey(prvKey),
 		WithLibP2POptions(),

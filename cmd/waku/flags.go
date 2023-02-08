@@ -147,11 +147,13 @@ var (
 		Destination: &options.NAT, // TODO: accept none,any,upnp,extaddr
 		EnvVars:     []string{"WAKUNODE2_NAT"},
 	})
-	AdvertiseAddress = altsrc.NewStringFlag(&cli.StringFlag{
-		Name:        "advertise-address",
-		Usage:       "External address to advertise to other nodes (overrides --address and --ws-address flags)",
-		Destination: &options.AdvertiseAddress,
-		EnvVars:     []string{"WAKUNODE2_ADVERTISE_ADDRESS"},
+	AdvertiseAddress = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
+		Name:  "ext-multiaddr",
+		Usage: "External address to advertise to other nodes. Ooverrides --address and --ws-address flags. Option may be repeated",
+		Value: &cliutils.MultiaddrSlice{
+			Values: &options.AdvertiseAddresses,
+		},
+		EnvVars: []string{"WAKUNODE2_EXT_MULTIADDR"},
 	})
 	ShowAddresses = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "show-addresses",
