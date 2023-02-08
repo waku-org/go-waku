@@ -36,7 +36,7 @@ type (
 		wg     *sync.WaitGroup
 		log    *zap.Logger
 
-		subscriptions *SubscriptionMap
+		subscriptions *SubscribersMap
 	}
 )
 
@@ -54,7 +54,7 @@ func NewWakuFilter(host host.Host, broadcaster v2.Broadcaster, timesource timeso
 
 	wf.wg = &sync.WaitGroup{}
 	wf.h = host
-	wf.subscriptions = NewSubscriptionMap(broadcaster, timesource, params.Timeout)
+	wf.subscriptions = NewSubscribersMap(params.Timeout)
 
 	return wf
 }
@@ -78,7 +78,7 @@ func (wf *WakuFilter) Start(ctx context.Context) error {
 	wf.wg.Add(1)
 	go wf.filterListener(ctx)
 
-	wf.log.Info("filter protocol started")
+	wf.log.Info("filter protocol (full) started")
 
 	return nil
 }
