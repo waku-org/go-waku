@@ -157,6 +157,7 @@ func Test500(t *testing.T) {
 			if err := wakuNode2.Publish(ctx, msg); err != nil {
 				require.Fail(t, "Could not publish all messages")
 			}
+			time.Sleep(5 * time.Millisecond)
 		}
 	}()
 
