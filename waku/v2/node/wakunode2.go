@@ -554,8 +554,8 @@ func (w *WakuNode) mountDiscV5() error {
 		discv5.WithAutoUpdate(w.opts.discV5autoUpdate),
 	}
 
-	if w.opts.advertiseAddr != nil {
-		discV5Options = append(discV5Options, discv5.WithAdvertiseAddr(*w.opts.advertiseAddr))
+	if w.opts.advertiseAddrs != nil {
+		discV5Options = append(discV5Options, discv5.WithAdvertiseAddr(w.opts.advertiseAddrs))
 	}
 
 	var err error

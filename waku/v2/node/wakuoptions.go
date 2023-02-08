@@ -23,6 +23,7 @@ import (
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	"github.com/multiformats/go-multiaddr"
+	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -42,7 +43,7 @@ const defaultMinRelayPeersToPublish = 0
 type WakuNodeParameters struct {
 	hostAddr       *net.TCPAddr
 	dns4Domain     string
-	advertiseAddr  *net.IP
+	advertiseAddrs []multiaddr.Multiaddr
 	multiAddr      []multiaddr.Multiaddr
 	addressFactory basichost.AddrsFactory
 	privKey        *ecdsa.PrivateKey
@@ -199,32 +200,12 @@ func WithHostAddress(hostAddr *net.TCPAddr) WakuNodeOption {
 	}
 }
 
-// WithAdvertiseAddress is a WakuNodeOption that allows overriding the address used in the waku node with custom value
-func WithAdvertiseAddress(address *net.TCPAddr) WakuNodeOption {
+// WithAdvertiseAddresses is a WakuNodeOption that allows overriding the address used in the waku node with custom value
+func WithAdvertiseAddresses(advertiseAddrs ...ma.Multiaddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.advertiseAddr = &address.IP
-
-		advertiseAddress, err := manet.FromNetAddr(address)
-		if err != nil {
-			return err
-		}
-
+		params.advertiseAddrs = advertiseAddrs
 		params.addressFactory = func([]multiaddr.Multiaddr) (addresses []multiaddr.Multiaddr) {
-			addresses = append(addresses, advertiseAddress)
-			if params.enableWSS {
-				wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/wss", address.IP, params.wssPort))
-				if err != nil {
-					panic(err)
-				}
-				addresses = append(addresses, wsMa)
-			} else if params.enableWS {
-				wsMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d/ws", address.IP, params.wsPort))
-				if err != nil {
-					panic(err)
-				}
-				addresses = append(addresses, wsMa)
-			}
-			return addresses
+			return advertiseAddrs
 		}
 		return nil
 	}
