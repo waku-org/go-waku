@@ -8,9 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	v2 "github.com/waku-org/go-waku/waku/v2"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -21,36 +18,26 @@ type PeerSet map[peer.ID]struct{}
 
 type PubsubTopics map[string]ContentTopicSet // pubsubTopic => contentTopics
 
-type SubscriptionMap struct {
+type SubscribersMap struct {
 	sync.RWMutex
-	timesource timesource.Timesource
 
 	items       map[peer.ID]PubsubTopics
 	interestMap map[string]PeerSet // key: sha256(pubsubTopic-contentTopic) => peers
 
 	timeout     time.Duration
 	failedPeers map[peer.ID]time.Time
-
-	broadcaster v2.Broadcaster
 }
 
-type SubscriptionItem struct {
-	Key   peer.ID
-	Value PubsubTopics
-}
-
-func NewSubscriptionMap(broadcaster v2.Broadcaster, timesource timesource.Timesource, timeout time.Duration) *SubscriptionMap {
-	return &SubscriptionMap{
-		timesource:  timesource,
+func NewSubscribersMap(timeout time.Duration) *SubscribersMap {
+	return &SubscribersMap{
 		items:       make(map[peer.ID]PubsubTopics),
 		interestMap: make(map[string]PeerSet),
-		broadcaster: broadcaster,
 		timeout:     timeout,
 		failedPeers: make(map[peer.ID]time.Time),
 	}
 }
 
-func (sub *SubscriptionMap) Set(peerID peer.ID, pubsubTopic string, contentTopics []string) {
+func (sub *SubscribersMap) Set(peerID peer.ID, pubsubTopic string, contentTopics []string) {
 	sub.Lock()
 	defer sub.Unlock()
 
@@ -83,7 +70,7 @@ func (sub *SubscriptionMap) Set(peerID peer.ID, pubsubTopic string, contentTopic
 	}
 }
 
-func (sub *SubscriptionMap) Get(peerID peer.ID) (PubsubTopics, bool) {
+func (sub *SubscribersMap) Get(peerID peer.ID) (PubsubTopics, bool) {
 	sub.RLock()
 	defer sub.RUnlock()
 
@@ -92,7 +79,7 @@ func (sub *SubscriptionMap) Get(peerID peer.ID) (PubsubTopics, bool) {
 	return value, ok
 }
 
-func (sub *SubscriptionMap) Has(peerID peer.ID) bool {
+func (sub *SubscribersMap) Has(peerID peer.ID) bool {
 	sub.RLock()
 	defer sub.RUnlock()
 
@@ -101,7 +88,7 @@ func (sub *SubscriptionMap) Has(peerID peer.ID) bool {
 	return ok
 }
 
-func (sub *SubscriptionMap) Delete(peerID peer.ID, pubsubTopic string, contentTopics []string) error {
+func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTopics []string) error {
 	sub.Lock()
 	defer sub.Unlock()
 
@@ -146,7 +133,7 @@ func (sub *SubscriptionMap) Delete(peerID peer.ID, pubsubTopic string, contentTo
 	return nil
 }
 
-func (sub *SubscriptionMap) deleteAll(peerID peer.ID) error {
+func (sub *SubscribersMap) deleteAll(peerID peer.ID) error {
 	pubsubTopicMap, ok := sub.items[peerID]
 	if !ok {
 		return ErrNotFound
@@ -169,14 +156,14 @@ func (sub *SubscriptionMap) deleteAll(peerID peer.ID) error {
 	return nil
 }
 
-func (sub *SubscriptionMap) DeleteAll(peerID peer.ID) error {
+func (sub *SubscribersMap) DeleteAll(peerID peer.ID) error {
 	sub.Lock()
 	defer sub.Unlock()
 
 	return sub.deleteAll(peerID)
 }
 
-func (sub *SubscriptionMap) RemoveAll() {
+func (sub *SubscribersMap) RemoveAll() {
 	sub.Lock()
 	defer sub.Unlock()
 
@@ -185,7 +172,8 @@ func (sub *SubscriptionMap) RemoveAll() {
 		delete(sub.items, k)
 	}
 }
-func (sub *SubscriptionMap) Items(pubsubTopic string, contentTopic string) <-chan peer.ID {
+
+func (sub *SubscribersMap) Items(pubsubTopic string, contentTopic string) <-chan peer.ID {
 	c := make(chan peer.ID)
 
 	onlyPubsubTopicKey := getKey(pubsubTopic, nil)
@@ -194,11 +182,17 @@ func (sub *SubscriptionMap) Items(pubsubTopic string, contentTopic string) <-cha
 	f := func() {
 		sub.RLock()
 		defer sub.RUnlock()
-		for p := range sub.interestMap[onlyPubsubTopicKey] {
-			c <- p
+
+		if peers, ok := sub.interestMap[onlyPubsubTopicKey]; ok {
+			for p := range peers {
+				c <- p
+			}
 		}
-		for p := range sub.interestMap[pubsubAndContentTopicKey] {
-			c <- p
+
+		if peers, ok := sub.interestMap[pubsubAndContentTopicKey]; ok {
+			for p := range peers {
+				c <- p
+			}
 		}
 		close(c)
 	}
@@ -207,35 +201,7 @@ func (sub *SubscriptionMap) Items(pubsubTopic string, contentTopic string) <-cha
 	return c
 }
 
-func (fm *SubscriptionMap) Notify(msg *pb.WakuMessage, peerID peer.ID) {
-	/*fm.RLock()
-	defer fm.RUnlock()
-
-	filter, ok := fm.items[peerID]
-	if !ok {
-		return
-	}
-
-	envelope := protocol.NewEnvelope(msg, fm.timesource.Now().UnixNano(), filter.Topic)
-
-	// Broadcasting message so it's stored
-	fm.broadcaster.Submit(envelope)
-
-	if msg.ContentTopic == "" {
-		filter.Chan <- envelope
-	}
-
-	// TODO: In case of no topics we should either trigger here for all messages,
-	// or we should not allow such filter to exist in the first place.
-	for _, contentTopic := range filter.ContentFilters {
-		if msg.ContentTopic == contentTopic {
-			filter.Chan <- envelope
-			break
-		}
-	}*/
-}
-
-func (sub *SubscriptionMap) addToInterestMap(peerID peer.ID, pubsubTopic string, contentTopic *string) {
+func (sub *SubscribersMap) addToInterestMap(peerID peer.ID, pubsubTopic string, contentTopic *string) {
 	key := getKey(pubsubTopic, contentTopic)
 	peerSet, ok := sub.interestMap[key]
 	if !ok {
@@ -245,9 +211,12 @@ func (sub *SubscriptionMap) addToInterestMap(peerID peer.ID, pubsubTopic string,
 	sub.interestMap[key] = peerSet
 }
 
-func (sub *SubscriptionMap) removeFromInterestMap(peerID peer.ID, pubsubTopic string, contentTopic *string) {
+func (sub *SubscribersMap) removeFromInterestMap(peerID peer.ID, pubsubTopic string, contentTopic *string) {
 	key := getKey(pubsubTopic, contentTopic)
-	delete(sub.interestMap, key)
+	_, exists := sub.interestMap[key]
+	if exists {
+		delete(sub.interestMap[key], peerID)
+	}
 }
 
 func getKey(pubsubTopic string, contentTopic *string) string {
@@ -260,14 +229,14 @@ func getKey(pubsubTopic string, contentTopic *string) string {
 	}
 }
 
-func (sub *SubscriptionMap) IsFailedPeer(peerID peer.ID) bool {
+func (sub *SubscribersMap) IsFailedPeer(peerID peer.ID) bool {
 	sub.RLock()
 	defer sub.RUnlock()
 	_, ok := sub.failedPeers[peerID]
 	return ok
 }
 
-func (sub *SubscriptionMap) FlagAsSuccess(peerID peer.ID) {
+func (sub *SubscribersMap) FlagAsSuccess(peerID peer.ID) {
 	sub.Lock()
 	defer sub.Unlock()
 
@@ -277,7 +246,7 @@ func (sub *SubscriptionMap) FlagAsSuccess(peerID peer.ID) {
 	}
 }
 
-func (sub *SubscriptionMap) FlagAsFailure(peerID peer.ID) {
+func (sub *SubscribersMap) FlagAsFailure(peerID peer.ID) {
 	sub.Lock()
 	defer sub.Unlock()
 

@@ -79,7 +79,8 @@ type WakuNode struct {
 	discoveryV5   Service
 	peerExchange  Service
 	filter        ReceptorService
-	filterV2      ReceptorService
+	filterV2Full  ReceptorService
+	filterV2Light Service
 	store         ReceptorService
 	rlnRelay      RLNRelay
 
@@ -210,7 +211,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
-	w.filterV2 = filterv2.NewWakuFilter(w.host, w.bcaster, w.timesource, w.log, w.opts.filterOpts...)
+	w.filterV2Full = filterv2.NewWakuFilter(w.host, w.bcaster, w.timesource, w.log, w.opts.filterOpts...)
+	w.filterV2Light = filterv2.NewWakuFilterPush(w.host, w.bcaster, w.timesource, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
 
 	if w.opts.enableSwap {
@@ -357,13 +359,20 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	if w.opts.enableFilterV2FullNode {
-		err := w.filterV2.Start(ctx)
+		err := w.filterV2Full.Start(ctx)
 		if err != nil {
 			return err
 		}
 
 		w.log.Info("Subscribing filterV2 to broadcaster")
-		w.bcaster.Register(nil, w.filterV2.MessageChannel())
+		w.bcaster.Register(nil, w.filterV2Full.MessageChannel())
+	}
+
+	if w.opts.enableFilterV2LightNode {
+		err := w.filterV2Light.Start(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = w.setupENR(ctx, w.ListenAddresses())
@@ -407,7 +416,7 @@ func (w *WakuNode) Stop() {
 	w.lightPush.Stop()
 	w.store.Stop()
 	w.filter.Stop()
-	w.filterV2.Stop()
+	w.filterV2Full.Stop()
 	w.peerExchange.Stop()
 
 	if w.opts.enableDiscV5 {
@@ -498,6 +507,14 @@ func (w *WakuNode) Store() store.Store {
 // Filter is used to access any operation related to Waku Filter protocol
 func (w *WakuNode) Filter() *filter.WakuFilter {
 	if result, ok := w.filter.(*filter.WakuFilter); ok {
+		return result
+	}
+	return nil
+}
+
+// FilterV2 is used to access any operation related to Waku Filter protocol
+func (w *WakuNode) FilterV2() *filterv2.WakuFilterPush {
+	if result, ok := w.filterV2Light.(*filterv2.WakuFilterPush); ok {
 		return result
 	}
 	return nil
