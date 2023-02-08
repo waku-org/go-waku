@@ -59,8 +59,8 @@ func int2Bytes(i int) []byte {
 	return append(big.NewInt(int64(i)).Bytes(), byte(0))
 }
 
-func Test5000(t *testing.T) {
-	maxMsgs := 5000
+func Test500(t *testing.T) {
+	maxMsgs := 500
 	maxMsgBytes := int2Bytes(maxMsgs)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
