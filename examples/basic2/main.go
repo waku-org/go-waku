@@ -21,6 +21,7 @@ import (
 )
 
 var log = utils.Logger().Named("basic2")
+var contentTopic = protocol.NewContentTopic("basic2", 1, "test", "proto").String()
 
 func main() {
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
@@ -76,8 +77,6 @@ func randomHex(n int) (string, error) {
 }
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
-	contentTopic := protocol.NewContentTopic("basic2", 1, "test", "proto")
-
 	var version uint32 = 0
 	var timestamp int64 = utils.GetUnixEpoch(wakuNode.Timesource())
 
@@ -94,7 +93,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	msg := &pb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
-		ContentTopic: contentTopic.String(),
+		ContentTopic: contentTopic,
 		Timestamp:    timestamp,
 	}
 
@@ -118,11 +117,15 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 		return
 	}
 
-	for value := range sub.C {
-		payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
+	for envelope := range sub.C {
+		if envelope.Message().ContentTopic != contentTopic {
+			continue
+		}
+
+		payload, err := payload.DecodePayload(envelope.Message(), &payload.KeyInfo{Kind: payload.None})
 		if err != nil {
-			fmt.Println(err)
-			return
+			log.Error("Error decoding payload", zap.Error(err))
+			continue
 		}
 
 		log.Info("Received msg, ", zap.String("data", string(payload.Data)))
