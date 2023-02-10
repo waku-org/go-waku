@@ -81,7 +81,7 @@ func Execute(options Options) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	if options.Store.Enable {
-		db, migrationFn, err = extractDBAndMigration(options.Store.DatabaseURL)
+		db, migrationFn, err = ExtractDBAndMigration(options.Store.DatabaseURL)
 		failOnErr(err, "Could not connect to DB")
 	}
 

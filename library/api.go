@@ -34,6 +34,10 @@ func main() {}
 // - discV5BootstrapNodes: Array of bootstrap nodes ENR
 // - discV5UDPPort: UDP port for DiscoveryV5
 // - logLevel: Set the log level. Default `INFO`. Allowed values "DEBUG", "INFO", "WARN", "ERROR", "DPANIC", "PANIC", "FATAL"
+// - store: Enable Store. Default `false`
+// - databaseURL: url connection string. Default: "sqlite3://store.db". Also accepts PostgreSQL connection strings
+// - storeRetentionMaxMessages: max number of messages to store in the database. Default 10000
+// - storeRetentionTimeSeconds: max number of seconds that a message will be persisted in the database. Default 2592000 (30d)
 //
 //export waku_new
 func waku_new(configJSON *C.char) *C.char {

@@ -7,6 +7,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,7 +15,7 @@ import (
 	"net"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -22,6 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/waku"
+	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -52,11 +55,15 @@ type wakuConfig struct {
 	KeepAliveInterval    *int     `json:"keepAliveInterval,omitempty"`
 	EnableRelay          *bool    `json:"relay"`
 	RelayTopics          []string `json:"relayTopics,omitempty"`
-	EnableFilter         *bool    `json:"filter"`
-	MinPeersToPublish    *int     `json:"minPeersToPublish"`
-	EnableDiscV5         *bool    `json:"discV5"`
-	DiscV5BootstrapNodes []string `json:"discV5BootstrapNodes"`
-	DiscV5UDPPort        *uint    `json:"discV5UDPPort"`
+	EnableFilter         *bool    `json:"filter,omitempty"`
+	MinPeersToPublish    *int     `json:"minPeersToPublish,omitempty"`
+	EnableDiscV5         *bool    `json:"discV5,omitempty"`
+	DiscV5BootstrapNodes []string `json:"discV5BootstrapNodes,omitempty"`
+	DiscV5UDPPort        *uint    `json:"discV5UDPPort,omitempty"`
+	EnableStore          *bool    `json:"store,omitempty"`
+	DatabaseURL          *string  `json:"databaseURL,omitempty"`
+	RetentionMaxMessages *int     `json:"storeRetentionMaxMessages,omitempty"`
+	RetentionTimeSeconds *int     `json:"storeRetentionTimeSeconds,omitempty"`
 }
 
 var defaultHost = "0.0.0.0"
@@ -68,6 +75,10 @@ var defaultEnableFilter = false
 var defaultEnableDiscV5 = false
 var defaultDiscV5UDPPort = uint(9000)
 var defaultLogLevel = "INFO"
+var defaultEnableStore = false
+var defaultDatabaseURL = "sqlite3://store.db"
+var defaultRetentionMaxMessages = 10000
+var defaultRetentionTimeSeconds = 30 * 24 * 60 * 60 // 30d
 
 func getConfig(configJSON string) (wakuConfig, error) {
 	var config wakuConfig
@@ -116,6 +127,22 @@ func getConfig(configJSON string) (wakuConfig, error) {
 
 	if config.LogLevel == nil {
 		config.LogLevel = &defaultLogLevel
+	}
+
+	if config.EnableStore == nil {
+		config.EnableStore = &defaultEnableStore
+	}
+
+	if config.DatabaseURL == nil {
+		config.DatabaseURL = &defaultDatabaseURL
+	}
+
+	if config.RetentionMaxMessages == nil {
+		config.RetentionMaxMessages = &defaultRetentionMaxMessages
+	}
+
+	if config.RetentionTimeSeconds == nil {
+		config.RetentionTimeSeconds = &defaultRetentionTimeSeconds
 	}
 
 	return config, nil
@@ -168,6 +195,25 @@ func NewNode(configJSON string) string {
 		opts = append(opts, node.WithWakuFilter(false))
 	}
 
+	if *config.EnableStore {
+		var db *sql.DB
+		var migrationFn func(*sql.DB) error
+		db, migrationFn, err = waku.ExtractDBAndMigration(*config.DatabaseURL)
+		if err != nil {
+			return MakeJSONResponse(err)
+		}
+		opts = append(opts, node.WithWakuStore())
+		dbStore, err := persistence.NewDBStore(utils.Logger(),
+			persistence.WithDB(db),
+			persistence.WithMigrations(migrationFn),
+			persistence.WithRetentionPolicy(*config.RetentionMaxMessages, time.Duration(*config.RetentionTimeSeconds)*time.Second),
+		)
+		if err != nil {
+			return MakeJSONResponse(err)
+		}
+		opts = append(opts, node.WithMessageProvider(dbStore))
+	}
+
 	if *config.EnableDiscV5 {
 		var bootnodes []*enode.Node
 		for _, addr := range config.DiscV5BootstrapNodes {
@@ -182,12 +228,12 @@ func NewNode(configJSON string) string {
 
 	wakuRelayTopics = config.RelayTopics
 
-	// for go-libp2p loggers
-	lvl, err := logging.LevelFromString(*config.LogLevel)
+	lvl, err := zapcore.ParseLevel(*config.LogLevel)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
-	logging.SetAllLoggers(lvl)
+
+	opts = append(opts, node.WithLogLevel(lvl))
 
 	w, err := node.New(opts...)
 	if err != nil {

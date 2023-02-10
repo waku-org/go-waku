@@ -82,6 +82,7 @@ type criteriaFN = func(msg *pb.WakuMessage) (bool, error)
 
 type HistoryRequestParameters struct {
 	selectedPeer peer.ID
+	localQuery   bool
 	requestId    []byte
 	cursor       *pb.Index
 	pageSize     uint64
@@ -155,6 +156,12 @@ func WithPaging(asc bool, pageSize uint64) HistoryRequestOption {
 	}
 }
 
+func WithLocalQuery() HistoryRequestOption {
+	return func(params *HistoryRequestParameters) {
+		params.localQuery = true
+	}
+}
+
 // Default options to be used when querying a store node for results
 func DefaultOptions() []HistoryRequestOption {
 	return []HistoryRequestOption{
@@ -197,7 +204,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		return nil, err
 	}
 
-	historyResponseRPC := &pb.HistoryRPC{}
+	historyResponseRPC := &pb.HistoryRPC{RequestId: historyRequest.RequestId}
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
@@ -213,6 +220,29 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	}
 
 	metrics.RecordMessage(ctx, "retrieved", len(historyResponseRPC.Response.Messages))
+
+	return historyResponseRPC.Response, nil
+}
+
+func (store *WakuStore) localQuery(query *pb.HistoryQuery, requestId []byte) (*pb.HistoryResponse, error) {
+	logger := store.log
+	logger.Info("querying local message history")
+
+	if !store.started {
+		return nil, errors.New("not running local store")
+	}
+
+	historyResponseRPC := &pb.HistoryRPC{
+		RequestId: hex.EncodeToString(requestId),
+		Response:  store.FindMessages(query),
+	}
+
+	if historyResponseRPC.Response == nil {
+		// Empty response
+		return &pb.HistoryResponse{
+			PagingInfo: &pb.PagingInfo{},
+		}, nil
+	}
 
 	return historyResponseRPC.Response, nil
 }
@@ -243,7 +273,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		opt(params)
 	}
 
-	if params.selectedPeer == "" {
+	if !params.localQuery && params.selectedPeer == "" {
 		return nil, ErrNoPeersAvailable
 	}
 
@@ -267,7 +297,14 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	}
 	q.PagingInfo.PageSize = pageSize
 
-	response, err := store.queryFrom(ctx, q, params.selectedPeer, params.requestId)
+	var response *pb.HistoryResponse
+	var err error
+
+	if params.localQuery {
+		response, err = store.localQuery(q, params.requestId)
+	} else {
+		response, err = store.queryFrom(ctx, q, params.selectedPeer, params.requestId)
+	}
 	if err != nil {
 		return nil, err
 	}
