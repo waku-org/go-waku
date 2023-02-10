@@ -18,7 +18,7 @@ func validateDBUrl(val string) error {
 	return nil
 }
 
-func extractDBAndMigration(databaseURL string) (*sql.DB, func(*sql.DB) error, error) {
+func ExtractDBAndMigration(databaseURL string) (*sql.DB, func(*sql.DB) error, error) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	var err error

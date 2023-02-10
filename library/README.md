@@ -277,6 +277,10 @@ interface JsonConfig {
     discV5?: boolean;
     discV5BootstrapNodes?: Array<string>;
     discV5UDPPort?: number;
+    store?: boolean;
+    databaseURL?: string;
+    storeRetentionMaxMessages?: number;
+    storeRetentionTimeSeconds?: number;
 }
 ```
 
@@ -311,6 +315,15 @@ If a key is `undefined`, or `null`, a default value will be set.
 - `discV5BootstrapNodes`: Array of bootstrap nodes ENR
 - `discV5UDPPort`: UDP port for DiscoveryV5
   Default `9000`
+- `store`: Enable store protocol to persist message history
+  Default `false`
+- `databaseURL`: url connection string. Accepts SQLite and PostgreSQL connection strings
+  Default: `sqlite3://store.db`
+- `storeRetentionMaxMessages`: max number of messages to store in the database.
+  Default `10000`
+- `storeRetentionTimeSeconds`: max number of seconds that a message will be persisted in the database.
+  Default `2592000` (30d)
+
   
 For example:
 ```json

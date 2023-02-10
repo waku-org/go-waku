@@ -34,6 +34,39 @@ type storeMessagesReply struct {
 	Error      string             `json:"error,omitempty"`
 }
 
+func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.HistoryRequestOption) string {
+	var contentTopics []string
+	for _, ct := range args.ContentFilters {
+		contentTopics = append(contentTopics, ct.ContentTopic)
+	}
+
+	res, err := wakuNode.Store().Query(
+		ctx,
+		store.Query{
+			Topic:         args.Topic,
+			ContentTopics: contentTopics,
+			StartTime:     args.StartTime,
+			EndTime:       args.EndTime,
+		},
+		options...,
+	)
+
+	reply := storeMessagesReply{}
+
+	if err != nil {
+		reply.Error = err.Error()
+		return PrepareJSONResponse(reply, nil)
+	}
+	reply.Messages = res.Messages
+	reply.PagingInfo = storePagingOptions{
+		PageSize: args.PagingOptions.PageSize,
+		Cursor:   res.Cursor(),
+		Forward:  args.PagingOptions.Forward,
+	}
+
+	return PrepareJSONResponse(reply, nil)
+}
+
 func StoreQuery(queryJSON string, peerID string, ms int) string {
 	if wakuNode == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
@@ -61,8 +94,6 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 		options = append(options, store.WithAutomaticPeerSelection())
 	}
 
-	reply := storeMessagesReply{}
-
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -73,32 +104,26 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 		ctx = context.Background()
 	}
 
-	var contentTopics []string
-	for _, ct := range args.ContentFilters {
-		contentTopics = append(contentTopics, ct.ContentTopic)
+	return queryResponse(ctx, args, options)
+}
+
+func StoreLocalQuery(queryJSON string) string {
+	if wakuNode == nil {
+		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	res, err := wakuNode.Store().Query(
-		ctx,
-		store.Query{
-			Topic:         args.Topic,
-			ContentTopics: contentTopics,
-			StartTime:     args.StartTime,
-			EndTime:       args.EndTime,
-		},
-		options...,
-	)
-
+	var args storeMessagesArgs
+	err := json.Unmarshal([]byte(queryJSON), &args)
 	if err != nil {
-		reply.Error = err.Error()
-		return PrepareJSONResponse(reply, nil)
-	}
-	reply.Messages = res.Messages
-	reply.PagingInfo = storePagingOptions{
-		PageSize: args.PagingOptions.PageSize,
-		Cursor:   res.Cursor(),
-		Forward:  args.PagingOptions.Forward,
+		return MakeJSONResponse(err)
 	}
 
-	return PrepareJSONResponse(reply, nil)
+	options := []store.HistoryRequestOption{
+		store.WithAutomaticRequestId(),
+		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
+		store.WithCursor(args.PagingOptions.Cursor),
+		store.WithLocalQuery(),
+	}
+
+	return queryResponse(context.TODO(), args, options)
 }

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -57,6 +58,45 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	}
 
 	response, err := s2.Query(ctx, q, DefaultOptions()...)
+
+	require.NoError(t, err)
+	require.Len(t, response.Messages, 1)
+	require.Equal(t, msg, response.Messages[0])
+}
+
+func TestWakuStoreProtocolLocalQuery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	require.NoError(t, err)
+
+	s1 := NewWakuStore(host1, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	err = s1.Start(ctx)
+	require.NoError(t, err)
+
+	defer s1.Stop()
+
+	topic1 := "1"
+	pubsubTopic1 := "topic1"
+
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: topic1,
+		Version:      0,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+
+	// Simulate a message has been received via relay protocol
+	s1.MsgC <- protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)
+
+	time.Sleep(100 * time.Millisecond)
+
+	q := Query{
+		Topic:         pubsubTopic1,
+		ContentTopics: []string{topic1},
+	}
+	response, err := s1.Query(ctx, q, WithLocalQuery())
 
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 1)
