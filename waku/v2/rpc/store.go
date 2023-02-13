@@ -33,7 +33,7 @@ type StoreMessagesArgs struct {
 }
 
 type StoreMessagesReply struct {
-	Messages   []RPCWakuMessage   `json:"messages,omitempty"`
+	Messages   []*pb.WakuMessage  `json:"messages,omitempty"`
 	PagingInfo StorePagingOptions `json:"pagingInfo,omitempty"`
 	Error      string             `json:"error,omitempty"`
 }
@@ -61,10 +61,7 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 		return nil
 	}
 
-	reply.Messages = make([]RPCWakuMessage, len(res.Messages))
-	for i := range res.Messages {
-		reply.Messages[i] = *ProtoWakuMessageToRPCWakuMessage(res.Messages[i])
-	}
+	reply.Messages = res.Messages
 
 	reply.PagingInfo = StorePagingOptions{
 		PageSize: args.PagingOptions.PageSize,
