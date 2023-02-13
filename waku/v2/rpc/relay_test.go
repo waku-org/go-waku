@@ -9,6 +9,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -27,9 +28,18 @@ func TestPostV1Message(t *testing.T) {
 
 	d := makeRelayService(t)
 
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: "abc",
+		Version:      0,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+
 	err := d.PostV1Message(
 		makeRequest(t),
-		&RelayMessageArgs{},
+		&RelayMessageArgs{
+			Message: msg,
+		},
 		&reply,
 	)
 	require.NoError(t, err)
@@ -100,7 +110,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 		makeRequest(t),
 		&RelayMessageArgs{
 			Topic: "test",
-			Message: RPCWakuRelayMessage{
+			Message: &pb.WakuMessage{
 				Payload: []byte("test"),
 			},
 		},

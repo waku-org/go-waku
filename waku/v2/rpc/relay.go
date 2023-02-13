@@ -25,8 +25,8 @@ type RelayService struct {
 }
 
 type RelayMessageArgs struct {
-	Topic   string              `json:"topic,omitempty"`
-	Message RPCWakuRelayMessage `json:"message,omitempty"`
+	Topic   string          `json:"topic,omitempty"`
+	Message *pb.WakuMessage `json:"message,omitempty"`
 }
 
 type TopicsArgs struct {
@@ -85,12 +85,10 @@ func (r *RelayService) Stop() {
 func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, reply *SuccessReply) error {
 	var err error
 
-	msg := args.Message.toProto()
-
 	if args.Topic == "" {
-		_, err = r.node.Relay().Publish(req.Context(), msg)
+		_, err = r.node.Relay().Publish(req.Context(), args.Message)
 	} else {
-		_, err = r.node.Relay().PublishToTopic(req.Context(), msg, args.Topic)
+		_, err = r.node.Relay().PublishToTopic(req.Context(), args.Message, args.Topic)
 	}
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
@@ -151,9 +149,7 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 		return fmt.Errorf("topic %s not subscribed", args.Topic)
 	}
 
-	for i := range r.messages[args.Topic] {
-		*reply = append(*reply, ProtoWakuMessageToRPCWakuRelayMessage(r.messages[args.Topic][i]))
-	}
+	*reply = r.messages[args.Topic]
 
 	r.messages[args.Topic] = make([]*pb.WakuMessage, 0)
 

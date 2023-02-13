@@ -38,15 +38,15 @@ type KeyPairReply struct {
 }
 
 type SymmetricMessageArgs struct {
-	Topic   string         `json:"topic"`
-	Message RPCWakuMessage `json:"message"`
-	SymKey  string         `json:"symkey"`
+	Topic   string          `json:"topic"`
+	Message *pb.WakuMessage `json:"message"`
+	SymKey  string          `json:"symkey"`
 }
 
 type AsymmetricMessageArgs struct {
-	Topic     string         `json:"topic"`
-	Message   RPCWakuMessage `json:"message"`
-	PublicKey string         `json:"publicKey"`
+	Topic     string          `json:"topic"`
+	Message   *pb.WakuMessage `json:"message"`
+	PublicKey string          `json:"publicKey"`
 }
 
 type SymmetricMessagesArgs struct {
@@ -125,7 +125,7 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 	keyInfo.Kind = payload.Symmetric
 	keyInfo.SymKey = symKeyBytes
 
-	msg := args.Message.toProto()
+	msg := args.Message
 	msg.Version = 1
 
 	err = payload.EncodeWakuMessage(msg, keyInfo)
@@ -163,7 +163,7 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 
 	keyInfo.PubKey = *pubKey
 
-	msg := args.Message.toProto()
+	msg := args.Message
 	msg.Version = 1
 
 	err = payload.EncodeWakuMessage(msg, keyInfo)
@@ -214,9 +214,7 @@ func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *Symmetr
 		decodedMessages = append(decodedMessages, msg)
 	}
 
-	for i := range decodedMessages {
-		*reply = append(*reply, ProtoWakuMessageToRPCWakuMessage(decodedMessages[i]))
-	}
+	*reply = decodedMessages
 
 	return nil
 }
@@ -250,9 +248,7 @@ func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *Asymme
 		decodedMessages = append(decodedMessages, msg)
 	}
 
-	for i := range decodedMessages {
-		*reply = append(*reply, ProtoWakuMessageToRPCWakuMessage(decodedMessages[i]))
-	}
+	*reply = decodedMessages
 
 	return nil
 }
