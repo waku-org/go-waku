@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
+	"net/http"
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -44,6 +46,11 @@ type WakuFilterPush struct {
 type ContentFilter struct {
 	Topic         string
 	ContentTopics []string
+}
+
+type WakuFilterPushResult struct {
+	err    error
+	peerID peer.ID
 }
 
 // NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
@@ -141,8 +148,10 @@ func (wf *WakuFilterPush) request(ctx context.Context, params *FilterSubscribePa
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
 	writer := protoio.NewDelimitedWriter(conn)
+	reader := protoio.NewDelimitedReader(conn, math.MaxInt32)
 
 	request := &pb.FilterSubscribeRequest{
 		RequestId:           hex.EncodeToString(params.requestId),
@@ -158,13 +167,29 @@ func (wf *WakuFilterPush) request(ctx context.Context, params *FilterSubscribePa
 		return err
 	}
 
-	defer conn.Close()
+	filterSubscribeResponse := &pb.FilterSubscribeResponse{}
+	err = reader.ReadMsg(filterSubscribeResponse)
+	if err != nil {
+		wf.log.Error("receiving FilterSubscribeResponse", zap.Error(err))
+		return err
+	}
+
+	if filterSubscribeResponse.StatusCode != http.StatusOK {
+		return fmt.Errorf("filter err: %d, %s", filterSubscribeResponse.StatusCode, filterSubscribeResponse.StatusDesc)
+	}
+
 	return nil
 }
 
 // Subscribe setups a subscription to receive messages that match a specific content filter
 func (wf *WakuFilterPush) Subscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) error {
-	// TODO: validate content filters
+	if contentFilter.Topic == "" {
+		return errors.New("topic is required")
+	}
+
+	if len(contentFilter.ContentTopics) == 0 {
+		return errors.New("at least one content topic is required")
+	}
 
 	params := new(FilterSubscribeParameters)
 	params.log = wf.log
@@ -208,21 +233,31 @@ func (wf *WakuFilterPush) getUnsubscribeParameters(opts ...FilterUnsubscribeOpti
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterPush) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) error {
-	// TODO: checks if a subscription exists with the chosen criteria
+func (wf *WakuFilterPush) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (error, <-chan WakuFilterPushResult) {
+	if contentFilter.Topic == "" {
+		return errors.New("topic is required"), nil
+	}
+
+	if len(contentFilter.ContentTopics) == 0 {
+		return errors.New("at least one content topic is required"), nil
+	}
 
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
-		return err
+		return err, nil
 	}
+
+	localWg := sync.WaitGroup{}
+	resultChan := make(chan WakuFilterPushResult, len(wf.subscriptions.items))
 
 	for peerID := range wf.subscriptions.items {
 		if !params.unsubscribeAll && peerID != params.selectedPeer {
 			continue
 		}
 
+		localWg.Add(1)
 		go func(peerID peer.ID) {
-			defer wf.wg.Done()
+			defer localWg.Done()
 			err := wf.request(
 				ctx,
 				&FilterSubscribeParameters{selectedPeer: peerID},
@@ -231,28 +266,38 @@ func (wf *WakuFilterPush) Unsubscribe(ctx context.Context, contentFilter Content
 			if err != nil {
 				wf.log.Error("could not unsubscribe from peer", logging.HostID("peerID", peerID), zap.Error(err))
 			}
+
+			resultChan <- WakuFilterPushResult{
+				err:    err,
+				peerID: peerID,
+			}
 		}(peerID)
 	}
 
-	return nil
+	localWg.Wait()
+	close(resultChan)
+
+	return nil, resultChan
 }
 
 // UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions
-func (wf *WakuFilterPush) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) error {
+func (wf *WakuFilterPush) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	wf.subscriptions.Lock()
 	defer wf.subscriptions.Unlock()
 
-	wf.wg.Add(len(wf.subscriptions.items))
+	localWg := sync.WaitGroup{}
+	resultChan := make(chan WakuFilterPushResult, len(wf.subscriptions.items))
+
 	for peerID := range wf.subscriptions.items {
 		if !params.unsubscribeAll && peerID != params.selectedPeer {
 			continue
 		}
-
+		localWg.Add(1)
 		go func(peerID peer.ID) {
 			defer wf.wg.Done()
 			err := wf.request(
@@ -263,8 +308,16 @@ func (wf *WakuFilterPush) UnsubscribeAll(ctx context.Context, opts ...FilterUnsu
 			if err != nil {
 				wf.log.Error("could not unsubscribe from peer", logging.HostID("peerID", peerID), zap.Error(err))
 			}
+
+			resultChan <- WakuFilterPushResult{
+				err:    err,
+				peerID: peerID,
+			}
 		}(peerID)
 	}
 
-	return nil
+	localWg.Wait()
+	close(resultChan)
+
+	return resultChan, nil
 }
