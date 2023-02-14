@@ -104,13 +104,18 @@ func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTop
 		sub.removeFromInterestMap(peerID, pubsubTopic, c)
 	}
 
+	pubsubTopicMap[pubsubTopic] = contentTopicsMap
+
 	// No more content topics available. Removing content topic completely
 	if len(contentTopicsMap) == 0 {
 		delete(pubsubTopicMap, pubsubTopic)
 	}
 
-	pubsubTopicMap[pubsubTopic] = contentTopicsMap
 	sub.items[peerID] = pubsubTopicMap
+
+	if len(sub.items[peerID]) == 0 {
+		delete(sub.items, peerID)
+	}
 
 	return nil
 }
@@ -129,6 +134,7 @@ func (sub *SubscribersMap) deleteAll(peerID peer.ID) error {
 	}
 
 	delete(sub.items, peerID)
+	delete(sub.failedPeers, peerID)
 
 	return nil
 }
