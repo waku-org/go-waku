@@ -59,14 +59,9 @@ func (sub *SubscribersMap) Set(peerID peer.ID, pubsubTopic string, contentTopics
 
 	sub.items[peerID] = pubsubTopicMap
 
-	if len(contentTopics) == 0 {
-		// Interested in all messages for a pubsub topic
-		sub.addToInterestMap(peerID, pubsubTopic, nil)
-	} else {
-		for _, c := range contentTopics {
-			c := c
-			sub.addToInterestMap(peerID, pubsubTopic, &c)
-		}
+	for _, c := range contentTopics {
+		c := c
+		sub.addToInterestMap(peerID, pubsubTopic, c)
 	}
 }
 
@@ -102,29 +97,16 @@ func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTop
 		return ErrNotFound
 	}
 
-	if len(contentTopics) == 0 {
-		// Remove all content topics related to this pubsub topic
-		for c := range contentTopicsMap {
-			c := c
-			delete(contentTopicsMap, c)
-			sub.removeFromInterestMap(peerID, pubsubTopic, &c)
-		}
+	// Removing content topics individually
+	for _, c := range contentTopics {
+		c := c
+		delete(contentTopicsMap, c)
+		sub.removeFromInterestMap(peerID, pubsubTopic, c)
+	}
 
+	// No more content topics available. Removing content topic completely
+	if len(contentTopicsMap) == 0 {
 		delete(pubsubTopicMap, pubsubTopic)
-		sub.removeFromInterestMap(peerID, pubsubTopic, nil)
-	} else {
-		// Removing content topics individually
-		for _, c := range contentTopics {
-			c := c
-			delete(contentTopicsMap, c)
-			sub.removeFromInterestMap(peerID, pubsubTopic, &c)
-		}
-
-		// No more content topics available. Removing subscription completely
-		if len(contentTopicsMap) == 0 {
-			delete(pubsubTopicMap, pubsubTopic)
-			sub.removeFromInterestMap(peerID, pubsubTopic, nil)
-		}
 	}
 
 	pubsubTopicMap[pubsubTopic] = contentTopicsMap
@@ -142,13 +124,8 @@ func (sub *SubscribersMap) deleteAll(peerID peer.ID) error {
 	for pubsubTopic, contentTopicsMap := range pubsubTopicMap {
 		// Remove all content topics related to this pubsub topic
 		for c := range contentTopicsMap {
-			c := c
-			delete(contentTopicsMap, c)
-			sub.removeFromInterestMap(peerID, pubsubTopic, &c)
+			sub.removeFromInterestMap(peerID, pubsubTopic, c)
 		}
-
-		delete(pubsubTopicMap, pubsubTopic)
-		sub.removeFromInterestMap(peerID, pubsubTopic, nil)
 	}
 
 	delete(sub.items, peerID)
@@ -167,29 +144,19 @@ func (sub *SubscribersMap) RemoveAll() {
 	sub.Lock()
 	defer sub.Unlock()
 
-	for k /*, _ v*/ := range sub.items {
-		//close(v.Chan)
-		delete(sub.items, k)
-	}
+	sub.items = make(map[peer.ID]PubsubTopics)
 }
 
 func (sub *SubscribersMap) Items(pubsubTopic string, contentTopic string) <-chan peer.ID {
 	c := make(chan peer.ID)
 
-	onlyPubsubTopicKey := getKey(pubsubTopic, nil)
-	pubsubAndContentTopicKey := getKey(pubsubTopic, &contentTopic)
+	key := getKey(pubsubTopic, contentTopic)
 
 	f := func() {
 		sub.RLock()
 		defer sub.RUnlock()
 
-		if peers, ok := sub.interestMap[onlyPubsubTopicKey]; ok {
-			for p := range peers {
-				c <- p
-			}
-		}
-
-		if peers, ok := sub.interestMap[pubsubAndContentTopicKey]; ok {
+		if peers, ok := sub.interestMap[key]; ok {
 			for p := range peers {
 				c <- p
 			}
@@ -201,7 +168,7 @@ func (sub *SubscribersMap) Items(pubsubTopic string, contentTopic string) <-chan
 	return c
 }
 
-func (sub *SubscribersMap) addToInterestMap(peerID peer.ID, pubsubTopic string, contentTopic *string) {
+func (sub *SubscribersMap) addToInterestMap(peerID peer.ID, pubsubTopic string, contentTopic string) {
 	key := getKey(pubsubTopic, contentTopic)
 	peerSet, ok := sub.interestMap[key]
 	if !ok {
@@ -211,7 +178,7 @@ func (sub *SubscribersMap) addToInterestMap(peerID peer.ID, pubsubTopic string, 
 	sub.interestMap[key] = peerSet
 }
 
-func (sub *SubscribersMap) removeFromInterestMap(peerID peer.ID, pubsubTopic string, contentTopic *string) {
+func (sub *SubscribersMap) removeFromInterestMap(peerID peer.ID, pubsubTopic string, contentTopic string) {
 	key := getKey(pubsubTopic, contentTopic)
 	_, exists := sub.interestMap[key]
 	if exists {
@@ -219,14 +186,11 @@ func (sub *SubscribersMap) removeFromInterestMap(peerID peer.ID, pubsubTopic str
 	}
 }
 
-func getKey(pubsubTopic string, contentTopic *string) string {
+func getKey(pubsubTopic string, contentTopic string) string {
 	pubsubTopicBytes := []byte(pubsubTopic)
-	if contentTopic == nil {
-		return hex.EncodeToString(crypto.Keccak256(pubsubTopicBytes))
-	} else {
-		key := append(pubsubTopicBytes, []byte(*contentTopic)...)
-		return hex.EncodeToString(crypto.Keccak256(key))
-	}
+	key := append(pubsubTopicBytes, []byte(contentTopic)...)
+	return hex.EncodeToString(crypto.Keccak256(key))
+
 }
 
 func (sub *SubscribersMap) IsFailedPeer(peerID peer.ID) bool {

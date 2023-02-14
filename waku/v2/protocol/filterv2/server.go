@@ -21,7 +21,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.opencensus.io/tag"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 // FilterSubscribeID_v20beta1 is the current Waku Filter protocol identifier for servers to
@@ -146,6 +145,12 @@ func (wf *WakuFilter) ping(s network.Stream, logger *zap.Logger, request *pb.Fil
 func (wf *WakuFilter) subscribe(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == "" {
 		reply(s, logger, request, http.StatusBadRequest, "pubsubtopic can't be empty")
+		return
+	}
+
+	if len(request.ContentTopics) == 0 {
+		reply(s, logger, request, http.StatusBadRequest, "at least one contenttopic should be specified")
+		return
 	}
 
 	peerID := s.Conn().RemotePeer()
@@ -158,6 +163,12 @@ func (wf *WakuFilter) subscribe(s network.Stream, logger *zap.Logger, request *p
 func (wf *WakuFilter) unsubscribe(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == "" {
 		reply(s, logger, request, http.StatusBadRequest, "pubsubtopic can't be empty")
+		return
+	}
+
+	if len(request.ContentTopics) == 0 {
+		reply(s, logger, request, http.StatusBadRequest, "at least one contenttopic should be specified")
+		return
 	}
 
 	err := wf.subscriptions.Delete(s.Conn().RemotePeer(), request.PubsubTopic, request.ContentTopics)
@@ -186,7 +197,6 @@ func (wf *WakuFilter) filterListener(ctx context.Context) {
 		msg := envelope.Message()
 		pubsubTopic := envelope.PubsubTopic()
 		logger := wf.log.With(logging.HexBytes("envelopeHash", envelope.Hash()))
-		g := new(errgroup.Group)
 
 		// Each subscriber is a light node that earlier on invoked
 		// a FilterRequest on this node
@@ -195,16 +205,17 @@ func (wf *WakuFilter) filterListener(ctx context.Context) {
 			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
 			// Do a message push to light node
 			logger.Info("pushing message to light node")
-			g.Go(func() (err error) {
-				err = wf.pushMessage(ctx, subscriber, envelope)
+			wf.wg.Add(1)
+			go func(subscriber peer.ID) {
+				defer wf.wg.Done()
+				err := wf.pushMessage(ctx, subscriber, envelope)
 				if err != nil {
 					logger.Error("pushing message", zap.Error(err))
 				}
-				return err
-			})
+			}(subscriber)
 		}
 
-		return g.Wait()
+		return nil
 	}
 
 	for m := range wf.msgC {
