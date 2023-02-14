@@ -89,6 +89,12 @@ func UnsubscribeAll() FilterUnsubscribeOption {
 	}
 }
 
+func Peer(p peer.ID) FilterUnsubscribeOption {
+	return func(params *FilterUnsubscribeParameters) {
+		params.selectedPeer = p
+	}
+}
+
 func RequestID(requestId []byte) FilterUnsubscribeOption {
 	return func(params *FilterUnsubscribeParameters) {
 		params.requestId = requestId

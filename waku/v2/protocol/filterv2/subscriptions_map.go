@@ -59,11 +59,12 @@ func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, topic string, conte
 	}
 
 	details := &SubscriptionDetails{
-		id:          uuid.NewString(),
-		mapRef:      sub,
-		peerID:      peerID,
-		pubsubTopic: topic,
-		C:           make(chan *protocol.Envelope),
+		id:            uuid.NewString(),
+		mapRef:        sub,
+		peerID:        peerID,
+		pubsubTopic:   topic,
+		C:             make(chan *protocol.Envelope),
+		contentTopics: make(map[string]struct{}),
 	}
 
 	for _, ct := range contentTopics {
@@ -89,7 +90,7 @@ func (sub *SubscriptionsMap) Delete(subscription *SubscriptionDetails) error {
 	return nil
 }
 
-func (s *SubscriptionDetails) Add(contentTopics []string) {
+func (s *SubscriptionDetails) Add(contentTopics ...string) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -98,7 +99,7 @@ func (s *SubscriptionDetails) Add(contentTopics []string) {
 	}
 }
 
-func (s *SubscriptionDetails) Remove(contentTopics []string) {
+func (s *SubscriptionDetails) Remove(contentTopics ...string) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -148,11 +149,6 @@ func (sub *SubscriptionsMap) Notify(peerID peer.ID, envelope *protocol.Envelope)
 	subscriptions, ok := sub.items[peerID].subscriptionsPerTopic[envelope.PubsubTopic()]
 	if ok {
 		iterateSubscriptionSet(subscriptions, envelope)
-	}
-
-	subscriptionsWithNoPeer, ok := sub.items[peerID].subscriptionsPerTopic[envelope.PubsubTopic()]
-	if ok {
-		iterateSubscriptionSet(subscriptionsWithNoPeer, envelope)
 	}
 }
 

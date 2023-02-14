@@ -213,8 +213,8 @@ func (wf *WakuFilterPush) Subscribe(ctx context.Context, contentFilter ContentFi
 	return nil
 }
 
-// SubscriptionChannel is used to obtain an object from which you could receive messages received via filter protocol
-func (wf *WakuFilterPush) SubscriptionChannel(peerID peer.ID, topic string, contentTopics []string) *SubscriptionDetails {
+// FilterSubscription is used to obtain an object from which you could receive messages received via filter protocol
+func (wf *WakuFilterPush) FilterSubscription(peerID peer.ID, topic string, contentTopics []string) *SubscriptionDetails {
 	return wf.subscriptions.NewSubscription(peerID, topic, contentTopics)
 }
 
