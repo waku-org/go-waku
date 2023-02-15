@@ -195,9 +195,10 @@ func Execute(options Options) {
 	if options.Filter.Enable {
 		if options.Filter.UseV2 {
 			if !options.Filter.DisableFullNode {
+				nodeOpts = append(nodeOpts, node.WithWakuFilterV2LightNode())
+			} else {
 				nodeOpts = append(nodeOpts, node.WithWakuFilterV2FullNode(filter.WithTimeout(options.Filter.Timeout)))
 			}
-			nodeOpts = append(nodeOpts, node.WithWakuFilterV2LightNode())
 		} else {
 			nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
 		}

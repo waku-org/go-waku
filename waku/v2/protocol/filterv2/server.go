@@ -28,7 +28,7 @@ import (
 const FilterSubscribeID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/2.0.0-beta1")
 
 type (
-	WakuFilter struct {
+	WakuFilterFull struct {
 		cancel context.CancelFunc
 		h      host.Host
 		msgC   chan *protocol.Envelope
@@ -39,9 +39,9 @@ type (
 	}
 )
 
-// NewWakuFilter returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilter(host host.Host, broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger, opts ...filter.Option) *WakuFilter {
-	wf := new(WakuFilter)
+// NewWakuFilterFullnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
+func NewWakuFilterFullnode(host host.Host, broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger, opts ...filter.Option) *WakuFilterFull {
+	wf := new(WakuFilterFull)
 	wf.log = log.Named("filterv2-fullnode")
 
 	params := new(filter.FilterParameters)
@@ -58,7 +58,7 @@ func NewWakuFilter(host host.Host, broadcaster v2.Broadcaster, timesource timeso
 	return wf
 }
 
-func (wf *WakuFilter) Start(ctx context.Context) error {
+func (wf *WakuFilterFull) Start(ctx context.Context) error {
 	wf.wg.Wait() // Wait for any goroutines to stop
 
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
@@ -82,7 +82,7 @@ func (wf *WakuFilter) Start(ctx context.Context) error {
 	return nil
 }
 
-func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
+func (wf *WakuFilterFull) onRequest(ctx context.Context) func(s network.Stream) {
 	return func(s network.Stream) {
 		defer s.Close()
 		logger := wf.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
@@ -132,7 +132,7 @@ func reply(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequ
 	}
 }
 
-func (wf *WakuFilter) ping(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFull) ping(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	exists := wf.subscriptions.Has(s.Conn().RemotePeer())
 
 	if exists {
@@ -142,7 +142,7 @@ func (wf *WakuFilter) ping(s network.Stream, logger *zap.Logger, request *pb.Fil
 	}
 }
 
-func (wf *WakuFilter) subscribe(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFull) subscribe(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == "" {
 		reply(s, logger, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -160,7 +160,7 @@ func (wf *WakuFilter) subscribe(s network.Stream, logger *zap.Logger, request *p
 	reply(s, logger, request, http.StatusOK)
 }
 
-func (wf *WakuFilter) unsubscribe(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFull) unsubscribe(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == "" {
 		reply(s, logger, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -179,7 +179,7 @@ func (wf *WakuFilter) unsubscribe(s network.Stream, logger *zap.Logger, request 
 	}
 }
 
-func (wf *WakuFilter) unsubscribeAll(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFull) unsubscribeAll(s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	err := wf.subscriptions.DeleteAll(s.Conn().RemotePeer())
 	if err != nil {
 		reply(s, logger, request, http.StatusNotFound)
@@ -188,7 +188,7 @@ func (wf *WakuFilter) unsubscribeAll(s network.Stream, logger *zap.Logger, reque
 	}
 }
 
-func (wf *WakuFilter) filterListener(ctx context.Context) {
+func (wf *WakuFilterFull) filterListener(ctx context.Context) {
 	defer wf.wg.Done()
 
 	// This function is invoked for each message received
@@ -225,7 +225,7 @@ func (wf *WakuFilter) filterListener(ctx context.Context) {
 	}
 }
 
-func (wf *WakuFilter) pushMessage(ctx context.Context, peerID peer.ID, env *protocol.Envelope) error {
+func (wf *WakuFilterFull) pushMessage(ctx context.Context, peerID peer.ID, env *protocol.Envelope) error {
 	logger := wf.log.With(logging.HostID("peer", peerID))
 
 	messagePush := &pb.MessagePushV2{
@@ -264,7 +264,7 @@ func (wf *WakuFilter) pushMessage(ctx context.Context, peerID peer.ID, env *prot
 }
 
 // Stop unmounts the filter protocol
-func (wf *WakuFilter) Stop() {
+func (wf *WakuFilterFull) Stop() {
 	if wf.cancel == nil {
 		return
 	}
@@ -278,6 +278,6 @@ func (wf *WakuFilter) Stop() {
 	wf.wg.Wait()
 }
 
-func (wf *WakuFilter) MessageChannel() chan *protocol.Envelope {
+func (wf *WakuFilterFull) MessageChannel() chan *protocol.Envelope {
 	return wf.msgC
 }

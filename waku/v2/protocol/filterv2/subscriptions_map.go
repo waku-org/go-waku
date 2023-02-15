@@ -124,6 +124,27 @@ func (s *SubscriptionDetails) Close() error {
 	return s.mapRef.Delete(s)
 }
 
+func (s *SubscriptionDetails) Clone() *SubscriptionDetails {
+	s.RLock()
+	defer s.RUnlock()
+
+	result := &SubscriptionDetails{
+		id:            uuid.NewString(),
+		mapRef:        s.mapRef,
+		closed:        false,
+		peerID:        s.peerID,
+		pubsubTopic:   s.pubsubTopic,
+		contentTopics: make(map[string]struct{}),
+		C:             make(chan *protocol.Envelope),
+	}
+
+	for k := range s.contentTopics {
+		result.contentTopics[k] = struct{}{}
+	}
+
+	return result
+}
+
 func (sub *SubscriptionsMap) clear() {
 	for _, peerSubscription := range sub.items {
 		for _, subscriptionSet := range peerSubscription.subscriptionsPerTopic {

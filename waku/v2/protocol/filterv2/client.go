@@ -32,7 +32,7 @@ var (
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
 )
 
-type WakuFilterPush struct {
+type WakuFilterLightnode struct {
 	cancel        context.CancelFunc
 	ctx           context.Context
 	h             host.Host
@@ -54,9 +54,9 @@ type WakuFilterPushResult struct {
 }
 
 // NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterPush(host host.Host, broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterPush {
-	wf := new(WakuFilterPush)
-	wf.log = log.Named("filter")
+func NewWakuFilterLightnode(host host.Host, broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
+	wf := new(WakuFilterLightnode)
+	wf.log = log.Named("filterv2-lightnode")
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
 	wf.wg = &sync.WaitGroup{}
@@ -65,7 +65,7 @@ func NewWakuFilterPush(host host.Host, broadcaster v2.Broadcaster, timesource ti
 	return wf
 }
 
-func (wf *WakuFilterPush) Start(ctx context.Context) error {
+func (wf *WakuFilterLightnode) Start(ctx context.Context) error {
 	wf.wg.Wait() // Wait for any goroutines to stop
 
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
@@ -81,8 +81,7 @@ func (wf *WakuFilterPush) Start(ctx context.Context) error {
 
 	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(ctx))
 
-	wf.wg.Add(1)
-
+	// wf.wg.Add(1)
 	// TODO: go wf.keepAliveSubscriptions(ctx)
 
 	wf.log.Info("filter protocol (light) started")
@@ -91,7 +90,7 @@ func (wf *WakuFilterPush) Start(ctx context.Context) error {
 }
 
 // Stop unmounts the filter protocol
-func (wf *WakuFilterPush) Stop() {
+func (wf *WakuFilterLightnode) Stop() {
 	if wf.cancel == nil {
 		return
 	}
@@ -100,14 +99,14 @@ func (wf *WakuFilterPush) Stop() {
 
 	wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
 
-	wf.UnsubscribeAll(wf.ctx)
+	_, _ = wf.UnsubscribeAll(wf.ctx)
 
 	wf.subscriptions.Clear()
 
 	wf.wg.Wait()
 }
 
-func (wf *WakuFilterPush) onRequest(ctx context.Context) func(s network.Stream) {
+func (wf *WakuFilterLightnode) onRequest(ctx context.Context) func(s network.Stream) {
 	return func(s network.Stream) {
 		defer s.Close()
 		logger := wf.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
@@ -127,7 +126,7 @@ func (wf *WakuFilterPush) onRequest(ctx context.Context) func(s network.Stream) 
 	}
 }
 
-func (wf *WakuFilterPush) notify(remotePeerID peer.ID, pubsubTopic string, msg *pb.WakuMessage) {
+func (wf *WakuFilterLightnode) notify(remotePeerID peer.ID, pubsubTopic string, msg *pb.WakuMessage) {
 	envelope := protocol.NewEnvelope(msg, wf.timesource.Now().UnixNano(), pubsubTopic)
 
 	// Broadcasting message so it's stored
@@ -137,7 +136,7 @@ func (wf *WakuFilterPush) notify(remotePeerID peer.ID, pubsubTopic string, msg *
 	wf.subscriptions.Notify(remotePeerID, envelope)
 }
 
-func (wf *WakuFilterPush) request(ctx context.Context, params *FilterSubscribeParameters, reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter ContentFilter) error {
+func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscribeParameters, reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter ContentFilter) error {
 	err := wf.h.Connect(ctx, wf.h.Peerstore().PeerInfo(params.selectedPeer))
 	if err != nil {
 		return err
@@ -182,13 +181,13 @@ func (wf *WakuFilterPush) request(ctx context.Context, params *FilterSubscribePa
 }
 
 // Subscribe setups a subscription to receive messages that match a specific content filter
-func (wf *WakuFilterPush) Subscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) error {
+func (wf *WakuFilterLightnode) Subscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) (*SubscriptionDetails, error) {
 	if contentFilter.Topic == "" {
-		return errors.New("topic is required")
+		return nil, errors.New("topic is required")
 	}
 
 	if len(contentFilter.ContentTopics) == 0 {
-		return errors.New("at least one content topic is required")
+		return nil, errors.New("at least one content topic is required")
 	}
 
 	params := new(FilterSubscribeParameters)
@@ -202,23 +201,23 @@ func (wf *WakuFilterPush) Subscribe(ctx context.Context, contentFilter ContentFi
 	}
 
 	if params.selectedPeer == "" {
-		return ErrNoPeersAvailable
+		return nil, ErrNoPeersAvailable
 	}
 
 	err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, contentFilter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return wf.FilterSubscription(params.selectedPeer, contentFilter), nil
 }
 
 // FilterSubscription is used to obtain an object from which you could receive messages received via filter protocol
-func (wf *WakuFilterPush) FilterSubscription(peerID peer.ID, topic string, contentTopics []string) *SubscriptionDetails {
-	return wf.subscriptions.NewSubscription(peerID, topic, contentTopics)
+func (wf *WakuFilterLightnode) FilterSubscription(peerID peer.ID, contentFilter ContentFilter) *SubscriptionDetails {
+	return wf.subscriptions.NewSubscription(peerID, contentFilter.Topic, contentFilter.ContentTopics)
 }
 
-func (wf *WakuFilterPush) getUnsubscribeParameters(opts ...FilterUnsubscribeOption) (*FilterUnsubscribeParameters, error) {
+func (wf *WakuFilterLightnode) getUnsubscribeParameters(opts ...FilterUnsubscribeOption) (*FilterUnsubscribeParameters, error) {
 	params := new(FilterUnsubscribeParameters)
 	params.log = wf.log
 	for _, opt := range opts {
@@ -233,18 +232,18 @@ func (wf *WakuFilterPush) getUnsubscribeParameters(opts ...FilterUnsubscribeOpti
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterPush) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (error, <-chan WakuFilterPushResult) {
+func (wf *WakuFilterLightnode) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	if contentFilter.Topic == "" {
-		return errors.New("topic is required"), nil
+		return nil, errors.New("topic is required")
 	}
 
 	if len(contentFilter.ContentTopics) == 0 {
-		return errors.New("at least one content topic is required"), nil
+		return nil, errors.New("at least one content topic is required")
 	}
 
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	localWg := sync.WaitGroup{}
@@ -262,7 +261,7 @@ func (wf *WakuFilterPush) Unsubscribe(ctx context.Context, contentFilter Content
 				ctx,
 				&FilterSubscribeParameters{selectedPeer: peerID},
 				pb.FilterSubscribeRequest_UNSUBSCRIBE,
-				ContentFilter{})
+				contentFilter)
 			if err != nil {
 				wf.log.Error("could not unsubscribe from peer", logging.HostID("peerID", peerID), zap.Error(err))
 			}
@@ -277,11 +276,23 @@ func (wf *WakuFilterPush) Unsubscribe(ctx context.Context, contentFilter Content
 	localWg.Wait()
 	close(resultChan)
 
-	return nil, resultChan
+	return resultChan, nil
+}
+
+// Unsubscribe is used to stop receiving messages from a peer that match a content filter
+func (wf *WakuFilterLightnode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+	var contentTopics []string
+	for k := range sub.contentTopics {
+		contentTopics = append(contentTopics, k)
+	}
+
+	opts = append(opts, Peer(sub.peerID))
+
+	return wf.Unsubscribe(ctx, ContentFilter{Topic: sub.pubsubTopic, ContentTopics: contentTopics}, opts...)
 }
 
 // UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions
-func (wf *WakuFilterPush) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightnode) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
 		return nil, err
