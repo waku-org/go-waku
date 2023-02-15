@@ -211,8 +211,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
-	w.filterV2Full = filterv2.NewWakuFilter(w.host, w.bcaster, w.timesource, w.log, w.opts.filterOpts...)
-	w.filterV2Light = filterv2.NewWakuFilterPush(w.host, w.bcaster, w.timesource, w.log)
+	w.filterV2Full = filterv2.NewWakuFilterFullnode(w.host, w.bcaster, w.timesource, w.log, w.opts.filterOpts...)
+	w.filterV2Light = filterv2.NewWakuFilterLightnode(w.host, w.bcaster, w.timesource, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
 
 	if w.opts.enableSwap {
@@ -239,8 +239,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	if w.addressChangesSub, err = host.EventBus().Subscribe(new(event.EvtLocalAddressesUpdated)); err != nil {
 		return nil, err
 	}
-
-	w.enrChangeCh = make(chan struct{}, 10)
 
 	if params.connStatusC != nil {
 		w.connStatusChan = params.connStatusC
@@ -292,6 +290,8 @@ func (w *WakuNode) Start(ctx context.Context) error {
 
 	w.connectionNotif = NewConnectionNotifier(ctx, w.host, w.log)
 	w.host.Network().Notify(w.connectionNotif)
+
+	w.enrChangeCh = make(chan struct{}, 10)
 
 	w.wg.Add(3)
 	go w.connectednessListener(ctx)
@@ -513,8 +513,8 @@ func (w *WakuNode) Filter() *filter.WakuFilter {
 }
 
 // FilterV2 is used to access any operation related to Waku Filter protocol
-func (w *WakuNode) FilterV2() *filterv2.WakuFilterPush {
-	if result, ok := w.filterV2Light.(*filterv2.WakuFilterPush); ok {
+func (w *WakuNode) FilterV2() *filterv2.WakuFilterLightnode {
+	if result, ok := w.filterV2Light.(*filterv2.WakuFilterLightnode); ok {
 		return result
 	}
 	return nil
