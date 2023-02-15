@@ -37,6 +37,15 @@ func NewSubscribersMap(timeout time.Duration) *SubscribersMap {
 	}
 }
 
+func (sub *SubscribersMap) Clear() {
+	sub.Lock()
+	defer sub.Unlock()
+
+	sub.items = make(map[peer.ID]PubsubTopics)
+	sub.interestMap = make(map[string]PeerSet)
+	sub.failedPeers = make(map[peer.ID]time.Time)
+}
+
 func (sub *SubscribersMap) Set(peerID peer.ID, pubsubTopic string, contentTopics []string) {
 	sub.Lock()
 	defer sub.Unlock()
@@ -134,7 +143,6 @@ func (sub *SubscribersMap) deleteAll(peerID peer.ID) error {
 	}
 
 	delete(sub.items, peerID)
-	delete(sub.failedPeers, peerID)
 
 	return nil
 }
@@ -223,8 +231,8 @@ func (sub *SubscribersMap) FlagAsFailure(peerID peer.ID) {
 	lastFailure, ok := sub.failedPeers[peerID]
 	if ok {
 		elapsedTime := time.Since(lastFailure)
-		if elapsedTime > sub.timeout {
-			sub.deleteAll(peerID)
+		if elapsedTime < sub.timeout {
+			_ = sub.deleteAll(peerID)
 		}
 	} else {
 		sub.failedPeers[peerID] = time.Now()

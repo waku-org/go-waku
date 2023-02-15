@@ -32,21 +32,21 @@ func TestAppend(t *testing.T) {
 	subs.Set(peerId, TOPIC, []string{"topic1"})
 
 	sub := firstSubscriber(subs, TOPIC, "topic1")
-	assert.NotNil(t, sub)
+	assert.NotEmpty(t, sub)
 
 	// Adding to existing peer
 	subs.Set(peerId, TOPIC, []string{"topic2"})
 
 	sub = firstSubscriber(subs, TOPIC, "topic2")
-	assert.NotNil(t, sub)
+	assert.NotEmpty(t, sub)
 
 	subs.Set(peerId, TOPIC+"2", []string{"topic1"})
 
 	sub = firstSubscriber(subs, TOPIC+"2", "topic1")
-	assert.NotNil(t, sub)
+	assert.NotEmpty(t, sub)
 
-	sub = firstSubscriber(subs, TOPIC, "topic2")
-	assert.Nil(t, sub)
+	sub = firstSubscriber(subs, TOPIC+"2", "topic2")
+	assert.Empty(t, sub)
 }
 
 func TestRemove(t *testing.T) {
@@ -56,16 +56,17 @@ func TestRemove(t *testing.T) {
 	subs.Set(peerId, TOPIC+"1", []string{"topic1", "topic2"})
 	subs.Set(peerId, TOPIC+"2", []string{"topic1"})
 
-	subs.DeleteAll(peerId)
+	err := subs.DeleteAll(peerId)
+	assert.Empty(t, err)
 
 	sub := firstSubscriber(subs, TOPIC+"1", "topic1")
-	assert.Nil(t, sub)
+	assert.Empty(t, sub)
 
 	sub = firstSubscriber(subs, TOPIC+"1", "topic2")
-	assert.Nil(t, sub)
+	assert.Empty(t, sub)
 
 	sub = firstSubscriber(subs, TOPIC+"2", "topic1")
-	assert.Nil(t, sub)
+	assert.Empty(t, sub)
 
 	assert.False(t, subs.Has(peerId))
 
@@ -85,7 +86,7 @@ func TestRemovePartial(t *testing.T) {
 	require.NoError(t, err)
 
 	sub := firstSubscriber(subs, TOPIC, "topic2")
-	assert.NotNil(t, sub)
+	assert.NotEmpty(t, sub)
 }
 
 func TestRemoveBogus(t *testing.T) {
@@ -97,9 +98,9 @@ func TestRemoveBogus(t *testing.T) {
 	require.NoError(t, err)
 
 	sub := firstSubscriber(subs, TOPIC, "topic1")
-	assert.Nil(t, sub)
+	assert.Empty(t, sub)
 	sub = firstSubscriber(subs, TOPIC, "does not exist")
-	assert.Nil(t, sub)
+	assert.Empty(t, sub)
 
 	err = subs.Delete(peerId, "DOES_NOT_EXIST", []string{"topic1"})
 	require.Error(t, err)
