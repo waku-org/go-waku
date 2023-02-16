@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/mux"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -147,9 +146,8 @@ func (d *RelayService) postV1Subscriptions(w http.ResponseWriter, r *http.Reques
 }
 
 func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	topic, ok := vars["topic"]
-	if !ok {
+	topic := chi.URLParam(r, "topic")
+	if topic == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -175,9 +173,8 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *RelayService) postV1Message(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	topic, ok := vars["topic"]
-	if !ok {
+	topic := chi.URLParam(r, "topic")
+	if topic == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
