@@ -343,7 +343,7 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
 			break
 		}
 
-		addresses, err := utils.Multiaddress(iterator.Node())
+		_, addresses, err := utils.Multiaddress(iterator.Node())
 		if err != nil {
 			wakuPX.log.Error("extracting multiaddrs from enr", zap.Error(err))
 			continue
