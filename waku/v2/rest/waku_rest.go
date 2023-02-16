@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/pprof"
 	"sync"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"go.uber.org/zap"
 )
@@ -25,11 +25,12 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool
 	wrpc := new(WakuRest)
 	wrpc.log = log.Named("rest")
 
-	mux := mux.NewRouter()
+	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.NoCache)
 
 	if enablePProf {
-		mux.PathPrefix("/debug/").Handler(http.DefaultServeMux)
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.Mount("/debug", middleware.Profiler())
 	}
 
 	_ = NewDebugService(node, mux)

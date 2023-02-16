@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/mux"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -20,7 +21,6 @@ const ROUTE_RELAY_MESSAGESV1 = "/relay/v1/messages/{topic}"
 
 type RelayService struct {
 	node   *node.WakuNode
-	mux    *mux.Router
 	cancel context.CancelFunc
 
 	log *zap.Logger
@@ -32,10 +32,9 @@ type RelayService struct {
 	runner *runnerService
 }
 
-func NewRelayService(node *node.WakuNode, m *mux.Router, cacheCapacity int, log *zap.Logger) *RelayService {
+func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *zap.Logger) *RelayService {
 	s := &RelayService{
 		node:          node,
-		mux:           m,
 		log:           log.Named("relay"),
 		cacheCapacity: cacheCapacity,
 		messages:      make(map[string][]*pb.WakuMessage),
@@ -43,10 +42,10 @@ func NewRelayService(node *node.WakuNode, m *mux.Router, cacheCapacity int, log 
 
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
 
-	m.HandleFunc(ROUTE_RELAY_SUBSCRIPTIONSV1, s.postV1Subscriptions).Methods(http.MethodPost)
-	m.HandleFunc(ROUTE_RELAY_SUBSCRIPTIONSV1, s.deleteV1Subscriptions).Methods(http.MethodDelete)
-	m.HandleFunc(ROUTE_RELAY_MESSAGESV1, s.getV1Messages).Methods(http.MethodGet)
-	m.HandleFunc(ROUTE_RELAY_MESSAGESV1, s.postV1Message).Methods(http.MethodPost)
+	m.Post(ROUTE_RELAY_SUBSCRIPTIONSV1, s.postV1Subscriptions)
+	m.Delete(ROUTE_RELAY_SUBSCRIPTIONSV1, s.deleteV1Subscriptions)
+	m.Get(ROUTE_RELAY_MESSAGESV1, s.getV1Messages)
+	m.Post(ROUTE_RELAY_MESSAGESV1, s.postV1Message)
 
 	return s
 }
