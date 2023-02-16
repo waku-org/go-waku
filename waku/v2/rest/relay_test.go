@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
@@ -20,20 +20,20 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-func makeRelayService(t *testing.T) *RelayService {
+func makeRelayService(t *testing.T, mux *chi.Mux) *RelayService {
 	options := node.WithWakuRelayAndMinPeers(0)
 	n, err := node.New(options)
 	require.NoError(t, err)
 	err = n.Start(context.Background())
 	require.NoError(t, err)
 
-	mux := mux.NewRouter()
-
 	return NewRelayService(n, mux, 3, utils.Logger())
 }
 
 func TestPostV1Message(t *testing.T) {
-	d := makeRelayService(t)
+	router := chi.NewRouter()
+
+	_ = makeRelayService(t, router)
 
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
@@ -46,13 +46,15 @@ func TestPostV1Message(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/messages/test", bytes.NewReader(msgJsonBytes))
-	d.mux.ServeHTTP(rr, req)
+	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
 }
 
 func TestRelaySubscription(t *testing.T) {
-	d := makeRelayService(t)
+	router := chi.NewRouter()
+
+	d := makeRelayService(t, router)
 
 	go d.Start(context.Background())
 	defer d.Stop()
@@ -63,7 +65,7 @@ func TestRelaySubscription(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
-	d.mux.ServeHTTP(rr, req)
+	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
 
@@ -87,7 +89,7 @@ func TestRelaySubscription(t *testing.T) {
 	// Test deletion
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodDelete, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
-	d.mux.ServeHTTP(rr, req)
+	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
 	require.Len(t, d.messages["test"], 0)
@@ -95,10 +97,12 @@ func TestRelaySubscription(t *testing.T) {
 }
 
 func TestRelayGetV1Messages(t *testing.T) {
-	serviceA := makeRelayService(t)
+	router := chi.NewRouter()
+
+	serviceA := makeRelayService(t, router)
 	go serviceA.Start(context.Background())
 	defer serviceA.Stop()
-	serviceB := makeRelayService(t)
+	serviceB := makeRelayService(t, router)
 	go serviceB.Start(context.Background())
 	defer serviceB.Stop()
 
@@ -122,7 +126,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
-	serviceB.mux.ServeHTTP(rr, req)
+	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	// Wait for the subscription to be started
@@ -139,7 +143,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodPost, "/relay/v1/messages/test", bytes.NewReader(msgJsonBytes))
-	serviceA.mux.ServeHTTP(rr, req)
+	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	// Wait for the message to be received
@@ -147,7 +151,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, "/relay/v1/messages/test", bytes.NewReader([]byte{}))
-	serviceB.mux.ServeHTTP(rr, req)
+	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	var messages []*pb.WakuMessage
@@ -157,6 +161,9 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, "/relay/v1/messages/test", bytes.NewReader([]byte{}))
-	serviceA.mux.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusNotFound, rr.Code)
+	router.ServeHTTP(rr, req)
+
+	err = json.Unmarshal(rr.Body.Bytes(), &messages)
+	require.NoError(t, err)
+	require.Len(t, messages, 0)
 }
