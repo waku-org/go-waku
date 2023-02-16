@@ -153,7 +153,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	require.NoError(t, err)
 
 	host3.Peerstore().AddAddrs(host1.ID(), host1.Addrs(), peerstore.PermanentAddrTTL)
-	err = host3.Peerstore().AddProtocols(host1.ID(), string(PeerExchangeID_v20alpha1))
+	err = host3.Peerstore().AddProtocols(host1.ID(), PeerExchangeID_v20alpha1)
 	require.NoError(t, err)
 
 	err = px3.Request(context.Background(), 1)

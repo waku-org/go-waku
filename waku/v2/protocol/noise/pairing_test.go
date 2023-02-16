@@ -43,7 +43,7 @@ func TestPairingObj1Success(t *testing.T) {
 	defer relay2.Stop()
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err := host1.Peerstore().AddProtocols(host2.ID(), string(relay.WakuRelayID_v200))
+	err := host1.Peerstore().AddProtocols(host2.ID(), relay.WakuRelayID_v200)
 	require.NoError(t, err)
 	_, err = host1.Network().DialPeer(context.Background(), host2.ID())
 	require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestPairingObj1ShouldTimeout(t *testing.T) {
 	defer relay2.Stop()
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err := host1.Peerstore().AddProtocols(host2.ID(), string(relay.WakuRelayID_v200))
+	err := host1.Peerstore().AddProtocols(host2.ID(), relay.WakuRelayID_v200)
 	require.NoError(t, err)
 	_, err = host1.Network().DialPeer(context.Background(), host2.ID())
 	require.NoError(t, err)

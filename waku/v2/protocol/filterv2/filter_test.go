@@ -81,7 +81,7 @@ func TestWakuFilter(t *testing.T) {
 	broadcaster.Register(&testTopic, node2Filter.MessageChannel())
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err = host1.Peerstore().AddProtocols(host2.ID(), string(FilterSubscribeID_v20beta1))
+	err = host1.Peerstore().AddProtocols(host2.ID(), FilterSubscribeID_v20beta1)
 	require.NoError(t, err)
 
 	contentFilter := ContentFilter{
@@ -169,7 +169,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	broadcaster.Register(&testTopic, node2Filter.MessageChannel())
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err = host1.Peerstore().AddProtocols(host2.ID(), string(FilterPushID_v20beta1))
+	err = host1.Peerstore().AddProtocols(host2.ID(), FilterPushID_v20beta1)
 	require.NoError(t, err)
 
 	contentFilter := &ContentFilter{

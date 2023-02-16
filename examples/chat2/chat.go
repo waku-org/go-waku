@@ -196,7 +196,13 @@ func (c *Chat) parseInput() {
 								return
 							}
 							peerInfoMsg += fmt.Sprintf("• %s:\n", p.Pretty())
-							peerInfoMsg += fmt.Sprintf("    Protocols: %s\n", strings.Join(peerProtocols, ", "))
+
+							var strProtocols []string
+							for _, p := range peerProtocols {
+								strProtocols = append(strProtocols, string(p))
+							}
+
+							peerInfoMsg += fmt.Sprintf("    Protocols: %s\n", strings.Join(strProtocols, ", "))
 							peerInfoMsg += "    Addresses:\n"
 							for _, addr := range peerInfo.Addrs {
 								peerInfoMsg += fmt.Sprintf("    - %s/p2p/%s\n", addr.String(), p.Pretty())

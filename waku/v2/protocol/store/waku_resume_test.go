@@ -68,7 +68,7 @@ func TestResume(t *testing.T) {
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	msgCount, err := s2.Resume(ctx, "test", []peer.ID{host1.ID()})
@@ -118,7 +118,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	msgCount, err := s2.Resume(ctx, "test", []peer.ID{invalidHost.ID(), host1.ID()})
@@ -158,7 +158,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	_, err = s2.Resume(ctx, "test", []peer.ID{})

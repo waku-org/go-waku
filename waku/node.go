@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -28,6 +27,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -239,13 +239,13 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
-	addPeers(wakuNode, options.Store.Nodes, string(store.StoreID_v20beta4))
-	addPeers(wakuNode, options.LightPush.Nodes, string(lightpush.LightPushID_v20beta1))
+	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
+	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
 
 	if options.Filter.UseV2 {
-		addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
+		addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 	} else {
-		addPeers(wakuNode, options.Filter.Nodes, string(filter.FilterID_v20beta1))
+		addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {
@@ -262,7 +262,7 @@ func Execute(options Options) {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, string(peer_exchange.PeerExchangeID_v20alpha1))
+		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
@@ -362,7 +362,7 @@ func Execute(options Options) {
 	}
 }
 
-func addPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...string) {
+func addPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {
 	for _, addr := range addresses {
 		_, err := wakuNode.AddPeer(addr, protocols...)
 		failOnErr(err, "error adding peer")
@@ -370,7 +370,7 @@ func addPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocol
 }
 
 func loadPrivateKeyFromFile(path string, passwd string) (*ecdsa.PrivateKey, error) {
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +432,7 @@ func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, output, 0600)
+	return os.WriteFile(path, output, 0600)
 }
 
 func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
