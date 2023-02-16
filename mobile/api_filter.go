@@ -38,7 +38,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 		return MakeJSONResponse(err)
 	}
 
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -63,7 +63,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 		fOptions = append(fOptions, filter.WithAutomaticPeerSelection())
 	}
 
-	_, f, err := wakuNode.Filter().Subscribe(ctx, cf, fOptions...)
+	_, f, err := wakuState.node.Filter().Subscribe(ctx, cf, fOptions...)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
@@ -83,7 +83,7 @@ func FilterUnsubscribe(filterJSON string, ms int) string {
 		return MakeJSONResponse(err)
 	}
 
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -97,7 +97,7 @@ func FilterUnsubscribe(filterJSON string, ms int) string {
 		ctx = context.Background()
 	}
 
-	err = wakuNode.Filter().UnsubscribeFilter(ctx, cf)
+	err = wakuState.node.Filter().UnsubscribeFilter(ctx, cf)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
