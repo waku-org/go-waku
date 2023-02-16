@@ -1045,7 +1045,7 @@ An `error` message otherwise.
 ## DNS Discovery
 
 ### `extern char* waku_dns_discovery(char* url, char* nameserver, int timeoutMs)`
-Returns a list of multiaddress given a url to a DNS discoverable ENR tree
+Returns a list of multiaddress and enrs given a url to a DNS discoverable ENR tree
 
 **Parameters**
 
@@ -1060,16 +1060,21 @@ Returns a list of multiaddress given a url to a DNS discoverable ENR tree
 **Returns**
 
 A [`JsonResponse`](#jsonresponse-type).
-If the execution is successful, the `result` field contains an array with multiaddresses.
+If the execution is successful, the `result` field contains an array objects describing the multiaddresses, enr and peerID each node found has.
 An `error` message otherwise.
 
 ```json
 {
-  "result": [
-    "/ip4/134.209.139.210/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ",
-    "/ip4/104.154.239.128/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS",
-    "/ip4/47.242.210.73/tcp/30303/p2p/16Uiu2HAkvWiyFsgRhuJEb9JfjYxEkoHLgnUQmr1N5mKWnYjxYRVm"
-  ]
+  "result":[
+    {
+        "peerID":"16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ",
+        "multiaddrs":[
+            "/ip4/134.209.139.210/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ",
+            "/dns4/node-01.do-ams3.wakuv2.test.statusim.net/tcp/8000/wss/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ"
+        ],
+        "enr":"enr:-M-4QCtJKX2WDloRYDT4yjeMGKUCRRcMlsNiZP3cnPO0HZn6IdJ035RPCqsQ5NvTyjqHzKnTM6pc2LoKliV4CeV0WrgBgmlkgnY0gmlwhIbRi9KKbXVsdGlhZGRyc7EALzYobm9kZS0wMS5kby1hbXMzLndha3V2Mi50ZXN0LnN0YXR1c2ltLm5ldAYfQN4DiXNlY3AyNTZrMaEDnr03Tuo77930a7sYLikftxnuG3BbC3gCFhA4632ooDaDdGNwgnZfg3VkcIIjKIV3YWt1Mg8"
+    },
+    ...
 }
 ```
 

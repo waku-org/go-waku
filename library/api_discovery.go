@@ -6,7 +6,8 @@ import (
 	mobile "github.com/waku-org/go-waku/mobile"
 )
 
-// Returns a list of multiaddress given a url to a DNS discoverable ENR tree
+// Returns a list of objects containing the peerID, enr and multiaddresses for each node found
+//  given a url to a DNS discoverable ENR tree
 // The nameserver can optionally be specified to resolve the enrtree url. Otherwise NULL or
 // empty to automatically use the default system dns.
 // If ms is greater than 0, the subscription must happen before the timeout

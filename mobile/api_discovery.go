@@ -8,6 +8,12 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 )
 
+type DnsDiscoveryItem struct {
+	PeerID    string   `json:"peerID,omitempty"`
+	Addresses []string `json:"multiaddrs,omitempty"`
+	ENR       string   `json:"enr,omitempty"`
+}
+
 func DnsDiscovery(url string, nameserver string, ms int) string {
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -29,34 +35,43 @@ func DnsDiscovery(url string, nameserver string, ms int) string {
 		return MakeJSONResponse(err)
 	}
 
-	var ma []string
+	var response []DnsDiscoveryItem
 	for _, n := range nodes {
-		for _, addr := range n.Addresses {
-			ma = append(ma, addr.String())
+		item := DnsDiscoveryItem{
+			PeerID: n.PeerID.String(),
 		}
+		for _, addr := range n.Addresses {
+			item.Addresses = append(item.Addresses, addr.String())
+		}
+		item.ENR = n.ENR.String()
+		response = append(response, item)
 	}
 
-	return PrepareJSONResponse(ma, nil)
+	return PrepareJSONResponse(response, nil)
 }
 
 func StartDiscoveryV5() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
-	if wakuNode.DiscV5() == nil {
+	if wakuState.node.DiscV5() == nil {
 		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
 	}
-	err := wakuNode.DiscV5().Start(context.Background())
-	return MakeJSONResponse(err)
+	err := wakuState.node.DiscV5().Start(context.Background())
+	if err != nil {
+		return MakeJSONResponse(err)
+	}
+
+	return MakeJSONResponse(nil)
 }
 
 func StopDiscoveryV5() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
-	if wakuNode.DiscV5() == nil {
+	if wakuState.node.DiscV5() == nil {
 		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
 	}
-	wakuNode.DiscV5().Stop()
+	wakuState.node.DiscV5().Stop()
 	return MakeJSONResponse(nil)
 }

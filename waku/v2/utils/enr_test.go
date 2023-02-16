@@ -156,6 +156,6 @@ func TestMultiaddr(t *testing.T) {
 
 	_ = localNode.Node() // Should not panic
 
-	_, err = Multiaddress(localNode.Node())
+	_, _, err = Multiaddress(localNode.Node())
 	require.NoError(t, err)
 }
