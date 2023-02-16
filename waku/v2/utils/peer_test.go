@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 )
@@ -27,7 +28,7 @@ func TestSelectPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer h3.Close()
 
-	proto := "test/protocol"
+	proto := protocol.ID("test/protocol")
 
 	h1.Peerstore().AddAddrs(h2.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
@@ -63,7 +64,7 @@ func TestSelectPeerWithLowestRTT(t *testing.T) {
 	require.NoError(t, err)
 	defer h3.Close()
 
-	proto := "test/protocol"
+	proto := protocol.ID("test/protocol")
 
 	h1.Peerstore().AddAddrs(h2.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)

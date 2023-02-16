@@ -21,6 +21,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	ma "github.com/multiformats/go-multiaddr"
@@ -46,7 +47,7 @@ import (
 
 type Peer struct {
 	ID        peer.ID        `json:"peerID"`
-	Protocols []string       `json:"protocols"`
+	Protocols []protocol.ID  `json:"protocols"`
 	Addrs     []ma.Multiaddr `json:"addrs"`
 	Connected bool           `json:"connected"`
 }
@@ -608,7 +609,7 @@ func (w *WakuNode) startStore(ctx context.Context) error {
 
 		var peerIDs []peer.ID
 		for _, n := range w.opts.resumeNodes {
-			pID, err := w.AddPeer(n, string(store.StoreID_v20beta4))
+			pID, err := w.AddPeer(n, store.StoreID_v20beta4)
 			if err != nil {
 				w.log.Warn("adding peer to peerstore", logging.MultiAddrs("peer", n), zap.Error(err))
 			}
@@ -632,7 +633,7 @@ func (w *WakuNode) startStore(ctx context.Context) error {
 	return nil
 }
 
-func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...string) error {
+func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...protocol.ID) error {
 	w.log.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
 	err := w.host.Peerstore().AddProtocols(info.ID, protocols...)
@@ -644,7 +645,7 @@ func (w *WakuNode) addPeer(info *peer.AddrInfo, protocols ...string) error {
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, protocols ...string) (peer.ID, error) {
+func (w *WakuNode) AddPeer(address ma.Multiaddr, protocols ...protocol.ID) (peer.ID, error) {
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
 		return "", err

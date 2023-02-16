@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/peer"
+	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -315,7 +316,7 @@ func ListenAddresses() string {
 	return PrepareJSONResponse(addresses, nil)
 }
 
-func AddPeer(address string, protocolID string) string {
+func AddPeer(address string, protocolID libp2pProtocol.ID) string {
 	if wakuNode == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}

@@ -3,11 +3,13 @@ package rpc
 import (
 	"net/http"
 
+	"github.com/libp2p/go-libp2p/core/protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -26,9 +28,9 @@ type PeersArgs struct {
 }
 
 type PeerReply struct {
-	Multiaddr string `json:"multiaddr,omitempty"`
-	Protocol  string `json:"protocol,omitempty"`
-	Connected bool   `json:"connected,omitempty"`
+	Multiaddr string      `json:"multiaddr,omitempty"`
+	Protocol  protocol.ID `json:"protocol,omitempty"`
+	Connected bool        `json:"connected,omitempty"`
 }
 
 type PeersReply []PeerReply
@@ -52,8 +54,13 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 	return nil
 }
 
-func isWakuProtocol(protocol string) bool {
-	return protocol == string(filter.FilterID_v20beta1) || protocol == string(relay.WakuRelayID_v200) || protocol == string(lightpush.LightPushID_v20beta1) || protocol == string(store.StoreID_v20beta4)
+func isWakuProtocol(protocol protocol.ID) bool {
+	return protocol == filter.FilterID_v20beta1 ||
+		protocol == filterv2.FilterPushID_v20beta1 ||
+		protocol == filterv2.FilterSubscribeID_v20beta1 ||
+		protocol == relay.WakuRelayID_v200 ||
+		protocol == lightpush.LightPushID_v20beta1 ||
+		protocol == store.StoreID_v20beta4
 }
 
 func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *PeersReply) error {

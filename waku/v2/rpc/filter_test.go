@@ -73,7 +73,7 @@ func TestFilterSubscription(t *testing.T) {
 		break
 	}
 
-	_, err = d.node.AddPeer(addr, string(filter.FilterID_v20beta1))
+	_, err = d.node.AddPeer(addr, filter.FilterID_v20beta1)
 	require.NoError(t, err)
 
 	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: "ct"}}}

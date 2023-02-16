@@ -49,7 +49,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	defer s2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	q := Query{
@@ -134,7 +134,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	require.NoError(t, err)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	s2 := NewWakuStore(host2, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
@@ -204,7 +204,7 @@ func TestWakuStoreResult(t *testing.T) {
 	require.NoError(t, err)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	s2 := NewWakuStore(host2, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
@@ -298,7 +298,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	require.NoError(t, err)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(StoreID_v20beta4))
+	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
 	s2 := NewWakuStore(host2, nil, MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())

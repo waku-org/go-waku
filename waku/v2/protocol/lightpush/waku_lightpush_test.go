@@ -72,14 +72,14 @@ func TestWakuLightPush(t *testing.T) {
 	client := NewWakuLightPush(clientHost, nil, utils.Logger())
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host1.ID(), string(relay.WakuRelayID_v200))
+	err = host2.Peerstore().AddProtocols(host1.ID(), relay.WakuRelayID_v200)
 	require.NoError(t, err)
 
 	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host1.ID()))
 	require.NoError(t, err)
 
 	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err = clientHost.Peerstore().AddProtocols(host2.ID(), string(LightPushID_v20beta1))
+	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
 	require.NoError(t, err)
 
 	msg1 := tests.CreateWakuMessage("test1", 0)

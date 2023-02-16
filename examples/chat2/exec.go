@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
@@ -97,22 +98,22 @@ func execute(options Options) {
 		return
 	}
 
-	err = addPeer(wakuNode, options.Store.Node, string(store.StoreID_v20beta4))
+	err = addPeer(wakuNode, options.Store.Node, store.StoreID_v20beta4)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	err = addPeer(wakuNode, options.LightPush.Node, string(lightpush.LightPushID_v20beta1))
+	err = addPeer(wakuNode, options.LightPush.Node, lightpush.LightPushID_v20beta1)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
 	if options.Filter.UseV2 {
-		err = addPeer(wakuNode, options.Filter.Node, string(filterv2.FilterSubscribeID_v20beta1))
+		err = addPeer(wakuNode, options.Filter.Node, filterv2.FilterSubscribeID_v20beta1)
 	} else {
-		err = addPeer(wakuNode, options.Filter.Node, string(filter.FilterID_v20beta1))
+		err = addPeer(wakuNode, options.Filter.Node, filter.FilterID_v20beta1)
 	}
 	if err != nil {
 		fmt.Println(err.Error())
@@ -144,7 +145,7 @@ func execute(options Options) {
 	chat.Stop()
 }
 
-func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, protocols ...string) error {
+func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, protocols ...protocol.ID) error {
 	if addr == nil {
 		return nil
 	}

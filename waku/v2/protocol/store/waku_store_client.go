@@ -107,7 +107,7 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeer(params.s.h, string(StoreID_v20beta4), fromThesePeers, params.s.log)
+		p, err := utils.SelectPeer(params.s.h, StoreID_v20beta4, fromThesePeers, params.s.log)
 		if err == nil {
 			params.selectedPeer = p
 		} else {
@@ -122,7 +122,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption 
 // from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, string(StoreID_v20beta4), fromThesePeers, params.s.log)
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, StoreID_v20beta4, fromThesePeers, params.s.log)
 		if err == nil {
 			params.selectedPeer = p
 		} else {
