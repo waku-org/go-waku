@@ -41,7 +41,7 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 		contentTopics = append(contentTopics, ct.ContentTopic)
 	}
 
-	res, err := wakuNode.Store().Query(
+	res, err := wakuState.node.Store().Query(
 		ctx,
 		store.Query{
 			Topic:         args.Topic,
@@ -69,7 +69,7 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 }
 
 func StoreQuery(queryJSON string, peerID string, ms int) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -109,7 +109,7 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 }
 
 func StoreLocalQuery(queryJSON string) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 

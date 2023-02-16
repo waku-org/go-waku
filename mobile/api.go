@@ -33,9 +33,16 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-var wakuNode *node.WakuNode
-var wakuRelayTopics []string
-var wakuStarted = false
+type WakuState struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	node *node.WakuNode
+
+	relayTopics []string
+}
+
+var wakuState WakuState
 
 var errWakuNodeNotReady = errors.New("go-waku not initialized")
 
@@ -150,7 +157,7 @@ func getConfig(configJSON string) (wakuConfig, error) {
 }
 
 func NewNode(configJSON string) string {
-	if wakuNode != nil {
+	if wakuState.node != nil {
 		return MakeJSONResponse(errors.New("go-waku already initialized. stop it first"))
 	}
 
@@ -227,7 +234,7 @@ func NewNode(configJSON string) string {
 		opts = append(opts, node.WithDiscoveryV5(*config.DiscV5UDPPort, bootnodes, true))
 	}
 
-	wakuRelayTopics = config.RelayTopics
+	wakuState.relayTopics = config.RelayTopics
 
 	lvl, err := zapcore.ParseLevel(*config.LogLevel)
 	if err != nil {
@@ -241,75 +248,75 @@ func NewNode(configJSON string) string {
 		return MakeJSONResponse(err)
 	}
 
-	wakuNode = w
+	wakuState.node = w
 
 	return MakeJSONResponse(nil)
 }
 
 func Start() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	ctx := context.Background()
-	if err := wakuNode.Start(ctx); err != nil {
+	wakuState.ctx, wakuState.cancel = context.WithCancel(context.Background())
+
+	if err := wakuState.node.Start(wakuState.ctx); err != nil {
 		return MakeJSONResponse(err)
 	}
 
-	if wakuNode.DiscV5() != nil {
-		if err := wakuNode.DiscV5().Start(context.Background()); err != nil {
-			wakuNode.Stop()
+	if wakuState.node.DiscV5() != nil {
+		if err := wakuState.node.DiscV5().Start(context.Background()); err != nil {
+			wakuState.node.Stop()
 			return MakeJSONResponse(err)
 		}
 	}
 
-	for _, topic := range wakuRelayTopics {
+	for _, topic := range wakuState.relayTopics {
 		topic := topic
-		sub, err := wakuNode.Relay().SubscribeToTopic(ctx, topic)
+		sub, err := wakuState.node.Relay().SubscribeToTopic(wakuState.ctx, topic)
 		if err != nil {
-			wakuNode.Stop()
+			wakuState.node.Stop()
 			return MakeJSONResponse(fmt.Errorf("could not subscribe to topic: %s, %w", topic, err))
 		}
-		wakuNode.Broadcaster().Unregister(&topic, sub.C)
+		wakuState.node.Broadcaster().Unregister(&topic, sub.C)
 	}
-
-	wakuStarted = true
 
 	return MakeJSONResponse(nil)
 }
 
 func Stop() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	wakuNode.Stop()
+	wakuState.node.Stop()
 
-	wakuStarted = false
-	wakuNode = nil
+	wakuState.cancel()
+
+	wakuState.node = nil
 
 	return MakeJSONResponse(nil)
 }
 
 func IsStarted() string {
-	return PrepareJSONResponse(wakuStarted, nil)
+	return PrepareJSONResponse(wakuState.node != nil, nil)
 }
 
 func PeerID() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	return PrepareJSONResponse(wakuNode.ID(), nil)
+	return PrepareJSONResponse(wakuState.node.ID(), nil)
 }
 
 func ListenAddresses() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
 	var addresses []string
-	for _, addr := range wakuNode.ListenAddresses() {
+	for _, addr := range wakuState.node.ListenAddresses() {
 		addresses = append(addresses, addr.String())
 	}
 
@@ -317,7 +324,7 @@ func ListenAddresses() string {
 }
 
 func AddPeer(address string, protocolID libp2pProtocol.ID) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -326,12 +333,12 @@ func AddPeer(address string, protocolID libp2pProtocol.ID) string {
 		return MakeJSONResponse(err)
 	}
 
-	peerID, err := wakuNode.AddPeer(ma, protocolID)
+	peerID, err := wakuState.node.AddPeer(ma, protocolID)
 	return PrepareJSONResponse(peerID, err)
 }
 
 func Connect(address string, ms int) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -345,12 +352,12 @@ func Connect(address string, ms int) string {
 		ctx = context.Background()
 	}
 
-	err := wakuNode.DialPeer(ctx, address)
+	err := wakuState.node.DialPeer(ctx, address)
 	return MakeJSONResponse(err)
 }
 
 func ConnectPeerID(peerID string, ms int) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -369,12 +376,12 @@ func ConnectPeerID(peerID string, ms int) string {
 		ctx = context.Background()
 	}
 
-	err = wakuNode.DialPeerByID(ctx, pID)
+	err = wakuState.node.DialPeerByID(ctx, pID)
 	return MakeJSONResponse(err)
 }
 
 func Disconnect(peerID string) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -383,16 +390,16 @@ func Disconnect(peerID string) string {
 		return MakeJSONResponse(err)
 	}
 
-	err = wakuNode.ClosePeerById(pID)
+	err = wakuState.node.ClosePeerById(pID)
 	return MakeJSONResponse(err)
 }
 
 func PeerCnt() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	return PrepareJSONResponse(wakuNode.PeerCount(), nil)
+	return PrepareJSONResponse(wakuState.node.PeerCount(), nil)
 }
 
 func ContentTopic(applicationName string, applicationVersion int, contentTopicName string, encoding string) string {
@@ -429,11 +436,11 @@ func toSubscriptionMessage(msg *protocol.Envelope) *subscriptionMsg {
 }
 
 func Peers() string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
-	peers, err := wakuNode.Peers()
+	peers, err := wakuState.node.Peers()
 	return PrepareJSONResponse(peers, err)
 }
 

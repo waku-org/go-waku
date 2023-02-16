@@ -16,7 +16,7 @@ var relaySubscriptions map[string]*relay.Subscription = make(map[string]*relay.S
 var relaySubsMutex sync.Mutex
 
 func RelayEnoughPeers(topic string) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -25,11 +25,11 @@ func RelayEnoughPeers(topic string) string {
 		topicToCheck = topic
 	}
 
-	return PrepareJSONResponse(wakuNode.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil)
+	return PrepareJSONResponse(wakuState.node.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil)
 }
 
 func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
 	}
 
@@ -43,7 +43,7 @@ func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, erro
 		ctx = context.Background()
 	}
 
-	hash, err := wakuNode.Relay().PublishToTopic(ctx, msg, pubsubTopic)
+	hash, err := wakuState.node.Relay().PublishToTopic(ctx, msg, pubsubTopic)
 	return hexutil.Encode(hash), err
 }
 
@@ -80,7 +80,7 @@ func RelayPublishEncodeSymmetric(messageJSON string, topic string, symmetricKey 
 }
 
 func RelaySubscribe(topic string) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -94,7 +94,7 @@ func RelaySubscribe(topic string) string {
 		return MakeJSONResponse(nil)
 	}
 
-	subscription, err := wakuNode.Relay().SubscribeToTopic(context.Background(), topicToSubscribe)
+	subscription, err := wakuState.node.Relay().SubscribeToTopic(context.Background(), topicToSubscribe)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
@@ -111,7 +111,7 @@ func RelaySubscribe(topic string) string {
 }
 
 func RelayUnsubscribe(topic string) string {
-	if wakuNode == nil {
+	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
 
@@ -129,7 +129,7 @@ func RelayUnsubscribe(topic string) string {
 
 	delete(relaySubscriptions, topicToUnsubscribe)
 
-	err := wakuNode.Relay().Unsubscribe(context.Background(), topicToUnsubscribe)
+	err := wakuState.node.Relay().Unsubscribe(context.Background(), topicToUnsubscribe)
 	if err != nil {
 		return MakeJSONResponse(err)
 	}
