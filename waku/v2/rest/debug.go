@@ -3,13 +3,13 @@ package rest
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
 type DebugService struct {
 	node *node.WakuNode
-	mux  *mux.Router
+	mux  *chi.Mux
 }
 
 type InfoArgs struct {
@@ -23,14 +23,14 @@ type InfoReply struct {
 const ROUTE_DEBUG_INFOV1 = "/debug/v1/info"
 const ROUTE_DEBUG_VERSIONV1 = "/debug/v1/info"
 
-func NewDebugService(node *node.WakuNode, m *mux.Router) *DebugService {
+func NewDebugService(node *node.WakuNode, m *chi.Mux) *DebugService {
 	d := &DebugService{
 		node: node,
 		mux:  m,
 	}
 
-	m.HandleFunc(ROUTE_DEBUG_INFOV1, d.getV1Info).Methods(http.MethodGet)
-	m.HandleFunc(ROUTE_DEBUG_VERSIONV1, d.getV1Version).Methods(http.MethodGet)
+	m.Get(ROUTE_DEBUG_INFOV1, d.getV1Info)
+	m.Get(ROUTE_DEBUG_VERSIONV1, d.getV1Version)
 
 	return d
 }
