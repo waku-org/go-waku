@@ -5,17 +5,17 @@ import (
 )
 
 type RateLimitProof struct {
-	Proof         []byte `json:"proof,omitempty"`
-	MerkleRoot    []byte `json:"merkle_root,omitempty"`
-	Epoch         []byte `json:"epoch,omitempty"`
-	ShareX        []byte `json:"share_x,omitempty"`
-	ShareY        []byte `json:"share_y,omitempty"`
-	Nullifier     []byte `json:"nullifier,omitempty"`
-	RlnIdentifier []byte `json:"rln_identifier,omitempty"`
+	Proof         Base64URLByte `json:"proof,omitempty"`
+	MerkleRoot    Base64URLByte `json:"merkle_root,omitempty"`
+	Epoch         Base64URLByte `json:"epoch,omitempty"`
+	ShareX        Base64URLByte `json:"share_x,omitempty"`
+	ShareY        Base64URLByte `json:"share_y,omitempty"`
+	Nullifier     Base64URLByte `json:"nullifier,omitempty"`
+	RlnIdentifier Base64URLByte `json:"rln_identifier,omitempty"`
 }
 
 type RPCWakuMessage struct {
-	Payload        []byte          `json:"payload,omitempty"`
+	Payload        Base64URLByte   `json:"payload,omitempty"`
 	ContentTopic   string          `json:"contentTopic,omitempty"`
 	Version        uint32          `json:"version"`
 	Timestamp      int64           `json:"timestamp,omitempty"`
