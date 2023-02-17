@@ -32,7 +32,7 @@ func ExtractDBAndMigration(databaseURL string) (*sql.DB, func(*sql.DB) error, er
 		dbURL = databaseURL
 	} else {
 		// In memoryDB
-		dbURL = "sqlite://:memory:"
+		dbURL = "sqlite3://:memory:"
 	}
 
 	dbURLParts := strings.Split(dbURL, "://")
