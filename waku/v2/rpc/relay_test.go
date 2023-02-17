@@ -38,7 +38,7 @@ func TestPostV1Message(t *testing.T) {
 	err := d.PostV1Message(
 		makeRequest(t),
 		&RelayMessageArgs{
-			Message: msg,
+			Message: ProtoToRPC(msg),
 		},
 		&reply,
 	)
@@ -110,9 +110,9 @@ func TestRelayGetV1Messages(t *testing.T) {
 		makeRequest(t),
 		&RelayMessageArgs{
 			Topic: "test",
-			Message: &pb.WakuMessage{
+			Message: ProtoToRPC(&pb.WakuMessage{
 				Payload: []byte("test"),
-			},
+			}),
 		},
 		&reply,
 	)
@@ -122,7 +122,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	// Wait for the message to be received
 	time.Sleep(1 * time.Second)
 
-	var messagesReply1 RelayMessagesReply
+	var messagesReply1 MessagesReply
 	err = serviceB.GetV1Messages(
 		makeRequest(t),
 		&TopicArgs{"test"},
@@ -131,7 +131,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, messagesReply1, 1)
 
-	var messagesReply2 RelayMessagesReply
+	var messagesReply2 MessagesReply
 	err = serviceB.GetV1Messages(
 		makeRequest(t),
 		&TopicArgs{"test"},

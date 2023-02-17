@@ -26,7 +26,7 @@ type RelayService struct {
 
 type RelayMessageArgs struct {
 	Topic   string          `json:"topic,omitempty"`
-	Message *pb.WakuMessage `json:"message,omitempty"`
+	Message *RPCWakuMessage `json:"message,omitempty"`
 }
 
 type TopicsArgs struct {
@@ -86,9 +86,9 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	var err error
 
 	if args.Topic == "" {
-		_, err = r.node.Relay().Publish(req.Context(), args.Message)
+		_, err = r.node.Relay().Publish(req.Context(), args.Message.toProto())
 	} else {
-		_, err = r.node.Relay().PublishToTopic(req.Context(), args.Message, args.Topic)
+		_, err = r.node.Relay().PublishToTopic(req.Context(), args.Message.toProto(), args.Topic)
 	}
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
@@ -141,7 +141,7 @@ func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs,
 	return nil
 }
 
-func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *RelayMessagesReply) error {
+func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *MessagesReply) error {
 	r.messagesMutex.Lock()
 	defer r.messagesMutex.Unlock()
 
@@ -149,7 +149,9 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 		return fmt.Errorf("topic %s not subscribed", args.Topic)
 	}
 
-	*reply = r.messages[args.Topic]
+	for i := range r.messages[args.Topic] {
+		*reply = append(*reply, ProtoToRPC(r.messages[args.Topic][i]))
+	}
 
 	r.messages[args.Topic] = make([]*pb.WakuMessage, 0)
 

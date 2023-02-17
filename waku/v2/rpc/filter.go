@@ -124,7 +124,9 @@ func (f *FilterService) GetV1Messages(req *http.Request, args *ContentTopicArgs,
 		return fmt.Errorf("topic %s not subscribed", args.ContentTopic)
 	}
 
-	*reply = f.messages[args.ContentTopic]
+	for i := range f.messages[args.ContentTopic] {
+		*reply = append(*reply, ProtoToRPC(f.messages[args.ContentTopic][i]))
+	}
 
 	f.messages[args.ContentTopic] = make([]*wpb.WakuMessage, 0)
 	return nil
