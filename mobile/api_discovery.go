@@ -9,8 +9,8 @@ import (
 )
 
 type DnsDiscoveryItem struct {
-	PeerID    string   `json:"peerID,omitempty"`
-	Addresses []string `json:"multiaddrs,omitempty"`
+	PeerID    string   `json:"peerID"`
+	Addresses []string `json:"multiaddrs"`
 	ENR       string   `json:"enr,omitempty"`
 }
 
