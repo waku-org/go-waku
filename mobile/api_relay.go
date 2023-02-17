@@ -79,11 +79,7 @@ func RelayPublishEncodeSymmetric(messageJSON string, topic string, symmetricKey 
 	return PrepareJSONResponse(hash, err)
 }
 
-func RelaySubscribe(topic string) string {
-	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
-	}
-
+func relaySubscribe(topic string) error {
 	topicToSubscribe := getTopic(topic)
 
 	relaySubsMutex.Lock()
@@ -91,12 +87,12 @@ func RelaySubscribe(topic string) string {
 
 	_, ok := relaySubscriptions[topicToSubscribe]
 	if ok {
-		return MakeJSONResponse(nil)
+		return nil
 	}
 
 	subscription, err := wakuState.node.Relay().SubscribeToTopic(context.Background(), topicToSubscribe)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	relaySubscriptions[topicToSubscribe] = subscription
@@ -107,7 +103,15 @@ func RelaySubscribe(topic string) string {
 		}
 	}(subscription)
 
-	return MakeJSONResponse(nil)
+	return nil
+}
+
+func RelaySubscribe(topic string) string {
+	if wakuState.node == nil {
+		return MakeJSONResponse(errWakuNodeNotReady)
+	}
+
+	return MakeJSONResponse(relaySubscribe(topic))
 }
 
 func RelayUnsubscribe(topic string) string {
