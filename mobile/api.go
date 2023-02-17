@@ -272,13 +272,11 @@ func Start() string {
 	}
 
 	for _, topic := range wakuState.relayTopics {
-		topic := topic
-		sub, err := wakuState.node.Relay().SubscribeToTopic(wakuState.ctx, topic)
+		err := relaySubscribe(topic)
 		if err != nil {
 			wakuState.node.Stop()
-			return MakeJSONResponse(fmt.Errorf("could not subscribe to topic: %s, %w", topic, err))
+			return MakeJSONResponse(err)
 		}
-		wakuState.node.Broadcaster().Unregister(&topic, sub.C)
 	}
 
 	return MakeJSONResponse(nil)
