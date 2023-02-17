@@ -39,13 +39,13 @@ type KeyPairReply struct {
 
 type SymmetricMessageArgs struct {
 	Topic   string          `json:"topic"`
-	Message *pb.WakuMessage `json:"message"`
+	Message *RPCWakuMessage `json:"message"`
 	SymKey  string          `json:"symkey"`
 }
 
 type AsymmetricMessageArgs struct {
 	Topic     string          `json:"topic"`
-	Message   *pb.WakuMessage `json:"message"`
+	Message   *RPCWakuMessage `json:"message"`
 	PublicKey string          `json:"publicKey"`
 }
 
@@ -128,7 +128,9 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 	msg := args.Message
 	msg.Version = 1
 
-	err = payload.EncodeWakuMessage(msg, keyInfo)
+	protoMsg := msg.toProto()
+
+	err = payload.EncodeWakuMessage(protoMsg, keyInfo)
 	if err != nil {
 		return err
 	}
@@ -138,7 +140,7 @@ func (p *PrivateService) PostV1SymmetricMessage(req *http.Request, args *Symmetr
 		topic = relay.DefaultWakuTopic
 	}
 
-	_, err = p.node.Relay().PublishToTopic(req.Context(), msg, topic)
+	_, err = p.node.Relay().PublishToTopic(req.Context(), protoMsg, topic)
 	if err != nil {
 		return err
 	}
@@ -166,7 +168,9 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 	msg := args.Message
 	msg.Version = 1
 
-	err = payload.EncodeWakuMessage(msg, keyInfo)
+	protoMsg := msg.toProto()
+
+	err = payload.EncodeWakuMessage(protoMsg, keyInfo)
 	if err != nil {
 		return err
 	}
@@ -176,7 +180,7 @@ func (p *PrivateService) PostV1AsymmetricMessage(req *http.Request, args *Asymme
 		topic = relay.DefaultWakuTopic
 	}
 
-	_, err = p.node.Relay().PublishToTopic(req.Context(), msg, topic)
+	_, err = p.node.Relay().PublishToTopic(req.Context(), protoMsg, topic)
 	if err != nil {
 		return err
 	}
@@ -214,7 +218,9 @@ func (p *PrivateService) GetV1SymmetricMessages(req *http.Request, args *Symmetr
 		decodedMessages = append(decodedMessages, msg)
 	}
 
-	*reply = decodedMessages
+	for i := range decodedMessages {
+		*reply = append(*reply, ProtoToRPC(decodedMessages[i]))
+	}
 
 	return nil
 }
@@ -248,7 +254,9 @@ func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *Asymme
 		decodedMessages = append(decodedMessages, msg)
 	}
 
-	*reply = decodedMessages
+	for i := range decodedMessages {
+		*reply = append(*reply, ProtoToRPC(decodedMessages[i]))
+	}
 
 	return nil
 }

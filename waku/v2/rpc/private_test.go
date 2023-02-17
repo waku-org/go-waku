@@ -60,7 +60,7 @@ func TestPostV1SymmetricMessage(t *testing.T) {
 		makeRequest(t),
 		&SymmetricMessageArgs{
 			Topic:   "test",
-			Message: &pb.WakuMessage{Payload: []byte("test")},
+			Message: ProtoToRPC(&pb.WakuMessage{Payload: []byte("test")}),
 			SymKey:  "0x1122334455667788991011223344556677889910112233445566778899101122",
 		},
 		&reply,
@@ -78,7 +78,7 @@ func TestPostV1AsymmetricMessage(t *testing.T) {
 		makeRequest(t),
 		&AsymmetricMessageArgs{
 			Topic:     "test",
-			Message:   &pb.WakuMessage{Payload: []byte("test")},
+			Message:   ProtoToRPC(&pb.WakuMessage{Payload: []byte("test")}),
 			PublicKey: "0x045ded6a56c88173e87a88c55b96956964b1bd3351b5fcb70950a4902fbc1bc0ceabb0ac846c3a4b8f2f6024c0e19f0a7f6a4865035187de5463f34012304fc7c5",
 		},
 		&reply,
@@ -101,7 +101,7 @@ func TestGetV1SymmetricMessages(t *testing.T) {
 		makeRequest(t),
 		&SymmetricMessageArgs{
 			Topic:   "test",
-			Message: &pb.WakuMessage{Payload: []byte("test")},
+			Message: ProtoToRPC(&pb.WakuMessage{Payload: []byte("test")}),
 			SymKey:  "0x1122334455667788991011223344556677889910112233445566778899101122",
 		},
 		&reply,
@@ -141,7 +141,7 @@ func TestGetV1AsymmetricMessages(t *testing.T) {
 		makeRequest(t),
 		&AsymmetricMessageArgs{
 			Topic:     "test",
-			Message:   &pb.WakuMessage{Payload: []byte("test")},
+			Message:   ProtoToRPC(&pb.WakuMessage{Payload: []byte("test")}),
 			PublicKey: hexutil.Encode(crypto.FromECDSAPub(&prvKey.PublicKey)),
 		},
 		&reply,

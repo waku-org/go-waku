@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
-	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"go.uber.org/zap"
@@ -34,7 +33,7 @@ type StoreMessagesArgs struct {
 }
 
 type StoreMessagesReply struct {
-	Messages   []*wpb.WakuMessage `json:"messages,omitempty"`
+	Messages   []*RPCWakuMessage  `json:"messages,omitempty"`
 	PagingInfo StorePagingOptions `json:"pagingInfo,omitempty"`
 	Error      string             `json:"error,omitempty"`
 }
@@ -62,7 +61,10 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 		return nil
 	}
 
-	reply.Messages = res.Messages
+	reply.Messages = make([]*RPCWakuMessage, len(res.Messages))
+	for i := range res.Messages {
+		reply.Messages[i] = ProtoToRPC(res.Messages[i])
+	}
 
 	reply.PagingInfo = StorePagingOptions{
 		PageSize: args.PagingOptions.PageSize,
