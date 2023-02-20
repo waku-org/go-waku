@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"noise/pb"
 	"os"
 	"os/signal"
 	"sync"
@@ -24,7 +25,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logging.Logger("noise")
+var log = utils.Logger().Named("noise")
 
 func main() {
 	// Removing noisy logs
@@ -36,18 +37,18 @@ func main() {
 
 	hostAddr, _ := net.ResolveTCPAddr("tcp", fmt.Sprint("0.0.0.0:0"))
 
-	wakuNode, err := node.New(context.Background(),
+	wakuNode, err := node.New(
 		node.WithHostAddress(hostAddr),
 		node.WithNTP(),
 		node.WithWakuRelay(),
 	)
 	if err != nil {
-		log.Error(err)
+		log.Error("could not instantiate waku", zap.Error(err))
 		return
 	}
 
-	if err := wakuNode.Start(); err != nil {
-		log.Error(err)
+	if err := wakuNode.Start(context.Background()); err != nil {
+		log.Error("could not start waku", zap.Error(err))
 		return
 	}
 
@@ -58,18 +59,18 @@ func main() {
 
 	relayMessenger, err := noise.NewWakuRelayMessenger(context.Background(), wakuNode.Relay(), nil, timesource.NewDefaultClock())
 	if err != nil {
-		log.Error(err)
+		log.Error("could not create relay messenger", zap.Error(err))
 		return
 	}
 
 	pairingObj, err := noise.NewPairing(myStaticKey, myEphemeralKey, noise.WithDefaultResponderParameters(), relayMessenger, utils.Logger())
 	if err != nil {
-		log.Error(err)
+		log.Error("could not create pairing object", zap.Error(err))
 		return
 	}
 
 	qrString, qrMessageNameTag := pairingObj.PairingInfo()
-	qrURL := url.QueryEscape(hex.EncodeToString(qrMessageNameTag[:]) + ":" + qrString)
+	qrURL := "messageNameTag=" + url.QueryEscape(hex.EncodeToString(qrMessageNameTag[:])) + "&qrCode=" + url.QueryEscape(qrString)
 
 	wg := sync.WaitGroup{}
 
@@ -82,7 +83,7 @@ func main() {
 		defer cancel()
 		err := pairingObj.Execute(ctx)
 		if err != nil {
-			log.Error(err)
+			log.Error("could not perform handshake", zap.Error(err))
 			return
 		}
 	}()
@@ -97,13 +98,13 @@ func main() {
 		fmt.Println("=============================================")
 		err := pairingObj.ConfirmAuthCode(true)
 		if err != nil {
-			log.Error(err)
+			log.Error("could not confirm authcode", zap.Error(err))
 			return
 		}
 	}()
 
 	fmt.Println("=============================================================================")
-	fmt.Printf("Browse http://localhost:8080/?%s\n", qrURL)
+	fmt.Printf("Browse https://examples.waku.org/noise-js/?%s\n", qrURL)
 	fmt.Println("=============================================================================")
 
 	wg.Wait()
@@ -158,7 +159,7 @@ func discoverFleetNodes(wakuNode *node.WakuNode) error {
 			if err != nil {
 				log.Error("could not connect", zap.String("peerID", peerID), zap.Error(err))
 			} else {
-				log.Info("Connected", zap.String("peerID", peerID))
+				log.Info("connected", zap.String("peerID", peerID))
 			}
 		}(n)
 
@@ -168,13 +169,15 @@ func discoverFleetNodes(wakuNode *node.WakuNode) error {
 }
 
 func writeLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.Pairing) {
+	cnt := 0
 	for {
 		time.Sleep(4 * time.Second)
 
-		chatMessage := &Chat2Message{
+		cnt++
+		chatMessage := &pb.Chat2Message{
 			Timestamp: uint64(wakuNode.Timesource().Now().Unix()),
 			Nick:      "go-waku",
-			Payload:   []byte("Hello World!"),
+			Payload:   []byte(fmt.Sprintf("Hello World! #%d", cnt)),
 		}
 
 		chatMessageBytes, err := proto.Marshal(chatMessage)
@@ -201,7 +204,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.P
 func readLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.Pairing) {
 	sub, err := wakuNode.Relay().Subscribe(ctx)
 	if err != nil {
-		log.Error("Could not subscribe: ", err)
+		log.Error("Could not subscribe", zap.Error(err))
 		return
 	}
 
@@ -216,7 +219,7 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.Pa
 			continue
 		}
 
-		msg := &Chat2Message{}
+		msg := &pb.Chat2Message{}
 		if err := proto.Unmarshal(msgBytes, msg); err != nil {
 			log.Error("Error decoding a message", zap.Error(err))
 			continue
