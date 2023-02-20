@@ -2,7 +2,7 @@ package noise
 
 import (
 	"crypto/ed25519"
-	b64 "encoding/base64"
+	"encoding/base64"
 	"errors"
 	"strings"
 )
@@ -27,15 +27,27 @@ func NewQR(applicationName, applicationVersion, shardId string, ephemeralKey ed2
 
 // Serializes input parameters to a base64 string for exposure through QR code (used by WakuPairing)
 func (qr QR) String() string {
-	return b64.StdEncoding.EncodeToString([]byte(qr.applicationName)) + ":" +
-		b64.StdEncoding.EncodeToString([]byte(qr.applicationVersion)) + ":" +
-		b64.StdEncoding.EncodeToString([]byte(qr.shardId)) + ":" +
-		b64.StdEncoding.EncodeToString(qr.ephemeralPublicKey) + ":" +
-		b64.StdEncoding.EncodeToString(qr.committedStaticKey[:])
+	return base64.URLEncoding.EncodeToString([]byte(qr.applicationName)) + ":" +
+		base64.URLEncoding.EncodeToString([]byte(qr.applicationVersion)) + ":" +
+		base64.URLEncoding.EncodeToString([]byte(qr.shardId)) + ":" +
+		base64.URLEncoding.EncodeToString(qr.ephemeralPublicKey) + ":" +
+		base64.URLEncoding.EncodeToString(qr.committedStaticKey[:])
 }
 
 func (qr QR) Bytes() []byte {
 	return []byte(qr.String())
+}
+
+func decodeBase64String(inputValue string) ([]byte, error) {
+	enc := base64.StdEncoding
+	if strings.ContainsAny(inputValue, "-_") {
+		enc = base64.URLEncoding
+	}
+	if len(inputValue)%4 != 0 {
+		enc = enc.WithPadding(base64.NoPadding)
+	}
+
+	return enc.DecodeString(inputValue)
 }
 
 // Deserializes input string in base64 to the corresponding (applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey)
@@ -45,27 +57,27 @@ func StringToQR(qrString string) (QR, error) {
 		return QR{}, errors.New("invalid qr string")
 	}
 
-	applicationName, err := b64.StdEncoding.DecodeString(values[0])
+	applicationName, err := decodeBase64String(values[0])
 	if err != nil {
 		return QR{}, err
 	}
 
-	applicationVersion, err := b64.StdEncoding.DecodeString(values[1])
+	applicationVersion, err := decodeBase64String(values[1])
 	if err != nil {
 		return QR{}, err
 	}
 
-	shardId, err := b64.StdEncoding.DecodeString(values[2])
+	shardId, err := decodeBase64String(values[2])
 	if err != nil {
 		return QR{}, err
 	}
 
-	ephemeralKey, err := b64.StdEncoding.DecodeString(values[3])
+	ephemeralKey, err := decodeBase64String(values[3])
 	if err != nil {
 		return QR{}, err
 	}
 
-	committedStaticKey, err := b64.StdEncoding.DecodeString(values[4])
+	committedStaticKey, err := decodeBase64String(values[4])
 	if err != nil {
 		return QR{}, err
 	}
