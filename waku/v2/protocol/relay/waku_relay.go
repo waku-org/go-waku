@@ -193,7 +193,7 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 
 	hash := pb.Hash(out)
 
-	w.log.Info("waku.relay published", zap.String("hash", hex.EncodeToString(hash)))
+	w.log.Debug("waku.relay published", zap.String("hash", hex.EncodeToString(hash)))
 
 	return hash, nil
 }
@@ -355,7 +355,7 @@ func (w *WakuRelay) subscribeToTopic(ctx context.Context, t string, subscription
 
 			envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), string(t))
 
-			w.log.Info("waku.relay received", logging.HexString("hash", envelope.Hash()))
+			w.log.Debug("waku.relay received", logging.HexString("hash", envelope.Hash()))
 
 			if w.bcaster != nil {
 				w.bcaster.Submit(envelope)

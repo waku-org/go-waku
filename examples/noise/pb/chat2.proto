@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package main;
+package pb;
 
 message Chat2Message {
     uint64 timestamp = 1;
