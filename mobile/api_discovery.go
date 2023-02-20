@@ -43,7 +43,11 @@ func DnsDiscovery(url string, nameserver string, ms int) string {
 		for _, addr := range n.Addresses {
 			item.Addresses = append(item.Addresses, addr.String())
 		}
-		item.ENR = n.ENR.String()
+
+		if n.ENR != nil {
+			item.ENR = n.ENR.String()
+		}
+
 		response = append(response, item)
 	}
 
