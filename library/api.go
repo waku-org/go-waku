@@ -9,7 +9,6 @@ import "C"
 import (
 	"unsafe"
 
-	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	mobile "github.com/waku-org/go-waku/mobile"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
@@ -90,7 +89,7 @@ func waku_listen_addresses() *C.char {
 //
 //export waku_add_peer
 func waku_add_peer(address *C.char, protocolID *C.char) *C.char {
-	response := mobile.AddPeer(C.GoString(address), libp2pProtocol.ID(C.GoString(protocolID)))
+	response := mobile.AddPeer(C.GoString(address), C.GoString(protocolID))
 	return C.CString(response)
 }
 
