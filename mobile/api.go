@@ -321,7 +321,7 @@ func ListenAddresses() string {
 	return PrepareJSONResponse(addresses, nil)
 }
 
-func AddPeer(address string, protocolID libp2pProtocol.ID) string {
+func AddPeer(address string, protocolID string) string {
 	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
 	}
@@ -331,7 +331,7 @@ func AddPeer(address string, protocolID libp2pProtocol.ID) string {
 		return MakeJSONResponse(err)
 	}
 
-	peerID, err := wakuState.node.AddPeer(ma, protocolID)
+	peerID, err := wakuState.node.AddPeer(ma, libp2pProtocol.ID(protocolID))
 	return PrepareJSONResponse(peerID, err)
 }
 
