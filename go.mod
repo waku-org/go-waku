@@ -2,13 +2,13 @@ module github.com/waku-org/go-waku
 
 go 1.19
 
-replace github.com/ethereum/go-ethereum v1.11.0 => github.com/status-im/go-ethereum v1.10.25-status.4
+replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
-	github.com/ethereum/go-ethereum v1.11.0
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/rpc v1.2.0
