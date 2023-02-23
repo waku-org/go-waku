@@ -14,11 +14,8 @@ type MessagesReply = []*RPCWakuMessage
 
 type Base64URLByte []byte
 
-func (u Base64URLByte) MarshalJSON() ([]byte, error) {
-	base64Value := base64.URLEncoding.EncodeToString(u)
-	return []byte("\"" + base64Value + "\""), nil
-}
-
+// UnmarshalText is used by json.Unmarshal to decode both url-safe and standard
+// base64 encoded strings with and without padding
 func (h *Base64URLByte) UnmarshalText(b []byte) error {
 	inputValue := ""
 	if b != nil {
