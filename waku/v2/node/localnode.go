@@ -29,6 +29,8 @@ func (w *WakuNode) newLocalnode(priv *ecdsa.PrivateKey) (*enode.LocalNode, error
 func writeMultiaddressField(localnode *enode.LocalNode, addrAggr []ma.Multiaddr) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
+			// Deleting the multiaddr entry, as we could not write it succesfully
+			localnode.Delete(enr.WithEntry(utils.MultiaddrENRField, struct{}{}))
 			err = errors.New("could not write enr record")
 		}
 	}()
@@ -43,7 +45,7 @@ func writeMultiaddressField(localnode *enode.LocalNode, addrAggr []ma.Multiaddr)
 		fieldRaw = append(fieldRaw, maRaw...)
 	}
 
-	if len(fieldRaw) != 0 {
+	if len(fieldRaw) != 0 && len(fieldRaw) <= 100 { // Max length for multiaddr field before triggering the 300 bytes limit
 		localnode.Set(enr.WithEntry(utils.MultiaddrENRField, fieldRaw))
 	}
 
@@ -96,7 +98,7 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 			localnode.Delete(enr.TCP(0))
 		}
 
-		if ip6 != nil && !ip6.IsUnspecified() {
+		if ip4 == nil && ip6 != nil && !ip6.IsUnspecified() {
 			localnode.Set(enr.IPv6(ip6))
 			localnode.Set(enr.TCP6(ipAddr.Port))
 		} else {
@@ -130,16 +132,11 @@ func writeMultiaddresses(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr) 
 		}
 	}
 
-	if failedOnceWritingENR {
-		if !couldWriteENRatLeastOnce {
-			// In case multiaddr could not be populated at all
-			localnode.Delete(enr.WithEntry(utils.MultiaddrENRField, struct{}{}))
-		} else {
-			// Could write a subset of multiaddresses but not all
-			err = writeMultiaddressField(localnode, multiaddrs[0:successIdx])
-			if err != nil {
-				return errors.New("could not write new ENR")
-			}
+	if failedOnceWritingENR && couldWriteENRatLeastOnce {
+		// Could write a subset of multiaddresses but not all
+		err = writeMultiaddressField(localnode, multiaddrs[0:successIdx])
+		if err != nil {
+			return errors.New("could not write new ENR")
 		}
 	}
 
