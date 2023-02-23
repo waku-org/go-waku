@@ -30,7 +30,7 @@ func TestBase64Encoding(t *testing.T) {
 	m := make(map[string]interface{})
 	err = json.Unmarshal(jsonBytes, &m)
 	require.NoError(t, err)
-	require.Equal(t, base64.URLEncoding.EncodeToString([]byte(input)), m["payload"])
+	require.Equal(t, base64.StdEncoding.EncodeToString([]byte(input)), m["payload"])
 
 	decodedRpcMsg := new(RPCWakuMessage)
 	err = json.Unmarshal(jsonBytes, decodedRpcMsg)
