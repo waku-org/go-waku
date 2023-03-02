@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -51,9 +52,22 @@ type WakuRelay struct {
 	subscriptionsMutex sync.Mutex
 }
 
+var sha256Pool = sync.Pool{New: func() interface{} {
+	return sha256.New()
+}}
+
 func msgIdFn(pmsg *pubsub_pb.Message) string {
-	hash := sha256.Sum256(pmsg.Data)
-	return string(hash[:])
+	h, ok := sha256Pool.Get().(hash.Hash)
+	if !ok {
+		h = sha256.New()
+	}
+	defer sha256Pool.Put(h)
+	h.Reset()
+
+	var result [32]byte
+	h.Write(pmsg.Data)
+	h.Sum(result[:0])
+	return string(result[:])
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
