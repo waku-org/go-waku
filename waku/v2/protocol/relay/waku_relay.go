@@ -2,11 +2,9 @@ package relay
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash"
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -24,6 +22,7 @@ import (
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
@@ -52,22 +51,8 @@ type WakuRelay struct {
 	subscriptionsMutex sync.Mutex
 }
 
-var sha256Pool = sync.Pool{New: func() interface{} {
-	return sha256.New()
-}}
-
 func msgIdFn(pmsg *pubsub_pb.Message) string {
-	h, ok := sha256Pool.Get().(hash.Hash)
-	if !ok {
-		h = sha256.New()
-	}
-	defer sha256Pool.Put(h)
-	h.Reset()
-
-	var result [32]byte
-	h.Write(pmsg.Data)
-	h.Sum(result[:0])
-	return string(result[:])
+	return string(utils.SHA256(pmsg.Data))
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
