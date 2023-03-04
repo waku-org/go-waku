@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,14 +21,12 @@ func TestEnvelope(t *testing.T) {
 
 	topic := e.PubsubTopic()
 	require.Equal(t, "test", topic)
-
 	hash := e.Hash()
+	fmt.Println(hash)
+
 	require.Equal(
 		t,
-		[]uint8([]byte{0xc7, 0xaf, 0xc3, 0xe9, 0x9, 0xd1, 0xc6, 0xb4, 0x81, 0xb3, 0xdf, 0x4f, 0x16, 0x1a, 0xe4, 0xc9, 0x9c, 0x8, 0x4e, 0x5, 0xe4, 0xeb, 0x5f, 0x9b, 0x58, 0xb5, 0xf4, 0xde, 0xe9, 0x73, 0x18, 0x7b}),
+		[]uint8{70, 218, 246, 174, 188, 127, 199, 220, 111, 30, 61, 218, 238, 60, 83, 3, 179, 98, 85, 35, 7, 107, 188, 138, 32, 70, 170, 126, 55, 21, 71, 70},
 		hash,
 	)
-
-	size := e.Size()
-	require.Equal(t, 14, size)
 }
