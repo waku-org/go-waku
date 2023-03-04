@@ -41,6 +41,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -164,7 +165,7 @@ func Execute(options Options) {
 			if !options.Filter.DisableFullNode {
 				nodeOpts = append(nodeOpts, node.WithWakuFilterV2LightNode())
 			} else {
-				nodeOpts = append(nodeOpts, node.WithWakuFilterV2FullNode(filter.WithTimeout(options.Filter.Timeout)))
+				nodeOpts = append(nodeOpts, node.WithWakuFilterV2FullNode(filterv2.WithTimeout(options.Filter.Timeout)))
 			}
 		} else {
 			nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))

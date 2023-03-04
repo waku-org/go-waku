@@ -164,10 +164,8 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var response []*pb.WakuMessage
-	for i := range d.messages[topic] {
-		response = append(response, d.messages[topic][i])
-	}
+	response := d.messages[topic]
+
 	d.messages[topic] = []*pb.WakuMessage{}
 	writeErrOrResponse(w, nil, response)
 }
