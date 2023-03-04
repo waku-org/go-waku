@@ -560,7 +560,7 @@ func (w *WakuNode) Publish(ctx context.Context, msg *pb.WakuMessage) error {
 		return errors.New("cannot publish message, relay and lightpush are disabled")
 	}
 
-	hash, _, _ := msg.Hash()
+	hash := msg.Hash(relay.DefaultWakuTopic)
 	err := try.Do(func(attempt int) (bool, error) {
 		var err error
 
