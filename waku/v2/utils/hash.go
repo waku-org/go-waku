@@ -17,9 +17,6 @@ func SHA256(data []byte) []byte {
 	}
 	defer sha256Pool.Put(h)
 	h.Reset()
-
-	var result [32]byte
 	h.Write(data)
-	h.Sum(result[:0])
-	return result[:]
+	return h.Sum(nil)
 }
