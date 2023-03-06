@@ -1,4 +1,4 @@
-{ lib, pkgs, callPackage, buildGoModule, buildGoPackage }:
+{ lib, pkgs, callPackage, buildGo119Package }:
 
 let
   androidPkgs = pkgs.androidenv.composeAndroidPackages {
@@ -8,7 +8,7 @@ let
   };
   androidSdk = androidPkgs.androidsdk;
   gomobile = pkgs.gomobile.override { inherit androidPkgs; };
-in buildGoPackage rec {
+in buildGo119Package rec {
   pname = "go-waku";
   version = "devel";
   goPackagePath = "github.com/status-im/go-waku";

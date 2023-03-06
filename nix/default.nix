@@ -3,5 +3,8 @@
   config.android_sdk.accept_license = true;
 } }:
 
-#pkgs.callPackage ./mobile_pkg.nix { }
-pkgs.callPackage ./mobile_mod.nix { }
+{
+  pkg = pkgs.callPackage ./mobile_pkg.nix { };
+  mod = pkgs.callPackage ./mobile_mod.nix { };
+  bkp = pkgs.callPackage ./mobile_bkp.nix { };
+}
