@@ -405,7 +405,7 @@ func ContentTopic(applicationName string, applicationVersion int, contentTopicNa
 }
 
 func PubsubTopic(name string, encoding string) string {
-	return protocol.NewPubsubTopic(name, encoding).String()
+	return protocol.NewNamedShardingPubsubTopic(name + "/" + encoding).String()
 }
 
 func DefaultPubsubTopic() string {
