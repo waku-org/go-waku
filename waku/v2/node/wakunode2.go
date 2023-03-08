@@ -214,7 +214,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		return nil, err
 	}
 
-	w.rendezvous = rendezvous.NewRendezvous(w.host, w.peerConnector, w.log)
+	w.rendezvous = rendezvous.NewRendezvous(w.host, w.opts.rendezvousDB, w.peerConnector, w.log)
 	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
 	w.filterV2Full = filterv2.NewWakuFilterFullnode(w.host, w.bcaster, w.timesource, w.log, w.opts.filterV2Opts...)
@@ -425,6 +425,10 @@ func (w *WakuNode) Stop() {
 	defer w.identificationEventSub.Close()
 	defer w.addressChangesSub.Close()
 
+	if w.opts.enableRendezvous {
+		w.rendezvous.Stop()
+	}
+
 	w.relay.Stop()
 	w.lightPush.Stop()
 	w.store.Stop()
@@ -434,10 +438,6 @@ func (w *WakuNode) Stop() {
 
 	if w.opts.enableDiscV5 {
 		w.discoveryV5.Stop()
-	}
-
-	if w.opts.enableRendezvous {
-		w.rendezvous.Stop()
 	}
 
 	w.peerConnector.Stop()

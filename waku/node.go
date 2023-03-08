@@ -58,6 +58,10 @@ func failOnErr(err error, msg string) {
 	}
 }
 
+func requiresDB(options Options) bool {
+	return options.Store.Enable || options.Rendezvous.Enable
+}
+
 const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
@@ -82,7 +86,7 @@ func Execute(options Options) {
 
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
-	if options.Store.Enable {
+	if requiresDB(options) {
 		db, migrationFn, err = ExtractDBAndMigration(options.Store.DatabaseURL)
 		failOnErr(err, "Could not connect to DB")
 	}
@@ -161,10 +165,6 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
 	}
 
-	if options.Rendezvous.Enable {
-		nodeOpts = append(nodeOpts, node.WithRendezvousServer())
-	}
-
 	if options.Filter.Enable {
 		if options.Filter.UseV2 {
 			if !options.Filter.DisableFullNode {
@@ -177,14 +177,19 @@ func Execute(options Options) {
 		}
 	}
 
-	if options.Store.Enable {
-		nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.ResumeNodes...))
-		dbStore, err := persistence.NewDBStore(logger,
+	var dbStore *persistence.DBStore
+	if requiresDB(options) {
+		dbStore, err = persistence.NewDBStore(logger,
 			persistence.WithDB(db),
-			persistence.WithMigrations(migrationFn),
+			persistence.WithMigrations(migrationFn), // TODO: refactor migrations out of DBStore, or merge DBStore with rendezvous DB
 			persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime),
 		)
 		failOnErr(err, "DBStore")
+		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
+	}
+
+	if options.Store.Enable {
+		nodeOpts = append(nodeOpts, node.WithWakuStore(options.Store.ResumeNodes...))
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 	}
 
@@ -235,6 +240,11 @@ func Execute(options Options) {
 
 	if options.PeerExchange.Enable {
 		nodeOpts = append(nodeOpts, node.WithPeerExchange())
+	}
+
+	if options.Rendezvous.Enable {
+		rdb := rendezvous.NewDB(ctx, db, logger)
+		nodeOpts = append(nodeOpts, node.WithRendezvousServer(rdb))
 	}
 
 	checkForRLN(logger, options, &nodeOpts)
