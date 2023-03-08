@@ -3,6 +3,7 @@ package filterv2
 import (
 	"context"
 	"crypto/rand"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -145,6 +146,45 @@ func TestWakuFilter(t *testing.T) {
 	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 2), testTopic)
 	require.NoError(t, err)
 	wg.Wait()
+}
+
+func TestSubscriptionPing(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	defer cancel()
+
+	testTopic := "/waku/2/go/filter/test"
+
+	node1, host1 := makeWakuFilterLightNode(t)
+	defer node1.Stop()
+
+	broadcaster := v2.NewBroadcaster(10)
+	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
+	defer node2.Stop()
+	defer sub2.Unsubscribe()
+
+	node2Filter := NewWakuFilterFullnode(host2, broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	err := node2Filter.Start(ctx)
+	require.NoError(t, err)
+
+	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
+	err = host1.Peerstore().AddProtocols(host2.ID(), FilterSubscribeID_v20beta1)
+	require.NoError(t, err)
+
+	err = node1.Ping(context.Background(), host2.ID())
+	require.Error(t, err)
+	filterErr, ok := err.(*FilterError)
+	require.True(t, ok)
+	require.Equal(t, filterErr.Code, http.StatusNotFound)
+
+	contentFilter := ContentFilter{
+		Topic:         string(testTopic),
+		ContentTopics: []string{"abc"},
+	}
+	_, err = node1.Subscribe(ctx, contentFilter, WithPeer(node2Filter.h.ID()))
+	require.NoError(t, err)
+
+	err = node1.Ping(context.Background(), host2.ID())
+	require.NoError(t, err)
 }
 
 func TestWakuFilterPeerFailure(t *testing.T) {
