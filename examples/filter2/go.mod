@@ -4,10 +4,10 @@ go 1.19
 
 replace github.com/waku-org/go-waku => ../..
 
-replace github.com/ethereum/go-ethereum v1.11.0 => github.com/status-im/go-ethereum v1.10.25-status.4
+replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
 
 require (
-	github.com/ethereum/go-ethereum v1.11.0
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
 )

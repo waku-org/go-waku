@@ -4,7 +4,7 @@ go 1.19
 
 replace github.com/waku-org/go-waku => ../..
 
-replace github.com/ethereum/go-ethereum v1.11.0 => github.com/status-im/go-ethereum v1.10.25-status.4
+replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
 
 require (
 	github.com/ipfs/go-log/v2 v2.5.1
@@ -32,7 +32,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
-	github.com/ethereum/go-ethereum v1.11.0 // indirect
+	github.com/ethereum/go-ethereum v1.10.26 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect

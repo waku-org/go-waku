@@ -4,13 +4,13 @@ go 1.19
 
 replace github.com/waku-org/go-waku => ../..
 
-replace github.com/ethereum/go-ethereum v1.11.0 => github.com/status-im/go-ethereum v1.10.25-status.4
+replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
 
 require (
 	github.com/charmbracelet/bubbles v0.13.0
 	github.com/charmbracelet/bubbletea v0.22.0
 	github.com/charmbracelet/lipgloss v0.5.0
-	github.com/ethereum/go-ethereum v1.11.0
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/libp2p/go-libp2p v0.25.1
 	github.com/muesli/reflow v0.3.0
