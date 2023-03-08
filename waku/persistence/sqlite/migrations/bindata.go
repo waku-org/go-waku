@@ -4,6 +4,8 @@
 // 1_messages.up.sql (464B)
 // 2_messages_index.down.sql (60B)
 // 2_messages_index.up.sql (226B)
+// 3_rendezvous.down.sql (65B)
+// 3_rendezvous.up.sql (174B)
 // doc.go (74B)
 
 package migrations
@@ -153,6 +155,46 @@ func _2_messages_indexUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __3_rendezvousDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\xf0\x74\x53\x70\x8d\xf0\x0c\x0e\x09\x56\x08\x4a\x4d\xcf\x2c\x2e\x29\x4a\x2c\xc9\xcc\xcf\x2b\xb6\xe6\xe2\xc2\xaa\xc8\x2f\x3f\x2f\x39\xd5\x9a\x0b\x10\x00\x00\xff\xff\x58\x3f\x49\x49\x41\x00\x00\x00")
+
+func _3_rendezvousDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__3_rendezvousDownSql,
+		"3_rendezvous.down.sql",
+	)
+}
+
+func _3_rendezvousDownSql() (*asset, error) {
+	bytes, err := _3_rendezvousDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "3_rendezvous.down.sql", size: 65, mode: os.FileMode(0664), modTime: time.Unix(1678305816, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x1f, 0x4b, 0xc0, 0x7d, 0x4f, 0xac, 0xc4, 0x75, 0x59, 0xcc, 0xfc, 0x1a, 0x6c, 0x18, 0x81, 0x29, 0x24, 0x33, 0x3, 0x10, 0x39, 0xd0, 0x67, 0x28, 0xa0, 0xe0, 0xfd, 0x36, 0x91, 0x25, 0x37, 0x83}}
+	return a, nil
+}
+
+var __3_rendezvousUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x54\x8e\xc1\xca\xc2\x30\x10\x84\xef\x7d\x8a\x39\xb6\x90\xe3\xcf\x7f\xf1\xb4\x2d\x8b\x06\x6d\x94\x25\x0a\x3d\x96\x76\x91\x5e\x92\x92\x44\xf0\xf1\x85\x42\x41\x4f\xc3\x30\xc3\xc7\xd7\x09\x93\x67\x78\x6a\x2f\x0c\xd1\xe7\x92\x4b\x1a\xcb\x12\x43\x46\x3d\xc5\x57\x28\x9a\x60\x9d\xe7\x23\x0b\x6e\x62\x7b\x92\x01\x67\x1e\x40\x77\x7f\xb5\xae\x13\xee\xd9\x79\x83\x55\x35\xe1\x41\xd2\x9d\x48\xea\xff\xbf\xc6\x20\xe4\xbd\x1b\xe8\x7b\x5d\x92\xee\x1c\x83\x71\x9e\xd3\x36\xb7\xd6\x91\x0c\xcd\xa1\xaa\x7e\x3c\x5c\x0c\x93\xa2\x0e\x5b\x7c\xdf\x3e\x01\x00\x00\xff\xff\x68\x8d\x6b\x7a\xae\x00\x00\x00")
+
+func _3_rendezvousUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__3_rendezvousUpSql,
+		"3_rendezvous.up.sql",
+	)
+}
+
+func _3_rendezvousUpSql() (*asset, error) {
+	bytes, err := _3_rendezvousUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "3_rendezvous.up.sql", size: 174, mode: os.FileMode(0664), modTime: time.Unix(1678305781, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0xaa, 0xaa, 0x52, 0x86, 0x31, 0xfd, 0xd2, 0x0, 0xb1, 0xf4, 0xa0, 0xa8, 0xad, 0xb9, 0x59, 0x74, 0x35, 0x13, 0xab, 0x12, 0x68, 0x6a, 0x63, 0x37, 0x36, 0xce, 0xd3, 0xac, 0x7f, 0x80, 0xaa, 0x74}}
+	return a, nil
+}
+
 var _docGo = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x2c\xc9\xb1\x0d\xc4\x20\x0c\x05\xd0\x9e\x29\xfe\x02\xd8\xfd\x6d\xe3\x4b\xac\x2f\x44\x82\x09\x78\x7f\xa5\x49\xfd\xa6\x1d\xdd\xe8\xd8\xcf\x55\x8a\x2a\xe3\x47\x1f\xbe\x2c\x1d\x8c\xfa\x6f\xe3\xb4\x34\xd4\xd9\x89\xbb\x71\x59\xb6\x18\x1b\x35\x20\xa2\x9f\x0a\x03\xa2\xe5\x0d\x00\x00\xff\xff\x60\xcd\x06\xbe\x4a\x00\x00\x00")
 
 func docGoBytes() ([]byte, error) {
@@ -272,6 +314,10 @@ var _bindata = map[string]func() (*asset, error){
 
 	"2_messages_index.up.sql": _2_messages_indexUpSql,
 
+	"3_rendezvous.down.sql": _3_rendezvousDownSql,
+
+	"3_rendezvous.up.sql": _3_rendezvousUpSql,
+
 	"doc.go": docGo,
 }
 
@@ -320,6 +366,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"1_messages.up.sql":         &bintree{_1_messagesUpSql, map[string]*bintree{}},
 	"2_messages_index.down.sql": &bintree{_2_messages_indexDownSql, map[string]*bintree{}},
 	"2_messages_index.up.sql":   &bintree{_2_messages_indexUpSql, map[string]*bintree{}},
+	"3_rendezvous.down.sql":     &bintree{_3_rendezvousDownSql, map[string]*bintree{}},
+	"3_rendezvous.up.sql":       &bintree{_3_rendezvousUpSql, map[string]*bintree{}},
 	"doc.go":                    &bintree{docGo, map[string]*bintree{}},
 }}
 

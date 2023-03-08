@@ -14,6 +14,7 @@ import (
 	"time"
 
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -160,6 +161,10 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
 	}
 
+	if options.Rendezvous.Enable {
+		nodeOpts = append(nodeOpts, node.WithRendezvousServer())
+	}
+
 	if options.Filter.Enable {
 		if options.Filter.UseV2 {
 			if !options.Filter.DisableFullNode {
@@ -242,6 +247,7 @@ func Execute(options Options) {
 
 	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
 	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
+	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
 
 	if options.Filter.UseV2 {
 		addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)

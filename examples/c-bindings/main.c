@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
   char *response;
   waku_set_event_callback(callBack);
 
-  char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000}";
+  char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000, \"logLevel\":\"error\"}";
   response = waku_new(configJSON); // configJSON can be NULL too to use defaults
   if (isError(response))
     return 1;

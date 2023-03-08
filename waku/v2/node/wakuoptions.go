@@ -79,6 +79,8 @@ type WakuNodeParameters struct {
 	resumeNodes     []multiaddr.Multiaddr
 	messageProvider store.MessageProvider
 
+	enableRendezvous bool
+
 	swapMode                int
 	swapDisconnectThreshold int
 	swapPaymentThreshold    int
@@ -429,6 +431,15 @@ func WithWebsockets(address string, port int) WakuNodeOption {
 
 		params.multiAddr = append(params.multiAddr, wsMa)
 
+		return nil
+	}
+}
+
+// WithRendezvousServer is a WakuOption used to set the node as a rendezvous
+// point, using an specific storage for the peer information
+func WithRendezvousServer() WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.enableRendezvous = true
 		return nil
 	}
 }

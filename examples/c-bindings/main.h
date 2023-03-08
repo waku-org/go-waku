@@ -32,7 +32,7 @@ char *utils_extract_wakumessage_from_signal(const nx_json *signal)
     const char *contentTopic = nx_json_get(wakuMsgJson, "contentTopic")->text_value;
     int version = nx_json_get(wakuMsgJson, "version")->int_value;
     long long timestamp = nx_json_get(wakuMsgJson, "timestamp")->int_value;
-    char wakuMsg[1000];
+    char wakuMsg[6000];
     sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%lld, \"version\":%d}", payload, contentTopic, timestamp, version);
     char *response = (char *)malloc(sizeof(char) * (strlen(wakuMsg) + 1));
     strcpy(response, wakuMsg);
