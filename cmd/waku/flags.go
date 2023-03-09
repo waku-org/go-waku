@@ -363,10 +363,9 @@ var (
 		Destination: &options.DiscV5.AutoUpdate,
 		EnvVars:     []string{"WAKUNODE2_DISCV5_ENR_AUTO_UPDATE"},
 	})
-
 	Rendezvous = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rendezvous",
-		Usage:       "Enable rendezvous protocol server for peer discovery",
+		Usage:       "Enable rendezvous protocol for peer discovery",
 		Destination: &options.Rendezvous.Enable,
 		EnvVars:     []string{"WAKUNODE2_RENDEZVOUS"},
 	})
@@ -377,6 +376,12 @@ var (
 			Values: &options.Rendezvous.Nodes,
 		},
 		EnvVars: []string{"WAKUNODE2_RENDEZVOUSNODE"},
+	})
+	RendezvousServer = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "rendezvous-server",
+		Usage:       "Enable rendezvous protocol server so other peers can use this node for discovery",
+		Destination: &options.Rendezvous.Server,
+		EnvVars:     []string{"WAKUNODE2_RENDEZVOUS_SERVER"},
 	})
 	PeerExchange = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "peer-exchange",

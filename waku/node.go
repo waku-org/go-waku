@@ -59,7 +59,7 @@ func failOnErr(err error, msg string) {
 }
 
 func requiresDB(options Options) bool {
-	return options.Store.Enable || options.Rendezvous.Enable
+	return options.Store.Enable || options.Rendezvous.Server
 }
 
 const dialTimeout = 7 * time.Second
@@ -243,6 +243,10 @@ func Execute(options Options) {
 	}
 
 	if options.Rendezvous.Enable {
+		nodeOpts = append(nodeOpts, node.WithRendezvous(options.Rendezvous.Nodes))
+	}
+
+	if options.Rendezvous.Server {
 		rdb := rendezvous.NewDB(ctx, db, logger)
 		nodeOpts = append(nodeOpts, node.WithRendezvousServer(rdb))
 	}
