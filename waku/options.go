@@ -141,6 +141,7 @@ type PeerExchangeOptions struct {
 
 type RendezvousOptions struct {
 	Enable bool
+	Server bool
 	Nodes  []multiaddr.Multiaddr
 }
 
