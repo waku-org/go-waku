@@ -363,6 +363,21 @@ var (
 		Destination: &options.DiscV5.AutoUpdate,
 		EnvVars:     []string{"WAKUNODE2_DISCV5_ENR_AUTO_UPDATE"},
 	})
+
+	Rendezvous = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "rendezvous",
+		Usage:       "Enable rendezvous protocol server for peer discovery",
+		Destination: &options.Rendezvous.Enable,
+		EnvVars:     []string{"WAKUNODE2_RENDEZVOUS"},
+	})
+	RendezvousNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
+		Name:  "rendezvous-node",
+		Usage: "Multiaddr of a waku2 rendezvous node. Option may be repeated",
+		Value: &cliutils.MultiaddrSlice{
+			Values: &options.Rendezvous.Nodes,
+		},
+		EnvVars: []string{"WAKUNODE2_RENDEZVOUSNODE"},
+	})
 	PeerExchange = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "peer-exchange",
 		Usage:       "Enable waku peer exchange protocol (responder side)",

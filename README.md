@@ -95,7 +95,7 @@ If you'd like to contribute to go-waku, please fork, fix, commit and send a pull
 To build and test this repository, you need:
   - [Go](https://golang.org/) (version 1.17 or later)
   - [protoc](https://grpc.io/docs/protoc-installation/) 
-  - [Protocol Buffers for Go with Gadgets](https://github.com/gogo/protobuf)
+  - [protoc-gen-go](https://protobuf.dev/getting-started/gotutorial/#compiling-protocol-buffers)
 
 To enable the git hooks:
 

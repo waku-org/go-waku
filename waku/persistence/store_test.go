@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestDbStore(t *testing.T) {
 	store, err := NewDBStore(utils.Logger(), WithDB(db), WithMigrations(Migrate))
 	require.NoError(t, err)
 
-	err = store.Start(timesource.NewDefaultClock())
+	err = store.Start(context.Background(), timesource.NewDefaultClock())
 	require.NoError(t, err)
 
 	res, err := store.GetAll()
@@ -60,7 +61,7 @@ func TestStoreRetention(t *testing.T) {
 	store, err := NewDBStore(utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
-	err = store.Start(timesource.NewDefaultClock())
+	err = store.Start(context.Background(), timesource.NewDefaultClock())
 	require.NoError(t, err)
 
 	insertTime := time.Now()
@@ -83,7 +84,7 @@ func TestStoreRetention(t *testing.T) {
 	store, err = NewDBStore(utils.Logger(), WithDB(db), WithRetentionPolicy(5, 40*time.Second))
 	require.NoError(t, err)
 
-	err = store.Start(timesource.NewDefaultClock())
+	err = store.Start(context.Background(), timesource.NewDefaultClock())
 	require.NoError(t, err)
 
 	dbResults, err = store.GetAll()

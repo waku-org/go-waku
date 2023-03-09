@@ -73,6 +73,8 @@ func main() {
 		DNSDiscovery,
 		DNSDiscoveryUrl,
 		DNSDiscoveryNameServer,
+		Rendezvous,
+		RendezvousNode,
 		MetricsServer,
 		MetricsServerAddress,
 		MetricsServerPort,

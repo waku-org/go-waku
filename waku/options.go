@@ -139,6 +139,11 @@ type PeerExchangeOptions struct {
 	Node   *multiaddr.Multiaddr
 }
 
+type RendezvousOptions struct {
+	Enable bool
+	Nodes  []multiaddr.Multiaddr
+}
+
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
@@ -172,6 +177,7 @@ type Options struct {
 	RLNRelay     RLNRelayOptions
 	DiscV5       DiscV5Options
 	DNSDiscovery DNSDiscoveryOptions
+	Rendezvous   RendezvousOptions
 	Metrics      MetricsOptions
 	RPCServer    RPCServerOptions
 	RESTServer   RESTServerOptions
