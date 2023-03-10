@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
@@ -52,108 +53,6 @@ func randomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
-}
-
-type wakuConfig struct {
-	Host                 *string  `json:"host,omitempty"`
-	Port                 *int     `json:"port,omitempty"`
-	AdvertiseAddress     *string  `json:"advertiseAddr,omitempty"`
-	NodeKey              *string  `json:"nodeKey,omitempty"`
-	LogLevel             *string  `json:"logLevel,omitempty"`
-	KeepAliveInterval    *int     `json:"keepAliveInterval,omitempty"`
-	EnableRelay          *bool    `json:"relay"`
-	RelayTopics          []string `json:"relayTopics,omitempty"`
-	EnableFilter         *bool    `json:"filter,omitempty"`
-	MinPeersToPublish    *int     `json:"minPeersToPublish,omitempty"`
-	EnableDiscV5         *bool    `json:"discV5,omitempty"`
-	DiscV5BootstrapNodes []string `json:"discV5BootstrapNodes,omitempty"`
-	DiscV5UDPPort        *uint    `json:"discV5UDPPort,omitempty"`
-	EnableStore          *bool    `json:"store,omitempty"`
-	DatabaseURL          *string  `json:"databaseURL,omitempty"`
-	RetentionMaxMessages *int     `json:"storeRetentionMaxMessages,omitempty"`
-	RetentionTimeSeconds *int     `json:"storeRetentionTimeSeconds,omitempty"`
-}
-
-var defaultHost = "0.0.0.0"
-var defaultPort = 60000
-var defaultKeepAliveInterval = 20
-var defaultEnableRelay = true
-var defaultMinPeersToPublish = 0
-var defaultEnableFilter = false
-var defaultEnableDiscV5 = false
-var defaultDiscV5UDPPort = uint(9000)
-var defaultLogLevel = "INFO"
-var defaultEnableStore = false
-var defaultDatabaseURL = "sqlite3://store.db"
-var defaultRetentionMaxMessages = 10000
-var defaultRetentionTimeSeconds = 30 * 24 * 60 * 60 // 30d
-
-func getConfig(configJSON string) (wakuConfig, error) {
-	var config wakuConfig
-	if configJSON != "" {
-		err := json.Unmarshal([]byte(configJSON), &config)
-		if err != nil {
-			return wakuConfig{}, err
-		}
-	}
-
-	if config.Host == nil {
-		config.Host = &defaultHost
-	}
-
-	if config.EnableRelay == nil {
-		config.EnableRelay = &defaultEnableRelay
-	}
-
-	if config.EnableFilter == nil {
-		config.EnableFilter = &defaultEnableFilter
-	}
-
-	if config.EnableDiscV5 == nil {
-		config.EnableDiscV5 = &defaultEnableDiscV5
-	}
-
-	if config.Host == nil {
-		config.Host = &defaultHost
-	}
-
-	if config.Port == nil {
-		config.Port = &defaultPort
-	}
-
-	if config.DiscV5UDPPort == nil {
-		config.DiscV5UDPPort = &defaultDiscV5UDPPort
-	}
-
-	if config.KeepAliveInterval == nil {
-		config.KeepAliveInterval = &defaultKeepAliveInterval
-	}
-
-	if config.MinPeersToPublish == nil {
-		config.MinPeersToPublish = &defaultMinPeersToPublish
-	}
-
-	if config.LogLevel == nil {
-		config.LogLevel = &defaultLogLevel
-	}
-
-	if config.EnableStore == nil {
-		config.EnableStore = &defaultEnableStore
-	}
-
-	if config.DatabaseURL == nil {
-		config.DatabaseURL = &defaultDatabaseURL
-	}
-
-	if config.RetentionMaxMessages == nil {
-		config.RetentionMaxMessages = &defaultRetentionMaxMessages
-	}
-
-	if config.RetentionTimeSeconds == nil {
-		config.RetentionTimeSeconds = &defaultRetentionTimeSeconds
-	}
-
-	return config, nil
 }
 
 func NewNode(configJSON string) string {
@@ -196,7 +95,13 @@ func NewNode(configJSON string) string {
 	}
 
 	if *config.EnableRelay {
-		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish))
+		var pubsubOpt []pubsub.Option
+		if config.GossipSubParams != nil {
+			params := GetGossipSubParams(config.GossipSubParams)
+			pubsubOpt = append(pubsubOpt, pubsub.WithGossipSubParams(params))
+		}
+
+		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish, pubsubOpt...))
 	}
 
 	if *config.EnableFilter {
