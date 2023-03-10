@@ -49,21 +49,21 @@ type GossipSubParams struct {
 	// D sets the optimal degree for a GossipSub topic mesh. For example, if D == 6,
 	// each peer will want to have about six peers in their mesh for each topic they're subscribed to.
 	// D should be set somewhere between Dlo and Dhi.
-	D *int `json:"D,omitempty"`
+	D *int `json:"d,omitempty"`
 
 	// Dlo sets the lower bound on the number of peers we keep in a GossipSub topic mesh.
 	// If we have fewer than Dlo peers, we will attempt to graft some more into the mesh at
 	// the next heartbeat.
-	Dlo *int `json:"D_low,omitempty"`
+	Dlo *int `json:"dLow,omitempty"`
 
 	// Dhi sets the upper bound on the number of peers we keep in a GossipSub topic mesh.
 	// If we have more than Dhi peers, we will select some to prune from the mesh at the next heartbeat.
-	Dhi *int `json:"D_high,omitempty"`
+	Dhi *int `json:"dHigh,omitempty"`
 
 	// Dscore affects how peers are selected when pruning a mesh due to over subscription.
 	// At least Dscore of the retained peers will be high-scoring, while the remainder are
 	// chosen randomly.
-	Dscore *int `json:"D_score,omitempty"`
+	Dscore *int `json:"dScore,omitempty"`
 
 	// Dout sets the quota for the number of outbound connections to maintain in a topic mesh.
 	// When the mesh is pruned due to over subscription, we make sure that we have outbound connections
@@ -71,13 +71,13 @@ type GossipSubParams struct {
 	// our mesh with incoming connections.
 	//
 	// Dout must be set below Dlo, and must not exceed D / 2.
-	Dout *int `json:"D_out,omitempty"`
+	Dout *int `json:"dOut,omitempty"`
 
 	// gossip parameters
 
 	// HistoryLength controls the size of the message cache used for gossip.
 	// The message cache will remember messages for HistoryLength heartbeats.
-	HistoryLength *int `json:"HistoryLength,omitempty"`
+	HistoryLength *int `json:"historyLength,omitempty"`
 
 	// HistoryGossip controls how many cached message ids we will advertise in
 	// IHAVE gossip messages. When asked for our seen message IDs, we will return
@@ -87,47 +87,47 @@ type GossipSubParams struct {
 	//
 	// HistoryGossip must be less than or equal to HistoryLength to
 	// avoid a runtime panic.
-	HistoryGossip *int `json:"HistoryGossip,omitempty"`
+	HistoryGossip *int `json:"historyGossip,omitempty"`
 
 	// Dlazy affects how many peers we will emit gossip to at each heartbeat.
 	// We will send gossip to at least Dlazy peers outside our mesh. The actual
 	// number may be more, depending on GossipFactor and how many peers we're
 	// connected to.
-	Dlazy *int `json:"D_lazy,omitempty"`
+	Dlazy *int `json:"dLazy,omitempty"`
 
 	// GossipFactor affects how many peers we will emit gossip to at each heartbeat.
 	// We will send gossip to GossipFactor * (total number of non-mesh peers), or
 	// Dlazy, whichever is greater.
-	GossipFactor *float64 `json:"GossipFactor,omitempty"`
+	GossipFactor *float64 `json:"gossipFactor,omitempty"`
 
 	// GossipRetransmission controls how many times we will allow a peer to request
 	// the same message id through IWANT gossip before we start ignoring them. This is designed
 	// to prevent peers from spamming us with requests and wasting our resources.
-	GossipRetransmission *int `json:"GossipRetransmission,omitempty"`
+	GossipRetransmission *int `json:"gossipRetransmission,omitempty"`
 
 	// heartbeat interval
 
 	// HeartbeatInitialDelayMs is the short delay before the heartbeat timer begins
 	// after the router is initialized.
-	HeartbeatInitialDelayMs *int `json:"HeartbeatInitialDelayMs,omitempty"`
+	HeartbeatInitialDelayMs *int `json:"heartbeatInitialDelayMs,omitempty"`
 
 	// HeartbeatIntervalSeconds controls the time between heartbeats.
-	HeartbeatIntervalSeconds *int `json:"HeartbeatIntervalSeconds,omitempty"`
+	HeartbeatIntervalSeconds *int `json:"heartbeatIntervalSeconds,omitempty"`
 
 	// SlowHeartbeatWarning is the duration threshold for heartbeat processing before emitting
 	// a warning; this would be indicative of an overloaded peer.
-	SlowHeartbeatWarning *float64 `json:"SlowHeartbeatWarning,omitempty"`
+	SlowHeartbeatWarning *float64 `json:"slowHeartbeatWarning,omitempty"`
 
 	// FanoutTTLSeconds controls how long we keep track of the fanout state. If it's been
 	// FanoutTTLSeconds since we've published to a topic that we're not subscribed to,
 	// we'll delete the fanout map for that topic.
-	FanoutTTLSeconds *int `json:"FanoutTTLSeconds,omitempty"`
+	FanoutTTLSeconds *int `json:"fanoutTTLSeconds,omitempty"`
 
 	// PrunePeers controls the number of peers to include in prune Peer eXchange.
 	// When we prune a peer that's eligible for PX (has a good score, etc), we will try to
 	// send them signed peer records for up to PrunePeers other peers that we
 	// know of.
-	PrunePeers *int `json:"PrunePeers,omitempty"`
+	PrunePeers *int `json:"prunePeers,omitempty"`
 
 	// PruneBackoffSeconds controls the backoff time for pruned peers. This is how long
 	// a peer must wait before attempting to graft into our mesh again after being pruned.
@@ -135,56 +135,56 @@ type GossipSubParams struct {
 	// the minimum time to wait. Peers running older versions may not send a backoff time,
 	// so if we receive a prune message without one, we will wait at least PruneBackoff
 	// before attempting to re-graft.
-	PruneBackoffSeconds *int `json:"PruneBackoffSeconds,omitempty"`
+	PruneBackoffSeconds *int `json:"pruneBackoffSeconds,omitempty"`
 
 	// UnsubscribeBackoffSeconds controls the backoff time to use when unsuscribing
 	// from a topic. A peer should not resubscribe to this topic before this
 	// duration.
-	UnsubscribeBackoffSeconds *int `json:"UnsubscribeBackoffSeconds,omitempty"`
+	UnsubscribeBackoffSeconds *int `json:"unsubscribeBackoffSeconds,omitempty"`
 
 	// Connectors controls the number of active connection attempts for peers obtained through PX.
-	Connectors *int `json:"Connectors,omitempty"`
+	Connectors *int `json:"connectors,omitempty"`
 
 	// MaxPendingConnections sets the maximum number of pending connections for peers attempted through px.
-	MaxPendingConnections *int `json:"MaxPendingConnections,omitempty"`
+	MaxPendingConnections *int `json:"maxPendingConnections,omitempty"`
 
 	// ConnectionTimeoutSeconds controls the timeout for connection attempts.
-	ConnectionTimeoutSeconds *int `json:"ConnectionTimeoutSeconds,omitempty"`
+	ConnectionTimeoutSeconds *int `json:"connectionTimeoutSeconds,omitempty"`
 
 	// DirectConnectTicks is the number of heartbeat ticks for attempting to reconnect direct peers
 	// that are not currently connected.
-	DirectConnectTicks *uint64 `json:"DirectConnectTicks,omitempty"`
+	DirectConnectTicks *uint64 `json:"directConnectTicks,omitempty"`
 
 	// DirectConnectInitialDelaySeconds is the initial delay before opening connections to direct peers
-	DirectConnectInitialDelaySeconds *int `json:"DirectConnectInitialDelaySeconds,omitempty"`
+	DirectConnectInitialDelaySeconds *int `json:"directConnectInitialDelaySeconds,omitempty"`
 
 	// OpportunisticGraftTicks is the number of heartbeat ticks for attempting to improve the mesh
 	// with opportunistic grafting. Every OpportunisticGraftTicks we will attempt to select some
 	// high-scoring mesh peers to replace lower-scoring ones, if the median score of our mesh peers falls
 	// below a threshold (see https://godoc.org/github.com/libp2p/go-libp2p-pubsub#PeerScoreThresholds).
-	OpportunisticGraftTicks *uint64 `json:"OpportunisticGraftTicks,omitempty"`
+	OpportunisticGraftTicks *uint64 `json:"opportunisticGraftTicks,omitempty"`
 
 	// OpportunisticGraftPeers is the number of peers to opportunistically graft.
-	OpportunisticGraftPeers *int `json:"OpportunisticGraftPeers,omitempty"`
+	OpportunisticGraftPeers *int `json:"opportunisticGraftPeers,omitempty"`
 
 	// If a GRAFT comes before GraftFloodThresholdSeconds has elapsed since the last PRUNE,
 	// then there is an extra score penalty applied to the peer through P7.
-	GraftFloodThresholdSeconds *int `json:"GraftFloodThresholdSeconds,omitempty"`
+	GraftFloodThresholdSeconds *int `json:"graftFloodThresholdSeconds,omitempty"`
 
 	// MaxIHaveLength is the maximum number of messages to include in an IHAVE message.
 	// Also controls the maximum number of IHAVE ids we will accept and request with IWANT from a
 	// peer within a heartbeat, to protect from IHAVE floods. You should adjust this value from the
 	// default if your system is pushing more than 5000 messages in HistoryGossip heartbeats;
 	// with the defaults this is 1666 messages/s.
-	MaxIHaveLength *int `json:"MaxIHaveLength,omitempty"`
+	MaxIHaveLength *int `json:"maxIHaveLength,omitempty"`
 
 	// MaxIHaveMessages is the maximum number of IHAVE messages to accept from a peer within a heartbeat.
-	MaxIHaveMessages *int `json:"MaxIHaveMessages,omitempty"`
+	MaxIHaveMessages *int `json:"maxIHaveMessages,omitempty"`
 
 	// Time to wait for a message requested through IWANT following an IHAVE advertisement.
 	// If the message is not received within this window, a broken promise is declared and
 	// the router may apply bahavioural penalties.
-	IWantFollowupTimeSeconds *int `json:"IWantFollowupTimeSeconds,omitempty"`
+	IWantFollowupTimeSeconds *int `json:"iWantFollowupTimeSeconds,omitempty"`
 }
 
 func getConfig(configJSON string) (wakuConfig, error) {

@@ -383,61 +383,61 @@ Fields:
 All fields are optional.
 If a key is `undefined`, or `null`, a default value will be set.
 
-- `D`: optimal degree for a GossipSub topic mesh. 
+- `d`: optimal degree for a GossipSub topic mesh. 
   Default `6`
-- `D_low`: lower bound on the number of peers we keep in a GossipSub topic mesh
+- `dLow`: lower bound on the number of peers we keep in a GossipSub topic mesh
   Default `5`
-- `D_high`: upper bound on the number of peers we keep in a GossipSub topic mesh.
+- `dHigh`: upper bound on the number of peers we keep in a GossipSub topic mesh.
   Default `12`
-- `D_score`: affects how peers are selected when pruning a mesh due to over subscription.
+- `dScore`: affects how peers are selected when pruning a mesh due to over subscription.
   Default `4`
-- `D_out`: sets the quota for the number of outbound connections to maintain in a topic mesh.
+- `dOut`: sets the quota for the number of outbound connections to maintain in a topic mesh.
   Default `2`
-- `HistoryLength`: controls the size of the message cache used for gossip.
+- `historyLength`: controls the size of the message cache used for gossip.
   Default `5`
-- `HistoryGossip`: controls how many cached message ids we will advertise in IHAVE gossip messages.
+- `historyGossip`: controls how many cached message ids we will advertise in IHAVE gossip messages.
   Default `3`
-- `D_lazy`: affects how many peers we will emit gossip to at each heartbeat.
+- `dLazy`: affects how many peers we will emit gossip to at each heartbeat.
   Default `6`
-- `GossipFactor`: affects how many peers we will emit gossip to at each heartbeat.
+- `gossipFactor`: affects how many peers we will emit gossip to at each heartbeat.
   Default `0.25`
-- `GossipRetransmission`: controls how many times we will allow a peer to request the same message id through IWANT gossip before we start ignoring them.
+- `gossipRetransmission`: controls how many times we will allow a peer to request the same message id through IWANT gossip before we start ignoring them.
   Default `3`
-- `HeartbeatInitialDelayMs`: short delay in milliseconds before the heartbeat timer begins after the router is initialized.
+- `heartbeatInitialDelayMs`: short delay in milliseconds before the heartbeat timer begins after the router is initialized.
   Default `100` milliseconds
-- `HeartbeatIntervalSeconds`: controls the time between heartbeats.
+- `heartbeatIntervalSeconds`: controls the time between heartbeats.
   Default `1` second
-- `SlowHeartbeatWarning`: duration threshold for heartbeat processing before emitting a warning.
+- `slowHeartbeatWarning`: duration threshold for heartbeat processing before emitting a warning.
   Default `0.1`
-- `FanoutTTLSeconds`: controls how long we keep track of the fanout state.
+- `fanoutTTLSeconds`: controls how long we keep track of the fanout state.
   Default `60` seconds
-- `PrunePeers`: controls the number of peers to include in prune Peer eXchange.
+- `prunePeers`: controls the number of peers to include in prune Peer eXchange.
   Default `16`
-- `PruneBackoffSeconds`: controls the backoff time for pruned peers.
+- `pruneBackoffSeconds`: controls the backoff time for pruned peers.
   Default `60` seconds
-- `UnsubscribeBackoffSeconds`: controls the backoff time to use when unsuscribing from a topic.
+- `unsubscribeBackoffSeconds`: controls the backoff time to use when unsuscribing from a topic.
   Default `10` seconds
-- `Connectors`: number of active connection attempts for peers obtained through PX.
+- `connectors`: number of active connection attempts for peers obtained through PX.
   Default `8`
-- `MaxPendingConnections`: maximum number of pending connections for peers attempted through px. 
+- `maxPendingConnections`: maximum number of pending connections for peers attempted through px. 
   Default `128`
-- `ConnectionTimeoutSeconds`: timeout in seconds for connection attempts.
+- `connectionTimeoutSeconds`: timeout in seconds for connection attempts.
   Default `30` seconds
-- `DirectConnectTicks`: the number of heartbeat ticks for attempting to reconnect direct peers that are not currently connected.
+- `directConnectTicks`: the number of heartbeat ticks for attempting to reconnect direct peers that are not currently connected.
   Default `300`
-- `DirectConnectInitialDelaySeconds`: initial delay before opening connections to direct peers.
+- `directConnectInitialDelaySeconds`: initial delay before opening connections to direct peers.
   Default `1` second
-- `OpportunisticGraftTicks`: number of heartbeat ticks for attempting to improve the mesh with opportunistic grafting.
+- `opportunisticGraftTicks`: number of heartbeat ticks for attempting to improve the mesh with opportunistic grafting.
   Default `60`
-- `OpportunisticGraftPeers`: the number of peers to opportunistically graft.
+- `opportunisticGraftPeers`: the number of peers to opportunistically graft.
   Default `2`
-- `GraftFloodThresholdSeconds`: If a GRAFT comes before GraftFloodThresholdSeconds has elapsed since the last PRUNE, then there is an extra score penalty applied to the peer through P7. 
+- `graftFloodThresholdSeconds`: If a GRAFT comes before GraftFloodThresholdSeconds has elapsed since the last PRUNE, then there is an extra score penalty applied to the peer through P7. 
   Default `10` seconds
-- `MaxIHaveLength`: max number of messages to include in an IHAVE message, also controls the max number of IHAVE ids we will accept and request with IWANT from a peer within a heartbeat.
+- `maxIHaveLength`: max number of messages to include in an IHAVE message, also controls the max number of IHAVE ids we will accept and request with IWANT from a peer within a heartbeat.
   Default `5000`
-- `MaxIHaveMessages`: max number of IHAVE messages to accept from a peer within a heartbeat.
+- `maxIHaveMessages`: max number of IHAVE messages to accept from a peer within a heartbeat.
   Default `10`
-- `IWantFollowupTimeSeconds`: Time to wait for a message requested through IWANT following an IHAVE advertisement.
+- `iWantFollowupTimeSeconds`: Time to wait for a message requested through IWANT following an IHAVE advertisement.
   Default `3` seconds
 
 ### `extern char* waku_new(char* jsonConfig)`
