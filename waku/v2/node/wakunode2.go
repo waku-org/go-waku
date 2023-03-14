@@ -214,7 +214,16 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		return nil, err
 	}
 
-	w.rendezvous = rendezvous.NewRendezvous(w.host, w.opts.enableRendezvousServer, w.opts.rendezvousDB, w.opts.enableRendezvous, w.opts.rendezvousNodes, w.peerConnector, w.log)
+	var rendezvousPoints []peer.ID
+	for _, p := range w.opts.rendezvousNodes {
+		peerID, err := utils.GetPeerID(p)
+		if err != nil {
+			return nil, err
+		}
+		rendezvousPoints = append(rendezvousPoints, peerID)
+	}
+
+	w.rendezvous = rendezvous.NewRendezvous(w.host, w.opts.enableRendezvousServer, w.opts.rendezvousDB, w.opts.enableRendezvous, rendezvousPoints, w.peerConnector, w.log)
 	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
 	w.filterV2Full = filterv2.NewWakuFilterFullnode(w.host, w.bcaster, w.timesource, w.log, w.opts.filterV2Opts...)

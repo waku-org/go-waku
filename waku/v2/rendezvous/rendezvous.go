@@ -3,18 +3,25 @@ package rendezvous
 import (
 	"context"
 	"math"
+	"math/rand"
 	"sync"
 	"time"
 
 	rvs "github.com/berty/go-libp2p-rendezvous"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
 
 const RendezvousID = rvs.RendezvousProto
+
+type rendezvousPoint struct {
+	sync.RWMutex
+
+	id     peer.ID
+	cookie []byte
+}
 
 type Rendezvous struct {
 	host host.Host
@@ -24,7 +31,7 @@ type Rendezvous struct {
 	rendezvousSvc *rvs.RendezvousService
 
 	discoverPeers    bool
-	rendezvousPoints []multiaddr.Multiaddr
+	rendezvousPoints []*rendezvousPoint
 	peerConnector    PeerConnector
 
 	log    *zap.Logger
@@ -36,8 +43,15 @@ type PeerConnector interface {
 	PeerChannel() chan<- peer.AddrInfo
 }
 
-func NewRendezvous(host host.Host, enableServer bool, db *DB, discoverPeers bool, rendevousPoints []multiaddr.Multiaddr, peerConnector PeerConnector, log *zap.Logger) *Rendezvous {
+func NewRendezvous(host host.Host, enableServer bool, db *DB, discoverPeers bool, rendezvousPoints []peer.ID, peerConnector PeerConnector, log *zap.Logger) *Rendezvous {
 	logger := log.Named("rendezvous")
+
+	var rendevousPoints []*rendezvousPoint
+	for _, rp := range rendezvousPoints {
+		rendevousPoints = append(rendevousPoints, &rendezvousPoint{
+			id: rp,
+		})
+	}
 
 	return &Rendezvous{
 		host:             host,
@@ -51,25 +65,26 @@ func NewRendezvous(host host.Host, enableServer bool, db *DB, discoverPeers bool
 }
 
 func (r *Rendezvous) Start(ctx context.Context) error {
-	err := r.db.Start(ctx)
-	if err != nil {
-		return err
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
-
 	r.cancel = cancel
 
 	if r.enableServer {
+		err := r.db.Start(ctx)
+		if err != nil {
+			cancel()
+			return err
+		}
+
 		r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
 	}
 
+	r.wg.Add(1)
+	go r.register(ctx)
+
 	if r.discoverPeers {
 		r.wg.Add(1)
-		go r.register(ctx)
+		go r.discover(ctx)
 	}
-
-	// TODO: Execute discovery and push nodes to peer connector. If asking for peers fail, add timeout and exponential backoff
 
 	r.log.Info("rendezvous protocol started")
 	return nil
@@ -77,6 +92,44 @@ func (r *Rendezvous) Start(ctx context.Context) error {
 
 const registerBackoff = 200 * time.Millisecond
 const registerMaxRetries = 7
+
+func (r *Rendezvous) getRandomServer() *rendezvousPoint {
+	return r.rendezvousPoints[rand.Intn(len(r.rendezvousPoints))] // nolint: gosec
+}
+
+func (r *Rendezvous) discover(ctx context.Context) {
+	defer r.wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			server := r.getRandomServer()
+
+			rendezvousClient := rvs.NewRendezvousClient(r.host, server.id)
+
+			addrInfo, cookie, err := rendezvousClient.Discover(ctx, relay.DefaultWakuTopic, 5, server.cookie)
+			if err != nil {
+				r.log.Error("could not discover new peers", zap.Error(err))
+				cookie = nil
+			}
+
+			if len(addrInfo) != 0 {
+				server.Lock()
+				server.cookie = cookie
+				server.Unlock()
+
+				for _, addr := range addrInfo {
+					r.peerConnector.PeerChannel() <- addr
+				}
+			} else {
+				// TODO: change log level to DEBUG in go-libp2p-rendezvous@v0.4.1/svc.go:234  discover query
+				// TODO: improve this by adding an exponential backoff?
+				time.Sleep(2 * time.Second)
+			}
+		}
+	}
+}
 
 func (r *Rendezvous) callRegister(ctx context.Context, rendezvousClient rvs.RendezvousClient, retries int) (<-chan time.Time, int) {
 	ttl, err := rendezvousClient.Register(ctx, relay.DefaultWakuTopic, rvs.DefaultTTL) // TODO: determine which topic to use
@@ -94,24 +147,14 @@ func (r *Rendezvous) callRegister(ctx context.Context, rendezvousClient rvs.Rend
 }
 
 func (r *Rendezvous) register(ctx context.Context) {
+	defer r.wg.Done()
+
 	for _, m := range r.rendezvousPoints {
 		r.wg.Add(1)
-		go func(m multiaddr.Multiaddr) {
+		go func(m *rendezvousPoint) {
 			r.wg.Done()
 
-			peerIDStr, err := m.ValueForProtocol(multiaddr.P_P2P)
-			if err != nil {
-				r.log.Error("error obtaining peerID", zap.Error(err))
-				return
-			}
-
-			peerID, err := peer.Decode(peerIDStr)
-			if err != nil {
-				r.log.Error("error obtaining peerID", zap.Error(err))
-				return
-			}
-
-			rendezvousClient := rvs.NewRendezvousClient(r.host, peerID)
+			rendezvousClient := rvs.NewRendezvousClient(r.host, m.id)
 			retries := 0
 			var t <-chan time.Time
 
