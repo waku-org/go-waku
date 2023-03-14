@@ -439,6 +439,9 @@ If a key is `undefined`, or `null`, a default value will be set.
   Default `10`
 - `iWantFollowupTimeSeconds`: Time to wait for a message requested through IWANT following an IHAVE advertisement.
   Default `3` seconds
+- `seenMessagesTTLSeconds`: configures when a previously seen message ID can be forgotten about.
+  Default `120` seconds
+
 
 ### `extern char* waku_new(char* jsonConfig)`
 
