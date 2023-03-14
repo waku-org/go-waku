@@ -185,6 +185,9 @@ type GossipSubParams struct {
 	// If the message is not received within this window, a broken promise is declared and
 	// the router may apply bahavioural penalties.
 	IWantFollowupTimeSeconds *int `json:"iWantFollowupTimeSeconds,omitempty"`
+
+	// configures when a previously seen message ID can be forgotten about
+	SeenMessagesTTLSeconds *int `json:"seenMessagesTTLSeconds"`
 }
 
 func getConfig(configJSON string) (wakuConfig, error) {
@@ -253,6 +256,14 @@ func getConfig(configJSON string) (wakuConfig, error) {
 	}
 
 	return config, nil
+}
+
+func GetSeenTTL(cfg wakuConfig) time.Duration {
+	if cfg.GossipSubParams == nil || *cfg.GossipSubParams.SeenMessagesTTLSeconds == 0 {
+		return pubsub.TimeCacheDuration
+	}
+
+	return time.Duration(*cfg.GossipSubParams.SeenMessagesTTLSeconds)
 }
 
 func GetGossipSubParams(cfg *GossipSubParams) pubsub.GossipSubParams {

@@ -101,6 +101,8 @@ func NewNode(configJSON string) string {
 			pubsubOpt = append(pubsubOpt, pubsub.WithGossipSubParams(params))
 		}
 
+		pubsubOpt = append(pubsubOpt, pubsub.WithSeenMessagesTTL(GetSeenTTL(config)))
+
 		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish, pubsubOpt...))
 	}
 

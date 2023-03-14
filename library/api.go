@@ -57,6 +57,7 @@ func main() {}
 //   - maxIHaveLength: max number of messages to include in an IHAVE message, also controls the max number of IHAVE ids we will accept and request with IWANT from a peer within a heartbeat. Default `5000`
 //   - maxIHaveMessages: max number of IHAVE messages to accept from a peer within a heartbeat. Default `10`
 //   - iWantFollowupTimeSeconds: Time to wait for a message requested through IWANT following an IHAVE advertisement. Default `3` seconds
+//   - seenMessagesTTLSeconds:  configures when a previously seen message ID can be forgotten about. Default `120` seconds
 //
 // - minPeersToPublish: The minimum number of peers required on a topic to allow broadcasting a message. Default `0`
 // - filter: Enable Filter. Default `false`
