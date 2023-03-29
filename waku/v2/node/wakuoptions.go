@@ -76,7 +76,6 @@ type WakuNodeParameters struct {
 	minRelayPeersToPublish int
 
 	enableStore     bool
-	enableSwap      bool
 	resumeNodes     []multiaddr.Multiaddr
 	messageProvider store.MessageProvider
 
@@ -85,10 +84,6 @@ type WakuNodeParameters struct {
 
 	enableRendezvousServer bool
 	rendezvousDB           *rendezvous.DB
-
-	swapMode                int
-	swapDisconnectThreshold int
-	swapPaymentThreshold    int
 
 	discoveryMinPeers int
 
@@ -369,17 +364,6 @@ func WithWakuStoreFactory(factory storeFactory) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.storeFactory = factory
 
-		return nil
-	}
-}
-
-// WithWakuSwap set the option of the Waku V2 Swap protocol
-func WithWakuSwap(mode int, disconnectThreshold, paymentThreshold int) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableSwap = true
-		params.swapMode = mode
-		params.swapDisconnectThreshold = disconnectThreshold
-		params.swapPaymentThreshold = paymentThreshold
 		return nil
 	}
 }

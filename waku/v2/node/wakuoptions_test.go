@@ -28,7 +28,7 @@ func TestWakuOptions(t *testing.T) {
 	require.NoError(t, err)
 
 	storeFactory := func(w *WakuNode) store.Store {
-		return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.timesource, w.log)
+		return store.NewWakuStore(w.host, w.opts.messageProvider, w.timesource, w.log)
 	}
 
 	options := []WakuNodeOption{
