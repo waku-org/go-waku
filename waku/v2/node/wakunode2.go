@@ -40,7 +40,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/protocol/swap"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 
@@ -77,7 +76,6 @@ type WakuNode struct {
 
 	relay         Service
 	lightPush     Service
-	swap          Service
 	peerConnector PeerConnectorService
 	discoveryV5   Service
 	peerExchange  Service
@@ -114,7 +112,7 @@ type WakuNode struct {
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
-	return store.NewWakuStore(w.host, w.swap, w.opts.messageProvider, w.timesource, w.log)
+	return store.NewWakuStore(w.host, w.opts.messageProvider, w.timesource, w.log)
 }
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
@@ -229,13 +227,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.filterV2Full = filterv2.NewWakuFilterFullnode(w.host, w.bcaster, w.timesource, w.log, w.opts.filterV2Opts...)
 	w.filterV2Light = filterv2.NewWakuFilterLightnode(w.host, w.bcaster, w.timesource, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
-
-	if w.opts.enableSwap {
-		w.swap = swap.NewWakuSwap(w.log, []swap.SwapOption{
-			swap.WithMode(w.opts.swapMode),
-			swap.WithThreshold(w.opts.swapPaymentThreshold, w.opts.swapDisconnectThreshold),
-		}...)
-	}
 
 	if params.storeFactory != nil {
 		w.storeFactory = params.storeFactory
