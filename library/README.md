@@ -847,6 +847,24 @@ For example:
 }
 ```
 
+### `extern char* waku_relay_topics()`
+
+Get the list of subscribed pubsub topics in Waku Relay.
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field will contain an array of pubsub topics.
+
+For example:
+
+```json
+{
+  "result": ["pubsubTopic1", "pubsubTopic2"]
+}
+```
+
+
 **Events**
 
 When a message is received, a ``"message"` event` is emitted containing the message, pubsub topic, and node ID in which

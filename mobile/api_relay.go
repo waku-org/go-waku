@@ -114,6 +114,14 @@ func RelaySubscribe(topic string) string {
 	return MakeJSONResponse(relaySubscribe(topic))
 }
 
+func RelayTopics() string {
+	if wakuState.node == nil {
+		return MakeJSONResponse(errWakuNodeNotReady)
+	}
+
+	return PrepareJSONResponse(wakuState.node.Relay().Topics(), nil)
+}
+
 func RelayUnsubscribe(topic string) string {
 	if wakuState.node == nil {
 		return MakeJSONResponse(errWakuNodeNotReady)
