@@ -17,7 +17,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
@@ -458,30 +457,21 @@ func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
 
 func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 	var prvKey *ecdsa.PrivateKey
-	var err error
-
+	// get private key from nodeKey or keyFile
 	if options.NodeKey != nil {
 		prvKey = options.NodeKey
 	} else {
-		// TODO: once https://github.com/urfave/cli/issues/1272 is fixed, remove env variable logic
-		keyString := os.Getenv("GOWAKU-NODEKEY")
-		if keyString != "" {
-			if prvKey, err = crypto.ToECDSA(common.FromHex(keyString)); err != nil {
-				return nil, fmt.Errorf("error converting key into valid ecdsa key: %w", err)
+		if _, err := os.Stat(options.KeyFile); err == nil {
+			if prvKey, err = loadPrivateKeyFromFile(options.KeyFile, options.KeyPasswd); err != nil {
+				return nil, fmt.Errorf("could not read keyfile: %w", err)
 			}
 		} else {
-			if _, err := os.Stat(options.KeyFile); err == nil {
-				if prvKey, err = loadPrivateKeyFromFile(options.KeyFile, options.KeyPasswd); err != nil {
-					return nil, fmt.Errorf("could not read keyfile: %w", err)
+			if os.IsNotExist(err) {
+				if prvKey, err = crypto.GenerateKey(); err != nil {
+					return nil, fmt.Errorf("error generating key: %w", err)
 				}
 			} else {
-				if os.IsNotExist(err) {
-					if prvKey, err = crypto.GenerateKey(); err != nil {
-						return nil, fmt.Errorf("error generating key: %w", err)
-					}
-				} else {
-					return nil, fmt.Errorf("could not read keyfile: %w", err)
-				}
+				return nil, fmt.Errorf("could not read keyfile: %w", err)
 			}
 		}
 	}

@@ -88,11 +88,11 @@ var (
 	})
 	NodeKey = cliutils.NewGenericFlagSingleValue(&cli.GenericFlag{
 		Name:  "nodekey",
-		Usage: "P2P node private key as hex. Can also be set with GOWAKU-NODEKEY env variable (default random)",
+		Usage: "P2P node private key as hex.",
 		Value: &cliutils.PrivateKeyValue{
 			Value: &options.NodeKey,
 		},
-		EnvVars: []string{"WAKUNODE2_NODEKEY"},
+		EnvVars: []string{"WAKUNODE2_NODEKEY", "GOWAKU-NODEKEY"},
 	})
 	KeyFile = altsrc.NewPathFlag(&cli.PathFlag{
 		Name:        "key-file",
