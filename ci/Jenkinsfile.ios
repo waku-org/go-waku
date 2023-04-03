@@ -1,7 +1,7 @@
-library 'status-jenkins-lib@v1.3.3'
+library 'status-jenkins-lib@v1.7.0'
 
 pipeline {
-  agent { label 'macos && x86_64 && go-1.19' }
+  agent { label 'macos && nix-2.11 && aarch64' }
 
   options {
     timestamps()
@@ -31,25 +31,30 @@ pipeline {
 
   stages {
 
-    stage('Prep') { steps { dir(env.REPO) { script {
+    stage('Prep') { steps { script { dir(env.REPO) {
       env.ARTIFACT = "${env.REPO}/pkg/" + utils.pkgFilename(
         name: "go-waku",
         type: "ios",
         ext: "tar.gz"
       )
-
       sh 'make install-gomobile'
-
-      println("Output: ${env.ARTIFACT}")
     } } } }
 
-    stage('Build') { steps { dir(env.REPO) {
-      sh 'make mobile-ios'
-      dir('build/lib') {
-        sh 'tar -czvf gowaku-ios.tar.gz Gowaku.xcframework'
-        sh "cp gowaku-ios.tar.gz ${env.ARTIFACT}"
-      }
-    } } }
+    stage('Build') {
+      steps { script { dir(env.REPO) {
+        nix.develop('which xcodebuild', pure: false)
+        nix.develop('make mobile-ios', pure: false)
+      } } }
+    }
+
+    stage('Package') {
+      steps { dir(env.REPO) {
+        dir('build/lib') {
+          sh 'tar -czvf gowaku-ios.tar.gz Gowaku.xcframework'
+          sh "cp gowaku-ios.tar.gz ${env.ARTIFACT}"
+        }
+      } }
+    }
    
     stage('Parallel Upload') {
       parallel {

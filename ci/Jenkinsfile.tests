@@ -1,6 +1,8 @@
+library 'status-jenkins-lib@v1.7.0'
+
 pipeline {
   agent {
-    label 'linux && go-1.19'
+    label 'linux && nix-2.11 && x86_64'
   }
 
   options {
@@ -13,24 +15,36 @@ pipeline {
   }
 
   environment {
+    TARGET = 'tests'
     GOPATH = "${env.HOME}/go"
     PATH   = "${env.PATH}:${env.GOPATH}/bin"
   }
 
   stages {
     stage('Deps') {
-      steps { sh 'make deps' }
+      steps { script {
+        nix.develop('make deps', pure: false)
+      } }
     }
 
     stage('Lint') {
-      steps { sh 'make lint' }
+      steps { script {
+        nix.develop('make lint', pure: false)
+      } }
     }
 
     stage('Test') {
-      steps { sh 'make test-ci' }
+      steps { script {
+        nix.develop('make test-ci', pure: false)
+      } }
     }
   }
   post {
-    always { cleanWs() }
+    always  { script { /* No artifact but a PKG_URL is necessary. */
+      env.PKG_URL = "${currentBuild.absoluteUrl}consoleText"
+    } }
+    success { script { github.notifyPR(true) } }
+    failure { script { github.notifyPR(false) } }
+    cleanup { cleanWs() }
   }
 }

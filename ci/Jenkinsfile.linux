@@ -1,11 +1,8 @@
-library 'status-jenkins-lib@v1.3.3'
+library 'status-jenkins-lib@v1.7.0'
 
 pipeline {
   agent { 
-    dockerfile {
-      label 'linux && go-1.19'
-      dir 'src/github.com/waku-org/go-waku/scripts/linux'
-    }  
+    label 'linux && nix-2.11 && x86_64'
   }
 
   options {
@@ -36,23 +33,32 @@ pipeline {
 
   stages {
 
-    stage('Prep') { steps { dir(env.REPO) { script {
-      env.DEB_ARTIFACT = "${env.REPO}/pkg/" + utils.pkgFilename(
-        name: "go-waku",
-        type: "x86_64",
-        ext: "deb"
-      )
-    } } } }
+    stage('Prep') {
+      steps { script { dir(env.REPO) {
+        env.DEB_ARTIFACT = "${env.REPO}/pkg/" + utils.pkgFilename(
+          name: "go-waku",
+          type: "x86_64",
+          ext: "deb"
+        )
+      } } }
+    }
 
-    stage('Build') { steps { dir(env.REPO) {
-      sh "make"
-      dir('./scripts/linux') {
-        sh "./fpm-build.sh"
-      }
-      dir('build') {
-        sh "cp gowaku*.deb ${env.DEB_ARTIFACT}"
-      }
-    } } }
+    stage('Build') {
+      steps { script { dir(env.REPO) {
+        nix.develop('make build')
+      } } }
+    }
+
+    stage('Package') {
+      steps { script { dir(env.REPO) {
+        dir('./scripts/linux') {
+          nix.develop('./fpm-build.sh', attr: 'fpm')
+        }
+        dir('build') {
+          sh "cp gowaku*.deb ${env.DEB_ARTIFACT}"
+        }
+      } } }
+    }
 
     stage('Parallel Upload') {
       parallel {

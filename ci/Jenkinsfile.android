@@ -1,7 +1,7 @@
-library 'status-jenkins-lib@v1.3.3'
+library 'status-jenkins-lib@v1.7.0'
 
 pipeline {
-  agent { label 'linux && x86_64 && go-1.19' }
+  agent { label 'linux && nix-2.11 && x86_64' }
 
   options {
     timestamps()
@@ -38,24 +38,25 @@ pipeline {
 
   stages {
 
-    stage('Prep') { steps { dir(env.REPO) { script {
+    stage('Prep') { steps { script { dir(env.REPO) {
       env.ARTIFACT = "${env.REPO}/pkg/" + utils.pkgFilename(
         name: "go-waku",
         type: "android",
         ext: "tar.gz"
       )
 
-      sh 'make install-gomobile'
+      nix.develop('make install-gomobile', pure: false)
     } } } }
 
-    stage('Build') { steps { dir(env.REPO) {
-      sh 'make mobile-android || true'
-      sh 'make mobile-android'
+    stage('Build') { steps { script { dir(env.REPO) {
+      /* First gomobile run always fails.
+       * https://github.com/golang/go/issues/37372 */
+      nix.develop('make mobile-android || make mobile-android', pure: false)
       dir('build/lib') {
         sh 'tar -czvf gowaku-android.tar.gz gowaku.aar gowaku-sources.jar'
         sh "cp gowaku-android.tar.gz ${env.ARTIFACT}"
       }
-    } } }
+    } } } }
 
     stage('Parallel Upload') {
       parallel {

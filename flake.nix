@@ -5,7 +5,10 @@
 
   outputs = { self, nixpkgs }:
     let
-      supportedSystems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
+      supportedSystems = [
+        "x86_64-linux" "i686-linux" "aarch64-linux"
+        "x86_64-darwin" "aarch64-darwin"
+      ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
 
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
@@ -39,8 +42,21 @@
         buildPackage system ["cmd/waku"]
       );
 
-      devShells.default = forAllSystems (system:
-        packages.${system}.node
-      );
+      devShells = forAllSystems (system: let
+        pkgs = nixpkgsFor.${system};
+        inherit (pkgs) lib stdenv mkShell;
+      in {
+        default = mkShell {
+          GOFLAGS = "-trimpath"; # Drop -mod=vendor
+          inputsFrom = [ packages.${system}.node ];
+          nativeBuildInputs = lib.optional stdenv.isDarwin [
+            (pkgs.xcodeenv.composeXcodeWrapper { version = "14.2"; })
+          ];
+        };
+
+        fpm = mkShell {
+          buildInputs = with pkgs; [ fpm ];
+        };
+      });
   };
 }

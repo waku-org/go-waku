@@ -1,6 +1,6 @@
 pipeline {
   agent {
-    label 'linux && go-1.19'
+    label 'linux && x86_64'
   }
 
   parameters {
