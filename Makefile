@@ -65,7 +65,7 @@ vendor:
 
 lint-install:
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		bash -s -- -b $(shell ${GOBIN} env GOPATH)/bin v1.50.0
+		bash -s -- -b $(shell ${GOBIN} env GOPATH)/bin v1.52.2
 
 lint:
 	@echo "lint"
