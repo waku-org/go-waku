@@ -30,7 +30,6 @@ require (
 require (
 	github.com/gorilla/mux v1.8.0
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
-	github.com/waku-org/go-zerokit-rln v0.1.7-wakuorg
 	golang.org/x/text v0.7.0
 )
 
@@ -39,6 +38,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/lib/pq v1.10.4
 	github.com/waku-org/go-noise v0.0.4
+	github.com/waku-org/go-zerokit-rln v0.1.9
 )
 
 require (
@@ -58,6 +58,9 @@ require (
 	github.com/quic-go/webtransport-go v0.5.2 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/status-im/status-go/extkeys v1.1.2 // indirect
+	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230331231302-258cacb91327 // indirect
+	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230331223149-f90e66aebb0d // indirect
+	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230331181847-cba74520bae9 // indirect
 	go.uber.org/dig v1.15.0 // indirect
 	go.uber.org/fx v1.18.2 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect

@@ -37,7 +37,7 @@ type WakuRLNRelay struct {
 	ctx        context.Context
 	timesource timesource.Timesource
 
-	membershipKeyPair *r.MembershipKeyPair
+	membershipKeyPair *r.IdentityCredential
 
 	// membershipIndex denotes the index of a leaf in the Merkle tree
 	// that contains the pk of the current peer
@@ -73,14 +73,14 @@ func (rln *WakuRLNRelay) Stop() {
 	}
 }
 
-func StaticSetup(rlnRelayMemIndex r.MembershipIndex) ([]r.IDCommitment, r.MembershipKeyPair, r.MembershipIndex, error) {
+func StaticSetup(rlnRelayMemIndex r.MembershipIndex) ([]r.IDCommitment, r.IdentityCredential, r.MembershipIndex, error) {
 	// static group
 	groupKeys := r.STATIC_GROUP_KEYS
 	groupSize := r.STATIC_GROUP_SIZE
 
 	// validate the user-supplied membership index
 	if rlnRelayMemIndex >= r.MembershipIndex(groupSize) {
-		return nil, r.MembershipKeyPair{}, 0, errors.New("wrong membership index")
+		return nil, r.IdentityCredential{}, 0, errors.New("wrong membership index")
 	}
 
 	// prepare the outputs from the static group keys
@@ -88,7 +88,7 @@ func StaticSetup(rlnRelayMemIndex r.MembershipIndex) ([]r.IDCommitment, r.Member
 	// create a sequence of MembershipKeyPairs from the group keys (group keys are in string format)
 	groupKeyPairs, err := toMembershipKeyPairs(groupKeys)
 	if err != nil {
-		return nil, r.MembershipKeyPair{}, 0, errors.New("invalid data on group keypairs")
+		return nil, r.IdentityCredential{}, 0, errors.New("invalid data on group keypairs")
 	}
 
 	// extract id commitment keys
@@ -231,7 +231,7 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	contentTopicBytes := []byte(msg.ContentTopic)
 	input := append(msg.Payload, contentTopicBytes...)
 
-	valid, err := rln.RLN.VerifyWithRoots(input, *msgProof, rln.validMerkleRoots)
+	valid, err := rln.RLN.Verify(input, *msgProof, rln.validMerkleRoots...)
 	if err != nil {
 		rln.log.Debug("could not verify proof", zap.Error(err))
 		return MessageValidationResult_Invalid, nil
@@ -300,7 +300,7 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 	return nil
 }
 
-func (r *WakuRLNRelay) MembershipKeyPair() *r.MembershipKeyPair {
+func (r *WakuRLNRelay) MembershipKeyPair() *r.IdentityCredential {
 	return r.membershipKeyPair
 }
 
@@ -413,11 +413,11 @@ func (r *WakuRLNRelay) addValidator(
 	return relay.PubSub().RegisterTopicValidator(pubsubTopic, validator)
 }
 
-func toMembershipKeyPairs(groupKeys [][]string) ([]r.MembershipKeyPair, error) {
+func toMembershipKeyPairs(groupKeys [][]string) ([]r.IdentityCredential, error) {
 	// groupKeys is  sequence of membership key tuples in the form of (identity key, identity commitment) all in the hexadecimal format
 	// the ToMembershipKeyPairs proc populates a sequence of MembershipKeyPairs using the supplied groupKeys
 
-	groupKeyPairs := []r.MembershipKeyPair{}
+	groupKeyPairs := []r.IdentityCredential{}
 	for _, pair := range groupKeys {
 		idKey, err := utils.DecodeHexString(pair[0])
 		if err != nil {
@@ -428,7 +428,7 @@ func toMembershipKeyPairs(groupKeys [][]string) ([]r.MembershipKeyPair, error) {
 			return nil, err
 		}
 
-		groupKeyPairs = append(groupKeyPairs, r.MembershipKeyPair{IDKey: r.IDKey(r.Bytes32(idKey)), IDCommitment: r.IDCommitment(r.Bytes32(idCommitment))})
+		groupKeyPairs = append(groupKeyPairs, r.IdentityCredential{IDSecretHash: r.IDSecretHash(r.Bytes32(idKey)), IDCommitment: r.IDCommitment(r.Bytes32(idCommitment))})
 	}
 
 	return groupKeyPairs, nil
