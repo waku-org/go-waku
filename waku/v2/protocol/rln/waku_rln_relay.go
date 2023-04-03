@@ -3,21 +3,18 @@ package rln
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"math"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 	proto "google.golang.org/protobuf/proto"
@@ -29,101 +26,129 @@ const MAX_CLOCK_GAP_SECONDS = 20
 // maximum allowed gap between the epochs of messages' RateLimitProofs
 const MAX_EPOCH_GAP = int64(MAX_CLOCK_GAP_SECONDS / r.EPOCH_UNIT_SECONDS)
 
-type RegistrationHandler = func(tx *types.Transaction)
-
+// Acceptable roots for merkle root validation of incoming messages
 const AcceptableRootWindowSize = 5
 
+type AppInfo struct {
+	Application   string
+	AppIdentifier string
+	Version       string
+}
+
+type RegistrationHandler = func(tx *types.Transaction)
+
+type SpamHandler = func(message *pb.WakuMessage) error
+
+var RLNAppInfo = AppInfo{
+	Application:   "go-waku-rln-relay",
+	AppIdentifier: "01234567890abcdef",
+	Version:       "0.1",
+}
+
+type GroupManager interface {
+	Start(ctx context.Context, rln *r.RLN) error
+	GenerateProof(input []byte, epoch r.Epoch) (*r.RateLimitProof, error)
+	VerifyProof(input []byte, msgProof *r.RateLimitProof, ValidMerkleRoots ...r.MerkleNode) (bool, error)
+	Stop()
+}
+
 type WakuRLNRelay struct {
-	ctx        context.Context
 	timesource timesource.Timesource
 
-	membershipKeyPair *r.IdentityCredential
+	groupManager GroupManager
 
-	// membershipIndex denotes the index of a leaf in the Merkle tree
-	// that contains the pk of the current peer
-	// this index is used to retrieve the peer's authentication path
-	membershipIndex           r.MembershipIndex
-	membershipContractAddress common.Address
-	ethClientAddress          string
-	// ethAccountPrivateKey is required for signing transactions
-	// TODO may need to erase this ethAccountPrivateKey when is not used
-	// TODO may need to make ethAccountPrivateKey mandatory
-	ethAccountPrivateKey *ecdsa.PrivateKey
-	ethClient            *ethclient.Client
+	// pubsubTopic is the topic for which rln relay is mounted
+	pubsubTopic  string
+	contentTopic string
+	relay        *relay.WakuRelay
+	spamHandler  SpamHandler
 
 	RLN *r.RLN
-	// pubsubTopic is the topic for which rln relay is mounted
-	pubsubTopic     string
-	contentTopic    string
-	lastIndexLoaded int64
 
 	validMerkleRoots []r.MerkleNode
 
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
 	nullifierLogLock sync.RWMutex
-	nullifierLog     map[r.Epoch][]r.ProofMetadata
+	nullifierLog     map[r.Nullifier][]r.ProofMetadata
 
-	registrationHandler RegistrationHandler
-	log                 *zap.Logger
+	log *zap.Logger
+}
+
+func New(
+	relay *relay.WakuRelay,
+	groupManager GroupManager,
+	pubsubTopic string,
+	contentTopic string,
+	spamHandler SpamHandler,
+	timesource timesource.Timesource,
+	log *zap.Logger) (*WakuRLNRelay, error) {
+	rlnInstance, err := r.NewRLN()
+	if err != nil {
+		return nil, err
+	}
+
+	// create the WakuRLNRelay
+	rlnPeer := &WakuRLNRelay{
+		RLN:          rlnInstance,
+		groupManager: groupManager,
+		pubsubTopic:  pubsubTopic,
+		contentTopic: contentTopic,
+		relay:        relay,
+		spamHandler:  spamHandler,
+		log:          log,
+		timesource:   timesource,
+		nullifierLog: make(map[r.MerkleNode][]r.ProofMetadata),
+	}
+
+	// TODO: pass RLN to group manager
+
+	root, err := rlnPeer.RLN.GetMerkleRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	rlnPeer.validMerkleRoots = append(rlnPeer.validMerkleRoots, root)
+
+	return rlnPeer, nil
+}
+
+func (rln *WakuRLNRelay) Start(ctx context.Context) error {
+	err := rln.groupManager.Start(ctx, rln.RLN)
+	if err != nil {
+		return err
+	}
+
+	root, err := rln.RLN.GetMerkleRoot()
+	if err != nil {
+		return err
+	}
+
+	rln.validMerkleRoots = append(rln.validMerkleRoots, root)
+
+	// adds a topic validator for the supplied pubsub topic at the relay protocol
+	// messages published on this pubsub topic will be relayed upon a successful validation, otherwise they will be dropped
+	// the topic validator checks for the correct non-spamming proof of the message
+	err = rln.addValidator(rln.relay, rln.pubsubTopic, rln.contentTopic, rln.spamHandler)
+	if err != nil {
+		return err
+	}
+
+	log.Info("rln relay topic validator mounted", zap.String("pubsubTopic", rln.pubsubTopic), zap.String("contentTopic", rln.contentTopic))
+
+	return nil
 }
 
 func (rln *WakuRLNRelay) Stop() {
-	if rln.ethClient != nil {
-		rln.ethClient.Close()
-	}
+	rln.groupManager.Stop()
 }
 
-func StaticSetup(rlnRelayMemIndex r.MembershipIndex) ([]r.IDCommitment, r.IdentityCredential, r.MembershipIndex, error) {
-	// static group
-	groupKeys := r.STATIC_GROUP_KEYS
-	groupSize := r.STATIC_GROUP_SIZE
-
-	// validate the user-supplied membership index
-	if rlnRelayMemIndex >= r.MembershipIndex(groupSize) {
-		return nil, r.IdentityCredential{}, 0, errors.New("wrong membership index")
-	}
-
-	// prepare the outputs from the static group keys
-
-	// create a sequence of MembershipKeyPairs from the group keys (group keys are in string format)
-	groupKeyPairs, err := toMembershipKeyPairs(groupKeys)
-	if err != nil {
-		return nil, r.IdentityCredential{}, 0, errors.New("invalid data on group keypairs")
-	}
-
-	// extract id commitment keys
-	var groupOpt []r.IDCommitment
-	for _, c := range groupKeyPairs {
-		groupOpt = append(groupOpt, c.IDCommitment)
-	}
-
-	//  user selected membership key pair
-	memKeyPairOpt := groupKeyPairs[rlnRelayMemIndex]
-	memIndexOpt := rlnRelayMemIndex
-
-	return groupOpt, memKeyPairOpt, memIndexOpt, nil
-}
-
-func (rln *WakuRLNRelay) HasDuplicate(msg *pb.WakuMessage) (bool, error) {
+func (rln *WakuRLNRelay) HasDuplicate(proofMD r.ProofMetadata) (bool, error) {
 	// returns true if there is another message in the  `nullifierLog` of the `rlnPeer` with the same
 	// epoch and nullifier as `msg`'s epoch and nullifier but different Shamir secret shares
 	// otherwise, returns false
 
-	if msg == nil {
-		return false, errors.New("nil message")
-	}
-
-	msgProof := ToRateLimitProof(msg)
-
-	// extract the proof metadata of the supplied `msg`
-	proofMD := r.ProofMetadata{
-		Nullifier: msgProof.Nullifier,
-		ShareX:    msgProof.ShareX,
-		ShareY:    msgProof.ShareY,
-	}
-
 	rln.nullifierLogLock.RLock()
-	proofs, ok := rln.nullifierLog[msgProof.Epoch]
+	proofs, ok := rln.nullifierLog[proofMD.ExternalNullifier]
 	rln.nullifierLogLock.RUnlock()
 
 	// check if the epoch exists
@@ -150,42 +175,28 @@ func (rln *WakuRLNRelay) HasDuplicate(msg *pb.WakuMessage) (bool, error) {
 	return matched, nil
 }
 
-func (rln *WakuRLNRelay) updateLog(msg *pb.WakuMessage) (bool, error) {
-	// extracts  the `ProofMetadata` of the supplied messages `msg` and
-	// saves it in the `nullifierLog` of the `rlnPeer`
-
-	if msg == nil {
-		return false, errors.New("nil message")
-	}
-
-	msgProof := ToRateLimitProof(msg)
-
-	proofMD := r.ProofMetadata{
-		Nullifier: msgProof.Nullifier,
-		ShareX:    msgProof.ShareX,
-		ShareY:    msgProof.ShareY,
-	}
-
+func (rln *WakuRLNRelay) updateLog(proofMD r.ProofMetadata) (bool, error) {
 	rln.nullifierLogLock.Lock()
 	defer rln.nullifierLogLock.Unlock()
-	proofs, ok := rln.nullifierLog[msgProof.Epoch]
+	proofs, ok := rln.nullifierLog[proofMD.ExternalNullifier]
 
 	// check if the epoch exists
 	if !ok {
-		rln.nullifierLog[msgProof.Epoch] = []r.ProofMetadata{proofMD}
+		rln.nullifierLog[proofMD.ExternalNullifier] = []r.ProofMetadata{proofMD}
 		return true, nil
 	}
 
 	// check if an identical record exists
 	for _, p := range proofs {
 		if p.Equals(proofMD) {
+			// TODO: slashing logic
 			return true, nil
 		}
 	}
 
 	// add proofMD to the log
 	proofs = append(proofs, proofMD)
-	rln.nullifierLog[msgProof.Epoch] = proofs
+	rln.nullifierLog[proofMD.ExternalNullifier] = proofs
 
 	return true, nil
 }
@@ -218,6 +229,12 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 		return MessageValidationResult_Invalid, nil
 	}
 
+	proofMD, err := r.ExtractMetadata(*msgProof)
+	if err != nil {
+		rln.log.Debug("could not extract metadata", zap.Error(err))
+		return MessageValidationResult_Invalid, nil
+	}
+
 	// calculate the gaps and validate the epoch
 	gap := r.Diff(epoch, msgProof.Epoch)
 	if int64(math.Abs(float64(gap))) > MAX_EPOCH_GAP {
@@ -231,7 +248,7 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	contentTopicBytes := []byte(msg.ContentTopic)
 	input := append(msg.Payload, contentTopicBytes...)
 
-	valid, err := rln.RLN.Verify(input, *msgProof, rln.validMerkleRoots...)
+	valid, err := rln.groupManager.VerifyProof(input, msgProof, rln.validMerkleRoots...)
 	if err != nil {
 		rln.log.Debug("could not verify proof", zap.Error(err))
 		return MessageValidationResult_Invalid, nil
@@ -244,7 +261,7 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	}
 
 	// check if double messaging has happened
-	hasDup, err := rln.HasDuplicate(msg)
+	hasDup, err := rln.HasDuplicate(proofMD)
 	if err != nil {
 		rln.log.Debug("validation error", zap.Error(err))
 		return MessageValidationResult_Unknown, err
@@ -258,7 +275,7 @@ func (rln *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time
 	// insert the message to the log
 	// the result of `updateLog` is discarded because message insertion is guaranteed by the implementation i.e.,
 	// it will never error out
-	_, err = rln.updateLog(msg)
+	_, err = rln.updateLog(proofMD)
 	if err != nil {
 		return MessageValidationResult_Unknown, err
 	}
@@ -276,13 +293,9 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 		return errors.New("nil message")
 	}
 
-	if rln.membershipKeyPair == nil {
-		return errors.New("No keypair setup")
-	}
-
 	input := toRLNSignal(msg)
 
-	proof, err := rln.RLN.GenerateProof(input, *rln.membershipKeyPair, rln.membershipIndex, r.CalcEpoch(senderEpochTime))
+	proof, err := rln.groupManager.GenerateProof(input, r.CalcEpoch(senderEpochTime))
 	if err != nil {
 		return err
 	}
@@ -300,19 +313,7 @@ func (rln *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime tim
 	return nil
 }
 
-func (r *WakuRLNRelay) MembershipKeyPair() *r.IdentityCredential {
-	return r.membershipKeyPair
-}
-
-func (r *WakuRLNRelay) MembershipIndex() r.MembershipIndex {
-	return r.membershipIndex
-}
-
-func (r *WakuRLNRelay) MembershipContractAddress() common.Address {
-	return r.membershipContractAddress
-}
-
-func (r *WakuRLNRelay) insertMember(pubkey r.IDCommitment) error {
+func (r *WakuRLNRelay) insertMember(pubkey r.IDCommitment) error { // TODO: move to group manager? #########################################################
 	r.log.Debug("a new key is added", zap.Binary("pubkey", pubkey[:]))
 	// assuming all the members arrive in order
 	err := r.RLN.InsertMember(pubkey)
@@ -330,8 +331,6 @@ func (r *WakuRLNRelay) insertMember(pubkey r.IDCommitment) error {
 
 	return err
 }
-
-type SpamHandler = func(message *pb.WakuMessage) error
 
 // this function sets a validator for the waku messages published on the supplied pubsubTopic and contentTopic
 // if contentTopic is empty, then validation takes place for All the messages published on the given pubsubTopic
@@ -411,27 +410,6 @@ func (r *WakuRLNRelay) addValidator(
 	_ = relay.PubSub().UnregisterTopicValidator(pubsubTopic)
 
 	return relay.PubSub().RegisterTopicValidator(pubsubTopic, validator)
-}
-
-func toMembershipKeyPairs(groupKeys [][]string) ([]r.IdentityCredential, error) {
-	// groupKeys is  sequence of membership key tuples in the form of (identity key, identity commitment) all in the hexadecimal format
-	// the ToMembershipKeyPairs proc populates a sequence of MembershipKeyPairs using the supplied groupKeys
-
-	groupKeyPairs := []r.IdentityCredential{}
-	for _, pair := range groupKeys {
-		idKey, err := utils.DecodeHexString(pair[0])
-		if err != nil {
-			return nil, err
-		}
-		idCommitment, err := utils.DecodeHexString(pair[1])
-		if err != nil {
-			return nil, err
-		}
-
-		groupKeyPairs = append(groupKeyPairs, r.IdentityCredential{IDSecretHash: r.IDSecretHash(r.Bytes32(idKey)), IDCommitment: r.IDCommitment(r.Bytes32(idCommitment))})
-	}
-
-	return groupKeyPairs, nil
 }
 
 func toRLNSignal(wakuMessage *pb.WakuMessage) []byte {

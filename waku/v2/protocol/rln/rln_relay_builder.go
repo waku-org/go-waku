@@ -48,7 +48,7 @@ func RlnRelayStatic(
 		contentTopic:      contentTopic,
 		log:               log,
 		timesource:        timesource,
-		nullifierLog:      make(map[r.Epoch][]r.ProofMetadata),
+		nullifierLog:      make(map[r.Nullifier][]r.ProofMetadata),
 	}
 
 	root, err := rlnPeer.RLN.GetMerkleRoot()
@@ -114,7 +114,7 @@ func RlnRelayDynamic(
 		contentTopic:              contentTopic,
 		log:                       log,
 		timesource:                timesource,
-		nullifierLog:              make(map[r.Epoch][]r.ProofMetadata),
+		nullifierLog:              make(map[r.Nullifier][]r.ProofMetadata),
 		registrationHandler:       registrationHandler,
 		lastIndexLoaded:           -1,
 	}
