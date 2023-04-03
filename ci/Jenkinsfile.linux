@@ -3,7 +3,7 @@ library 'status-jenkins-lib@v1.3.3'
 pipeline {
   agent { 
     dockerfile {
-      label 'linux'
+      label 'linux && go-1.19'
       dir 'src/github.com/waku-org/go-waku/scripts/linux'
     }  
   }
