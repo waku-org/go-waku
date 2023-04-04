@@ -1,4 +1,4 @@
-package rln
+package dynamic
 
 import (
 	"context"
@@ -99,15 +99,15 @@ func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *
 
 // Register registers the public key of the rlnPeer which is rlnPeer.membershipKeyPair.publicKey
 // into the membership contract whose address is in rlnPeer.membershipContractAddress
-func (rln *WakuRLNRelay) Register(ctx context.Context) (*r.MembershipIndex, error) {
-	pk := rln.membershipKeyPair.IDCommitment
-	return register(ctx, pk, rln.ethAccountPrivateKey, rln.ethClientAddress, rln.membershipContractAddress, rln.registrationHandler, rln.log)
+func (gm *DynamicGroupManager) Register(ctx context.Context) (*r.MembershipIndex, error) {
+	pk := gm.identityCredential.IDCommitment
+	return register(ctx, pk, gm.ethAccountPrivateKey, gm.ethClientAddress, gm.membershipContractAddress, gm.registrationHandler, gm.log)
 }
 
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
 type RegistrationEventHandler = func(pubkey r.IDCommitment, index r.MembershipIndex) error
 
-func (rln *WakuRLNRelay) processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) error {
+func (gm *DynamicGroupManager) processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) error {
 	if evt == nil {
 		return nil
 	}
@@ -115,41 +115,43 @@ func (rln *WakuRLNRelay) processLogs(evt *contracts.RLNMemberRegistered, handler
 	var pubkey r.IDCommitment = r.Bytes32(evt.Pubkey.Bytes())
 
 	index := evt.Index.Int64()
-	if index <= rln.lastIndexLoaded {
+	if index <= gm.lastIndexLoaded {
 		return nil
 	}
 
-	rln.lastIndexLoaded = index
+	gm.lastIndexLoaded = index
 	return handler(pubkey, r.MembershipIndex(uint(evt.Index.Int64())))
 }
 
 // HandleGroupUpdates mounts the supplied handler for the registration events emitting from the membership contract
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
-func (rln *WakuRLNRelay) HandleGroupUpdates(handler RegistrationEventHandler) error {
-	backend, err := ethclient.Dial(rln.ethClientAddress)
+func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
+	defer gm.wg.Done()
+
+	backend, err := ethclient.Dial(gm.ethClientAddress)
 	if err != nil {
 		return err
 	}
-	rln.ethClient = backend
+	gm.ethClient = backend
 
-	rlnContract, err := contracts.NewRLN(rln.membershipContractAddress, backend)
+	rlnContract, err := contracts.NewRLN(gm.membershipContractAddress, backend)
 	if err != nil {
 		return err
 	}
 
-	err = rln.loadOldEvents(rlnContract, handler)
+	err = gm.loadOldEvents(ctx, rlnContract, handler)
 	if err != nil {
 		return err
 	}
 
 	errCh := make(chan error)
-	go rln.watchNewEvents(rlnContract, handler, rln.log, errCh)
+	go gm.watchNewEvents(ctx, rlnContract, handler, gm.log, errCh)
 	return <-errCh
 }
 
-func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
-	logIterator, err := rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: 0, End: nil, Context: rln.ctx})
+func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
+	logIterator, err := rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: 0, End: nil, Context: ctx})
 	if err != nil {
 		return err
 	}
@@ -162,7 +164,7 @@ func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler Regis
 			return logIterator.Error()
 		}
 
-		err = rln.processLogs(logIterator.Event, handler)
+		err = gm.processLogs(logIterator.Event, handler)
 		if err != nil {
 			return err
 		}
@@ -170,13 +172,13 @@ func (rln *WakuRLNRelay) loadOldEvents(rlnContract *contracts.RLN, handler Regis
 	return nil
 }
 
-func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger, errCh chan<- error) {
+func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger, errCh chan<- error) {
 	// Watch for new events
 	logSink := make(chan *contracts.RLNMemberRegistered)
 
 	firstErr := true
 	subs := event.Resubscribe(2*time.Second, func(ctx context.Context) (event.Subscription, error) {
-		subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: rln.ctx, Start: nil}, logSink)
+		subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: ctx, Start: nil}, logSink)
 		if err != nil {
 			if err == rpc.ErrNotificationsUnsupported {
 				err = errors.New("notifications not supported. The node must support websockets")
@@ -184,7 +186,7 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 			if firstErr {
 				errCh <- err
 			}
-			rln.log.Error("subscribing to rln events", zap.Error(err))
+			gm.log.Error("subscribing to rln events", zap.Error(err))
 		}
 		firstErr = false
 		close(errCh)
@@ -197,15 +199,15 @@ func (rln *WakuRLNRelay) watchNewEvents(rlnContract *contracts.RLN, handler Regi
 	for {
 		select {
 		case evt := <-logSink:
-			err := rln.processLogs(evt, handler)
+			err := gm.processLogs(evt, handler)
 			if err != nil {
-				rln.log.Error("processing rln log", zap.Error(err))
+				gm.log.Error("processing rln log", zap.Error(err))
 			}
-		case <-rln.ctx.Done():
+		case <-ctx.Done():
 			return
 		case err := <-subs.Err():
 			if err != nil {
-				rln.log.Error("watching new events", zap.Error(err))
+				gm.log.Error("watching new events", zap.Error(err))
 			}
 			return
 		}
