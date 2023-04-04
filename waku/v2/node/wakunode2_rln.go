@@ -73,7 +73,7 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 			return err
 		}
 
-		expectedRoot, err := static.ToBytes32LE(r.STATIC_GROUP_MERKLE_ROOT)
+		expectedRoot, err := r.ToBytes32LE(r.STATIC_GROUP_MERKLE_ROOT)
 		if err != nil {
 			return err
 		}
