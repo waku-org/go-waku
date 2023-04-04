@@ -112,7 +112,6 @@ func Execute(options Options) {
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(options.KeepAlive),
 	}
-
 	if len(options.AdvertiseAddresses) != 0 {
 		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))
 	}
