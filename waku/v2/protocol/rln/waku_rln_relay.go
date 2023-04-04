@@ -3,6 +3,7 @@ package rln
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"math"
 	"sync"
@@ -71,7 +72,7 @@ func New(
 	rlnPeer := &WakuRLNRelay{
 		RLN:          rlnInstance,
 		groupManager: groupManager,
-		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnRelay.RLN),
+		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance),
 		pubsubTopic:  pubsubTopic,
 		contentTopic: contentTopic,
 		relay:        relay,
@@ -194,7 +195,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		return MessageValidationResult_Invalid, nil
 	}
 
-	proofMD, err := rln.ExtractMetadata(*msgProof)
+	proofMD, err := rlnRelay.RLN.ExtractMetadata(*msgProof)
 	if err != nil {
 		rlnRelay.log.Debug("could not extract metadata", zap.Error(err))
 		return MessageValidationResult_Invalid, nil
@@ -305,32 +306,20 @@ func (rlnRelay *WakuRLNRelay) addValidator(
 		switch validationRes {
 		case MessageValidationResult_Valid:
 			rlnRelay.log.Debug("message verified",
-				zap.String("contentTopic", wakuMessage.ContentTopic),
-				zap.Binary("epoch", wakuMessage.RateLimitProof.Epoch),
-				zap.Int("timestamp", int(wakuMessage.Timestamp)),
-				zap.Binary("payload", wakuMessage.Payload),
-				zap.Any("proof", wakuMessage.RateLimitProof),
+				zap.String("pubsubTopic", pubsubTopic),
+				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
-
-			relay.AddToCache(pubsubTopic, message.ID, wakuMessage)
-
 			return true
 		case MessageValidationResult_Invalid:
 			rlnRelay.log.Debug("message could not be verified",
-				zap.String("contentTopic", wakuMessage.ContentTopic),
-				zap.Binary("epoch", wakuMessage.RateLimitProof.Epoch),
-				zap.Int("timestamp", int(wakuMessage.Timestamp)),
-				zap.Binary("payload", wakuMessage.Payload),
-				zap.Any("proof", wakuMessage.RateLimitProof),
+				zap.String("pubsubTopic", pubsubTopic),
+				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
 			return false
 		case MessageValidationResult_Spam:
 			rlnRelay.log.Debug("spam message found",
-				zap.String("contentTopic", wakuMessage.ContentTopic),
-				zap.Binary("epoch", wakuMessage.RateLimitProof.Epoch),
-				zap.Int("timestamp", int(wakuMessage.Timestamp)),
-				zap.Binary("payload", wakuMessage.Payload),
-				zap.Any("proof", wakuMessage.RateLimitProof),
+				zap.String("pubsubTopic", pubsubTopic),
+				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
 
 			if spamHandler != nil {
@@ -354,12 +343,12 @@ func (rlnRelay *WakuRLNRelay) addValidator(
 
 func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*pb.RateLimitProof, error) {
 	identityCredentials, err := rlnRelay.groupManager.IdentityCredentials()
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
 
 	membershipIndex, err := rlnRelay.groupManager.MembershipIndex()
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
 
