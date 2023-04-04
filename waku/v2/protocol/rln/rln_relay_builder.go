@@ -153,10 +153,7 @@ func RlnRelayDynamic(
 		return rlnPeer.insertMember(pubkey)
 	}
 
-	errChan := make(chan error)
-	go rlnPeer.HandleGroupUpdates(handler, errChan)
-	err = <-errChan
-	if err != nil {
+	if err = rlnPeer.HandleGroupUpdates(handler); err != nil {
 		return nil, err
 	}
 
