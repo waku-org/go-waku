@@ -1566,10 +1566,8 @@ github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98 h1:xwY0kW5XZF
 github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98/go.mod h1:eBHgM6T4EG0RZzxpxKy+rGz/6Dw2Nd8DWxS0lm9ESDw=
 github.com/waku-org/go-noise v0.0.4 h1:ZfQDcCw8pazm89EBl5SXY7GGAnzDQb9AHFXlw3Ktbvk=
 github.com/waku-org/go-noise v0.0.4/go.mod h1:+PWRfs2eSOVwKrPcQlfhwDngSh3faL/1QoxvoqggEKc=
-github.com/waku-org/go-zerokit-rln v0.1.9 h1:eMp43ThdVC8qcr4l398x3oR98RGdzAkMR/1hDlpjciU=
-github.com/waku-org/go-zerokit-rln v0.1.9/go.mod h1:MUW+wB6Yj7UBMdZrhko7oHfUZeY2wchggXYjpUiMoac=
-github.com/waku-org/go-zerokit-rln v0.1.10 h1:H2aLZvIIr00ro8VzHjn+R1v8FA1rBwQTt5VKRkcFnTs=
-github.com/waku-org/go-zerokit-rln v0.1.10/go.mod h1:MUW+wB6Yj7UBMdZrhko7oHfUZeY2wchggXYjpUiMoac=
+github.com/waku-org/go-zerokit-rln v0.1.11 h1:e4veZm80uYkW1r43a5f47YBUUhRELpLx3Bge9EyfuI8=
+github.com/waku-org/go-zerokit-rln v0.1.11/go.mod h1:MUW+wB6Yj7UBMdZrhko7oHfUZeY2wchggXYjpUiMoac=
 github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230331231302-258cacb91327 h1:Q5XQqo+PEmvrybT8D7BEsKCwIYDi80s+00Q49cfm9Gs=
 github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230331231302-258cacb91327/go.mod h1:KYykqtdApHVYZ3G0spwMnoxc5jH5eI3jyO9SwsSfi48=
 github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230331223149-f90e66aebb0d h1:Kcg85Y2xGU6hqZ/kMfkLQF2jAog8vt+tw1/VNidzNtE=
