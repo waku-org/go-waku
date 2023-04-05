@@ -11,7 +11,3 @@ import (
 func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeOption) {
 	// Do nothing
 }
-
-func onStartRLN(wakuNode *node.WakuNode, options Options) {
-	// Do nothing
-}

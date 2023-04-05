@@ -21,12 +21,6 @@ import (
 	proto "google.golang.org/protobuf/proto"
 )
 
-var RLNAppInfo = AppInfo{
-	Application:   "go-waku-rln-relay",
-	AppIdentifier: "01234567890abcdef",
-	Version:       "0.1",
-}
-
 type GroupManager interface {
 	Start(ctx context.Context, rln *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error
 	IdentityCredentials() (rln.IdentityCredential, error)
