@@ -100,10 +100,10 @@ type WakuNodeParameters struct {
 	rlnRelayContentTopic         string
 	rlnRelayDynamic              bool
 	rlnSpamHandler               func(message *pb.WakuMessage) error
-	rlnRelayIDKey                *[32]byte
-	rlnRelayIDCommitment         *[32]byte
 	rlnETHPrivateKey             *ecdsa.PrivateKey
 	rlnETHClientAddress          string
+	keystorePath                 string
+	keystorePassword             string
 	rlnMembershipContractAddress common.Address
 	rlnRegistrationHandler       func(tx *types.Transaction)
 

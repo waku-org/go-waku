@@ -58,21 +58,13 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 	} else {
 		w.log.Info("setting up waku-rln-relay in on-chain mode")
 
-		//  check if the peer has provided its rln credentials
-		var memKeyPair *r.IdentityCredential
-		if w.opts.rlnRelayIDCommitment != nil && w.opts.rlnRelayIDKey != nil {
-			memKeyPair = &r.IdentityCredential{
-				IDCommitment: *w.opts.rlnRelayIDCommitment,
-				IDSecretHash: *w.opts.rlnRelayIDKey,
-			}
-		}
-
 		groupManager, err = dynamic.NewDynamicGroupManager(
 			w.opts.rlnETHClientAddress,
 			w.opts.rlnETHPrivateKey,
 			w.opts.rlnMembershipContractAddress,
-			memKeyPair,
-			w.opts.rlnRelayMemIndex,
+			w.opts.keystorePath,
+			w.opts.keystorePassword,
+			true,
 			w.opts.rlnRegistrationHandler,
 			w.log,
 		)

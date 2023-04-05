@@ -125,14 +125,6 @@ func execute(options Options) {
 		return
 	}
 
-	if options.RLNRelay.Enable && options.RLNRelay.Dynamic {
-		err := node.WriteRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress(), options.RLNRelay.CredentialsPath, []byte(options.RLNRelay.CredentialsPassword))
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-	}
-
 	chat := NewChat(ctx, wakuNode, options)
 	p := tea.NewProgram(chat.ui)
 	if err := p.Start(); err != nil {

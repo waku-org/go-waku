@@ -4,16 +4,26 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
+
+var RLNAppInfo = keystore.AppInfo{
+	Application:   "go-waku-rln-relay",
+	AppIdentifier: "01234567890abcdef",
+	Version:       "0.1",
+}
 
 type DynamicGroupManager struct {
 	rln *rln.RLN
@@ -22,8 +32,9 @@ type DynamicGroupManager struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	identityCredential        *rln.IdentityCredential
-	membershipIndex           *rln.MembershipIndex
+	identityCredential *rln.IdentityCredential
+	membershipIndex    *rln.MembershipIndex
+
 	membershipContractAddress common.Address
 	ethClientAddress          string
 	ethClient                 *ethclient.Client
@@ -34,7 +45,14 @@ type DynamicGroupManager struct {
 	ethAccountPrivateKey *ecdsa.PrivateKey
 
 	registrationHandler RegistrationHandler
+	chainId             *big.Int
+	rlnContract         *contracts.RLN
+	membershipFee       *big.Int
 	lastIndexLoaded     int64
+
+	saveKeystore     bool
+	keystorePath     string
+	keystorePassword string
 
 	rootTracker *group_manager.MerkleRootTracker
 }
@@ -45,20 +63,32 @@ func NewDynamicGroupManager(
 	ethClientAddr string,
 	ethAccountPrivateKey *ecdsa.PrivateKey,
 	memContractAddr common.Address,
-	identityCredential *rln.IdentityCredential,
-	index rln.MembershipIndex,
+	keystorePath string,
+	keystorePassword string,
+	saveKeystore bool,
 	registrationHandler RegistrationHandler,
 	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
 	return &DynamicGroupManager{
-		identityCredential:        identityCredential,
-		membershipIndex:           &index,
 		membershipContractAddress: memContractAddr,
 		ethClientAddress:          ethClientAddr,
 		ethAccountPrivateKey:      ethAccountPrivateKey,
 		registrationHandler:       registrationHandler,
 		lastIndexLoaded:           -1,
+		saveKeystore:              saveKeystore,
+		keystorePath:              keystorePath,
+		keystorePassword:          keystorePassword,
 	}, nil
+}
+
+func (gm *DynamicGroupManager) getMembershipFee(ctx context.Context) (*big.Int, error) {
+	auth, err := bind.NewKeyedTransactorWithChainID(gm.ethAccountPrivateKey, gm.chainId)
+	if err != nil {
+		return nil, err
+	}
+	auth.Context = ctx
+
+	return gm.rlnContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
 }
 
 func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error {
@@ -71,12 +101,53 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 
 	gm.log.Info("mounting rln-relay in on-chain/dynamic mode")
 
+	backend, err := ethclient.Dial(gm.ethClientAddress)
+	if err != nil {
+		return err
+	}
+	gm.ethClient = backend
+
 	gm.rln = rlnInstance
 	gm.rootTracker = rootTracker
 
-	err := rootTracker.Sync()
+	gm.chainId, err = backend.ChainID(ctx)
 	if err != nil {
 		return err
+	}
+
+	gm.rlnContract, err = contracts.NewRLN(gm.membershipContractAddress, backend)
+	if err != nil {
+		return err
+	}
+
+	// check if the contract exists by calling a static function
+	gm.membershipFee, err = gm.getMembershipFee(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = rootTracker.Sync()
+	if err != nil {
+		return err
+	}
+
+	if gm.keystorePassword != "" && gm.keystorePath != "" {
+		credentials, err := keystore.GetMembershipCredentials(gm.log,
+			gm.keystorePath,
+			gm.keystorePassword,
+			RLNAppInfo,
+			nil,
+			[]keystore.MembershipContract{{
+				ChainId: gm.chainId.String(),
+				Address: gm.membershipContractAddress.Hex(),
+			}})
+		if err != nil {
+			return err
+		}
+
+		// TODO: accept an index from the config
+		gm.identityCredential = &credentials[0].IdentityCredential
+		gm.membershipIndex = &credentials[0].MembershipGroups[0].TreeIndex
 	}
 
 	// prepare rln membership key pair
@@ -90,14 +161,21 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		gm.identityCredential = identityCredential
 
 		// register the rln-relay peer to the membership contract
-		membershipIndex, err := gm.Register(ctx)
+		gm.membershipIndex, err = gm.Register(ctx)
 		if err != nil {
 			return err
 		}
 
-		gm.membershipIndex = membershipIndex
+		err = gm.persistCredentials()
+		if err != nil {
+			return err
+		}
 
 		gm.log.Info("registered peer into the membership contract")
+	}
+
+	if gm.identityCredential == nil || gm.membershipIndex == nil {
+		return errors.New("no credentials available")
 	}
 
 	handler := func(pubkey r.IDCommitment, index r.MembershipIndex) error {
@@ -110,6 +188,46 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 	err = <-errChan
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (gm *DynamicGroupManager) persistCredentials() error {
+	if !gm.saveKeystore {
+		return nil
+	}
+
+	if gm.identityCredential == nil || gm.membershipIndex == nil {
+		return errors.New("no credentials to persist")
+	}
+
+	path := gm.keystorePath
+	if path == "" {
+		gm.log.Warn("keystore: no credentials path set, using default path", zap.String("path", keystore.RLN_CREDENTIALS_FILENAME))
+		path = keystore.RLN_CREDENTIALS_FILENAME
+	}
+
+	password := gm.keystorePassword
+	if password == "" {
+		gm.log.Warn("keystore: no credentials password set, using default password", zap.String("password", keystore.RLN_CREDENTIALS_PASSWORD))
+		password = keystore.RLN_CREDENTIALS_PASSWORD
+	}
+
+	keystoreCred := keystore.MembershipCredentials{
+		IdentityCredential: *gm.identityCredential,
+		MembershipGroups: []keystore.MembershipGroup{{
+			TreeIndex: *gm.membershipIndex,
+			MembershipContract: keystore.MembershipContract{
+				ChainId: gm.chainId.String(),
+				Address: gm.membershipContractAddress.String(),
+			},
+		}},
+	}
+
+	err := keystore.AddMembershipCredentials(path, []keystore.MembershipCredentials{keystoreCred}, password, RLNAppInfo, keystore.DefaultSeparator)
+	if err != nil {
+		return errors.New("failed to persist credentials")
 	}
 
 	return nil

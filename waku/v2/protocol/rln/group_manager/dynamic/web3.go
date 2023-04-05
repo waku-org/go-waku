@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
@@ -26,29 +25,13 @@ func toBigInt(i []byte) *big.Int {
 	return result
 }
 
-func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *ecdsa.PrivateKey, ethClientAddress string, membershipContractAddress common.Address, registrationHandler RegistrationHandler, log *zap.Logger) (*r.MembershipIndex, error) {
-	backend, err := ethclient.Dial(ethClientAddress)
-	if err != nil {
-		return nil, err
-	}
-	defer backend.Close()
-
-	chainID, err := backend.ChainID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func register(ctx context.Context, backend *ethclient.Client, idComm r.IDCommitment, ethAccountPrivateKey *ecdsa.PrivateKey, rlnContract *contracts.RLN, chainID *big.Int, registrationHandler RegistrationHandler, log *zap.Logger) (*r.MembershipIndex, error) {
 	auth, err := bind.NewKeyedTransactorWithChainID(ethAccountPrivateKey, chainID)
 	if err != nil {
 		return nil, err
 	}
 	auth.Value = MEMBERSHIP_FEE
 	auth.Context = ctx
-
-	rlnContract, err := contracts.NewRLN(membershipContractAddress, backend)
-	if err != nil {
-		return nil, err
-	}
 
 	log.Debug("registering an id commitment", zap.Binary("idComm", idComm[:]))
 
@@ -100,8 +83,14 @@ func register(ctx context.Context, idComm r.IDCommitment, ethAccountPrivateKey *
 // Register registers the public key of the rlnPeer which is rlnPeer.membershipKeyPair.publicKey
 // into the membership contract whose address is in rlnPeer.membershipContractAddress
 func (gm *DynamicGroupManager) Register(ctx context.Context) (*r.MembershipIndex, error) {
-	pk := gm.identityCredential.IDCommitment
-	return register(ctx, pk, gm.ethAccountPrivateKey, gm.ethClientAddress, gm.membershipContractAddress, gm.registrationHandler, gm.log)
+	return register(ctx,
+		gm.ethClient,
+		gm.identityCredential.IDCommitment,
+		gm.ethAccountPrivateKey,
+		gm.rlnContract,
+		gm.chainId,
+		gm.registrationHandler,
+		gm.log)
 }
 
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
@@ -129,24 +118,13 @@ func (gm *DynamicGroupManager) processLogs(evt *contracts.RLNMemberRegistered, h
 func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
 	defer gm.wg.Done()
 
-	backend, err := ethclient.Dial(gm.ethClientAddress)
-	if err != nil {
-		return err
-	}
-	gm.ethClient = backend
-
-	rlnContract, err := contracts.NewRLN(gm.membershipContractAddress, backend)
-	if err != nil {
-		return err
-	}
-
-	err = gm.loadOldEvents(ctx, rlnContract, handler)
+	err := gm.loadOldEvents(ctx, gm.rlnContract, handler)
 	if err != nil {
 		return err
 	}
 
 	errCh := make(chan error)
-	go gm.watchNewEvents(ctx, rlnContract, handler, gm.log, errCh)
+	go gm.watchNewEvents(ctx, gm.rlnContract, handler, gm.log, errCh)
 	return <-errCh
 }
 

@@ -25,31 +25,18 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 			if options.RLNRelay.ETHPrivateKey != nil {
 				ethPrivKey = options.RLNRelay.ETHPrivateKey
 			}
-			membershipCredentials, err := node.GetMembershipCredentials(
-				logger,
-				options.RLNRelay.CredentialsPath,
-				options.RLNRelay.CredentialsPassword,
-				options.RLNRelay.MembershipContractAddress,
-				uint(options.RLNRelay.MembershipIndex),
-			)
-			failOnErr(err, "Invalid membership credentials")
 
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
-				membershipCredentials,
+				options.RLNRelay.CredentialsPath,
+				options.RLNRelay.CredentialsPassword,
+				options.RLNRelay.MembershipContractAddress,
 				nil,
 				options.RLNRelay.ETHClientAddress,
 				ethPrivKey,
 				nil,
 			))
 		}
-	}
-}
-
-func onStartRLN(wakuNode *node.WakuNode, options Options) {
-	if options.RLNRelay.Enable && options.RLNRelay.Dynamic && options.RLNRelay.CredentialsPath != "" {
-		err := node.WriteRLNMembershipCredentialsToFile(wakuNode.RLNRelay().MembershipKeyPair(), wakuNode.RLNRelay().MembershipIndex(), wakuNode.RLNRelay().MembershipContractAddress(), options.RLNRelay.CredentialsPath, []byte(options.RLNRelay.CredentialsPassword))
-		failOnErr(err, "Could not write membership credentials file")
 	}
 }
