@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"go.uber.org/zap"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
@@ -55,15 +54,18 @@ type Peer struct {
 
 type storeFactory func(w *WakuNode) store.Store
 
-type MembershipKeyPair = struct {
-	IDKey        [32]byte `json:"idKey"`
-	IDCommitment [32]byte `json:"idCommitment"`
+type byte32 = [32]byte
+
+type IdentityCredential = struct {
+	IDTrapdoor   byte32 `json:"idTrapdoor"`
+	IDNullifier  byte32 `json:"idNullifier"`
+	IDSecretHash byte32 `json:"idSecretHash"`
+	IDCommitment byte32 `json:"idCommitment"`
 }
 
 type RLNRelay interface {
-	MembershipKeyPair() *MembershipKeyPair
-	MembershipIndex() uint
-	MembershipContractAddress() common.Address
+	IdentityCredential() (IdentityCredential, error)
+	MembershipIndex() (uint, error)
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
 	Stop()
 }

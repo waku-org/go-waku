@@ -16,7 +16,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func execute(options Options) {
@@ -47,27 +46,33 @@ func execute(options Options) {
 		}
 
 		registrationHandler := func(tx *types.Transaction) {
-			fmt.Println(fmt.Sprintf("You are registered to the rln membership contract, find details of your registration transaction in https://goerli.etherscan.io/tx/%s", tx.Hash()))
+			chainID := tx.ChainId().Int64()
+			url := ""
+			switch chainID {
+			case 1:
+				url = "https://etherscan.io"
+			case 5:
+				url = "https://goerli.etherscan.io"
+			case 11155111:
+				url = "https://sepolia.etherscan.io"
+
+			}
+
+			if url != "" {
+				fmt.Println(fmt.Sprintf("You are registered to the rln membership contract, find details of your registration transaction in %s/tx/%s", url, tx.Hash()))
+			} else {
+				fmt.Println(fmt.Sprintf("You are registered to the rln membership contract. Transaction hash: %s", url, tx.Hash()))
+			}
 		}
 
 		if options.RLNRelay.Dynamic {
-			membershipCredentials, err := node.GetMembershipCredentials(
-				utils.Logger(),
-				options.RLNRelay.CredentialsPath,
-				options.RLNRelay.CredentialsPassword,
-				options.RLNRelay.MembershipContractAddress,
-				uint(options.RLNRelay.MembershipIndex),
-			)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
 			fmt.Println("Setting up dynamic rln...")
 			opts = append(opts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
-				membershipCredentials,
+				options.RLNRelay.CredentialsPath,
+				options.RLNRelay.CredentialsPassword,
+				options.RLNRelay.MembershipContractAddress,
 				spamHandler,
 				options.RLNRelay.ETHClientAddress,
 				options.RLNRelay.ETHPrivateKey,

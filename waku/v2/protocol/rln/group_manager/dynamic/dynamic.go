@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -69,6 +70,20 @@ func NewDynamicGroupManager(
 	registrationHandler RegistrationHandler,
 	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
+	log = log.Named("rln-dynamic")
+
+	path := keystorePath
+	if path == "" {
+		log.Warn("keystore: no credentials path set, using default path", zap.String("path", keystore.RLN_CREDENTIALS_FILENAME))
+		path = keystore.RLN_CREDENTIALS_FILENAME
+	}
+
+	password := keystorePassword
+	if password == "" {
+		log.Warn("keystore: no credentials password set, using default password", zap.String("password", keystore.RLN_CREDENTIALS_PASSWORD))
+		password = keystore.RLN_CREDENTIALS_PASSWORD
+	}
+
 	return &DynamicGroupManager{
 		membershipContractAddress: memContractAddr,
 		ethClientAddress:          ethClientAddr,
@@ -76,8 +91,9 @@ func NewDynamicGroupManager(
 		registrationHandler:       registrationHandler,
 		lastIndexLoaded:           -1,
 		saveKeystore:              saveKeystore,
-		keystorePath:              keystorePath,
-		keystorePassword:          keystorePassword,
+		keystorePath:              path,
+		keystorePassword:          password,
+		log:                       log,
 	}, nil
 }
 
@@ -146,13 +162,19 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		}
 
 		// TODO: accept an index from the config
-		gm.identityCredential = &credentials[0].IdentityCredential
-		gm.membershipIndex = &credentials[0].MembershipGroups[0].TreeIndex
+		if len(credentials) != 0 {
+			gm.identityCredential = &credentials[0].IdentityCredential
+			gm.membershipIndex = &credentials[0].MembershipGroups[0].TreeIndex
+		}
+	}
+
+	if gm.identityCredential == nil && gm.ethAccountPrivateKey == nil {
+		return errors.New("either a credentials path or a private key must be specified")
 	}
 
 	// prepare rln membership key pair
 	if gm.identityCredential == nil && gm.ethAccountPrivateKey != nil {
-		gm.log.Debug("no rln-relay key is provided, generating one")
+		gm.log.Info("no rln-relay key is provided, generating one")
 		identityCredential, err := rlnInstance.MembershipKeyGen()
 		if err != nil {
 			return err
@@ -182,11 +204,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return gm.InsertMember(pubkey)
 	}
 
-	errChan := make(chan error)
-	gm.wg.Add(1)
-	go gm.HandleGroupUpdates(ctx, handler, errChan)
-	err = <-errChan
-	if err != nil {
+	if err = gm.HandleGroupUpdates(ctx, handler); err != nil {
 		return err
 	}
 
@@ -202,18 +220,6 @@ func (gm *DynamicGroupManager) persistCredentials() error {
 		return errors.New("no credentials to persist")
 	}
 
-	path := gm.keystorePath
-	if path == "" {
-		gm.log.Warn("keystore: no credentials path set, using default path", zap.String("path", keystore.RLN_CREDENTIALS_FILENAME))
-		path = keystore.RLN_CREDENTIALS_FILENAME
-	}
-
-	password := gm.keystorePassword
-	if password == "" {
-		gm.log.Warn("keystore: no credentials password set, using default password", zap.String("password", keystore.RLN_CREDENTIALS_PASSWORD))
-		password = keystore.RLN_CREDENTIALS_PASSWORD
-	}
-
 	keystoreCred := keystore.MembershipCredentials{
 		IdentityCredential: *gm.identityCredential,
 		MembershipGroups: []keystore.MembershipGroup{{
@@ -225,9 +231,9 @@ func (gm *DynamicGroupManager) persistCredentials() error {
 		}},
 	}
 
-	err := keystore.AddMembershipCredentials(path, []keystore.MembershipCredentials{keystoreCred}, password, RLNAppInfo, keystore.DefaultSeparator)
+	err := keystore.AddMembershipCredentials(gm.keystorePath, []keystore.MembershipCredentials{keystoreCred}, gm.keystorePassword, RLNAppInfo, keystore.DefaultSeparator)
 	if err != nil {
-		return errors.New("failed to persist credentials")
+		return fmt.Errorf("failed to persist credentials: %w", err)
 	}
 
 	return nil

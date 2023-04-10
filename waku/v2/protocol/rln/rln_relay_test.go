@@ -10,6 +10,8 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/static"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	r "github.com/waku-org/go-zerokit-rln/rln"
@@ -51,7 +53,14 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	// index also represents the index of the leaf in the Merkle tree that contains node's commitment key
 	index := r.MembershipIndex(5)
 
-	wakuRLNRelay, err := RlnRelayStatic(context.TODO(), relay, groupIDCommitments, groupKeyPairs[index], index, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	idCredential := groupKeyPairs[index]
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
+	s.Require().NoError(err)
+
+	wakuRLNRelay, err := New(relay, groupManager, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	s.Require().NoError(err)
+
+	err = wakuRLNRelay.Start(context.TODO())
 	s.Require().NoError(err)
 
 	// get the root of Merkle tree which is constructed inside the mountRlnRelay proc
@@ -66,8 +75,12 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 
 func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 
+	rlnInstance, err := r.NewRLN()
+	s.Require().NoError(err)
+
 	rlnRelay := &WakuRLNRelay{
-		nullifierLog: make(map[r.Epoch][]r.ProofMetadata),
+		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
+		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance),
 	}
 
 	epoch := r.GetCurrentEpoch()
@@ -92,29 +105,40 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	wm2 := &pb.WakuMessage{RateLimitProof: &pb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier2[:], ShareX: shareX2[:], ShareY: shareY2[:]}}
 	wm3 := &pb.WakuMessage{RateLimitProof: &pb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier3[:], ShareX: shareX3[:], ShareY: shareY3[:]}}
 
+	msgProof1 := toRateLimitProof(wm1)
+	msgProof2 := toRateLimitProof(wm2)
+	msgProof3 := toRateLimitProof(wm3)
+
+	md1, err := rlnInstance.ExtractMetadata(*msgProof1)
+	s.Require().NoError(err)
+	md2, err := rlnInstance.ExtractMetadata(*msgProof2)
+	s.Require().NoError(err)
+	md3, err := rlnInstance.ExtractMetadata(*msgProof3)
+	s.Require().NoError(err)
+
 	// check whether hasDuplicate correctly finds records with the same nullifiers but different secret shares
 	// no duplicate for wm1 should be found, since the log is empty
-	result1, err := rlnRelay.HasDuplicate(wm1)
+	result1, err := rlnRelay.HasDuplicate(md1)
 	s.Require().NoError(err)
 	s.Require().False(result1) // No duplicate is found
 
 	// Add it to the log
-	added, err := rlnRelay.updateLog(wm1)
+	added, err := rlnRelay.updateLog(md1)
 	s.Require().NoError(err)
 	s.Require().True(added)
 
 	// no duplicate for wm2 should be found, its nullifier differs from wm1
-	result2, err := rlnRelay.HasDuplicate(wm2)
+	result2, err := rlnRelay.HasDuplicate(md2)
 	s.Require().NoError(err)
 	s.Require().False(result2) // No duplicate is found
 
 	// Add it to the log
-	added, err = rlnRelay.updateLog(wm2)
+	added, err = rlnRelay.updateLog(md2)
 	s.Require().NoError(err)
 	s.Require().True(added)
 
 	// wm3 has the same nullifier as wm1 but different secret shares, it should be detected as duplicate
-	result3, err := rlnRelay.HasDuplicate(wm3)
+	result3, err := rlnRelay.HasDuplicate(md3)
 	s.Require().NoError(err)
 	s.Require().True(result3) // It's a duplicate
 
@@ -138,15 +162,16 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
-	err = rlnInstance.AddAll(groupIDCommitments)
+	idCredential := groupKeyPairs[index]
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
-		membershipIndex:   index,
-		membershipKeyPair: &groupKeyPairs[index],
-		RLN:               rlnInstance,
-		nullifierLog:      make(map[r.Epoch][]r.ProofMetadata),
-		log:               utils.Logger(),
+		groupManager: groupManager,
+		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance),
+		RLN:          rlnInstance,
+		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
+		log:          utils.Logger(),
 	}
 
 	//get the current epoch time

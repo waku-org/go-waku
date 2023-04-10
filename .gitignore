@@ -1,5 +1,7 @@
 nodekey
 rlnCredentials.txt
+rlnCredentials.json
+*.bkp
 *.log
 
 # sqlite db

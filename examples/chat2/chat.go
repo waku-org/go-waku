@@ -460,12 +460,28 @@ func (c *Chat) welcomeMessage() {
 		return
 	}
 
-	idKey := c.node.RLNRelay().MembershipKeyPair().IDKey
-	idCommitment := c.node.RLNRelay().MembershipKeyPair().IDCommitment
+	credential, err := c.node.RLNRelay().IdentityCredential()
+	if err != nil {
+		c.ui.Quit()
+		fmt.Println(err.Error())
+	}
+
+	idx, err := c.node.RLNRelay().MembershipIndex()
+	if err != nil {
+		c.ui.Quit()
+		fmt.Println(err.Error())
+	}
+
+	idTrapdoor := credential.IDTrapdoor
+	idNullifier := credential.IDSecretHash
+	idSecretHash := credential.IDSecretHash
+	idCommitment := credential.IDCommitment
 
 	rlnMessage := "RLN config:\n"
-	rlnMessage += fmt.Sprintf("- Your membership index is: %d\n", uint(c.node.RLNRelay().MembershipIndex()))
-	rlnMessage += fmt.Sprintf("- Your rln identity key is: 0x%s\n", hex.EncodeToString(idKey[:]))
+	rlnMessage += fmt.Sprintf("- Your membership index is: %d\n", idx)
+	rlnMessage += fmt.Sprintf("- Your rln identity trapdoor is: 0x%s\n", hex.EncodeToString(idTrapdoor[:]))
+	rlnMessage += fmt.Sprintf("- Your rln identity nullifier is: 0x%s\n", hex.EncodeToString(idNullifier[:]))
+	rlnMessage += fmt.Sprintf("- Your rln identity secret hash is: 0x%s\n", hex.EncodeToString(idSecretHash[:]))
 	rlnMessage += fmt.Sprintf("- Your rln identity commitment key is: 0x%s\n", hex.EncodeToString(idCommitment[:]))
 
 	c.ui.InfoMessage(rlnMessage)

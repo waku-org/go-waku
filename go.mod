@@ -38,7 +38,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/lib/pq v1.10.4
 	github.com/waku-org/go-noise v0.0.4
-	github.com/waku-org/go-zerokit-rln v0.1.11
+	github.com/waku-org/go-zerokit-rln v0.1.12
 )
 
 require (

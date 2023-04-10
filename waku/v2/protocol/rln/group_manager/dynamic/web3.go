@@ -107,7 +107,6 @@ func (gm *DynamicGroupManager) processLogs(evt *contracts.RLNMemberRegistered, h
 	if index <= gm.lastIndexLoaded {
 		return nil
 	}
-
 	gm.lastIndexLoaded = index
 	return handler(pubkey, r.MembershipIndex(uint(evt.Index.Int64())))
 }
@@ -116,14 +115,14 @@ func (gm *DynamicGroupManager) processLogs(evt *contracts.RLNMemberRegistered, h
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
 func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
-	defer gm.wg.Done()
-
 	err := gm.loadOldEvents(ctx, gm.rlnContract, handler)
 	if err != nil {
 		return err
 	}
 
 	errCh := make(chan error)
+
+	gm.wg.Add(1)
 	go gm.watchNewEvents(ctx, gm.rlnContract, handler, gm.log, errCh)
 	return <-errCh
 }
@@ -151,6 +150,8 @@ func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *c
 }
 
 func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger, errCh chan<- error) {
+	defer gm.wg.Done()
+
 	// Watch for new events
 	logSink := make(chan *contracts.RLNMemberRegistered)
 
