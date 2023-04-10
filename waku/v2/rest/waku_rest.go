@@ -35,6 +35,8 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enableAdmin bool
 
 	_ = NewDebugService(node, mux)
 
+	_ = NewStoreService(node, mux)
+
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
 
 	server := &http.Server{
