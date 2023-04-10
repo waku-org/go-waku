@@ -81,6 +81,7 @@ func CreateAppKeystore(path string, appInfo AppInfo, separator string) error {
 	}
 
 	keystore := AppKeystore{
+		Application:   appInfo.Application,
 		AppIdentifier: appInfo.AppIdentifier,
 		Version:       appInfo.Version,
 	}
@@ -205,7 +206,7 @@ func GetMembershipCredentials(logger *zap.Logger, credentialsPath string, passwo
 		}
 
 		filteredCredential := filterCredential(credentials, filterIdentityCredentials, filterMembershipContracts)
-		if filterIdentityCredentials != nil {
+		if filteredCredential != nil {
 			result = append(result, *filteredCredential)
 		}
 	}
@@ -330,6 +331,15 @@ func save(keystore AppKeystore, path string, separator string) error {
 			return fmt.Errorf("could not restore backup file: %w", restoreErr)
 		}
 		return err
+	}
+
+	// The write went fine, so we can remove the backup keystore
+	_, err = os.Stat(path + ".bkp")
+	if err == nil {
+		err := os.Remove(path + ".bkp")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

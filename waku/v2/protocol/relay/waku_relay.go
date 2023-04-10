@@ -154,11 +154,7 @@ func (w *WakuRelay) validatorFactory(pubsubTopic string) func(ctx context.Contex
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
 		err := proto.Unmarshal(message.Data, msg)
-		if err != nil {
-			return false
-		}
-
-		return true
+		return err == nil
 	}
 }
 

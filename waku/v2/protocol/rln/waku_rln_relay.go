@@ -361,3 +361,11 @@ func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*pb.
 		RlnIdentifier: proof.RLNIdentifier[:],
 	}, nil
 }
+
+func (rlnRelay *WakuRLNRelay) IdentityCredential() (rln.IdentityCredential, error) {
+	return rlnRelay.groupManager.IdentityCredentials()
+}
+
+func (rlnRelay *WakuRLNRelay) MembershipIndex() (uint, error) {
+	return rlnRelay.groupManager.MembershipIndex()
+}
