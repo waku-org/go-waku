@@ -41,7 +41,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -165,13 +165,12 @@ func Execute(options Options) {
 
 	if options.Filter.Enable {
 		if options.Filter.UseV2 {
+			nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
 			if !options.Filter.DisableFullNode {
-				nodeOpts = append(nodeOpts, node.WithWakuFilterV2LightNode())
-			} else {
-				nodeOpts = append(nodeOpts, node.WithWakuFilterV2FullNode(filterv2.WithTimeout(options.Filter.Timeout)))
+				nodeOpts = append(nodeOpts, node.WithWakuFilterFullNode(filter.WithTimeout(options.Filter.Timeout)))
 			}
 		} else {
-			nodeOpts = append(nodeOpts, node.WithWakuFilter(!options.Filter.DisableFullNode, filter.WithTimeout(options.Filter.Timeout)))
+			nodeOpts = append(nodeOpts, node.WithLegacyWakuFilter(!options.Filter.DisableFullNode, legacy_filter.WithTimeout(options.Filter.Timeout)))
 		}
 	}
 
@@ -262,9 +261,9 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
 
 	if options.Filter.UseV2 {
-		addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
+		addPeers(wakuNode, options.Filter.Nodes, legacy_filter.FilterID_v20beta1)
 	} else {
-		addPeers(wakuNode, options.Filter.Nodes, filter.FilterID_v20beta1)
+		addPeers(wakuNode, options.Filter.Nodes, legacy_filter.FilterID_v20beta1)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {

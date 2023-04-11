@@ -1,4 +1,4 @@
-package filter
+package legacy_filter
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"

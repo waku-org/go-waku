@@ -27,7 +27,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -64,15 +64,15 @@ type WakuNodeParameters struct {
 	logger   *zap.Logger
 	logLevel logging.LogLevel
 
-	noDefaultWakuTopic      bool
-	enableRelay             bool
-	enableFilter            bool
-	isFilterFullNode        bool
-	enableFilterV2LightNode bool
-	enableFilterV2FullNode  bool
-	filterOpts              []filter.Option
-	filterV2Opts            []filterv2.Option
-	wOpts                   []pubsub.Option
+	noDefaultWakuTopic     bool
+	enableRelay            bool
+	enableLefacyFilter     bool
+	isLegacyFilterFullnode bool
+	enableFilterLightNode  bool
+	enableFilterFullnode   bool
+	legacyFilterOpts       []legacy_filter.Option
+	filterOpts             []filter.Option
+	wOpts                  []pubsub.Option
 
 	minRelayPeersToPublish int
 
@@ -319,31 +319,31 @@ func WithPeerExchange() WakuNodeOption {
 	}
 }
 
-// WithWakuFilter enables the Waku Filter protocol. This WakuNodeOption
+// WithLegacyWakuFilter enables the legacy Waku Filter protocol. This WakuNodeOption
 // accepts a list of WakuFilter gossipsub options to setup the protocol
-func WithWakuFilter(fullNode bool, filterOpts ...filter.Option) WakuNodeOption {
+func WithLegacyWakuFilter(fullnode bool, filterOpts ...legacy_filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableFilter = true
-		params.isFilterFullNode = fullNode
-		params.filterOpts = filterOpts
+		params.enableLefacyFilter = true
+		params.isLegacyFilterFullnode = fullnode
+		params.legacyFilterOpts = filterOpts
 		return nil
 	}
 }
 
-// WithWakuFilterV2 enables the Waku Filter V2 protocol for lightnode functionality
-func WithWakuFilterV2LightNode() WakuNodeOption {
+// WithWakuFilter enables the Waku Filter V2 protocol for lightnode functionality
+func WithWakuFilterLightNode() WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableFilterV2LightNode = true
+		params.enableFilterLightNode = true
 		return nil
 	}
 }
 
-// WithWakuFilterV2FullNode enables the Waku Filter V2 protocol full node functionality.
+// WithWakuFilterFullNode enables the Waku Filter V2 protocol full node functionality.
 // This WakuNodeOption accepts a list of WakuFilter options to setup the protocol
-func WithWakuFilterV2FullNode(filterOpts ...filterv2.Option) WakuNodeOption {
+func WithWakuFilterFullNode(filterOpts ...filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableFilterV2FullNode = true
-		params.filterV2Opts = filterOpts
+		params.enableFilterFullnode = true
+		params.filterOpts = filterOpts
 		return nil
 	}
 }

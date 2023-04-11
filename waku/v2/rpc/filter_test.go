@@ -12,8 +12,8 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -25,7 +25,7 @@ var testTopic = "test"
 func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
 	var nodeOpts []node.WakuNodeOption
 
-	nodeOpts = append(nodeOpts, node.WithWakuFilter(isFullNode))
+	nodeOpts = append(nodeOpts, node.WithLegacyWakuFilter(isFullNode))
 	if isFullNode {
 		nodeOpts = append(nodeOpts, node.WithWakuRelay())
 	}
@@ -57,7 +57,7 @@ func TestFilterSubscription(t *testing.T) {
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	f := filter.NewWakuFilter(host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	f := legacy_filter.NewWakuFilter(host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
 	err = f.Start(context.Background())
 	require.NoError(t, err)
 
@@ -73,7 +73,7 @@ func TestFilterSubscription(t *testing.T) {
 		break
 	}
 
-	_, err = d.node.AddPeer(addr, filter.FilterID_v20beta1)
+	_, err = d.node.AddPeer(addr, legacy_filter.FilterID_v20beta1)
 	require.NoError(t, err)
 
 	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: "ct"}}}

@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -58,27 +59,47 @@ func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
 
 	if options.Filter.Enable {
-		cf := filter.ContentFilter{
-			Topic:         relay.DefaultWakuTopic,
-			ContentTopics: []string{options.ContentTopic},
-		}
-		var err error
-
-		var filterOpt filter.FilterSubscribeOption
-		peerID, err := options.Filter.NodePeerID()
-		if err != nil {
-			filterOpt = filter.WithAutomaticPeerSelection()
+		if options.Filter.UseV2 {
+			cf := filter.ContentFilter{
+				Topic:         relay.DefaultWakuTopic,
+				ContentTopics: []string{options.ContentTopic},
+			}
+			var filterOpt filter.FilterSubscribeOption
+			peerID, err := options.Filter.NodePeerID()
+			if err != nil {
+				filterOpt = filter.WithAutomaticPeerSelection()
+			} else {
+				filterOpt = filter.WithPeer(peerID)
+				chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
+			}
+			theFilter, err := node.FilterLightnode().Subscribe(ctx, cf, filterOpt)
+			if err != nil {
+				chat.ui.ErrorMessage(err)
+			} else {
+				chat.C = theFilter.C
+			}
 		} else {
-			filterOpt = filter.WithPeer(peerID)
-			chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
+			// TODO: remove
+			cf := legacy_filter.ContentFilter{
+				Topic:         relay.DefaultWakuTopic,
+				ContentTopics: []string{options.ContentTopic},
+			}
+			var filterOpt legacy_filter.FilterSubscribeOption
+			peerID, err := options.Filter.NodePeerID()
+			if err != nil {
+				filterOpt = legacy_filter.WithAutomaticPeerSelection()
+			} else {
+				filterOpt = legacy_filter.WithPeer(peerID)
+				chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
+			}
+			_, theFilter, err := node.LegacyFilter().Subscribe(ctx, cf, filterOpt)
+			if err != nil {
+				chat.ui.ErrorMessage(err)
+			} else {
+				chat.C = theFilter.Chan
+			}
 		}
 
-		_, theFilter, err := node.Filter().Subscribe(ctx, cf, filterOpt)
-		if err != nil {
-			chat.ui.ErrorMessage(err)
-		} else {
-			chat.C = theFilter.Chan
-		}
 	} else {
 		sub, err := node.Relay().Subscribe(ctx)
 		if err != nil {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"go.uber.org/zap"
 )
@@ -44,13 +44,13 @@ func NewFilterService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *
 	return s
 }
 
-func makeContentFilter(args *FilterContentArgs) filter.ContentFilter {
+func makeContentFilter(args *FilterContentArgs) legacy_filter.ContentFilter {
 	var contentTopics []string
 	for _, contentFilter := range args.ContentFilters {
 		contentTopics = append(contentTopics, contentFilter.ContentTopic)
 	}
 
-	return filter.ContentFilter{
+	return legacy_filter.ContentFilter{
 		Topic:         args.Topic,
 		ContentTopics: contentTopics,
 	}
@@ -82,10 +82,10 @@ func (f *FilterService) Stop() {
 }
 
 func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterContentArgs, reply *SuccessReply) error {
-	_, _, err := f.node.Filter().Subscribe(
+	_, _, err := f.node.LegacyFilter().Subscribe(
 		req.Context(),
 		makeContentFilter(args),
-		filter.WithAutomaticPeerSelection(),
+		legacy_filter.WithAutomaticPeerSelection(),
 	)
 	if err != nil {
 		f.log.Error("subscribing to topic", zap.String("topic", args.Topic), zap.Error(err))
@@ -100,7 +100,7 @@ func (f *FilterService) PostV1Subscription(req *http.Request, args *FilterConten
 }
 
 func (f *FilterService) DeleteV1Subscription(req *http.Request, args *FilterContentArgs, reply *SuccessReply) error {
-	err := f.node.Filter().UnsubscribeFilter(
+	err := f.node.LegacyFilter().UnsubscribeFilter(
 		req.Context(),
 		makeContentFilter(args),
 	)

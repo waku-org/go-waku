@@ -14,7 +14,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -175,7 +175,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
-		WithWakuFilter(true),
+		WithLegacyWakuFilter(true),
 	)
 	require.NoError(t, err)
 	err = wakuNode1.Start(ctx)
@@ -192,7 +192,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	wakuNode2, err := New(
 		WithHostAddress(hostAddr2),
-		WithWakuFilter(false),
+		WithLegacyWakuFilter(false),
 		WithWakuStore(),
 		WithMessageProvider(dbStore),
 	)
@@ -206,7 +206,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	_, filter, err := wakuNode2.Filter().Subscribe(ctx, filter.ContentFilter{
+	_, filter, err := wakuNode2.LegacyFilter().Subscribe(ctx, legacy_filter.ContentFilter{
 		Topic: string(relay.DefaultWakuTopic),
 	})
 	require.NoError(t, err)
@@ -241,7 +241,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	wakuNode3, err := New(
 		WithHostAddress(hostAddr3),
-		WithWakuFilter(false),
+		WithLegacyWakuFilter(false),
 	)
 	require.NoError(t, err)
 	err = wakuNode3.Start(ctx)

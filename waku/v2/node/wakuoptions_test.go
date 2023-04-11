@@ -38,7 +38,7 @@ func TestWakuOptions(t *testing.T) {
 		WithPrivateKey(prvKey),
 		WithLibP2POptions(),
 		WithWakuRelay(),
-		WithWakuFilter(true),
+		WithLegacyWakuFilter(true),
 		WithDiscoveryV5(123, nil, false),
 		WithWakuStore(),
 		WithMessageProvider(&persistence.DBStore{}),
