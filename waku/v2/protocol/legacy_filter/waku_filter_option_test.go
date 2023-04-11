@@ -1,4 +1,4 @@
-package filterv2
+package legacy_filter
 
 import (
 	"context"
@@ -33,20 +33,4 @@ func TestFilterOption(t *testing.T) {
 
 	require.Equal(t, host, params.host)
 	require.NotNil(t, params.selectedPeer)
-
-	options2 := []FilterUnsubscribeOption{
-		AutomaticRequestId(),
-		UnsubscribeAll(),
-		Peer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
-	}
-
-	params2 := new(FilterUnsubscribeParameters)
-
-	for _, opt := range options2 {
-		opt(params2)
-	}
-
-	require.NotNil(t, params2.selectedPeer)
-	require.True(t, params2.unsubscribeAll)
-
 }

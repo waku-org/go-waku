@@ -107,7 +107,7 @@ func NewNode(configJSON string) string {
 	}
 
 	if *config.EnableFilter {
-		opts = append(opts, node.WithWakuFilter(false))
+		opts = append(opts, node.WithLegacyWakuFilter(false))
 	}
 
 	if *config.EnableStore {

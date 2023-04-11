@@ -1,4 +1,4 @@
-package filter
+package legacy_filter
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 )
 
 const TOPIC = "/test/topic"

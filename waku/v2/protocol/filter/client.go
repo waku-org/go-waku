@@ -1,4 +1,4 @@
-package filterv2
+package filter
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.opencensus.io/tag"
@@ -82,7 +82,7 @@ func (wf *WakuFilterLightnode) Start(ctx context.Context) error {
 
 	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(ctx))
 
-	wf.log.Info("filter protocol (light) started")
+	wf.log.Info("filter-push protocol started")
 
 	return nil
 }

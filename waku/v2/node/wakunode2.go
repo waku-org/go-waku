@@ -33,7 +33,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filterv2"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
@@ -76,17 +76,17 @@ type WakuNode struct {
 	log        *zap.Logger
 	timesource timesource.Timesource
 
-	relay         Service
-	lightPush     Service
-	peerConnector PeerConnectorService
-	discoveryV5   Service
-	peerExchange  Service
-	rendezvous    Service
-	filter        ReceptorService
-	filterV2Full  ReceptorService
-	filterV2Light Service
-	store         ReceptorService
-	rlnRelay      RLNRelay
+	relay           Service
+	lightPush       Service
+	peerConnector   PeerConnectorService
+	discoveryV5     Service
+	peerExchange    Service
+	rendezvous      Service
+	legacyFilter    ReceptorService
+	filterFullnode  ReceptorService
+	filterLightnode Service
+	store           ReceptorService
+	rlnRelay        RLNRelay
 
 	wakuFlag utils.WakuEnrBitfield
 
@@ -179,7 +179,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
 	w.keepAliveFails = make(map[peer.ID]int)
-	w.wakuFlag = utils.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilter, w.opts.enableStore, w.opts.enableRelay)
+	w.wakuFlag = utils.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableLefacyFilter, w.opts.enableStore, w.opts.enableRelay)
 
 	if params.enableNTP {
 		w.timesource = timesource.NewNTPTimesource(w.opts.ntpURLs, w.log)
@@ -225,9 +225,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w.rendezvous = rendezvous.NewRendezvous(w.host, w.opts.enableRendezvousServer, w.opts.rendezvousDB, w.opts.enableRendezvous, rendezvousPoints, w.peerConnector, w.log)
 	w.relay = relay.NewWakuRelay(w.host, w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
-	w.filter = filter.NewWakuFilter(w.host, w.bcaster, w.opts.isFilterFullNode, w.timesource, w.log, w.opts.filterOpts...)
-	w.filterV2Full = filterv2.NewWakuFilterFullnode(w.host, w.bcaster, w.timesource, w.log, w.opts.filterV2Opts...)
-	w.filterV2Light = filterv2.NewWakuFilterLightnode(w.host, w.bcaster, w.timesource, w.log)
+	w.legacyFilter = legacy_filter.NewWakuFilter(w.host, w.bcaster, w.opts.isLegacyFilterFullnode, w.timesource, w.log, w.opts.legacyFilterOpts...)
+	w.filterFullnode = filter.NewWakuFilterFullnode(w.host, w.bcaster, w.timesource, w.log, w.opts.filterOpts...)
+	w.filterLightnode = filter.NewWakuFilterLightnode(w.host, w.bcaster, w.timesource, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.host, w.Relay(), w.log)
 
 	if params.storeFactory != nil {
@@ -356,28 +356,28 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		}
 	}
 
-	if w.opts.enableFilter {
-		err := w.filter.Start(ctx)
+	if w.opts.enableLefacyFilter {
+		err := w.legacyFilter.Start(ctx)
 		if err != nil {
 			return err
 		}
 
 		w.log.Info("Subscribing filter to broadcaster")
-		w.bcaster.Register(nil, w.filter.MessageChannel())
+		w.bcaster.Register(nil, w.legacyFilter.MessageChannel())
 	}
 
-	if w.opts.enableFilterV2FullNode {
-		err := w.filterV2Full.Start(ctx)
+	if w.opts.enableFilterFullnode {
+		err := w.filterFullnode.Start(ctx)
 		if err != nil {
 			return err
 		}
 
 		w.log.Info("Subscribing filterV2 to broadcaster")
-		w.bcaster.Register(nil, w.filterV2Full.MessageChannel())
+		w.bcaster.Register(nil, w.filterFullnode.MessageChannel())
 	}
 
-	if w.opts.enableFilterV2LightNode {
-		err := w.filterV2Light.Start(ctx)
+	if w.opts.enableFilterLightNode {
+		err := w.filterLightnode.Start(ctx)
 		if err != nil {
 			return err
 		}
@@ -434,8 +434,8 @@ func (w *WakuNode) Stop() {
 	w.relay.Stop()
 	w.lightPush.Stop()
 	w.store.Stop()
-	w.filter.Stop()
-	w.filterV2Full.Stop()
+	w.legacyFilter.Stop()
+	w.filterFullnode.Stop()
 	w.peerExchange.Stop()
 
 	if w.opts.enableDiscV5 {
@@ -523,17 +523,25 @@ func (w *WakuNode) Store() store.Store {
 	return w.store.(store.Store)
 }
 
-// Filter is used to access any operation related to Waku Filter protocol
-func (w *WakuNode) Filter() *filter.WakuFilter {
-	if result, ok := w.filter.(*filter.WakuFilter); ok {
+// LegacyFilter is used to access any operation related to Waku LegacyFilter protocol
+func (w *WakuNode) LegacyFilter() *legacy_filter.WakuFilter {
+	if result, ok := w.legacyFilter.(*legacy_filter.WakuFilter); ok {
 		return result
 	}
 	return nil
 }
 
-// FilterV2 is used to access any operation related to Waku Filter protocol
-func (w *WakuNode) FilterV2() *filterv2.WakuFilterLightnode {
-	if result, ok := w.filterV2Light.(*filterv2.WakuFilterLightnode); ok {
+// FilterLightnode is used to access any operation related to Waku Filter protocol Full node feature
+func (w *WakuNode) FilterFullnode() *filter.WakuFilterFullNode {
+	if result, ok := w.filterFullnode.(*filter.WakuFilterFullNode); ok {
+		return result
+	}
+	return nil
+}
+
+// FilterFullnode is used to access any operation related to Waku Filter protocol Light node feature
+func (w *WakuNode) FilterLightnode() *filter.WakuFilterLightnode {
+	if result, ok := w.filterLightnode.(*filter.WakuFilterLightnode); ok {
 		return result
 	}
 	return nil

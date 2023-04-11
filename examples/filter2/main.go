@@ -60,7 +60,7 @@ func main() {
 		node.WithPrivateKey(prvKey1),
 		node.WithHostAddress(hostAddr1),
 		node.WithWakuRelay(),
-		node.WithWakuFilter(true),
+		node.WithWakuFilterFullNode(),
 	)
 	if err != nil {
 		panic(err)
@@ -74,13 +74,13 @@ func main() {
 	lightNode, err := node.New(
 		node.WithPrivateKey(prvKey2),
 		node.WithHostAddress(hostAddr2),
-		node.WithWakuFilter(false),
+		node.WithWakuFilterLightNode(),
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterID_v20beta1)
+	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterSubscribeID_v20beta1)
 	if err != nil {
 		log.Info("Error adding filter peer on light node ", err)
 	}
@@ -100,13 +100,13 @@ func main() {
 		ContentTopics: []string{contentTopic},
 	}
 
-	_, theFilter, err := lightNode.Filter().Subscribe(ctx, cf)
+	theFilter, err := lightNode.FilterLightnode().Subscribe(ctx, cf)
 	if err != nil {
 		panic(err)
 	}
 
 	go func() {
-		for env := range theFilter.Chan {
+		for env := range theFilter.C {
 			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
 		log.Info("Message channel closed!")
@@ -118,7 +118,7 @@ func main() {
 	go func() {
 		// Unsubscribe filter after 5 seconds
 		time.Sleep(5 * time.Second)
-		lightNode.Filter().UnsubscribeFilter(ctx, cf)
+		lightNode.FilterLightnode().Unsubscribe(ctx, cf)
 	}()
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
