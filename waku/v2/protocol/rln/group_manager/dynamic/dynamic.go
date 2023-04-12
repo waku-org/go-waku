@@ -16,7 +16,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
 	"github.com/waku-org/go-zerokit-rln/rln"
-	r "github.com/waku-org/go-zerokit-rln/rln"
+	om "github.com/wk8/go-ordered-map"
 	"go.uber.org/zap"
 )
 
@@ -49,13 +49,48 @@ type DynamicGroupManager struct {
 	chainId             *big.Int
 	rlnContract         *contracts.RLN
 	membershipFee       *big.Int
-	lastIndexLoaded     int64
 
 	saveKeystore     bool
 	keystorePath     string
 	keystorePassword string
 
 	rootTracker *group_manager.MerkleRootTracker
+}
+
+func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) error {
+	toRemoveTable := om.New()
+	toInsertTable := om.New()
+	for _, event := range events {
+		if event.Raw.Removed {
+			var indexes []uint64
+			i_idx, ok := toRemoveTable.Get(event.Raw.BlockNumber)
+			if ok {
+				indexes = i_idx.([]uint64)
+			}
+			indexes = append(indexes, event.Index.Uint64())
+			toRemoveTable.Set(event.Raw.BlockNumber, indexes)
+		} else {
+			var eventsPerBlock []*contracts.RLNMemberRegistered
+			i_evt, ok := toInsertTable.Get(event.Raw.BlockNumber)
+			if ok {
+				eventsPerBlock = i_evt.([]*contracts.RLNMemberRegistered)
+			}
+			eventsPerBlock = append(eventsPerBlock, event)
+			toInsertTable.Set(event.Raw.BlockNumber, eventsPerBlock)
+		}
+	}
+
+	err := gm.RemoveMembers(toRemoveTable)
+	if err != nil {
+		return err
+	}
+
+	err = gm.InsertMembers(toInsertTable)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type RegistrationHandler = func(tx *types.Transaction)
@@ -89,7 +124,6 @@ func NewDynamicGroupManager(
 		ethClientAddress:          ethClientAddr,
 		ethAccountPrivateKey:      ethAccountPrivateKey,
 		registrationHandler:       registrationHandler,
-		lastIndexLoaded:           -1,
 		saveKeystore:              saveKeystore,
 		keystorePath:              path,
 		keystorePassword:          password,
@@ -138,11 +172,6 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 
 	// check if the contract exists by calling a static function
 	gm.membershipFee, err = gm.getMembershipFee(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = rootTracker.Sync()
 	if err != nil {
 		return err
 	}
@@ -200,10 +229,6 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return errors.New("no credentials available")
 	}
 
-	handler := func(pubkey r.IDCommitment, index r.MembershipIndex) error {
-		return gm.InsertMember(pubkey)
-	}
-
 	if err = gm.HandleGroupUpdates(ctx, handler); err != nil {
 		return err
 	}
@@ -239,18 +264,38 @@ func (gm *DynamicGroupManager) persistCredentials() error {
 	return nil
 }
 
-func (gm *DynamicGroupManager) InsertMember(pubkey rln.IDCommitment) error {
-	gm.log.Debug("a new key is added", zap.Binary("pubkey", pubkey[:]))
-	// assuming all the members arrive in order
-	err := gm.rln.InsertMember(pubkey)
-	if err != nil {
-		gm.log.Error("inserting member into merkletree", zap.Error(err))
-		return err
-	}
+func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
+	for pair := toInsert.Oldest(); pair != nil; pair = pair.Next() {
+		events := pair.Value.([]*contracts.RLNMemberRegistered) // TODO: should these be sortered by index? we assume all members arrive in order
+		for _, evt := range events {
+			pubkey := rln.Bytes32(evt.Pubkey.Bytes())
+			// TODO: should we track indexes to identify missing?
+			err := gm.rln.InsertMember(pubkey)
+			if err != nil {
+				gm.log.Error("inserting member into merkletree", zap.Error(err))
+				return err
+			}
+		}
 
-	err = gm.rootTracker.Sync()
-	if err != nil {
-		return err
+		_, err := gm.rootTracker.UpdateLatestRoot(pair.Key.(uint64))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (gm *DynamicGroupManager) RemoveMembers(toRemove *om.OrderedMap) error {
+	for pair := toRemove.Newest(); pair != nil; pair = pair.Prev() {
+		memberIndexes := pair.Value.([]uint64)
+		for _, index := range memberIndexes {
+			err := gm.rln.DeleteMember(uint(index))
+			if err != nil {
+				gm.log.Error("deleting member", zap.Error(err))
+				return err
+			}
+		}
+		gm.rootTracker.Backfill(pair.Key.(uint64))
 	}
 
 	return nil

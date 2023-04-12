@@ -94,22 +94,7 @@ func (gm *DynamicGroupManager) Register(ctx context.Context) (*r.MembershipIndex
 }
 
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
-type RegistrationEventHandler = func(pubkey r.IDCommitment, index r.MembershipIndex) error
-
-func (gm *DynamicGroupManager) processLogs(evt *contracts.RLNMemberRegistered, handler RegistrationEventHandler) error {
-	if evt == nil {
-		return nil
-	}
-
-	var pubkey r.IDCommitment = r.Bytes32(evt.Pubkey.Bytes())
-
-	index := evt.Index.Int64()
-	if index <= gm.lastIndexLoaded {
-		return nil
-	}
-	gm.lastIndexLoaded = index
-	return handler(pubkey, r.MembershipIndex(uint(evt.Index.Int64())))
-}
+type RegistrationEventHandler = func(*DynamicGroupManager, []*contracts.RLNMemberRegistered) error
 
 // HandleGroupUpdates mounts the supplied handler for the registration events emitting from the membership contract
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
@@ -128,36 +113,21 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 }
 
 func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
-	logIterator, err := rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: 0, End: nil, Context: ctx})
+	events, err := gm.getEvents(ctx, 0, nil)
 	if err != nil {
 		return err
 	}
-	for {
-		if !logIterator.Next() {
-			break
-		}
-
-		if logIterator.Error() != nil {
-			return logIterator.Error()
-		}
-
-		err = gm.processLogs(logIterator.Event, handler)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return handler(gm, events)
 }
 
 func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler, log *zap.Logger, errCh chan<- error) {
 	defer gm.wg.Done()
 
 	// Watch for new events
-	logSink := make(chan *contracts.RLNMemberRegistered)
-
 	firstErr := true
+	headerCh := make(chan *types.Header)
 	subs := event.Resubscribe(2*time.Second, func(ctx context.Context) (event.Subscription, error) {
-		subs, err := rlnContract.WatchMemberRegistered(&bind.WatchOpts{Context: ctx, Start: nil}, logSink)
+		s, err := gm.ethClient.SubscribeNewHead(ctx, headerCh)
 		if err != nil {
 			if err == rpc.ErrNotificationsUnsupported {
 				err = errors.New("notifications not supported. The node must support websockets")
@@ -169,16 +139,23 @@ func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, rlnContract *
 		}
 		firstErr = false
 		close(errCh)
-		return subs, err
+		return s, err
 	})
 
 	defer subs.Unsubscribe()
-	defer close(logSink)
+	defer close(headerCh)
 
 	for {
 		select {
-		case evt := <-logSink:
-			err := gm.processLogs(evt, handler)
+		case h := <-headerCh:
+			blk := h.Number.Uint64()
+			events, err := gm.getEvents(ctx, blk, &blk)
+			if err != nil {
+				gm.log.Error("obtaining rln events", zap.Error(err))
+
+			}
+
+			err = handler(gm, events)
 			if err != nil {
 				gm.log.Error("processing rln log", zap.Error(err))
 			}
@@ -191,4 +168,27 @@ func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, rlnContract *
 			return
 		}
 	}
+}
+
+func (gm *DynamicGroupManager) getEvents(ctx context.Context, from uint64, to *uint64) ([]*contracts.RLNMemberRegistered, error) {
+	logIterator, err := gm.rlnContract.FilterMemberRegistered(&bind.FilterOpts{Start: from, End: to, Context: ctx})
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*contracts.RLNMemberRegistered
+
+	for {
+		if !logIterator.Next() {
+			break
+		}
+
+		if logIterator.Error() != nil {
+			return nil, logIterator.Error()
+		}
+
+		results = append(results, logIterator.Event)
+	}
+
+	return results, nil
 }
