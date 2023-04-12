@@ -78,9 +78,12 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
+	rootTracker, err := group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance)
+	s.Require().NoError(err)
+
 	rlnRelay := &WakuRLNRelay{
 		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
-		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance),
+		rootTracker:  rootTracker,
 	}
 
 	epoch := r.GetCurrentEpoch()
@@ -166,9 +169,12 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
 	s.Require().NoError(err)
 
+	rootTracker, err := group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance)
+	s.Require().NoError(err)
+
 	rlnRelay := &WakuRLNRelay{
 		groupManager: groupManager,
-		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance),
+		rootTracker:  rootTracker,
 		RLN:          rlnInstance,
 		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
 		log:          utils.Logger(),
@@ -176,6 +182,9 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 
 	//get the current epoch time
 	now := time.Now()
+
+	err = groupManager.Start(context.Background(), rlnInstance, rootTracker)
+	s.Require().NoError(err)
 
 	// create some messages from the same peer and append rln proof to them, except wm4
 

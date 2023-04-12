@@ -62,11 +62,16 @@ func New(
 		return nil, err
 	}
 
+	rootTracker, err := group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance)
+	if err != nil {
+		return nil, err
+	}
+
 	// create the WakuRLNRelay
 	rlnPeer := &WakuRLNRelay{
 		RLN:          rlnInstance,
 		groupManager: groupManager,
-		rootTracker:  group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance),
+		rootTracker:  rootTracker,
 		pubsubTopic:  pubsubTopic,
 		contentTopic: contentTopic,
 		relay:        relay,

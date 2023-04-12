@@ -39,6 +39,7 @@ require (
 	github.com/lib/pq v1.10.4
 	github.com/waku-org/go-noise v0.0.4
 	github.com/waku-org/go-zerokit-rln v0.1.12
+	github.com/wk8/go-ordered-map v1.0.0
 )
 
 require (
