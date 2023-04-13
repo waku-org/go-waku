@@ -18,10 +18,6 @@ endif
 
 ifeq ($(detected_OS),Darwin)
  GOBIN_SHARED_LIB_EXT := dylib
-  ifeq ("$(shell sysctl -nq hw.optional.arm64)","1")
-    # Building on M1 is still not supported, so in the meantime we crosscompile to amd64
-    GOBIN_SHARED_LIB_CFLAGS=CGO_ENABLED=1 GOOS=darwin GOARCH=amd64
-  endif
 else ifeq ($(detected_OS),Windows)
  # on Windows need `--export-all-symbols` flag else expected symbols will not be found in libgowaku.dll
  GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,--export-all-symbols"
@@ -76,7 +72,13 @@ test:
 	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
 	${GOBIN} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 
-_before-cc:
+COVERAGE_FILE := ./coverage/cc-test-reporter
+$(COVERAGE_FILE):
+	curl -sfL https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 --output ./coverage/cc-test-reporter # TODO: support mac and windows
+	chmod +x ./coverage/cc-test-reporter
+
+_before-cc: $(COVERAGE_FILE)
+   
 	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter before-build
 	
 _after-cc:
@@ -87,7 +89,6 @@ test-ci: _before-cc test _after-cc
 generate:
 	${GOBIN} generate ./...
 	
-
 coverage:
 	${GOBIN} test -count 1 -coverprofile=coverage.out ./...
 	${GOBIN} tool cover -html=coverage.out -o=coverage.html
