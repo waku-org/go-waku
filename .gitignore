@@ -34,7 +34,8 @@ go-waku
 *.out.tmp
 coverage.html
 coverage.json
-coverage
+
+cc-test-reporter
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
