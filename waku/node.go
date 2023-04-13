@@ -163,15 +163,14 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
 	}
 
+	nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
+
 	if options.Filter.Enable {
-		if options.Filter.UseV2 {
-			nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
-			if !options.Filter.DisableFullNode {
-				nodeOpts = append(nodeOpts, node.WithWakuFilterFullNode(filter.WithTimeout(options.Filter.Timeout)))
-			}
-		} else {
-			nodeOpts = append(nodeOpts, node.WithLegacyWakuFilter(!options.Filter.DisableFullNode, legacy_filter.WithTimeout(options.Filter.Timeout)))
-		}
+		nodeOpts = append(nodeOpts, node.WithWakuFilterFullNode(filter.WithTimeout(options.Filter.Timeout)))
+	}
+
+	if options.Filter.UseV1 {
+		nodeOpts = append(nodeOpts, node.WithLegacyWakuFilter(!options.Filter.DisableFullNode, legacy_filter.WithTimeout(options.Filter.Timeout)))
 	}
 
 	var dbStore *persistence.DBStore
@@ -259,11 +258,10 @@ func Execute(options Options) {
 	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
 	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
 	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
+	addPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
 
-	if options.Filter.UseV2 {
-		addPeers(wakuNode, options.Filter.Nodes, legacy_filter.FilterID_v20beta1)
-	} else {
-		addPeers(wakuNode, options.Filter.Nodes, legacy_filter.FilterID_v20beta1)
+	if options.Filter.UseV1 {
+		addPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {

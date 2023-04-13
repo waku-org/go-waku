@@ -263,49 +263,21 @@ var (
 		},
 		EnvVars: []string{"WAKUNODE2_STORE_RESUME_PEER"},
 	})
-	SwapFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "swap",
-		Usage:       "Enable swap protocol",
-		Value:       false,
-		Destination: &options.Swap.Enable,
-		EnvVars:     []string{"WAKUNODE2_SWAP"},
-	})
-	SwapMode = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "swap-mode",
-		Value:       0,
-		Usage:       "Swap mode: 0=soft, 1=mock, 2=hard",
-		Destination: &options.Swap.Mode,
-		EnvVars:     []string{"WAKUNODE2_SWAP_MODE"},
-	})
-	SwapPaymentThreshold = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "swap-payment-threshold",
-		Value:       100,
-		Usage:       "Threshold for payment",
-		Destination: &options.Swap.PaymentThreshold,
-		EnvVars:     []string{"WAKUNODE2_SWAP_PAYMENT_THRESHOLD"},
-	})
-	SwapDisconnectThreshold = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "swap-disconnect-threshold",
-		Value:       -100,
-		Usage:       "Threshold for disconnecting",
-		Destination: &options.Swap.DisconnectThreshold,
-		EnvVars:     []string{"WAKUNODE2_SWAP_DISCONNECT_THRESHOLD"},
-	})
 	FilterFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "filter",
 		Usage:       "Enable filter protocol",
 		Destination: &options.Filter.Enable,
 		EnvVars:     []string{"WAKUNODE2_FILTER"},
 	})
-	FilterV2Flag = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "use-filterv2",
-		Usage:       "Use filterV2 protocol (experimental)",
-		Destination: &options.Filter.UseV2,
-		EnvVars:     []string{"WAKUNODE2_FILTERV2"},
+	FilterLegacyFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "use-filter-legacy",
+		Usage:       "Use filter protocol (legacy)",
+		Destination: &options.Filter.UseV1,
+		EnvVars:     []string{"WAKUNODE2_USE_FILTER_LEGACY"},
 	})
 	LightClient = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "light-client",
-		Usage:       "Don't accept filter subscribers",
+		Usage:       "Don't accept filter subscribers (only for filter-legacy)",
 		Destination: &options.Filter.DisableFullNode,
 		EnvVars:     []string{"WAKUNODE2_LIGHT_CLIENT"},
 	})
@@ -316,6 +288,14 @@ var (
 			Values: &options.Filter.Nodes,
 		},
 		EnvVars: []string{"WAKUNODE2_FILTERNODE"},
+	})
+	FilterLegacyNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
+		Name:  "legacy-filternode",
+		Usage: "Multiaddr of a peer that supports legacy filter protocol. Option may be repeated",
+		Value: &cliutils.MultiaddrSlice{
+			Values: &options.Filter.NodesV1,
+		},
+		EnvVars: []string{"WAKUNODE2_LEGACY_FILTERNODE"},
 	})
 	FilterTimeout = altsrc.NewDurationFlag(&cli.DurationFlag{
 		Name:        "filter-timeout",
