@@ -47,9 +47,10 @@ type RLNRelayOptions struct {
 // restricted devices.
 type FilterOptions struct {
 	Enable          bool
-	UseV2           bool
+	UseV1           bool
 	DisableFullNode bool
 	Nodes           []multiaddr.Multiaddr
+	NodesV1         []multiaddr.Multiaddr
 	Timeout         time.Duration
 }
 
@@ -74,14 +75,6 @@ type StoreOptions struct {
 	RetentionMaxMessages int
 	ResumeNodes          []multiaddr.Multiaddr
 	Nodes                []multiaddr.Multiaddr
-}
-
-// SwapOptions are settings used for configuring the swap protocol
-type SwapOptions struct {
-	Enable              bool
-	Mode                int
-	PaymentThreshold    int
-	DisconnectThreshold int
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery
@@ -172,7 +165,6 @@ type Options struct {
 	Websocket    WSOptions
 	Relay        RelayOptions
 	Store        StoreOptions
-	Swap         SwapOptions
 	Filter       FilterOptions
 	LightPush    LightpushOptions
 	RLNRelay     RLNRelayOptions
