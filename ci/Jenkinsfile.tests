@@ -21,12 +21,6 @@ pipeline {
   }
 
   stages {
-    stage('Deps') {
-      steps { script {
-        nix.develop('make deps', pure: false)
-      } }
-    }
-
     stage('Lint') {
       steps { script {
         nix.develop('make lint', pure: false)

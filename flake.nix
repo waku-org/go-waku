@@ -49,6 +49,7 @@
         default = mkShell {
           GOFLAGS = "-trimpath"; # Drop -mod=vendor
           inputsFrom = [ packages.${system}.node ];
+          buildInputs = with pkgs; [ golangci-lint ];
           nativeBuildInputs = lib.optional stdenv.isDarwin [
             (pkgs.xcodeenv.composeXcodeWrapper { version = "14.2"; })
           ];
