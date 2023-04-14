@@ -22,6 +22,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	libp2pwebtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
@@ -473,6 +474,7 @@ var DefaultLibP2POptions = []libp2p.Option{
 	libp2p.ChainOptions(
 		libp2p.Transport(tcp.NewTCPTransport),
 		libp2p.Transport(quic.NewTransport),
+		libp2p.Transport(libp2pwebtransport.New),
 	),
 	libp2p.UserAgent(userAgent),
 	libp2p.ChainOptions(
