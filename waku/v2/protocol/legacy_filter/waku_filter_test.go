@@ -41,7 +41,9 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	filter := NewWakuFilter(host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	b := v2.NewBroadcaster(10)
+	require.NoError(t, b.Start(context.Background()))
+	filter := NewWakuFilter(host, b, false, timesource.NewDefaultClock(), utils.Logger())
 	err = filter.Start(context.Background())
 	require.NoError(t, err)
 
@@ -69,6 +71,7 @@ func TestWakuFilter(t *testing.T) {
 	defer node1.Stop()
 
 	broadcaster := v2.NewBroadcaster(10)
+	require.NoError(t, broadcaster.Start(context.Background()))
 	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
@@ -157,11 +160,14 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	node1, host1 := makeWakuFilter(t)
 
 	broadcaster := v2.NewBroadcaster(10)
+	require.NoError(t, broadcaster.Start(context.Background()))
 	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilter(host2, v2.NewBroadcaster(10), true, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(3*time.Second))
+	broadcaster2 := v2.NewBroadcaster(10)
+	require.NoError(t, broadcaster2.Start(context.Background()))
+	node2Filter := NewWakuFilter(host2, broadcaster2, true, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(3*time.Second))
 	err := node2Filter.Start(ctx)
 	require.NoError(t, err)
 

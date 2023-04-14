@@ -50,14 +50,18 @@ func TestFilterSubscription(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	node := relay.NewWakuRelay(host, v2.NewBroadcaster(10), 0, timesource.NewDefaultClock(), utils.Logger())
+	b := v2.NewBroadcaster(10)
+	require.NoError(t, b.Start(context.Background()))
+	node := relay.NewWakuRelay(host, b, 0, timesource.NewDefaultClock(), utils.Logger())
 	err = node.Start(context.Background())
 	require.NoError(t, err)
 
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	f := legacy_filter.NewWakuFilter(host, v2.NewBroadcaster(10), false, timesource.NewDefaultClock(), utils.Logger())
+	b2 := v2.NewBroadcaster(10)
+	require.NoError(t, b2.Start(context.Background()))
+	f := legacy_filter.NewWakuFilter(host, b2, false, timesource.NewDefaultClock(), utils.Logger())
 	err = f.Start(context.Background())
 	require.NoError(t, err)
 
