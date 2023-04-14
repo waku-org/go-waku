@@ -21,13 +21,13 @@ pipeline {
   }
 
   environment {
-    BUILD_PLATFORM   = 'android'
-    CC="gcc-10"
+    CC = "gcc-10"
     /* Other stuff */
-    TARGET   = 'android'
-    REPO   = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
-    GOPATH = "${env.WORKSPACE}"
-    PATH   = "/usr/local/go/bin:${env.PATH}:${env.GOPATH}/bin"
+    TARGET  = 'android'
+    REPO    = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
+    GOCACHE = "${env.WORKSPACE_TMP}/go-build"
+    GOPATH  = "${env.WORKSPACE}"
+    PATH    = "${env.PATH}:${env.GOPATH}/bin"
     /* Android SDK */
     ANDROID_HOME     = '/usr/lib/android-sdk'
     ANDROID_SDK_ROOT = '/usr/lib/android-sdk'

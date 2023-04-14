@@ -8,6 +8,10 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    /* Prevent Jenkins jobs from running forever */
+    timeout(time: 30, unit: 'MINUTES')
+    /* Go requires a certain directory structure */
+    checkoutToSubdirectory('src/github.com/waku-org/go-waku')
     buildDiscarder(logRotator(
       numToKeepStr: '10',
       daysToKeepStr: '30',
@@ -15,22 +19,26 @@ pipeline {
   }
 
   environment {
-    TARGET = 'tests'
-    GOPATH = "${env.HOME}/go"
-    PATH   = "${env.PATH}:${env.GOPATH}/bin"
+    TARGET  = 'tests'
+    REPO    = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
+    GOCACHE = "${env.WORKSPACE_TMP}/go-build"
+    GOPATH  = "${env.WORKSPACE}/go"
+    PATH    = "${env.PATH}:${env.GOPATH}/bin"
+    /* Necesary to avoid cache poisoning by other builds. */
+    GOLANGCI_LINT_CACHE = "${env.WORKSPACE_TMP}/golangci-lint"
   }
 
   stages {
     stage('Lint') {
-      steps { script {
+      steps { script { dir(env.REPO) {
         nix.develop('make lint', pure: false)
-      } }
+      } } }
     }
 
     stage('Test') {
-      steps { script {
+      steps { script { dir(env.REPO) {
         nix.develop('make test-ci', pure: false)
-      } }
+      } } }
     }
   }
   post {

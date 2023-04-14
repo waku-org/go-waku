@@ -20,13 +20,11 @@ pipeline {
   }
 
   environment {
-    BUILD_PLATFORM   = 'android'
-
-    /* Other stuff */
-    TARGET   = 'ios'
-    REPO   = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
-    GOPATH = "${env.WORKSPACE}"
-    PATH   = "/usr/local/go/bin:${env.PATH}:${env.GOPATH}/bin"
+    TARGET  = 'ios'
+    REPO    = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
+    GOCACHE = "${env.WORKSPACE_TMP}/go-build"
+    GOPATH  = "${env.WORKSPACE}"
+    PATH    = "${env.PATH}:${env.GOPATH}/bin"
   }
 
   stages {
