@@ -442,6 +442,7 @@ func (w *WakuNode) Stop() {
 		w.discoveryV5.Stop()
 	}
 
+	// Test
 	w.peerConnector.Stop()
 
 	_ = w.stopRlnRelay()
