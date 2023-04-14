@@ -1,6 +1,9 @@
 package v2
 
 import (
+	"context"
+	"errors"
+
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
@@ -18,6 +21,9 @@ type chOperation struct {
 type broadcastOutputs map[chan<- *protocol.Envelope]struct{}
 
 type broadcaster struct {
+	bufLen int
+	cancel context.CancelFunc
+
 	input chan *protocol.Envelope
 	reg   chan chOperation
 	unreg chan chOperation
@@ -37,8 +43,10 @@ type Broadcaster interface {
 	Unregister(topic *string, newch chan<- *protocol.Envelope)
 	// Unregister a subscriptor channel and return a channel to wait until this operation is done
 	WaitUnregister(topic *string, newch chan<- *protocol.Envelope) doneCh
+	// Start
+	Start(ctx context.Context) error
 	// Shut this broadcaster down.
-	Close()
+	Stop()
 	// Submit a new object to all subscribers
 	Submit(*protocol.Envelope)
 }
@@ -58,11 +66,15 @@ func (b *broadcaster) broadcast(m *protocol.Envelope) {
 	}
 }
 
-func (b *broadcaster) run() {
+func (b *broadcaster) run(ctx context.Context) {
 	for {
 		select {
-		case m := <-b.input:
-			b.broadcast(m)
+		case <-ctx.Done():
+			return
+		case m, ok := <-b.input:
+			if ok {
+				b.broadcast(m)
+			}
 		case broadcastee, ok := <-b.reg:
 			if ok {
 				if broadcastee.topic != nil {
@@ -109,17 +121,43 @@ func (b *broadcaster) run() {
 // It's used to register subscriptors that will need to receive
 // an Envelope containing a WakuMessage
 func NewBroadcaster(buflen int) Broadcaster {
-	b := &broadcaster{
-		input:           make(chan *protocol.Envelope, buflen),
-		reg:             make(chan chOperation),
-		unreg:           make(chan chOperation),
-		outputs:         make(broadcastOutputs),
-		outputsPerTopic: make(map[string]broadcastOutputs),
+	return &broadcaster{
+		bufLen: buflen,
+	}
+}
+
+func (b *broadcaster) Start(ctx context.Context) error {
+	if b.cancel != nil {
+		return errors.New("already started")
 	}
 
-	go b.run()
+	ctx, cancel := context.WithCancel(ctx)
 
-	return b
+	b.cancel = cancel
+	b.input = make(chan *protocol.Envelope, b.bufLen)
+	b.reg = make(chan chOperation)
+	b.unreg = make(chan chOperation)
+	b.outputs = make(broadcastOutputs)
+	b.outputsPerTopic = make(map[string]broadcastOutputs)
+
+	go b.run(ctx)
+
+	return nil
+}
+
+func (b *broadcaster) Stop() {
+	if b.cancel != nil {
+		return
+	}
+
+	b.cancel()
+
+	close(b.input)
+	close(b.reg)
+	close(b.unreg)
+	b.outputs = nil
+	b.outputsPerTopic = nil
+	b.cancel = nil
 }
 
 // Register a subscriptor channel and return a channel to wait until this operation is done

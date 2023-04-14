@@ -1,6 +1,7 @@
 package legacy_filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,7 +11,9 @@ import (
 )
 
 func TestFilterMap(t *testing.T) {
-	fmap := NewFilterMap(v2.NewBroadcaster(100), timesource.NewDefaultClock())
+	b := v2.NewBroadcaster(100)
+	require.NoError(t, b.Start(context.Background()))
+	fmap := NewFilterMap(b, timesource.NewDefaultClock())
 
 	filter := Filter{
 		PeerID:         "id",

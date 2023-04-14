@@ -58,12 +58,17 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 		subscriptionChPerContentTopic: make(map[string][]contentTopicSubscription),
 	}
 
+	err = wr.broadcaster.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				subs.Unsubscribe()
-				wr.broadcaster.Close()
+				wr.broadcaster.Stop()
 				return
 			case envelope := <-subs.C:
 				if envelope != nil {

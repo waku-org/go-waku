@@ -1,9 +1,11 @@
 package v2
 
 import (
+	"context"
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -15,7 +17,8 @@ func TestBroadcast(t *testing.T) {
 	wg := sync.WaitGroup{}
 
 	b := NewBroadcaster(100)
-	defer b.Close()
+	require.NoError(t, b.Start(context.Background()))
+	defer b.Stop()
 
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
@@ -40,7 +43,8 @@ func TestBroadcastWait(t *testing.T) {
 	wg := sync.WaitGroup{}
 
 	b := NewBroadcaster(100)
-	defer b.Close()
+	require.NoError(t, b.Start(context.Background()))
+	defer b.Stop()
 
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
@@ -65,7 +69,8 @@ func TestBroadcastWait(t *testing.T) {
 
 func TestBroadcastCleanup(t *testing.T) {
 	b := NewBroadcaster(100)
+	require.NoError(t, b.Start(context.Background()))
 	topic := "test"
 	b.Register(&topic, make(chan *protocol.Envelope))
-	b.Close()
+	b.Stop()
 }

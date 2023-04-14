@@ -306,12 +306,17 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	go w.watchMultiaddressChanges(ctx)
 	go w.watchENRChanges(ctx)
 
+	err := w.bcaster.Start(ctx)
+	if err != nil {
+		return err
+	}
+
 	if w.opts.keepAliveInterval > time.Duration(0) {
 		w.wg.Add(1)
 		go w.startKeepAlive(ctx, w.opts.keepAliveInterval)
 	}
 
-	err := w.peerConnector.Start(ctx)
+	err = w.peerConnector.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -420,7 +425,7 @@ func (w *WakuNode) Stop() {
 
 	w.cancel()
 
-	w.bcaster.Close()
+	w.bcaster.Stop()
 
 	defer w.connectionNotif.Close()
 	defer w.protocolEventSub.Close()
@@ -453,6 +458,8 @@ func (w *WakuNode) Stop() {
 	w.wg.Wait()
 
 	close(w.enrChangeCh)
+
+	w.cancel = nil
 }
 
 // Host returns the libp2p Host used by the WakuNode
