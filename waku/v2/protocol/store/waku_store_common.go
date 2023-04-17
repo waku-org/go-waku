@@ -63,10 +63,9 @@ type WakuStore struct {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(host host.Host, p MessageProvider, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
+func NewWakuStore(p MessageProvider, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
-	wakuStore.h = host
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.log = log.Named("store")
 	wakuStore.timesource = timesource

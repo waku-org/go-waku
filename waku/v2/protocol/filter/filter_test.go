@@ -25,7 +25,8 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*rel
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay := relay.NewWakuRelay(host, broadcaster, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
@@ -44,7 +45,8 @@ func makeWakuFilterLightNode(t *testing.T) (*WakuFilterLightnode, host.Host) {
 
 	b := v2.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
-	filterPush := NewWakuFilterLightnode(host, b, timesource.NewDefaultClock(), utils.Logger())
+	filterPush := NewWakuFilterLightnode(b, timesource.NewDefaultClock(), utils.Logger())
+	filterPush.SetHost(host)
 	err = filterPush.Start(context.Background())
 	require.NoError(t, err)
 
@@ -77,7 +79,8 @@ func TestWakuFilter(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilterFullnode(host2, broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter := NewWakuFilterFullnode(broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter.SetHost(host2)
 	err := node2Filter.Start(ctx)
 	require.NoError(t, err)
 
@@ -166,7 +169,8 @@ func TestSubscriptionPing(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilterFullnode(host2, broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter := NewWakuFilterFullnode(broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter.SetHost(host2)
 	err := node2Filter.Start(ctx)
 	require.NoError(t, err)
 
@@ -208,7 +212,8 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 
 	broadcaster2 := v2.NewBroadcaster(10)
 	require.NoError(t, broadcaster2.Start(context.Background()))
-	node2Filter := NewWakuFilterFullnode(host2, broadcaster2, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(5*time.Second))
+	node2Filter := NewWakuFilterFullnode(broadcaster2, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(5*time.Second))
+	node2Filter.SetHost(host2)
 	err := node2Filter.Start(ctx)
 	require.NoError(t, err)
 

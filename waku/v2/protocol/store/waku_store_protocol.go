@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio/pbio"
@@ -85,6 +86,7 @@ type MessageProvider interface {
 }
 
 type Store interface {
+	SetHost(h host.Host)
 	Start(ctx context.Context) error
 	Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error)
 	Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error)
@@ -97,6 +99,11 @@ type Store interface {
 // SetMessageProvider allows switching the message provider used with a WakuStore
 func (store *WakuStore) SetMessageProvider(p MessageProvider) {
 	store.msgProvider = p
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (store *WakuStore) SetHost(h host.Host) {
+	store.h = h
 }
 
 // Start initializes the WakuStore by enabling the protocol and fetching records from a message provider

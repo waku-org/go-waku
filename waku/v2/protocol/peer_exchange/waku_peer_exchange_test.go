@@ -106,8 +106,9 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
 	discv5PeerConn1 := tests.NewTestPeerDiscoverer()
-	d1, err := discv5.NewDiscoveryV5(host1, prvKey1, l1, discv5PeerConn1, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
+	d1, err := discv5.NewDiscoveryV5(prvKey1, l1, discv5PeerConn1, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
+	d1.SetHost(host1)
 
 	// H2
 	host2, _, prvKey2 := createHost(t)
@@ -117,8 +118,9 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
 	discv5PeerConn2 := tests.NewTestPeerDiscoverer()
-	d2, err := discv5.NewDiscoveryV5(host2, prvKey2, l2, discv5PeerConn2, utils.Logger(), discv5.WithUDPPort(uint(udpPort2)), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
+	d2, err := discv5.NewDiscoveryV5(prvKey2, l2, discv5PeerConn2, utils.Logger(), discv5.WithUDPPort(uint(udpPort2)), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
 	require.NoError(t, err)
+	d2.SetHost(host2)
 
 	// H3
 	host3, _, _ := createHost(t)
@@ -139,12 +141,14 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 
 	// mount peer exchange
 	pxPeerConn1 := tests.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(host1, d1, pxPeerConn1, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, utils.Logger())
 	require.NoError(t, err)
+	px1.SetHost(host1)
 
 	pxPeerConn3 := tests.NewTestPeerDiscoverer()
-	px3, err := NewWakuPeerExchange(host3, nil, pxPeerConn3, utils.Logger())
+	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, utils.Logger())
 	require.NoError(t, err)
+	px3.SetHost(host3)
 
 	err = px1.Start(context.Background())
 	require.NoError(t, err)

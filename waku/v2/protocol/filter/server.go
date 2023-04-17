@@ -44,7 +44,7 @@ type (
 )
 
 // NewWakuFilterFullnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterFullnode(host host.Host, broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilterFullNode {
+func NewWakuFilterFullnode(broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilterFullNode {
 	wf := new(WakuFilterFullNode)
 	wf.log = log.Named("filterv2-fullnode")
 
@@ -56,11 +56,15 @@ func NewWakuFilterFullnode(host host.Host, broadcaster v2.Broadcaster, timesourc
 	}
 
 	wf.wg = &sync.WaitGroup{}
-	wf.h = host
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
 
 	return wf
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (wf *WakuFilterFullNode) SetHost(h host.Host) {
+	wf.h = h
 }
 
 func (wf *WakuFilterFullNode) Start(ctx context.Context) error {

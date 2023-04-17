@@ -106,8 +106,9 @@ func TestDiscV5(t *testing.T) {
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn1 := tests.NewTestPeerDiscoverer()
-	d1, err := NewDiscoveryV5(host1, prvKey1, l1, peerconn1, utils.Logger(), WithUDPPort(uint(udpPort1)))
+	d1, err := NewDiscoveryV5(prvKey1, l1, peerconn1, utils.Logger(), WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
+	d1.SetHost(host1)
 
 	// H2
 	host2, _, prvKey2 := createHost(t)
@@ -117,8 +118,9 @@ func TestDiscV5(t *testing.T) {
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn2 := tests.NewTestPeerDiscoverer()
-	d2, err := NewDiscoveryV5(host2, prvKey2, l2, peerconn2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
 	require.NoError(t, err)
+	d2.SetHost(host2)
 
 	// H3
 	host3, _, prvKey3 := createHost(t)
@@ -128,8 +130,9 @@ func TestDiscV5(t *testing.T) {
 	l3, err := newLocalnode(prvKey3, ip3, udpPort3, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn3 := tests.NewTestPeerDiscoverer()
-	d3, err := NewDiscoveryV5(host3, prvKey3, l3, peerconn3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	d3, err := NewDiscoveryV5(prvKey3, l3, peerconn3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
+	d3.SetHost(host3)
 
 	defer d1.Stop()
 	defer d2.Stop()

@@ -55,15 +55,19 @@ type WakuFilterPushResult struct {
 }
 
 // NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterLightnode(host host.Host, broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
+func NewWakuFilterLightnode(broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
 	wf := new(WakuFilterLightnode)
 	wf.log = log.Named("filterv2-lightnode")
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
 	wf.wg = &sync.WaitGroup{}
-	wf.h = host
 
 	return wf
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (wf *WakuFilterLightnode) SetHost(h host.Host) {
+	wf.h = h
 }
 
 func (wf *WakuFilterLightnode) Start(ctx context.Context) error {
