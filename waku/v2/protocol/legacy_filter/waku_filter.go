@@ -66,7 +66,7 @@ type (
 const FilterID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter/2.0.0-beta1")
 
 // NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilter(host host.Host, broadcaster v2.Broadcaster, isFullNode bool, timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilter {
+func NewWakuFilter(broadcaster v2.Broadcaster, isFullNode bool, timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilter {
 	wf := new(WakuFilter)
 	wf.log = log.Named("filter").With(zap.Bool("fullNode", isFullNode))
 
@@ -78,12 +78,16 @@ func NewWakuFilter(host host.Host, broadcaster v2.Broadcaster, isFullNode bool, 
 	}
 
 	wf.wg = &sync.WaitGroup{}
-	wf.h = host
 	wf.isFullNode = isFullNode
 	wf.filters = NewFilterMap(broadcaster, timesource)
 	wf.subscribers = NewSubscribers(params.Timeout)
 
 	return wf
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (wf *WakuFilter) SetHost(h host.Host) {
+	wf.h = h
 }
 
 func (wf *WakuFilter) Start(ctx context.Context) error {

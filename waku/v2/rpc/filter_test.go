@@ -52,7 +52,8 @@ func TestFilterSubscription(t *testing.T) {
 
 	b := v2.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
-	node := relay.NewWakuRelay(host, b, 0, timesource.NewDefaultClock(), utils.Logger())
+	node := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), utils.Logger())
+	node.SetHost(host)
 	err = node.Start(context.Background())
 	require.NoError(t, err)
 
@@ -61,7 +62,8 @@ func TestFilterSubscription(t *testing.T) {
 
 	b2 := v2.NewBroadcaster(10)
 	require.NoError(t, b2.Start(context.Background()))
-	f := legacy_filter.NewWakuFilter(host, b2, false, timesource.NewDefaultClock(), utils.Logger())
+	f := legacy_filter.NewWakuFilter(b2, false, timesource.NewDefaultClock(), utils.Logger())
+	f.SetHost(host)
 	err = f.Start(context.Background())
 	require.NoError(t, err)
 

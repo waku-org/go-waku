@@ -87,7 +87,7 @@ type PeerConnector interface {
 	PeerChannel() chan<- peer.AddrInfo
 }
 
-func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
+func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
 	params := new(discV5Parameters)
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
@@ -103,7 +103,6 @@ func NewDiscoveryV5(host host.Host, priv *ecdsa.PrivateKey, localnode *enode.Loc
 	}
 
 	return &DiscoveryV5{
-		host:          host,
 		peerConnector: peerConnector,
 		params:        params,
 		NAT:           NAT,
@@ -159,6 +158,11 @@ func (d *DiscoveryV5) listen(ctx context.Context) error {
 	d.log.Info("Discovery V5: discoverable ENR ", logging.ENode("enr", d.localnode.Node()))
 
 	return nil
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (d *DiscoveryV5) SetHost(h host.Host) {
+	d.host = h
 }
 
 func (d *DiscoveryV5) Start(ctx context.Context) error {

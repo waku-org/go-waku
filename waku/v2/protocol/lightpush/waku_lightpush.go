@@ -36,13 +36,17 @@ type WakuLightPush struct {
 }
 
 // NewWakuRelay returns a new instance of Waku Lightpush struct
-func NewWakuLightPush(h host.Host, relay *relay.WakuRelay, log *zap.Logger) *WakuLightPush {
+func NewWakuLightPush(relay *relay.WakuRelay, log *zap.Logger) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay
-	wakuLP.h = h
 	wakuLP.log = log.Named("lightpush")
 
 	return wakuLP
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (wakuLP *WakuLightPush) SetHost(h host.Host) {
+	wakuLP.h = h
 }
 
 // Start inits the lighpush protocol

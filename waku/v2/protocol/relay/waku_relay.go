@@ -61,9 +61,8 @@ func msgIdFn(pmsg *pubsub_pb.Message) string {
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
-func NewWakuRelay(h host.Host, bcaster v2.Broadcaster, minPeersToPublish int, timesource timesource.Timesource, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
+func NewWakuRelay(bcaster v2.Broadcaster, minPeersToPublish int, timesource timesource.Timesource, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
 	w := new(WakuRelay)
-	w.host = h
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
 	w.relaySubs = make(map[string]*pubsub.Subscription)
@@ -94,6 +93,11 @@ func NewWakuRelay(h host.Host, bcaster v2.Broadcaster, minPeersToPublish int, ti
 	w.opts = opts
 
 	return w
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (w *WakuRelay) SetHost(h host.Host) {
+	w.host = h
 }
 
 func (w *WakuRelay) Start(ctx context.Context) error {

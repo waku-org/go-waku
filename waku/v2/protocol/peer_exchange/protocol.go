@@ -62,15 +62,19 @@ type PeerConnector interface {
 }
 
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
-func NewWakuPeerExchange(h host.Host, disc *discv5.DiscoveryV5, peerConnector PeerConnector, log *zap.Logger) (*WakuPeerExchange, error) {
+func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, log *zap.Logger) (*WakuPeerExchange, error) {
 	wakuPX := new(WakuPeerExchange)
-	wakuPX.h = h
 	wakuPX.disc = disc
 	wakuPX.log = log.Named("wakupx")
 	wakuPX.enrCache = make(map[enode.ID]peerRecord)
 	wakuPX.rng = rand.New(rand.NewSource(rand.Int63()))
 	wakuPX.peerConnector = peerConnector
 	return wakuPX, nil
+}
+
+// Sets the host to be able to mount or consume a protocol
+func (wakuPX *WakuPeerExchange) SetHost(h host.Host) {
+	wakuPX.h = h
 }
 
 // Start inits the peer exchange protocol

@@ -66,10 +66,10 @@ type WakuNodeParameters struct {
 
 	noDefaultWakuTopic     bool
 	enableRelay            bool
-	enableLefacyFilter     bool
+	enableLegacyFilter     bool
 	isLegacyFilterFullnode bool
 	enableFilterLightNode  bool
-	enableFilterFullnode   bool
+	enableFilterFullNode   bool
 	legacyFilterOpts       []legacy_filter.Option
 	filterOpts             []filter.Option
 	wOpts                  []pubsub.Option
@@ -323,7 +323,7 @@ func WithPeerExchange() WakuNodeOption {
 // accepts a list of WakuFilter gossipsub options to setup the protocol
 func WithLegacyWakuFilter(fullnode bool, filterOpts ...legacy_filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableLefacyFilter = true
+		params.enableLegacyFilter = true
 		params.isLegacyFilterFullnode = fullnode
 		params.legacyFilterOpts = filterOpts
 		return nil
@@ -342,7 +342,7 @@ func WithWakuFilterLightNode() WakuNodeOption {
 // This WakuNodeOption accepts a list of WakuFilter options to setup the protocol
 func WithWakuFilterFullNode(filterOpts ...filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableFilterFullnode = true
+		params.enableFilterFullNode = true
 		params.filterOpts = filterOpts
 		return nil
 	}

@@ -14,7 +14,7 @@ import (
 func TestStorePersistence(t *testing.T) {
 	db := MemoryDB(t)
 
-	s1 := NewWakuStore(nil, db, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(db, timesource.NewDefaultClock(), utils.Logger())
 
 	defaultPubSubTopic := "test"
 	defaultContentTopic := "1"

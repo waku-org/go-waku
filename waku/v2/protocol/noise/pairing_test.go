@@ -28,7 +28,8 @@ func createRelayNode(t *testing.T) (host.Host, *relay.WakuRelay) {
 
 	b := v2.NewBroadcaster(1024)
 	require.NoError(t, b.Start(context.Background()))
-	relay := relay.NewWakuRelay(host, b, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 

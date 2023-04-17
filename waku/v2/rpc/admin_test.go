@@ -34,7 +34,8 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay := relay.NewWakuRelay(host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 	defer relay.Stop()
