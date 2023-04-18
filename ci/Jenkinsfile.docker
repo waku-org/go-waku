@@ -5,9 +5,9 @@ pipeline {
 
   parameters {
     string(
-      name: 'BRANCH',
+      name: 'GIT_REF',
       defaultValue: 'master',
-      description: 'Name of branch to build.'
+      description: 'Branch, tag, or commit to build.'
     )
     string(
       name: 'IMAGE_NAME',
@@ -16,8 +16,8 @@ pipeline {
     )
     string(
       name: 'IMAGE_TAG',
-      defaultValue: 'deploy-test',
-      description: 'Docker image name.',
+      defaultValue: env.JOB_BASE_NAME == 'release' ? 'stable' : 'deploy-test',
+      description: 'Docker image tag.',
     )
   }
 
@@ -32,8 +32,12 @@ pipeline {
   stages {
     stage('Build') {
       steps { script {
+        def imageTag = GIT_COMMIT.take(8)
+        if (env.JOB_BASE_NAME == 'release') {
+          imageTag = params.GIT_REF
+        }
         image = docker.build(
-          "${params.IMAGE_NAME}:${GIT_COMMIT.take(8)}",
+          "${params.IMAGE_NAME}:${imageTag}",
           "--build-arg='GIT_COMMIT=${GIT_COMMIT.take(8)}' ."
         )
       } }
@@ -62,7 +66,7 @@ pipeline {
   post {
     success { script {
       discordNotify(
-        header: 'Go-Waku deployment successful!',
+        header: 'Go-Waku build successful!',
         cred: 'discord-waku-deployments-webhook',
       )
     } }
