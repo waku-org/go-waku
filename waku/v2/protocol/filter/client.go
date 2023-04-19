@@ -119,8 +119,11 @@ func (wf *WakuFilterLightnode) onRequest(ctx context.Context) func(s network.Str
 		err := reader.ReadMsg(messagePush)
 		if err != nil {
 			logger.Error("reading message push", zap.Error(err))
+			metrics.RecordFilterError(ctx, "decode_rpc_failure")
 			return
 		}
+
+		metrics.RecordFilterMessage(ctx, "PushMessage", 1)
 
 		wf.notify(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage)
 
@@ -141,12 +144,14 @@ func (wf *WakuFilterLightnode) notify(remotePeerID peer.ID, pubsubTopic string, 
 func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscribeParameters, reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter ContentFilter) error {
 	err := wf.h.Connect(ctx, wf.h.Peerstore().PeerInfo(params.selectedPeer))
 	if err != nil {
+		metrics.RecordFilterError(ctx, "dial_failure")
 		return err
 	}
 
 	var conn network.Stream
 	conn, err = wf.h.NewStream(ctx, params.selectedPeer, FilterSubscribeID_v20beta1)
 	if err != nil {
+		metrics.RecordFilterError(ctx, "dial_failure")
 		return err
 	}
 	defer conn.Close()
@@ -164,6 +169,7 @@ func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscr
 	wf.log.Debug("sending FilterSubscribeRequest", zap.Stringer("request", request))
 	err = writer.WriteMsg(request)
 	if err != nil {
+		metrics.RecordFilterError(ctx, "write_request_failure")
 		wf.log.Error("sending FilterSubscribeRequest", zap.Error(err))
 		return err
 	}
@@ -172,10 +178,19 @@ func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscr
 	err = reader.ReadMsg(filterSubscribeResponse)
 	if err != nil {
 		wf.log.Error("receiving FilterSubscribeResponse", zap.Error(err))
+		metrics.RecordFilterError(ctx, "decode_rpc_failure")
 		return err
 	}
 
+	if filterSubscribeResponse.RequestId != request.RequestId {
+		wf.log.Error("requestId mismatch", zap.String("expected", request.RequestId), zap.String("received", filterSubscribeResponse.RequestId))
+		metrics.RecordFilterError(ctx, "request_id_mismatch")
+		err := NewFilterError(300, "request_id_mismatch")
+		return &err
+	}
+
 	if filterSubscribeResponse.StatusCode != http.StatusOK {
+		metrics.RecordFilterError(ctx, "error_response")
 		err := NewFilterError(int(filterSubscribeResponse.StatusCode), filterSubscribeResponse.StatusDesc)
 		return &err
 	}
@@ -208,6 +223,7 @@ func (wf *WakuFilterLightnode) Subscribe(ctx context.Context, contentFilter Cont
 	}
 
 	if params.selectedPeer == "" {
+		metrics.RecordFilterError(ctx, "peer_not_found_failure")
 		return nil, ErrNoPeersAvailable
 	}
 

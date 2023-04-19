@@ -120,7 +120,7 @@ func (store *WakuStore) Start(ctx context.Context) error {
 	err := store.msgProvider.Start(ctx, store.timesource) // TODO: store protocol should not start a message provider
 	if err != nil {
 		store.log.Error("Error starting message provider", zap.Error(err))
-		return nil
+		return err
 	}
 
 	store.started = true
@@ -179,7 +179,7 @@ func (store *WakuStore) updateMetrics(ctx context.Context) {
 			if err != nil {
 				store.log.Error("updating store metrics", zap.Error(err))
 			} else {
-				metrics.RecordMessage(store.ctx, "stored", msgCount)
+				metrics.RecordStoreMessage(store.ctx, "stored", msgCount)
 			}
 		case <-ctx.Done():
 			return
@@ -198,7 +198,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
 		logger.Error("reading request", zap.Error(err))
-		metrics.RecordStoreError(store.ctx, "decodeRPCFailure")
+		metrics.RecordStoreError(store.ctx, "decode_rpc_failure")
 		return
 	}
 
@@ -207,7 +207,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 		logger = logger.With(logging.Filters(query.GetContentFilters()))
 	} else {
 		logger.Error("reading request", zap.Error(err))
-		metrics.RecordStoreError(store.ctx, "emptyRpcQueryFailure")
+		metrics.RecordStoreError(store.ctx, "empty_rpc_query_failure")
 		return
 	}
 
@@ -222,6 +222,7 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	err = writer.WriteMsg(historyResponseRPC)
 	if err != nil {
 		logger.Error("writing response", zap.Error(err), logging.PagingInfo(historyResponseRPC.Response.PagingInfo))
+		metrics.RecordStoreError(store.ctx, "response_write_failure")
 		_ = s.Reset()
 	} else {
 		logger.Info("response sent")
