@@ -110,7 +110,7 @@ func TestWakuFilter(t *testing.T) {
 		require.Equal(t, contentFilter.ContentTopics[0], env.Message().GetContentTopic())
 	}()
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 0), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -127,7 +127,7 @@ func TestWakuFilter(t *testing.T) {
 		}
 	}()
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage("TopicB", 1), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage("TopicB", utils.GetUnixEpoch()), testTopic)
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -149,7 +149,7 @@ func TestWakuFilter(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 2), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
 	require.NoError(t, err)
 	wg.Wait()
 }
@@ -252,7 +252,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 
 	}()
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 0), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -262,7 +262,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 1), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
 	require.NoError(t, err)
 
 	// TODO: find out how to eliminate this sleep
@@ -271,7 +271,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, 2), testTopic)
+	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
 	require.NoError(t, err)
 
 	time.Sleep(2 * time.Second)

@@ -16,11 +16,12 @@ import (
 )
 
 func TestFindLastSeenMessage(t *testing.T) {
-	msg1 := protocol.NewEnvelope(tests.CreateWakuMessage("1", 1), utils.GetUnixEpoch(), "test")
-	msg2 := protocol.NewEnvelope(tests.CreateWakuMessage("2", 2), utils.GetUnixEpoch(), "test")
-	msg3 := protocol.NewEnvelope(tests.CreateWakuMessage("3", 3), utils.GetUnixEpoch(), "test")
-	msg4 := protocol.NewEnvelope(tests.CreateWakuMessage("4", 4), utils.GetUnixEpoch(), "test")
-	msg5 := protocol.NewEnvelope(tests.CreateWakuMessage("5", 5), utils.GetUnixEpoch(), "test")
+	now := utils.GetUnixEpoch()
+	msg1 := protocol.NewEnvelope(tests.CreateWakuMessage("1", now+1), utils.GetUnixEpoch(), "test")
+	msg2 := protocol.NewEnvelope(tests.CreateWakuMessage("2", now+2), utils.GetUnixEpoch(), "test")
+	msg3 := protocol.NewEnvelope(tests.CreateWakuMessage("3", now+3), utils.GetUnixEpoch(), "test")
+	msg4 := protocol.NewEnvelope(tests.CreateWakuMessage("4", now+4), utils.GetUnixEpoch(), "test")
+	msg5 := protocol.NewEnvelope(tests.CreateWakuMessage("5", now+5), utils.GetUnixEpoch(), "test")
 
 	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	_ = s.storeMessage(msg1)
@@ -49,13 +50,14 @@ func TestResume(t *testing.T) {
 
 	defer s1.Stop()
 
+	now := utils.GetUnixEpoch()
 	for i := 0; i < 10; i++ {
 		var contentTopic = "1"
 		if i%2 == 0 {
 			contentTopic = "2"
 		}
 
-		wakuMessage := tests.CreateWakuMessage(contentTopic, int64(i+1))
+		wakuMessage := tests.CreateWakuMessage(contentTopic, now+int64(i+1))
 		msg := protocol.NewEnvelope(wakuMessage, utils.GetUnixEpoch(), "test")
 		_ = s1.storeMessage(msg)
 	}
@@ -108,7 +110,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 
 	defer s1.Stop()
 
-	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: 0}
+	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: utils.GetUnixEpoch()}
 
 	_ = s1.storeMessage(protocol.NewEnvelope(msg0, utils.GetUnixEpoch(), "test"))
 

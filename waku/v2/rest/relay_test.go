@@ -70,16 +70,17 @@ func TestRelaySubscription(t *testing.T) {
 	require.Equal(t, "true", rr.Body.String())
 
 	// Test max messages in subscription
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", 1), 1, "test"))
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", 2), 2, "test"))
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", 3), 3, "test"))
+	now := utils.GetUnixEpoch()
+	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+1), now, "test"))
+	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+2), now, "test"))
+	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+3), now, "test"))
 
 	// Wait for the messages to be processed
 	time.Sleep(500 * time.Millisecond)
 
 	require.Len(t, d.messages["test"], 3)
 
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", 4), 4, "test"))
+	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+4), now+4, "test"))
 
 	time.Sleep(500 * time.Millisecond)
 
