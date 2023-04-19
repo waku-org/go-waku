@@ -125,6 +125,7 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 
 		err := reader.ReadMsg(filterRPCRequest)
 		if err != nil {
+			metrics.RecordLegacyFilterError(ctx, "decode_rpc_failure")
 			logger.Error("reading request", zap.Error(err))
 			return
 		}
@@ -139,7 +140,7 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 			}
 
 			logger.Info("received a message push", zap.Int("messages", len(filterRPCRequest.Push.Messages)))
-			stats.Record(ctx, metrics.Messages.M(int64(len(filterRPCRequest.Push.Messages))))
+			metrics.RecordLegacyFilterMessage(ctx, "FilterRequest", len(filterRPCRequest.Push.Messages))
 		} else if filterRPCRequest.Request != nil && wf.isFullNode {
 			// We're on a full node.
 			// This is a filter request coming from a light node.
@@ -152,13 +153,13 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 				len := wf.subscribers.Append(subscriber)
 
 				logger.Info("adding subscriber")
-				stats.Record(ctx, metrics.FilterSubscriptions.M(int64(len)))
+				stats.Record(ctx, metrics.LegacyFilterSubscribers.M(int64(len)))
 			} else {
 				peerId := s.Conn().RemotePeer()
 				wf.subscribers.RemoveContentFilters(peerId, filterRPCRequest.RequestId, filterRPCRequest.Request.ContentFilters)
 
 				logger.Info("removing subscriber")
-				stats.Record(ctx, metrics.FilterSubscriptions.M(int64(wf.subscribers.Length())))
+				stats.Record(ctx, metrics.LegacyFilterSubscribers.M(int64(wf.subscribers.Length())))
 			}
 		} else {
 			logger.Error("can't serve request")
@@ -176,15 +177,15 @@ func (wf *WakuFilter) pushMessage(ctx context.Context, subscriber Subscriber, ms
 	if err != nil {
 		wf.subscribers.FlagAsFailure(subscriber.peer)
 		logger.Error("connecting to peer", zap.Error(err))
+		metrics.RecordLegacyFilterError(ctx, "dial_failure")
 		return err
 	}
 
 	conn, err := wf.h.NewStream(ctx, subscriber.peer, FilterID_v20beta1)
 	if err != nil {
 		wf.subscribers.FlagAsFailure(subscriber.peer)
-
 		logger.Error("opening peer stream", zap.Error(err))
-		//waku_filter_errors.inc(labelValues = [dialFailure])
+		metrics.RecordLegacyFilterError(ctx, "dial_failure")
 		return err
 	}
 
@@ -194,6 +195,7 @@ func (wf *WakuFilter) pushMessage(ctx context.Context, subscriber Subscriber, ms
 	if err != nil {
 		logger.Error("pushing messages to peer", zap.Error(err))
 		wf.subscribers.FlagAsFailure(subscriber.peer)
+		metrics.RecordLegacyFilterError(ctx, "push_write_error")
 		return nil
 	}
 
@@ -259,6 +261,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	}
 
 	if params.selectedPeer == "" {
+		metrics.RecordLegacyFilterError(ctx, "peer_not_found_failure")
 		return nil, ErrNoPeersAvailable
 	}
 
@@ -270,6 +273,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	// We connect first so dns4 addresses are resolved (NewStream does not do it)
 	err = wf.h.Connect(ctx, wf.h.Peerstore().PeerInfo(params.selectedPeer))
 	if err != nil {
+		metrics.RecordLegacyFilterError(ctx, "dial_failure")
 		return
 	}
 
@@ -282,6 +286,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	var conn network.Stream
 	conn, err = wf.h.NewStream(ctx, params.selectedPeer, FilterID_v20beta1)
 	if err != nil {
+		metrics.RecordLegacyFilterError(ctx, "dial_failure")
 		return
 	}
 
@@ -295,6 +300,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	wf.log.Debug("sending filterRPC", zap.Stringer("rpc", filterRPC))
 	err = writer.WriteMsg(filterRPC)
 	if err != nil {
+		metrics.RecordLegacyFilterError(ctx, "request_write_error")
 		wf.log.Error("sending filterRPC", zap.Error(err))
 		return
 	}
@@ -311,11 +317,13 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 	// We connect first so dns4 addresses are resolved (NewStream does not do it)
 	err := wf.h.Connect(ctx, wf.h.Peerstore().PeerInfo(peer))
 	if err != nil {
+		metrics.RecordLegacyFilterError(ctx, "dial_failure")
 		return err
 	}
 
 	conn, err := wf.h.NewStream(ctx, peer, FilterID_v20beta1)
 	if err != nil {
+		metrics.RecordLegacyFilterError(ctx, "dial_failure")
 		return err
 	}
 
@@ -339,6 +347,7 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 	filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: request}
 	err = writer.WriteMsg(filterRPC)
 	if err != nil {
+		metrics.RecordLegacyFilterError(ctx, "request_write_error")
 		return err
 	}
 
