@@ -14,6 +14,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
@@ -245,6 +246,7 @@ func evaluateNode(node *enode.Node) bool {
 	_, err := utils.EnodeToPeerInfo(node)
 
 	if err != nil {
+		metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
 		utils.Logger().Named("discv5").Error("obtaining peer info from enode", logging.ENode("enr", node), zap.Error(err))
 		return false
 	}
@@ -264,6 +266,7 @@ func (d *DiscoveryV5) Iterator() (enode.Iterator, error) {
 func (d *DiscoveryV5) iterate(ctx context.Context) error {
 	iterator, err := d.Iterator()
 	if err != nil {
+		metrics.RecordDiscV5Error(context.Background(), "iterator_failure")
 		return fmt.Errorf("obtaining iterator: %w", err)
 	}
 
@@ -294,12 +297,14 @@ func (d *DiscoveryV5) iterate(ctx context.Context) error {
 
 		_, addresses, err := utils.Multiaddress(iterator.Node())
 		if err != nil {
+			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
 			d.log.Error("extracting multiaddrs from enr", zap.Error(err))
 			continue
 		}
 
 		peerAddrs, err := peer.AddrInfosFromP2pAddrs(addresses...)
 		if err != nil {
+			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
 			d.log.Error("converting multiaddrs to addrinfos", zap.Error(err))
 			continue
 		}

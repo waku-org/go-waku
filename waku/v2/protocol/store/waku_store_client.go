@@ -223,8 +223,6 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		}, nil
 	}
 
-	metrics.RecordStoreMessage(ctx, "retrieved", len(historyResponseRPC.Response.Messages))
-
 	return historyResponseRPC.Response, nil
 }
 

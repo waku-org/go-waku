@@ -206,12 +206,13 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 
 	var messages []*wpb.WakuMessage
+	now := utils.GetUnixEpoch()
 	for i := 0; i < 10; i++ {
 		contentTopic := "1"
 		if i%2 == 0 {
 			contentTopic = "2"
 		}
-		msg := tests.CreateWakuMessage(contentTopic, int64(i))
+		msg := tests.CreateWakuMessage(contentTopic, now+int64(i))
 		_ = s.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), "test"))
 		messages = append(messages, msg)
 	}
@@ -219,8 +220,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with a valid time window
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      int64(2),
-		EndTime:        int64(5),
+		StartTime:      now + 2,
+		EndTime:        now + 5,
 	})
 
 	require.Len(t, response.Messages, 2)
@@ -230,8 +231,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with a zero-size time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      int64(2),
-		EndTime:        int64(2),
+		StartTime:      now + 2,
+		EndTime:        now + 2,
 	})
 
 	require.Len(t, response.Messages, 0)
@@ -239,8 +240,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with an invalid time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      int64(5),
-		EndTime:        int64(2),
+		StartTime:      now + 5,
+		EndTime:        now + 2,
 	})
 	// time window is invalid since start time > end time
 	// perhaps it should return an error?

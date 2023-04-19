@@ -48,7 +48,7 @@ func TestDbStore(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, res)
 
-	err = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test", 1), utils.GetUnixEpoch(), "test"))
+	err = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test", utils.GetUnixEpoch()), utils.GetUnixEpoch(), "test"))
 	require.NoError(t, err)
 
 	res, err = store.GetAll()
@@ -65,7 +65,7 @@ func TestStoreRetention(t *testing.T) {
 	require.NoError(t, err)
 
 	insertTime := time.Now()
-
+	//////////////////////////////////
 	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test1", insertTime.Add(-70*time.Second).UnixNano()), insertTime.Add(-70*time.Second).UnixNano(), "test"))
 	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test2", insertTime.Add(-60*time.Second).UnixNano()), insertTime.Add(-60*time.Second).UnixNano(), "test"))
 	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", insertTime.Add(-50*time.Second).UnixNano()), insertTime.Add(-50*time.Second).UnixNano(), "test"))

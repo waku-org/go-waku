@@ -122,11 +122,12 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	msg1 := tests.CreateWakuMessage(topic1, 1)
-	msg2 := tests.CreateWakuMessage(topic1, 2)
-	msg3 := tests.CreateWakuMessage(topic1, 3)
-	msg4 := tests.CreateWakuMessage(topic1, 4)
-	msg5 := tests.CreateWakuMessage(topic1, 5)
+	now := utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, now+1)
+	msg2 := tests.CreateWakuMessage(topic1, now+2)
+	msg3 := tests.CreateWakuMessage(topic1, now+3)
+	msg4 := tests.CreateWakuMessage(topic1, now+4)
+	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
 	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
 	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
@@ -194,11 +195,12 @@ func TestWakuStoreResult(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	msg1 := tests.CreateWakuMessage(topic1, 1)
-	msg2 := tests.CreateWakuMessage(topic1, 2)
-	msg3 := tests.CreateWakuMessage(topic1, 3)
-	msg4 := tests.CreateWakuMessage(topic1, 4)
-	msg5 := tests.CreateWakuMessage(topic1, 5)
+	now := utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, now+1)
+	msg2 := tests.CreateWakuMessage(topic1, now+2)
+	msg3 := tests.CreateWakuMessage(topic1, now+3)
+	msg4 := tests.CreateWakuMessage(topic1, now+4)
+	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
 	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
 	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
@@ -282,15 +284,16 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	msg1 := tests.CreateWakuMessage(topic1, 1)
-	msg2 := tests.CreateWakuMessage(topic1, 2)
-	msg3 := tests.CreateWakuMessage(topic1, 3)
-	msg4 := tests.CreateWakuMessage(topic1, 4)
-	msg5 := tests.CreateWakuMessage(topic1, 5)
-	msg6 := tests.CreateWakuMessage(topic1, 6)
-	msg7 := tests.CreateWakuMessage("hello", 7)
-	msg8 := tests.CreateWakuMessage(topic1, 8)
-	msg9 := tests.CreateWakuMessage(topic1, 9)
+	now := utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, now+1)
+	msg2 := tests.CreateWakuMessage(topic1, now+2)
+	msg3 := tests.CreateWakuMessage(topic1, now+3)
+	msg4 := tests.CreateWakuMessage(topic1, now+4)
+	msg5 := tests.CreateWakuMessage(topic1, now+5)
+	msg6 := tests.CreateWakuMessage(topic1, now+6)
+	msg7 := tests.CreateWakuMessage("hello", now+7)
+	msg8 := tests.CreateWakuMessage(topic1, now+8)
+	msg9 := tests.CreateWakuMessage(topic1, now+9)
 
 	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
 	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)

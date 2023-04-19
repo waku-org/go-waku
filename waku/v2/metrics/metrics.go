@@ -30,17 +30,23 @@ var (
 	FilterRequestDurationSeconds       = stats.Int64("filter_request_duration_seconds", "Duration of Filter Subscribe Requests", stats.UnitSeconds)
 	FilterHandleMessageDurationSeconds = stats.Int64("filter_handle_msessageduration_seconds", "Duration to Push Message to Filter Subscribers", stats.UnitSeconds)
 
-	StoredMessages = stats.Int64("store_messages", "Number of historical messages", stats.UnitDimensionless)
-	StoreErrors    = stats.Int64("errors", "Number of errors in store protocol", stats.UnitDimensionless)
-	StoreQueries   = stats.Int64("store_queries", "Number of store queries", stats.UnitDimensionless)
+	StoreErrors  = stats.Int64("errors", "Number of errors in store protocol", stats.UnitDimensionless)
+	StoreQueries = stats.Int64("store_queries", "Number of store queries", stats.UnitDimensionless)
+
+	ArchiveMessages              = stats.Int64("gowaku_archive_messages", "Number of historical messages", stats.UnitDimensionless)
+	ArchiveErrors                = stats.Int64("gowaku_archive_errors", "Number of errors in archive protocol", stats.UnitDimensionless)
+	ArchiveInsertDurationSeconds = stats.Int64("gowaku_archive_insert_duration_seconds", "Message insertion duration", stats.UnitSeconds)
+	ArchiveQueryDurationSeconds  = stats.Int64("gowaku_archive_query_duration_seconds", "History query duration", stats.UnitSeconds)
 
 	LightpushMessages = stats.Int64("lightpush_messages", "Number of messages sent via lightpush protocol", stats.UnitDimensionless)
 	LightpushErrors   = stats.Int64("errors", "Number of errors in lightpush protocol", stats.UnitDimensionless)
 
 	PeerExchangeError = stats.Int64("errors", "Number of errors in peer exchange protocol", stats.UnitDimensionless)
 
-	DnsDiscoveryNodes  = stats.Int64("dnsdisc_nodes", "Number of discovered nodes", stats.UnitDimensionless)
-	DnsDiscoveryErrors = stats.Int64("errors", "Number of errors in dns discovery", stats.UnitDimensionless)
+	DnsDiscoveryNodes  = stats.Int64("dnsdisc_nodes", "Number of discovered nodes in dns discovert", stats.UnitDimensionless)
+	DnsDiscoveryErrors = stats.Int64("dnsdisc_errors", "Number of errors in dns discovery", stats.UnitDimensionless)
+
+	DiscV5Errors = stats.Int64("discv5_errors", "Number of errors in discv5", stats.UnitDimensionless)
 )
 
 var (
@@ -75,19 +81,40 @@ var (
 		Description: "The number of the store queries received",
 		Aggregation: view.Count(),
 	}
-	StoreMessagesView = &view.View{
-		Name:        "gowaku_store_messages",
-		Measure:     StoredMessages,
-		Description: "The distribution of the store protocol messages",
-		Aggregation: view.LastValue(),
-		TagKeys:     []tag.Key{KeyType},
-	}
 	StoreErrorTypesView = &view.View{
 		Name:        "gowaku_store_errors",
 		Measure:     StoreErrors,
 		Description: "The distribution of the store protocol errors",
 		Aggregation: view.Count(),
 		TagKeys:     []tag.Key{ErrorType},
+	}
+
+	ArchiveMessagesView = &view.View{
+		Name:        "gowaku_archive_messages",
+		Measure:     ArchiveMessages,
+		Description: "The distribution of the archive protocol messages",
+		Aggregation: view.LastValue(),
+		TagKeys:     []tag.Key{KeyType},
+	}
+	ArchiveErrorTypesView = &view.View{
+		Name:        "gowaku_archive_errors",
+		Measure:     StoreErrors,
+		Description: "Number of errors in archive protocol",
+		Aggregation: view.Count(),
+		TagKeys:     []tag.Key{ErrorType},
+	}
+
+	ArchiveInsertDurationView = &view.View{
+		Name:        "gowaku_archive_insert_duration_seconds",
+		Measure:     ArchiveInsertDurationSeconds,
+		Description: "Message insertion duration",
+		Aggregation: view.Count(),
+	}
+	ArchiveQueryDurationView = &view.View{
+		Name:        "gowaku_archive_query_duration_seconds",
+		Measure:     ArchiveQueryDurationSeconds,
+		Description: "History query duration",
+		Aggregation: view.Count(),
 	}
 
 	LegacyFilterSubscriptionsView = &view.View{
@@ -143,24 +170,23 @@ var (
 		Aggregation: view.Count(),
 		TagKeys:     []tag.Key{ErrorType},
 	}
+
 	FilterRequestDurationView = &view.View{
 		Name:        "gowaku_filter_request_duration_seconds",
 		Measure:     FilterRequestDurationSeconds,
 		Description: "Duration of Filter Subscribe Requests",
 		Aggregation: view.Count(),
-		TagKeys:     []tag.Key{ErrorType},
 	}
 	FilterHandleMessageDurationView = &view.View{
 		Name:        "gowaku_filter_handle_msessageduration_seconds",
 		Measure:     FilterHandleMessageDurationSeconds,
 		Description: "Duration to Push Message to Filter Subscribers",
 		Aggregation: view.Count(),
-		TagKeys:     []tag.Key{ErrorType},
 	}
 
 	LightpushMessagesView = &view.View{
 		Name:        "gowaku_lightpush_messages",
-		Measure:     StoredMessages,
+		Measure:     LightpushMessages,
 		Description: "The distribution of the lightpush protocol messages",
 		Aggregation: view.LastValue(),
 		TagKeys:     []tag.Key{KeyType},
@@ -192,6 +218,13 @@ var (
 		Aggregation: view.Count(),
 		TagKeys:     []tag.Key{ErrorType},
 	}
+	DiscV5ErrorTypesView = &view.View{
+		Name:        "gowaku_discv5_errors",
+		Measure:     DiscV5Errors,
+		Description: "The distribution of the discv5 protocol errors",
+		Aggregation: view.Count(),
+		TagKeys:     []tag.Key{ErrorType},
+	}
 )
 
 func recordWithTags(ctx context.Context, tagKey tag.Key, tagType string, ms stats.Measurement) {
@@ -212,6 +245,10 @@ func RecordLightpushError(ctx context.Context, tagType string) {
 
 func RecordLegacyFilterError(ctx context.Context, tagType string) {
 	recordWithTags(ctx, ErrorType, tagType, LegacyFilterErrors.M(1))
+}
+
+func RecordArchiveError(ctx context.Context, tagType string) {
+	recordWithTags(ctx, ErrorType, tagType, ArchiveErrors.M(1))
 }
 
 func RecordFilterError(ctx context.Context, tagType string) {
@@ -245,8 +282,12 @@ func RecordDnsDiscoveryError(ctx context.Context, tagType string) {
 	recordWithTags(ctx, ErrorType, tagType, DnsDiscoveryErrors.M(1))
 }
 
-func RecordStoreMessage(ctx context.Context, tagType string, len int) {
-	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(KeyType, tagType)}, StoredMessages.M(int64(len))); err != nil {
+func RecordDiscV5Error(ctx context.Context, tagType string) {
+	recordWithTags(ctx, ErrorType, tagType, DiscV5Errors.M(1))
+}
+
+func RecordArchiveMessage(ctx context.Context, tagType string, len int) {
+	if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Insert(KeyType, tagType)}, ArchiveMessages.M(int64(len))); err != nil {
 		utils.Logger().Error("failed to record with tags", zap.Error(err))
 	}
 }

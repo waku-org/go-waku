@@ -39,8 +39,6 @@ var (
 
 	// ErrFailedQuery is emitted when the query fails to return results
 	ErrFailedQuery = errors.New("failed to resolve the query")
-
-	ErrFutureMessage = errors.New("message timestamp in the future")
 )
 
 type WakuSwap interface {

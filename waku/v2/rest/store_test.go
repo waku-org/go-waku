@@ -32,9 +32,10 @@ func TestGetMessages(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	msg1 := tests.CreateWakuMessage(topic1, 1)
-	msg2 := tests.CreateWakuMessage(topic1, 2)
-	msg3 := tests.CreateWakuMessage(topic1, 3)
+	now := utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, now+1)
+	msg2 := tests.CreateWakuMessage(topic1, now+2)
+	msg3 := tests.CreateWakuMessage(topic1, now+3)
 
 	node1.Store().MessageChannel() <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
 	node1.Store().MessageChannel() <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)

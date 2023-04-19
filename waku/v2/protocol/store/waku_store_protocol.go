@@ -22,9 +22,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
-// MaxTimeVariance is the maximum duration in the future allowed for a message timestamp
-const MaxTimeVariance = time.Duration(20) * time.Second
-
 func findMessages(query *pb.HistoryQuery, msgProvider MessageProvider) ([]*wpb.WakuMessage, *pb.PagingInfo, error) {
 	if query.PagingInfo == nil {
 		query.PagingInfo = &pb.PagingInfo{
@@ -78,6 +75,7 @@ func (store *WakuStore) FindMessages(query *pb.HistoryQuery) *pb.HistoryResponse
 type MessageProvider interface {
 	GetAll() ([]persistence.StoredMessage, error)
 	Query(query *pb.HistoryQuery) (*pb.Index, []persistence.StoredMessage, error)
+	Validate(env *protocol.Envelope) error
 	Put(env *protocol.Envelope) error
 	MostRecentTimestamp() (int64, error)
 	Start(ctx context.Context, timesource timesource.Timesource) error
@@ -129,9 +127,8 @@ func (store *WakuStore) Start(ctx context.Context) error {
 
 	store.h.SetStreamHandlerMatch(StoreID_v20beta4, protocol.PrefixTextMatch(string(StoreID_v20beta4)), store.onRequest)
 
-	store.wg.Add(2)
+	store.wg.Add(1)
 	go store.storeIncomingMessages(store.ctx)
-	go store.updateMetrics(store.ctx)
 
 	store.log.Info("Store protocol started")
 
@@ -139,16 +136,17 @@ func (store *WakuStore) Start(ctx context.Context) error {
 }
 
 func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
-	// Ensure that messages don't "jump" to the front of the queue with future timestamps
-	if env.Index().SenderTime-env.Index().ReceiverTime > int64(MaxTimeVariance) {
-		return ErrFutureMessage
-	}
 
 	if env.Message().Ephemeral {
 		return nil
 	}
 
-	err := store.msgProvider.Put(env)
+	err := store.msgProvider.Validate(env)
+	if err != nil {
+		return err
+	}
+
+	err = store.msgProvider.Put(env)
 	if err != nil {
 		store.log.Error("storing message", zap.Error(err))
 		metrics.RecordStoreError(store.ctx, "store_failure")
@@ -164,26 +162,6 @@ func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
 		go func(env *protocol.Envelope) {
 			_ = store.storeMessage(env)
 		}(envelope)
-	}
-}
-
-func (store *WakuStore) updateMetrics(ctx context.Context) {
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	defer store.wg.Done()
-
-	for {
-		select {
-		case <-ticker.C:
-			msgCount, err := store.msgProvider.Count()
-			if err != nil {
-				store.log.Error("updating store metrics", zap.Error(err))
-			} else {
-				metrics.RecordStoreMessage(store.ctx, "stored", msgCount)
-			}
-		case <-ctx.Done():
-			return
-		}
 	}
 }
 
