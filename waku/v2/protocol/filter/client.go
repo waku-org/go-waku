@@ -113,6 +113,12 @@ func (wf *WakuFilterLightnode) onRequest(ctx context.Context) func(s network.Str
 		defer s.Close()
 		logger := wf.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
 
+		if !wf.subscriptions.IsSubscribedTo(s.Conn().RemotePeer()) {
+			logger.Warn("received message push from unknown peer", logging.HostID("peerID", s.Conn().RemotePeer()))
+			metrics.RecordFilterError(ctx, "unknown_peer_messagepush")
+			return
+		}
+
 		reader := pbio.NewDelimitedReader(s, math.MaxInt32)
 
 		messagePush := &pb.MessagePushV2{}
@@ -120,6 +126,12 @@ func (wf *WakuFilterLightnode) onRequest(ctx context.Context) func(s network.Str
 		if err != nil {
 			logger.Error("reading message push", zap.Error(err))
 			metrics.RecordFilterError(ctx, "decode_rpc_failure")
+			return
+		}
+
+		if !wf.subscriptions.Has(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
+			logger.Warn("received messagepush with invalid subscription parameters", logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", messagePush.PubsubTopic), zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
+			metrics.RecordFilterError(ctx, "invalid_subscription_message")
 			return
 		}
 
@@ -237,7 +249,7 @@ func (wf *WakuFilterLightnode) Subscribe(ctx context.Context, contentFilter Cont
 
 // FilterSubscription is used to obtain an object from which you could receive messages received via filter protocol
 func (wf *WakuFilterLightnode) FilterSubscription(peerID peer.ID, contentFilter ContentFilter) (*SubscriptionDetails, error) {
-	if !wf.subscriptions.Has(peerID, contentFilter.Topic, contentFilter.ContentTopics) {
+	if !wf.subscriptions.Has(peerID, contentFilter.Topic, contentFilter.ContentTopics...) {
 		return nil, errors.New("subscription does not exist")
 	}
 

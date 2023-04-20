@@ -76,7 +76,18 @@ func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, topic string, conte
 	return details
 }
 
-func (sub *SubscriptionsMap) Has(peerID peer.ID, topic string, contentTopics []string) bool {
+func (sub *SubscriptionsMap) IsSubscribedTo(peerID peer.ID) bool {
+	sub.RLock()
+	defer sub.RUnlock()
+
+	_, ok := sub.items[peerID]
+	return ok
+}
+
+func (sub *SubscriptionsMap) Has(peerID peer.ID, topic string, contentTopics ...string) bool {
+	sub.RLock()
+	defer sub.RUnlock()
+
 	// Check if peer exits
 	peerSubscription, ok := sub.items[peerID]
 	if !ok {
