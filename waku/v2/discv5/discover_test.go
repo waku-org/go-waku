@@ -13,6 +13,8 @@ import (
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
+
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
@@ -45,14 +47,14 @@ func createHost(t *testing.T) (host.Host, int, *ecdsa.PrivateKey) {
 	return host, port, privKey
 }
 
-func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP, log *zap.Logger) (*enode.LocalNode, error) {
+func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, wakuFlags wenr.WakuEnrBitfield, advertiseAddr *net.IP, log *zap.Logger) (*enode.LocalNode, error) {
 	db, err := enode.OpenDB("")
 	if err != nil {
 		return nil, err
 	}
 	localnode := enode.NewLocalNode(db, priv)
 	localnode.SetFallbackUDP(udpPort)
-	localnode.Set(enr.WithEntry(utils.WakuENRField, wakuFlags))
+	localnode.Set(enr.WithEntry(wenr.WakuENRField, wakuFlags))
 	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	localnode.SetStaticIP(ipAddr.IP)
 
@@ -103,7 +105,7 @@ func TestDiscV5(t *testing.T) {
 	udpPort1, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
 	ip1, _ := extractIP(host1.Addrs()[0])
-	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
+	l1, err := newLocalnode(prvKey1, ip1, udpPort1, wenr.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn1 := tests.NewTestPeerDiscoverer()
 	d1, err := NewDiscoveryV5(prvKey1, l1, peerconn1, utils.Logger(), WithUDPPort(uint(udpPort1)))
@@ -115,7 +117,7 @@ func TestDiscV5(t *testing.T) {
 	ip2, _ := extractIP(host2.Addrs()[0])
 	udpPort2, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
+	l2, err := newLocalnode(prvKey2, ip2, udpPort2, wenr.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn2 := tests.NewTestPeerDiscoverer()
 	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
@@ -127,7 +129,7 @@ func TestDiscV5(t *testing.T) {
 	ip3, _ := extractIP(host3.Addrs()[0])
 	udpPort3, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	l3, err := newLocalnode(prvKey3, ip3, udpPort3, utils.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
+	l3, err := newLocalnode(prvKey3, ip3, udpPort3, wenr.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn3 := tests.NewTestPeerDiscoverer()
 	d3, err := NewDiscoveryV5(prvKey3, l3, peerconn3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))

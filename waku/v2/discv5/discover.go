@@ -15,6 +15,7 @@ import (
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
@@ -243,7 +244,7 @@ func evaluateNode(node *enode.Node) bool {
 		return false
 	}*/
 
-	_, err := utils.EnodeToPeerInfo(node)
+	_, err := enr.EnodeToPeerInfo(node)
 
 	if err != nil {
 		metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
@@ -295,7 +296,7 @@ func (d *DiscoveryV5) iterate(ctx context.Context) error {
 			break
 		}
 
-		_, addresses, err := utils.Multiaddress(iterator.Node())
+		_, addresses, err := enr.Multiaddress(iterator.Node())
 		if err != nil {
 			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
 			d.log.Error("extracting multiaddrs from enr", zap.Error(err))

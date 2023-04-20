@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
@@ -67,14 +68,14 @@ func extractIP(addr multiaddr.Multiaddr) (*net.TCPAddr, error) {
 	}, nil
 }
 
-func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, wakuFlags utils.WakuEnrBitfield, advertiseAddr *net.IP, log *zap.Logger) (*enode.LocalNode, error) {
+func newLocalnode(priv *ecdsa.PrivateKey, ipAddr *net.TCPAddr, udpPort int, wakuFlags wenr.WakuEnrBitfield, advertiseAddr *net.IP, log *zap.Logger) (*enode.LocalNode, error) {
 	db, err := enode.OpenDB("")
 	if err != nil {
 		return nil, err
 	}
 	localnode := enode.NewLocalNode(db, priv)
 	localnode.SetFallbackUDP(udpPort)
-	localnode.Set(enr.WithEntry(utils.WakuENRField, wakuFlags))
+	localnode.Set(enr.WithEntry(wenr.WakuENRField, wakuFlags))
 	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	localnode.SetStaticIP(ipAddr.IP)
 
@@ -103,7 +104,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	udpPort1, err := tests.FindFreePort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
 	ip1, _ := extractIP(host1.Addrs()[0])
-	l1, err := newLocalnode(prvKey1, ip1, udpPort1, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
+	l1, err := newLocalnode(prvKey1, ip1, udpPort1, wenr.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
 	discv5PeerConn1 := tests.NewTestPeerDiscoverer()
 	d1, err := discv5.NewDiscoveryV5(prvKey1, l1, discv5PeerConn1, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
@@ -115,7 +116,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	ip2, _ := extractIP(host2.Addrs()[0])
 	udpPort2, err := tests.FindFreePort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	l2, err := newLocalnode(prvKey2, ip2, udpPort2, utils.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
+	l2, err := newLocalnode(prvKey2, ip2, udpPort2, wenr.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
 	discv5PeerConn2 := tests.NewTestPeerDiscoverer()
 	d2, err := discv5.NewDiscoveryV5(prvKey2, l2, discv5PeerConn2, utils.Logger(), discv5.WithUDPPort(uint(udpPort2)), discv5.WithBootnodes([]*enode.Node{d1.Node()}))

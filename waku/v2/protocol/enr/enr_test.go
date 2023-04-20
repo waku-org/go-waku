@@ -1,4 +1,4 @@
-package utils
+package enr
 
 import (
 	"encoding/binary"
@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -151,7 +152,7 @@ func TestMultiaddr(t *testing.T) {
 
 	db, _ := enode.OpenDB("")
 	localNode := enode.NewLocalNode(db, key)
-	err := updateLocalNode(localNode, multiaddrValues, &net.TCPAddr{IP: net.IPv4(192, 168, 1, 241), Port: 60000}, 50000, wakuFlag, nil, false, Logger())
+	err := updateLocalNode(localNode, multiaddrValues, &net.TCPAddr{IP: net.IPv4(192, 168, 1, 241), Port: 60000}, 50000, wakuFlag, nil, false, utils.Logger())
 	require.NoError(t, err)
 
 	_ = localNode.Node() // Should not panic
