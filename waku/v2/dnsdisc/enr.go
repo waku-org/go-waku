@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/utils"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -52,7 +52,7 @@ func RetrieveNodes(ctx context.Context, url string, opts ...DnsDiscoveryOption) 
 	}
 
 	for _, node := range tree.Nodes() {
-		peerID, m, err := utils.Multiaddress(node)
+		peerID, m, err := wenr.Multiaddress(node)
 		if err != nil {
 			metrics.RecordDnsDiscoveryError(ctx, "peer_info_failure")
 			return nil, err

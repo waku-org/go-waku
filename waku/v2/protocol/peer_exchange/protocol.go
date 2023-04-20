@@ -21,8 +21,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -237,7 +237,7 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
 			break
 		}
 
-		_, addresses, err := utils.Multiaddress(iterator.Node())
+		_, addresses, err := enr.Multiaddress(iterator.Node())
 		if err != nil {
 			wakuPX.log.Error("extracting multiaddrs from enr", zap.Error(err))
 			continue

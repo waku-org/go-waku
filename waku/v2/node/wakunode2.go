@@ -32,6 +32,7 @@ import (
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -88,7 +89,7 @@ type WakuNode struct {
 	store           ReceptorService
 	rlnRelay        RLNRelay
 
-	wakuFlag utils.WakuEnrBitfield
+	wakuFlag enr.WakuEnrBitfield
 
 	localNode *enode.LocalNode
 
@@ -175,7 +176,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
 	w.keepAliveFails = make(map[peer.ID]int)
-	w.wakuFlag = utils.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
+	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
 
 	if params.enableNTP {
 		w.timesource = timesource.NewNTPTimesource(w.opts.ntpURLs, w.log)
