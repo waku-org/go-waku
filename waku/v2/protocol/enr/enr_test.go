@@ -1,13 +1,8 @@
 package enr
 
 import (
-	"encoding/binary"
-	"errors"
-	"math"
-	"math/rand"
 	"net"
 	"testing"
-	"time"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -28,53 +23,26 @@ func TestEnodeToMultiAddr(t *testing.T) {
 	require.Equal(t, expectedMultiAddr, actualMultiAddr.String())
 }
 
-func writeMultiaddressField(localnode *enode.LocalNode, addrAggr []ma.Multiaddr) (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = errors.New("could not write enr record")
-		}
-	}()
-
-	var fieldRaw []byte
-	for _, addr := range addrAggr {
-		maRaw := addr.Bytes()
-		maSize := make([]byte, 2)
-		binary.BigEndian.PutUint16(maSize, uint16(len(maRaw)))
-
-		fieldRaw = append(fieldRaw, maSize...)
-		fieldRaw = append(fieldRaw, maRaw...)
-	}
-
-	if len(fieldRaw) != 0 {
-		localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
-	}
-
-	// This is to trigger the signing record err due to exceeding 300bytes limit
-	_ = localnode.Node()
-
-	return nil
-}
-
 // TODO: this function is duplicated in localnode.go. Remove duplication
-func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
-	localnode.SetFallbackUDP(int(udpPort))
-	localnode.Set(enr.WithEntry(WakuENRField, wakuFlags))
-	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 
-	if udpPort > math.MaxUint16 {
-		return errors.New("invalid udp port number")
-	}
+func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
+	var options []ENROption
+	options = append(options, WithUDPPort(udpPort))
+	options = append(options, WithWakuBitfield(wakuFlags))
+	options = append(options, WithMultiaddress(multiaddrs...))
 
 	if advertiseAddr != nil {
 		// An advertised address disables libp2p address updates
 		// and discv5 predictions
-		localnode.SetStaticIP(*advertiseAddr)
-		localnode.Set(enr.TCP(uint16(ipAddr.Port))) // TODO: ipv6?
+		nip := &net.TCPAddr{
+			IP:   *advertiseAddr,
+			Port: ipAddr.Port,
+		}
+		options = append(options, WithIP(nip))
 	} else if !shouldAutoUpdate {
 		// We received a libp2p address update. Autoupdate is disabled
 		// Using a static ip will disable endpoint prediction.
-		localnode.SetStaticIP(ipAddr.IP)
-		localnode.Set(enr.TCP(uint16(ipAddr.Port))) // TODO: ipv6?
+		options = append(options, WithIP(ipAddr))
 	} else {
 		// We received a libp2p address update, but we should still
 		// allow discv5 to update the enr record. We set the localnode
@@ -90,7 +58,7 @@ func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAd
 			localnode.Delete(enr.TCP(0))
 		}
 
-		if ip6 != nil && !ip6.IsUnspecified() {
+		if ip4 == nil && ip6 != nil && !ip6.IsUnspecified() {
 			localnode.Set(enr.IPv6(ip6))
 			localnode.Set(enr.TCP6(ipAddr.Port))
 		} else {
@@ -99,40 +67,7 @@ func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAd
 		}
 	}
 
-	// Randomly shuffle multiaddresses
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(multiaddrs), func(i, j int) { multiaddrs[i], multiaddrs[j] = multiaddrs[j], multiaddrs[i] })
-
-	// Adding a single extra multiaddress. Should probably not exceed the enr max size of 300bytes
-	var err error
-	failedOnceWritingENR := false
-	couldWriteENRatLeastOnce := false
-	successIdx := -1
-	for i := len(multiaddrs) - 1; i >= 0; i-- {
-		err = writeMultiaddressField(localnode, multiaddrs[0:i])
-		if err == nil {
-			couldWriteENRatLeastOnce = true
-			successIdx = i
-			break
-		} else {
-			failedOnceWritingENR = true
-		}
-	}
-
-	if failedOnceWritingENR {
-		if !couldWriteENRatLeastOnce {
-			// In case multiaddr could not be populated at all
-			localnode.Delete(enr.WithEntry(MultiaddrENRField, struct{}{}))
-		} else {
-			// Could write a subset of multiaddresses but not all
-			err = writeMultiaddressField(localnode, multiaddrs[0:successIdx])
-			if err != nil {
-				return errors.New("could not write new ENR")
-			}
-		}
-	}
-
-	return nil
+	return Update(localnode, options...)
 }
 
 func TestMultiaddr(t *testing.T) {
