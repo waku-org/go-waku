@@ -17,20 +17,18 @@ import (
 	"go.uber.org/zap"
 )
 
-var MEMBERSHIP_FEE = big.NewInt(1000000000000000) // wei - 0.001 eth
-
 func toBigInt(i []byte) *big.Int {
 	result := new(big.Int)
 	result.SetBytes(i[:])
 	return result
 }
 
-func register(ctx context.Context, backend *ethclient.Client, idComm r.IDCommitment, ethAccountPrivateKey *ecdsa.PrivateKey, rlnContract *contracts.RLN, chainID *big.Int, registrationHandler RegistrationHandler, log *zap.Logger) (*r.MembershipIndex, error) {
+func register(ctx context.Context, backend *ethclient.Client, membershipFee *big.Int, idComm r.IDCommitment, ethAccountPrivateKey *ecdsa.PrivateKey, rlnContract *contracts.RLN, chainID *big.Int, registrationHandler RegistrationHandler, log *zap.Logger) (*r.MembershipIndex, error) {
 	auth, err := bind.NewKeyedTransactorWithChainID(ethAccountPrivateKey, chainID)
 	if err != nil {
 		return nil, err
 	}
-	auth.Value = MEMBERSHIP_FEE
+	auth.Value = membershipFee
 	auth.Context = ctx
 
 	log.Debug("registering an id commitment", zap.Binary("idComm", idComm[:]))
@@ -85,6 +83,7 @@ func register(ctx context.Context, backend *ethclient.Client, idComm r.IDCommitm
 func (gm *DynamicGroupManager) Register(ctx context.Context) (*r.MembershipIndex, error) {
 	return register(ctx,
 		gm.ethClient,
+		gm.membershipFee,
 		gm.identityCredential.IDCommitment,
 		gm.ethAccountPrivateKey,
 		gm.rlnContract,
