@@ -15,8 +15,10 @@ import (
 var (
 	WakuVersion = stats.Int64("waku_version", "", stats.UnitDimensionless)
 	Messages    = stats.Int64("node_messages", "Number of messages received", stats.UnitDimensionless)
-	Peers       = stats.Int64("peers", "Number of connected peers", stats.UnitDimensionless)
-	Dials       = stats.Int64("dials", "Number of peer dials", stats.UnitDimensionless)
+	MessageSize = stats.Int64("waku_histogram_message_size", "message size histogram in kB", stats.UnitDimensionless)
+
+	Peers = stats.Int64("peers", "Number of connected peers", stats.UnitDimensionless)
+	Dials = stats.Int64("dials", "Number of peer dials", stats.UnitDimensionless)
 
 	LegacyFilterMessages      = stats.Int64("legacy_filter_messages", "Number of legacy filter messages", stats.UnitDimensionless)
 	LegacyFilterSubscribers   = stats.Int64("legacy_filter_subscribers", "Number of legacy filter subscribers", stats.UnitDimensionless)
@@ -73,6 +75,12 @@ var (
 		Measure:     Messages,
 		Description: "The number of the messages received",
 		Aggregation: view.Count(),
+	}
+	MessageSizeView = &view.View{
+		Name:        "gowaku_histogram_message_size",
+		Measure:     MessageSize,
+		Description: "message size histogram in kB",
+		Aggregation: view.Distribution(0.0, 5.0, 15.0, 50.0, 100.0, 300.0, 700.0, 1000.0),
 	}
 
 	StoreQueriesView = &view.View{

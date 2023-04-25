@@ -384,12 +384,14 @@ func (w *WakuRelay) subscribeToTopic(userCtx context.Context, pubsubTopic string
 			if msg == nil {
 				return
 			}
-			stats.Record(ctx, metrics.Messages.M(1))
 			wakuMessage := &pb.WakuMessage{}
 			if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
 				w.log.Error("decoding message", zap.Error(err))
 				return
 			}
+
+			msgSizeInKb := len(wakuMessage.Payload) / 1000
+			stats.Record(ctx, metrics.Messages.M(1), metrics.MessageSize.M(int64(msgSizeInKb)))
 
 			envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
 			w.log.Debug("waku.relay received", logging.HexString("hash", envelope.Hash()))
