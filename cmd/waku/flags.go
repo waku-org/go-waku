@@ -269,18 +269,6 @@ var (
 		Destination: &options.Filter.Enable,
 		EnvVars:     []string{"WAKUNODE2_FILTER"},
 	})
-	FilterLegacyFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "use-filter-legacy",
-		Usage:       "Use filter protocol (legacy)",
-		Destination: &options.Filter.UseV1,
-		EnvVars:     []string{"WAKUNODE2_USE_FILTER_LEGACY"},
-	})
-	LightClient = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "light-client",
-		Usage:       "Don't accept filter subscribers (only for filter-legacy)",
-		Destination: &options.Filter.DisableFullNode,
-		EnvVars:     []string{"WAKUNODE2_LIGHT_CLIENT"},
-	})
 	FilterNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "filternode",
 		Usage: "Multiaddr of a peer that supports filter protocol. Option may be repeated",
@@ -289,6 +277,25 @@ var (
 		},
 		EnvVars: []string{"WAKUNODE2_FILTERNODE"},
 	})
+	FilterTimeout = altsrc.NewDurationFlag(&cli.DurationFlag{
+		Name:        "filter-timeout",
+		Value:       14400 * time.Second,
+		Usage:       "Timeout for filter node in seconds",
+		Destination: &options.Filter.Timeout,
+		EnvVars:     []string{"WAKUNODE2_FILTER_TIMEOUT"},
+	})
+	FilterLegacyFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "legacy-filter",
+		Usage:       "Use filter protocol (legacy)",
+		Destination: &options.Filter.UseV1,
+		EnvVars:     []string{"WAKUNODE2_USE_LEGACY_FILTER"},
+	})
+	FilterLegacyLightClient = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "legacy-filter-light-client",
+		Usage:       "Don't accept legacy filter subscribers",
+		Destination: &options.Filter.DisableFullNode,
+		EnvVars:     []string{"WAKUNODE2_LEGACY_FILTER_LIGHT_CLIENT"},
+	})
 	FilterLegacyNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "legacy-filternode",
 		Usage: "Multiaddr of a peer that supports legacy filter protocol. Option may be repeated",
@@ -296,13 +303,6 @@ var (
 			Values: &options.Filter.NodesV1,
 		},
 		EnvVars: []string{"WAKUNODE2_LEGACY_FILTERNODE"},
-	})
-	FilterTimeout = altsrc.NewDurationFlag(&cli.DurationFlag{
-		Name:        "filter-timeout",
-		Value:       14400 * time.Second,
-		Usage:       "Timeout for filter node in seconds",
-		Destination: &options.Filter.Timeout,
-		EnvVars:     []string{"WAKUNODE2_FILTER_TIMEOUT"},
 	})
 	LightPush = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "lightpush",
