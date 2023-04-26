@@ -45,6 +45,8 @@ type DynamicGroupManager struct {
 	// TODO may need to make ethAccountPrivateKey mandatory
 	ethAccountPrivateKey *ecdsa.PrivateKey
 
+	eventHandler RegistrationEventHandler
+
 	registrationHandler RegistrationHandler
 	chainId             *big.Int
 	rlnContract         *contracts.RLN
@@ -124,6 +126,7 @@ func NewDynamicGroupManager(
 		ethClientAddress:          ethClientAddr,
 		ethAccountPrivateKey:      ethAccountPrivateKey,
 		registrationHandler:       registrationHandler,
+		eventHandler:              handler,
 		saveKeystore:              saveKeystore,
 		keystorePath:              path,
 		keystorePassword:          password,
@@ -176,7 +179,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return err
 	}
 
-	if gm.keystorePassword != "" && gm.keystorePath != "" {
+	if gm.identityCredential == nil && gm.keystorePassword != "" && gm.keystorePath != "" {
 		credentials, err := keystore.GetMembershipCredentials(gm.log,
 			gm.keystorePath,
 			gm.keystorePassword,
@@ -229,7 +232,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return errors.New("no credentials available")
 	}
 
-	if err = gm.HandleGroupUpdates(ctx, handler); err != nil {
+	if err = gm.HandleGroupUpdates(ctx, gm.eventHandler); err != nil {
 		return err
 	}
 
@@ -307,6 +310,11 @@ func (gm *DynamicGroupManager) IdentityCredentials() (rln.IdentityCredential, er
 	}
 
 	return *gm.identityCredential, nil
+}
+
+func (gm *DynamicGroupManager) SetCredentials(identityCredential *rln.IdentityCredential, index *rln.MembershipIndex) {
+	gm.identityCredential = identityCredential
+	gm.membershipIndex = index
 }
 
 func (gm *DynamicGroupManager) MembershipIndex() (rln.MembershipIndex, error) {
