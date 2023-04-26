@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -30,8 +31,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-const ETH_CLIENT_ADDRESS = "ws://localhost:8545"
-
 var MEMBERSHIP_FEE = big.NewInt(1000000000000000) // wei - 0.001 eth
 
 func TestWakuRLNRelayDynamicSuite(t *testing.T) {
@@ -40,6 +39,8 @@ func TestWakuRLNRelayDynamicSuite(t *testing.T) {
 
 type WakuRLNRelayDynamicSuite struct {
 	suite.Suite
+
+	clientAddr string
 
 	backend     *ethclient.Client
 	chainID     *big.Int
@@ -54,7 +55,13 @@ type WakuRLNRelayDynamicSuite struct {
 }
 
 func (s *WakuRLNRelayDynamicSuite) SetupTest() {
-	backend, err := ethclient.Dial(ETH_CLIENT_ADDRESS)
+
+	s.clientAddr = os.Getenv("GANACHE_NETWORK_RPC_URL")
+	if s.clientAddr == "" {
+		s.clientAddr = "ws://localhost:8545"
+	}
+
+	backend, err := ethclient.Dial(s.clientAddr)
 	s.Require().NoError(err)
 
 	chainID, err := backend.ChainID(context.TODO())
@@ -131,7 +138,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	rt, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
 	s.Require().NoError(err)
 
-	gm, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	// initialize the WakuRLNRelay
@@ -232,7 +239,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	defer sub.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay, err := New(relay, gm, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
@@ -276,7 +283,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer sub1.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm1, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay1, err := New(relay1, gm1, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
@@ -302,7 +309,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer sub2.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm2, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u2PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay2, err := New(relay2, gm2, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
