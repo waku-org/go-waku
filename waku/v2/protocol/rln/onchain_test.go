@@ -4,14 +4,17 @@
 package rln
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	r "github.com/waku-org/go-zerokit-rln/rln"
+	"errors"
 	"math/big"
-	"sync"
 	"testing"
 	"time"
+
+	"github.com/waku-org/go-zerokit-rln/rln"
+	r "github.com/waku-org/go-zerokit-rln/rln"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,11 +24,15 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 const ETH_CLIENT_ADDRESS = "ws://localhost:8545"
+
+var MEMBERSHIP_FEE = big.NewInt(1000000000000000) // wei - 0.001 eth
 
 func TestWakuRLNRelayDynamicSuite(t *testing.T) {
 	suite.Run(t, new(WakuRLNRelayDynamicSuite))
@@ -83,7 +90,7 @@ func (s *WakuRLNRelayDynamicSuite) SetupTest() {
 	s.rlnContract = rlnContract
 }
 
-func (s *WakuRLNRelayDynamicSuite) register(privKey *ecdsa.PrivateKey, commitment *big.Int) {
+func (s *WakuRLNRelayDynamicSuite) register(privKey *ecdsa.PrivateKey, commitment *big.Int, handler func(evt *contracts.RLNMemberRegistered) error) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privKey, s.chainID)
 	s.Require().NoError(err)
 
@@ -92,8 +99,16 @@ func (s *WakuRLNRelayDynamicSuite) register(privKey *ecdsa.PrivateKey, commitmen
 
 	tx, err := s.rlnContract.Register(auth, commitment)
 	s.Require().NoError(err)
-	_, err = bind.WaitMined(context.TODO(), s.backend, tx)
+	receipt, err := bind.WaitMined(context.TODO(), s.backend, tx)
 	s.Require().NoError(err)
+
+	evt, err := s.rlnContract.ParseMemberRegistered(*receipt.Logs[0])
+	s.Require().NoError(err)
+
+	if handler != nil {
+		err = handler(evt)
+		s.Require().NoError(err)
+	}
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
@@ -101,62 +116,62 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
-	keyPair, err := rlnInstance.MembershipKeyGen()
+	port, err := tests.FindFreePort(s.T(), "", 5)
+	s.Require().NoError(err)
+
+	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	s.Require().NoError(err)
+
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay.SetHost(host)
+	err = relay.Start(context.TODO())
+	defer relay.Stop()
+	s.Require().NoError(err)
+
+	rt, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
+	s.Require().NoError(err)
+
+	gm, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	// initialize the WakuRLNRelay
-	rlnPeer := &WakuRLNRelay{
-		ctx:                       context.TODO(),
-		membershipIndex:           r.MembershipIndex(0),
-		membershipContractAddress: s.rlnAddr,
-		ethClientAddress:          ETH_CLIENT_ADDRESS,
-		ethAccountPrivateKey:      s.u1PrivKey,
-		RLN:                       rlnInstance,
-		log:                       utils.Logger(),
-		nullifierLog:              make(map[r.Epoch][]r.ProofMetadata),
-		membershipKeyPair:         keyPair,
+	rlnRelay := &WakuRLNRelay{
+		rootTracker:  rt,
+		groupManager: gm,
+		relay:        relay,
+		RLN:          rlnInstance,
+		log:          utils.Logger(),
+		nullifierLog: make(map[r.MerkleNode][]r.ProofMetadata),
 	}
 
 	// generate another membership key pair
 	keyPair2, err := rlnInstance.MembershipKeyGen()
 	s.Require().NoError(err)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	err = rlnRelay.Start(context.Background())
+	s.Require().NoError(err)
 
-	handler := func(pubkey r.IDCommitment, index r.MembershipIndex) error {
-		if pubkey == keyPair.IDCommitment || pubkey == keyPair2.IDCommitment {
-			wg.Done()
+	// register user
+	gm.Register(context.TODO())
+
+	handler := func(evt *contracts.RLNMemberRegistered) error {
+		pubkey := rln.Bytes32(evt.Pubkey.Bytes())
+		if !bytes.Equal(pubkey[:], keyPair2.IDCommitment[:]) {
+			return errors.New("not found")
 		}
 
 		return rlnInstance.InsertMember(pubkey)
 	}
 
-	errChan := make(chan error, 1)
+	// register member with contract
+	s.register(s.u2PrivKey, dynamic.ToBigInt(keyPair2.IDCommitment[:]), handler)
 
-	// mount the handler for listening to the contract events
-	go rlnPeer.HandleGroupUpdates(handler, errChan)
-
-	// Register first member
-	s.register(s.u1PrivKey, toBigInt(keyPair.IDCommitment[:]))
-
-	// Register second member
-	s.register(s.u2PrivKey, toBigInt(keyPair2.IDCommitment[:]))
-
-	wg.Wait()
-
-	timer1 := time.NewTimer(2 * time.Second)
-	select {
-	case <-timer1.C:
-		return
-	case err = <-errChan:
-		s.Require().NoError(err)
-	}
+	time.Sleep(2 * time.Second)
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestInsertKeyMembershipContract() {
 
-	s.register(s.u1PrivKey, big.NewInt(20))
+	s.register(s.u1PrivKey, big.NewInt(20), nil)
 
 	// Batch Register
 	auth, err := bind.NewKeyedTransactorWithChainID(s.u2PrivKey, s.chainID)
@@ -169,31 +184,6 @@ func (s *WakuRLNRelayDynamicSuite) TestInsertKeyMembershipContract() {
 	s.Require().NoError(err)
 
 	_, err = bind.WaitMined(context.TODO(), s.backend, tx)
-	s.Require().NoError(err)
-}
-
-func (s *WakuRLNRelayDynamicSuite) TestRegistrationProcedure() {
-	// Create a RLN instance
-	rlnInstance, err := r.NewRLN()
-	s.Require().NoError(err)
-
-	keyPair, err := rlnInstance.MembershipKeyGen()
-	s.Require().NoError(err)
-
-	// initialize the WakuRLNRelay
-	rlnPeer := &WakuRLNRelay{
-		ctx:                       context.TODO(),
-		membershipIndex:           r.MembershipIndex(0),
-		membershipContractAddress: s.rlnAddr,
-		ethClientAddress:          ETH_CLIENT_ADDRESS,
-		ethAccountPrivateKey:      s.u1PrivKey,
-		RLN:                       rlnInstance,
-		log:                       utils.Logger(),
-		nullifierLog:              make(map[r.Epoch][]r.ProofMetadata),
-		membershipKeyPair:         keyPair,
-	}
-
-	_, err = rlnPeer.Register(context.TODO())
 	s.Require().NoError(err)
 }
 
@@ -219,26 +209,40 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	s.Require().NoError(err)
 
 	// register the members to the contract
-	s.register(s.u1PrivKey, toBigInt(keyPair1.IDCommitment[:]))
-	s.register(s.u1PrivKey, toBigInt(keyPair2.IDCommitment[:]))
+	s.register(s.u1PrivKey, dynamic.ToBigInt(keyPair1.IDCommitment[:]), nil)
+	s.register(s.u1PrivKey, dynamic.ToBigInt(keyPair2.IDCommitment[:]), nil)
 
+	// Creating relay
 	port, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
-	host, err := tests.MakeHost(context.TODO(), port, rand.Reader)
+	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(host, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay.SetHost(host)
 	err = relay.Start(context.TODO())
-	s.Require().NoError(err)
 	defer relay.Stop()
+	s.Require().NoError(err)
+
+	// Subscribing to topic
 
 	sub, err := relay.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
 	s.Require().NoError(err)
 	defer sub.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay, err := RlnRelayDynamic(context.TODO(), relay, ETH_CLIENT_ADDRESS, nil, s.rlnAddr, keyPair1, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	s.Require().NoError(err)
+
+	rlnRelay, err := New(relay, gm, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	s.Require().NoError(err)
+
+	// PreRegistering the keypair
+	membershipIndex := rln.MembershipIndex(0)
+	gm.SetCredentials(keyPair1, &membershipIndex)
+
+	err = rlnRelay.Start(context.TODO())
 	s.Require().NoError(err)
 
 	// wait for the event to reach the group handler
@@ -258,46 +262,63 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	port1, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
-	host1, err := tests.MakeHost(context.TODO(), port1, rand.Reader)
+	host1, err := tests.MakeHost(context.Background(), port1, rand.Reader)
 	s.Require().NoError(err)
 
-	relay1 := relay.NewWakuRelay(host1, nil, 0, timesource.NewDefaultClock(), utils.Logger())
-	relay1.Start(context.TODO())
-	s.Require().NoError(err)
+	relay1 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay1.SetHost(host1)
+	err = relay1.Start(context.TODO())
 	defer relay1.Stop()
+	s.Require().NoError(err)
 
 	sub1, err := relay1.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
 	s.Require().NoError(err)
 	defer sub1.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay1, err := RlnRelayDynamic(context.TODO(), relay1, ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
+	gm1, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	s.Require().NoError(err)
+
+	rlnRelay1, err := New(relay1, gm1, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	s.Require().NoError(err)
+	err = rlnRelay1.Start(context.TODO())
 	s.Require().NoError(err)
 
 	// Node 2 ============================================================
 	port2, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
-	host2, err := tests.MakeHost(context.TODO(), port2, rand.Reader)
+	host2, err := tests.MakeHost(context.Background(), port2, rand.Reader)
 	s.Require().NoError(err)
 
-	relay2 := relay.NewWakuRelay(host2, nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay2 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay2.SetHost(host2)
 	err = relay2.Start(context.TODO())
-	s.Require().NoError(err)
 	defer relay2.Stop()
+	s.Require().NoError(err)
 
 	sub2, err := relay2.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
 	s.Require().NoError(err)
 	defer sub2.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rlnRelay2, err := RlnRelayDynamic(context.TODO(), relay2, ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, nil, r.MembershipIndex(0), RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
+	gm2, err := dynamic.NewDynamicGroupManager(ETH_CLIENT_ADDRESS, s.u2PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	s.Require().NoError(err)
+
+	rlnRelay2, err := New(relay2, gm2, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	s.Require().NoError(err)
+	err = rlnRelay2.Start(context.TODO())
 	s.Require().NoError(err)
 
 	// ==================================
 	// the two nodes should be registered into the contract
 	// since nodes are spun up sequentially
 	// the first node has index 0 whereas the second node gets index 1
-	s.Require().Equal(r.MembershipIndex(0), rlnRelay1.membershipIndex)
-	s.Require().Equal(r.MembershipIndex(1), rlnRelay2.membershipIndex)
+	idx1, err := rlnRelay1.groupManager.MembershipIndex()
+	s.Require().NoError(err)
+	idx2, err := rlnRelay2.groupManager.MembershipIndex()
+	s.Require().NoError(err)
+
+	s.Require().Equal(r.MembershipIndex(0), idx1)
+	s.Require().Equal(r.MembershipIndex(1), idx2)
 }

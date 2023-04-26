@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func toBigInt(i []byte) *big.Int {
+func ToBigInt(i []byte) *big.Int {
 	result := new(big.Int)
 	result.SetBytes(i[:])
 	return result
@@ -34,7 +34,7 @@ func register(ctx context.Context, backend *ethclient.Client, membershipFee *big
 	log.Debug("registering an id commitment", zap.Binary("idComm", idComm[:]))
 
 	// registers the idComm  into the membership contract whose address is in rlnPeer.membershipContractAddress
-	tx, err := rlnContract.Register(auth, toBigInt(idComm[:]))
+	tx, err := rlnContract.Register(auth, ToBigInt(idComm[:]))
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (gm *DynamicGroupManager) getEvents(ctx context.Context, from uint64, to *u
 			return nil, err
 		}
 
-		blockNumber := block.Number().Uint64() - 50 // Keep a buffer to retrieve latest block
+		blockNumber := block.Number().Uint64()
 		toBlock = &blockNumber
 	}
 
@@ -221,6 +221,8 @@ func (gm *DynamicGroupManager) getEvents(ctx context.Context, from uint64, to *u
 
 		results = append(results, evts...)
 
+		currentBlockNum = end
+
 		if batchSize < maxBatchSize {
 			// update the batchSize with additive increase
 			batchSize = batchSize + additiveFactor
@@ -228,15 +230,6 @@ func (gm *DynamicGroupManager) getEvents(ctx context.Context, from uint64, to *u
 				batchSize = maxBatchSize
 			}
 		}
-	}
-
-	if to == nil {
-		evts, err := gm.fetchEvents(ctx, *toBlock, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, evts...)
 	}
 
 	return results, nil
