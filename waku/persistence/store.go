@@ -290,7 +290,7 @@ func (d *DBStore) Put(env *protocol.Envelope) error {
 		return err
 	}
 	ellapsed := time.Since(start)
-	stats.Record(metrics.ArchiveInsertDurationSeconds.M(int64(ellapsed.Seconds())))
+	stats.Record(context.Background(), metrics.ArchiveInsertDurationSeconds.M(int64(ellapsed.Seconds())))
 
 	err = stmt.Close()
 	if err != nil {
@@ -411,7 +411,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 		return nil, nil, err
 	}
 	ellapsed := time.Since(measurementStart)
-	stats.Record(metrics.ArchiveQueryDurationSeconds.M(int64(ellapsed.Seconds())))
+	stats.Record(context.Background(), metrics.ArchiveQueryDurationSeconds.M(int64(ellapsed.Seconds())))
 
 	var result []StoredMessage
 	for rows.Next() {
