@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
+	"github.com/waku-org/go-waku/waku/cliutils"
 )
 
 // DiscV5Options are settings to enable a modified version of Ethereum’s Node
@@ -24,6 +25,7 @@ type DiscV5Options struct {
 type RelayOptions struct {
 	Enable                 bool
 	Topics                 cli.StringSlice
+	ProtectedTopics        []cliutils.ProtectedTopic
 	PeerExchange           bool
 	MinRelayPeersToPublish int
 }
