@@ -300,6 +300,11 @@ func Execute(options Options) {
 			failOnErr(err, "Error subscring to topic")
 			wakuNode.Broadcaster().Unregister(&nodeTopic, sub.C)
 		}
+
+		for _, protectedTopic := range options.Relay.ProtectedTopics {
+			err := wakuNode.Relay().AddSignedTopicValidator(protectedTopic.Topic, protectedTopic.PublicKey)
+			failOnErr(err, "Error adding signed topic validator")
+		}
 	}
 
 	for _, n := range options.StaticNodes {

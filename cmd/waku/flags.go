@@ -206,6 +206,14 @@ var (
 		Destination: &options.Relay.Topics,
 		EnvVars:     []string{"WAKUNODE2_TOPICS"},
 	})
+	ProtectedTopics = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
+		Name:    "protected-topic",
+		Usage:   "Topics and its public key to be used for message validation, topic:pubkey. Argument may be repeated.",
+		EnvVars: []string{"WAKUNODE2_PROTECTED_TOPIC"},
+		Value: &cliutils.ProtectedTopicSlice{
+			Values: &options.Relay.ProtectedTopics,
+		},
+	})
 	RelayPeerExchange = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "relay-peer-exchange",
 		Value:       false,

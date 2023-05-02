@@ -45,6 +45,7 @@ func main() {
 		AgentString,
 		Relay,
 		Topics,
+		ProtectedTopics,
 		RelayPeerExchange,
 		MinRelayPeersToPublish,
 		StoreNodeFlag,

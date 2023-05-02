@@ -21,9 +21,10 @@ func MsgHash(pubSubTopic string, msg *pb.WakuMessage) []byte {
 	return hash.SHA256([]byte(pubSubTopic), msg.Payload, []byte(msg.ContentTopic))
 }
 
-func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
-	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
-	err := w.pubsub.RegisterTopicValidator(topic, func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
+type validatorFn = func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
+
+func validatorFnBuilder(topic string, publicKey *ecdsa.PublicKey) validatorFn {
+	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
 		err := proto.Unmarshal(message.Data, msg)
 		if err != nil {
@@ -34,11 +35,16 @@ func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.Publi
 		signature := msg.Meta
 
 		return ecdsa.VerifyASN1(publicKey, msgHash, signature)
-	})
+	}
+}
+
+func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
+	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
+	err := w.pubsub.RegisterTopicValidator(topic, validatorFnBuilder(topic, publicKey))
 	return err
 }
 
-func (w *WakuRelay) SignMessage(privKey *ecdsa.PrivateKey, topic string, msg *pb.WakuMessage) error {
+func SignMessage(privKey *ecdsa.PrivateKey, topic string, msg *pb.WakuMessage) error {
 	msgHash := MsgHash(topic, msg)
 	sign, err := ecdsa.SignASN1(rand.Reader, privKey, msgHash)
 	if err != nil {
