@@ -2,7 +2,6 @@ package relay
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -232,7 +231,7 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 
 	hash := message.Hash(topic)
 
-	w.log.Debug("waku.relay published", zap.String("hash", hex.EncodeToString(hash)))
+	w.log.Debug("waku.relay published", zap.String("pubsubTopic", topic), logging.HexString("hash", hash), zap.Int64("publishTime", w.timesource.Now().UnixNano()), zap.Int("payloadSizeBytes", len(message.Payload)))
 
 	return hash, nil
 }
@@ -402,11 +401,12 @@ func (w *WakuRelay) subscribeToTopic(userCtx context.Context, pubsubTopic string
 				return
 			}
 
-			msgSizeInKb := len(wakuMessage.Payload) / 1000
-			stats.Record(ctx, metrics.Messages.M(1), metrics.MessageSize.M(int64(msgSizeInKb)))
+			payloadSizeInBytes := len(wakuMessage.Payload)
+			payloadSizeInKb := payloadSizeInBytes / 1000
+			stats.Record(ctx, metrics.Messages.M(1), metrics.MessageSize.M(int64(payloadSizeInKb)))
 
 			envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
-			w.log.Debug("waku.relay received", logging.HexString("hash", envelope.Hash()))
+			w.log.Debug("waku.relay received", zap.String("pubsubTopic", pubsubTopic), logging.HexString("hash", envelope.Hash()), zap.Int64("receivedTime", envelope.Index().ReceiverTime), zap.Int("payloadSizeBytes", payloadSizeInBytes))
 
 			if w.bcaster != nil {
 				w.bcaster.Submit(envelope)
