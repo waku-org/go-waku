@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/hex"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -24,6 +26,7 @@ func MsgHash(pubSubTopic string, msg *pb.WakuMessage) []byte {
 type validatorFn = func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
 
 func validatorFnBuilder(topic string, publicKey *ecdsa.PublicKey) validatorFn {
+	pubkBytes := crypto.FromECDSAPub(publicKey)
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
 		err := proto.Unmarshal(message.Data, msg)
@@ -34,7 +37,7 @@ func validatorFnBuilder(topic string, publicKey *ecdsa.PublicKey) validatorFn {
 		msgHash := MsgHash(topic, msg)
 		signature := msg.Meta
 
-		return ecdsa.VerifyASN1(publicKey, msgHash, signature)
+		return secp256k1.VerifySignature(pubkBytes, msgHash, signature)
 	}
 }
 
@@ -46,11 +49,11 @@ func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.Publi
 
 func SignMessage(privKey *ecdsa.PrivateKey, topic string, msg *pb.WakuMessage) error {
 	msgHash := MsgHash(topic, msg)
-	sign, err := ecdsa.SignASN1(rand.Reader, privKey, msgHash)
+	sign, err := secp256k1.Sign(msgHash, crypto.FromECDSA(privKey))
 	if err != nil {
 		return err
 	}
 
-	msg.Meta = sign
+	msg.Meta = sign[0:64] // Drop the V in R||S||V
 	return nil
 }
