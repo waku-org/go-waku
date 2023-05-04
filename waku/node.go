@@ -207,7 +207,7 @@ func Execute(options Options) {
 						discAddresses = append(discAddresses, n.Addresses...)
 					}
 					logger.Info("found dns entries ", logging.MultiAddrs("nodes", discAddresses...))
-					discoveredNodes = nodes
+					discoveredNodes = append(discoveredNodes, nodes...)
 				}
 			}
 		} else {
