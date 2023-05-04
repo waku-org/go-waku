@@ -255,6 +255,9 @@ func evaluateNode(node *enode.Node) bool {
 	return true
 }
 
+// get random nodes from DHT via discv5 listender
+// used for caching enr address in peerExchange
+// used for connecting to peers in discovery_connector
 func (d *DiscoveryV5) Iterator() (enode.Iterator, error) {
 	if d.listener == nil {
 		return nil, ErrNoDiscV5Listener
