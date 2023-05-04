@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
@@ -133,6 +132,13 @@ func (w *WakuRelay) Topics() []string {
 	return result
 }
 
+func (w *WakuRelay) IsSubscribed(topic string) bool {
+	defer w.topicsMutex.Unlock()
+	w.topicsMutex.Lock()
+	_, ok := w.relaySubs[topic]
+	return ok
+}
+
 // SetPubSub is used to set an implementation of the pubsub system
 func (w *WakuRelay) SetPubSub(pubSub *pubsub.PubSub) {
 	w.pubsub = pubSub
@@ -154,6 +160,7 @@ func (w *WakuRelay) upsertTopic(topic string) (*pubsub.Topic, error) {
 	return pubSubTopic, nil
 }
 
+/*
 func (w *WakuRelay) validatorFactory(pubsubTopic string) func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
@@ -161,6 +168,7 @@ func (w *WakuRelay) validatorFactory(pubsubTopic string) func(ctx context.Contex
 		return err == nil
 	}
 }
+*/
 
 func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err error) {
 	sub, ok := w.relaySubs[topic]
@@ -170,10 +178,14 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 			return nil, err
 		}
 
-		err = w.pubsub.RegisterTopicValidator(topic, w.validatorFactory(topic))
-		if err != nil {
-			return nil, err
-		}
+		/*
+					// TODO: Add a function to validate the WakuMessage integrity
+			   		// Rejects messages that are not WakuMessage
+					err = w.pubsub.RegisterTopicValidator(topic, w.validatorFactory(topic))
+					if err != nil {
+						return nil, err
+					}
+		*/
 
 		sub, err = pubSubTopic.Subscribe()
 		if err != nil {

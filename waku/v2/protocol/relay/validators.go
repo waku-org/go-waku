@@ -44,7 +44,15 @@ func validatorFnBuilder(topic string, publicKey *ecdsa.PublicKey) validatorFn {
 func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
 	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
 	err := w.pubsub.RegisterTopicValidator(topic, validatorFnBuilder(topic, publicKey))
-	return err
+	if err != nil {
+		return err
+	}
+
+	if !w.IsSubscribed(topic) {
+		w.log.Warn("relay is not subscribed to signed topic", zap.String("topic", topic))
+	}
+
+	return nil
 }
 
 func SignMessage(privKey *ecdsa.PrivateKey, topic string, msg *pb.WakuMessage) error {
