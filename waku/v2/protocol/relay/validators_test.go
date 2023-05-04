@@ -11,6 +11,8 @@ import (
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,6 +27,7 @@ func TestMsgHash(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      payload,
 		ContentTopic: contentTopic,
+		Timestamp:    utils.GetUnixEpoch(timesource.NewDefaultClock()),
 	}
 
 	err := SignMessage(prvKey, pubsubTopic, msg)
