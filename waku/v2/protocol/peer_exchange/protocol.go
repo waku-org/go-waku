@@ -42,7 +42,6 @@ type WakuPeerExchange struct {
 	wg            sync.WaitGroup
 	peerConnector PeerConnector
 	enrCache      *enrCache
-	enrCacheMutex sync.RWMutex
 }
 
 type PeerConnector interface {
