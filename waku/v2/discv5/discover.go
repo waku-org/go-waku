@@ -38,7 +38,7 @@ type DiscoveryV5 struct {
 
 	log *zap.Logger
 
-	started int32
+	started atomic.Bool
 	cancel  context.CancelFunc
 	wg      *sync.WaitGroup
 }
@@ -171,7 +171,7 @@ func (d *DiscoveryV5) SetHost(h host.Host) {
 func (d *DiscoveryV5) Start(ctx context.Context) error {
 	// compare and swap sets the discovery v5 to `started` state
 	// and prevents multiple calls to the start method by being atomic.
-	if !atomic.CompareAndSwapInt32(&d.started, 0, 1) {
+	if !d.started.CompareAndSwap(false, true) {
 		return nil
 	}
 
@@ -203,7 +203,7 @@ func (d *DiscoveryV5) SetBootnodes(nodes []*enode.Node) error {
 // only works if the discovery v5 is in running state
 // so we can assume that cancel method is set
 func (d *DiscoveryV5) Stop() {
-	if !atomic.CompareAndSwapInt32(&d.started, 1, 0) { // if Discoveryv5 is running, set started to 0
+	if !d.started.CompareAndSwap(true, false) { // if Discoveryv5 is running, set started to false
 		return
 	}
 	d.cancel()
@@ -325,5 +325,5 @@ restartLoop:
 }
 
 func (d *DiscoveryV5) IsStarted() bool {
-	return atomic.LoadInt32(&d.started) == 1
+	return d.started.Load()
 }
