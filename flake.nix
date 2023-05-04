@@ -1,7 +1,7 @@
 {
   description = "Nix flake for Go implementaion of Waku v2 node.";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-22.11;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/master;
 
   outputs = { self, nixpkgs }:
     let
@@ -51,7 +51,7 @@
           inputsFrom = [ packages.${system}.node ];
           buildInputs = with pkgs; [ golangci-lint ];
           nativeBuildInputs = lib.optional stdenv.isDarwin [
-            (pkgs.xcodeenv.composeXcodeWrapper { version = "14.2"; })
+            (pkgs.xcodeenv.composeXcodeWrapper { version = "14.2"; allowHigher = true; })
           ];
         };
 
