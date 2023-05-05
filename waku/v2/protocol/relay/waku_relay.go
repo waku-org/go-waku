@@ -174,8 +174,10 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 			return nil, err
 		}
 		w.relaySubs[topic] = sub
-		w.wg.Add(1)
-		go w.subscribeToTopic(topic, sub)
+		if w.bcaster != nil {
+			w.wg.Add(1)
+			go w.subscribeToTopic(topic, sub)
+		}
 		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
 	}
 
