@@ -44,14 +44,16 @@ pipeline {
       } } }
     }
 
-    stage('Ganache') { steps { script {
-      ganache = docker.image(
-        'trufflesuite/ganache:v7.4.1'
-      ).run(
-        ["-p 127.0.0.1:${env.GANACHE_RPC_PORT}:8545"].join(' '),
-        ["-m='${GANACHE_MNEMONIC}'"].join(' ')
-      )
-    } } }
+    stage('Ganache') {
+      steps { script {
+        ganache = docker.image(
+          'trufflesuite/ganache:v7.4.1'
+        ).run(
+          "-p 127.0.0.1:${env.GANACHE_RPC_PORT}:8545",
+          "-m='${GANACHE_MNEMONIC}'"
+        )
+      } }
+    }
 
     stage('On-chain tests') {
       environment {
@@ -68,6 +70,11 @@ pipeline {
     } }
     success { script { github.notifyPR(true) } }
     failure { script { github.notifyPR(false) } }
-    cleanup { cleanWs() }
+    cleanup { script {
+      cleanWs()
+      catchError {
+        ganache.stop()
+      }
+    } }
   }
 }
