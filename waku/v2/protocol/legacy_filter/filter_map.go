@@ -49,6 +49,11 @@ func (fm *FilterMap) Delete(key string) {
 	fm.Lock()
 	defer fm.Unlock()
 
+	_, ok := fm.items[key]
+	if !ok {
+		return
+	}
+
 	close(fm.items[key].Chan)
 	delete(fm.items, key)
 }

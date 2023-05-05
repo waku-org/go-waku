@@ -440,7 +440,7 @@ func (wf *WakuFilter) UnsubscribeFilterByID(ctx context.Context, filterID string
 // the contentTopics are removed the subscription is dropped completely
 func (wf *WakuFilter) UnsubscribeFilter(ctx context.Context, cf ContentFilter) error {
 	// Remove local filter
-	var idsToRemove []string
+	idsToRemove := make(map[string]struct{})
 	for filterMapItem := range wf.filters.Items() {
 		f := filterMapItem.Value
 		id := filterMapItem.Key
@@ -469,12 +469,12 @@ func (wf *WakuFilter) UnsubscribeFilter(ctx context.Context, cf ContentFilter) e
 
 			}
 			if len(f.ContentFilters) == 0 {
-				idsToRemove = append(idsToRemove, id)
+				idsToRemove[id] = struct{}{}
 			}
 		}
 	}
 
-	for _, rId := range idsToRemove {
+	for rId := range idsToRemove {
 		wf.filters.Delete(rId)
 	}
 
