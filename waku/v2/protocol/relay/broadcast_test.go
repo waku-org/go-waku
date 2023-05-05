@@ -90,3 +90,14 @@ func TestBroadcastUnregisterSub(t *testing.T) {
 	b.Stop() // it automatically unregister/unsubscribe all
 	require.Nil(t, <-specificSub.Ch)
 }
+
+func TestBroadcastNoOneListening(t *testing.T) {
+	b := NewBroadcaster(100)
+	require.NoError(t, b.Start(context.Background()))
+	_ = b.RegisterForAll() // no one listening on channel
+	//
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
+	b.Submit(env)
+	b.Submit(env)
+	b.Stop()
+}
