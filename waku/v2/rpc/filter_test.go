@@ -39,7 +39,6 @@ func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
 		go func() {
 			for range sub.Ch {
 			}
-			fmt.Println("stuck")
 		}()
 		require.NoError(t, err)
 	}

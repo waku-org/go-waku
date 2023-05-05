@@ -59,6 +59,9 @@ func TestRelaySubscription(t *testing.T) {
 	go d.Start(context.Background())
 	defer d.Stop()
 
+	// Wait for node to start
+	time.Sleep(500 * time.Millisecond)
+
 	topics := []string{"test"}
 	topicsJSONBytes, err := json.Marshal(topics)
 	require.NoError(t, err)
