@@ -46,10 +46,6 @@ type WakuRelay struct {
 	wakuRelayTopics map[string]*pubsub.Topic
 	relaySubs       map[string]*pubsub.Subscription
 
-	// TODO: convert to concurrent maps
-	subscriptions      map[string][]*Subscription
-	subscriptionsMutex sync.Mutex
-
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -65,7 +61,6 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
 	w.relaySubs = make(map[string]*pubsub.Subscription)
-	w.subscriptions = make(map[string][]*Subscription)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
 	w.wg = sync.WaitGroup{}
@@ -240,16 +235,6 @@ func (w *WakuRelay) Stop() {
 
 	w.cancel()
 	w.wg.Wait()
-
-	w.subscriptionsMutex.Lock()
-	defer w.subscriptionsMutex.Unlock()
-
-	for _, topic := range w.Topics() {
-		for _, sub := range w.subscriptions[topic] {
-			sub.Unsubscribe()
-		}
-	}
-	w.subscriptions = nil
 }
 
 // EnoughPeersToPublish returns whether there are enough peers connected in the default waku pubsub topic
@@ -294,10 +279,6 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {
 	}
 	w.log.Info("unsubscribing from topic", zap.String("topic", sub.Topic()))
 
-	for _, sub := range w.subscriptions[topic] {
-		sub.Unsubscribe()
-	}
-
 	w.relaySubs[topic].Cancel()
 	delete(w.relaySubs, topic)
 
@@ -321,9 +302,6 @@ func (w *WakuRelay) nextMessage(ctx context.Context, sub *pubsub.Subscription) <
 					w.log.Error("getting message from subscription", zap.Error(err))
 				}
 				sub.Cancel()
-				for _, subscription := range w.subscriptions[sub.Topic()] {
-					subscription.Unsubscribe()
-				}
 				return
 			}
 			msgChannel <- msg

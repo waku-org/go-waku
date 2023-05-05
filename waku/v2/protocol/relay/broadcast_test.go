@@ -88,5 +88,5 @@ func TestBroadcastUnregisterSub(t *testing.T) {
 	// msg on subForAll
 	require.Equal(t, env, <-subForAll.Ch)
 	b.Stop() // it automatically unregister/unsubscribe all
-	require.Equal(t, nil, <-specificSub.Ch)
+	require.Nil(t, <-specificSub.Ch)
 }

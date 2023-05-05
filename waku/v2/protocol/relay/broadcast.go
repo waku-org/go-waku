@@ -3,6 +3,7 @@ package relay
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -53,7 +54,10 @@ func (s *chStore) getNewCh(topic string, chLen int) Subscription {
 func (s *chStore) broadcast(m *protocol.Envelope) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	fmt.Println(m)
+	fmt.Println(s.topicToChans, "msg")
 	for _, ch := range s.topicToChans[m.PubsubTopic()] {
+		fmt.Println(m.PubsubTopic())
 		ch <- m
 	}
 	// send to all registered subscribers
@@ -118,8 +122,10 @@ func (b *broadcaster) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case msg := <-b.input:
-			b.chStore.broadcast(msg)
+		case msg, ok := <-b.input:
+			if ok {
+				b.chStore.broadcast(msg)
+			}
 		}
 	}
 }

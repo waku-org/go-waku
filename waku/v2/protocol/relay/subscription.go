@@ -18,6 +18,9 @@ func NoopSubscription() Subscription {
 
 func ArraySubscription(msgs []*protocol.Envelope) Subscription {
 	ch := make(chan *protocol.Envelope, len(msgs))
+	for _, msg := range msgs {
+		ch <- msg
+	}
 	close(ch)
 	return Subscription{
 		Unsubscribe: func() {},
