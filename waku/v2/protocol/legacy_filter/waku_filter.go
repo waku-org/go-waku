@@ -393,7 +393,6 @@ func (wf *WakuFilter) Subscribe(ctx context.Context, f ContentFilter, opts ...Fi
 		ContentFilters: f.ContentTopics,
 		Chan:           make(chan *protocol.Envelope, 1024), // To avoid blocking
 	}
-
 	wf.filters.Set(filterID, theFilter)
 
 	return

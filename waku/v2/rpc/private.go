@@ -254,8 +254,8 @@ func (p *PrivateService) GetV1AsymmetricMessages(req *http.Request, args *Asymme
 		decodedMessages = append(decodedMessages, msg)
 	}
 
-	for i := range decodedMessages {
-		*reply = append(*reply, ProtoToRPC(decodedMessages[i]))
+	for _, msg := range decodedMessages {
+		*reply = append(*reply, ProtoToRPC(msg))
 	}
 
 	return nil

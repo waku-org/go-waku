@@ -35,7 +35,12 @@ func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
 	require.NoError(t, err)
 
 	if isFullNode {
-		_, err = n.Relay().SubscribeToTopic(context.Background(), testTopic)
+		sub, err := n.Relay().SubscribeToTopic(context.Background(), testTopic)
+		go func() {
+			for range sub.Ch {
+			}
+			fmt.Println("stuck")
+		}()
 		require.NoError(t, err)
 	}
 

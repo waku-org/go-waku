@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -94,9 +93,13 @@ func TestGetV1SymmetricMessages(t *testing.T) {
 	defer d.node.Stop()
 
 	// Subscribing topic to test getter
-	_, err := d.node.Relay().SubscribeToTopic(context.TODO(), "test")
+	sub, err := d.node.Relay().SubscribeToTopic(context.TODO(), "test")
 	require.NoError(t, err)
-	fmt.Println("here")
+	go func() {
+		for range sub.Ch {
+		}
+	}()
+
 	var reply SuccessReply
 	err = d.PostV1SymmetricMessage(
 		makeRequest(t),
@@ -123,6 +126,7 @@ func TestGetV1SymmetricMessages(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Len(t, getReply, 1)
+	d.Stop() // not neccessary as wakuNode.Stop() calls broadcaster.Stop() which calls uses all the receiving channels
 }
 
 func TestGetV1AsymmetricMessages(t *testing.T) {
@@ -131,8 +135,12 @@ func TestGetV1AsymmetricMessages(t *testing.T) {
 	defer d.node.Stop()
 
 	// Subscribing topic to test getter
-	_, err := d.node.Relay().SubscribeToTopic(context.TODO(), "test")
+	sub, err := d.node.Relay().SubscribeToTopic(context.TODO(), "test")
 	require.NoError(t, err)
+	go func() {
+		for range sub.Ch {
+		}
+	}()
 
 	prvKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
