@@ -259,7 +259,7 @@ func (w *WakuRelay) SubscribeToTopic(ctx context.Context, topic string) (*Subscr
 	// Create client subscription
 	subscription := NoopSubscription()
 	if w.bcaster != nil {
-		subscription = w.bcaster.Register(topic)
+		subscription = w.bcaster.Register(topic, 1024)
 	}
 	go func() {
 		<-ctx.Done()
