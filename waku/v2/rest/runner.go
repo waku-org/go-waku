@@ -32,7 +32,7 @@ func (r *runnerService) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case envelope, ok := <-r.sub.Ch:
-			if !ok {
+			if ok {
 				r.adder(envelope)
 			}
 		}

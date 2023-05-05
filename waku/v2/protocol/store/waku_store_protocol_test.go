@@ -35,7 +35,6 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
-	require.NoError(t, err)
 
 	// Simulate a message has been received via relay protocol
 	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
@@ -45,6 +44,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	require.NoError(t, err)
 	s2.SetHost(host2)
 	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -95,7 +96,7 @@ func TestGetV1SymmetricMessages(t *testing.T) {
 	// Subscribing topic to test getter
 	_, err := d.node.Relay().SubscribeToTopic(context.TODO(), "test")
 	require.NoError(t, err)
-
+	fmt.Println("here")
 	var reply SuccessReply
 	err = d.PostV1SymmetricMessage(
 		makeRequest(t),

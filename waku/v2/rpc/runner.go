@@ -21,7 +21,7 @@ func newRunnerService(broadcaster relay.Broadcaster, adder Adder) *runnerService
 }
 
 func (r *runnerService) Start() {
-	r.broadcaster.RegisterForAll(1024)
+	r.sub = r.broadcaster.RegisterForAll(1024)
 	for envelope := range r.sub.Ch {
 		r.adder(envelope)
 	}
