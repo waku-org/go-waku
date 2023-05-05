@@ -15,11 +15,11 @@ import (
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.opencensus.io/tag"
 	"go.uber.org/zap"
@@ -37,7 +37,7 @@ type WakuFilterLightnode struct {
 	cancel        context.CancelFunc
 	ctx           context.Context
 	h             host.Host
-	broadcaster   v2.Broadcaster
+	broadcaster   relay.Broadcaster
 	timesource    timesource.Timesource
 	wg            *sync.WaitGroup
 	log           *zap.Logger
@@ -55,7 +55,7 @@ type WakuFilterPushResult struct {
 }
 
 // NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterLightnode(broadcaster v2.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
+func NewWakuFilterLightnode(broadcaster relay.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
 	wf := new(WakuFilterLightnode)
 	wf.log = log.Named("filterv2-lightnode")
 	wf.broadcaster = broadcaster

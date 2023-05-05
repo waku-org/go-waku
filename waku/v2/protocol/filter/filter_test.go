@@ -12,13 +12,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-func makeWakuRelay(t *testing.T, topic string, broadcaster v2.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
+func makeWakuRelay(t *testing.T, topic string, broadcaster relay.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
@@ -43,7 +42,7 @@ func makeWakuFilterLightNode(t *testing.T) (*WakuFilterLightnode, host.Host) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	b := v2.NewBroadcaster(10)
+	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
 	filterPush := NewWakuFilterLightnode(b, timesource.NewDefaultClock(), utils.Logger())
 	filterPush.SetHost(host)
@@ -73,18 +72,17 @@ func TestWakuFilter(t *testing.T) {
 	node1, host1 := makeWakuFilterLightNode(t)
 	defer node1.Stop()
 
-	broadcaster := v2.NewBroadcaster(10)
+	broadcaster := relay.NewBroadcaster(10)
 	require.NoError(t, broadcaster.Start(context.Background()))
 	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilterFullnode(broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter := NewWakuFilterFullnode(timesource.NewDefaultClock(), utils.Logger())
 	node2Filter.SetHost(host2)
-	err := node2Filter.Start(ctx)
+	sub := broadcaster.Register(testTopic)
+	err := node2Filter.Start(ctx, sub)
 	require.NoError(t, err)
-
-	broadcaster.Register(&testTopic, node2Filter.MessageChannel())
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
 	err = host1.Peerstore().AddProtocols(host2.ID(), FilterSubscribeID_v20beta1)
@@ -163,15 +161,15 @@ func TestSubscriptionPing(t *testing.T) {
 	node1, host1 := makeWakuFilterLightNode(t)
 	defer node1.Stop()
 
-	broadcaster := v2.NewBroadcaster(10)
+	broadcaster := relay.NewBroadcaster(10)
 	require.NoError(t, broadcaster.Start(context.Background()))
 	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilterFullnode(broadcaster, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter := NewWakuFilterFullnode(timesource.NewDefaultClock(), utils.Logger())
 	node2Filter.SetHost(host2)
-	err := node2Filter.Start(ctx)
+	err := node2Filter.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
@@ -204,20 +202,19 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 
 	node1, host1 := makeWakuFilterLightNode(t)
 
-	broadcaster := v2.NewBroadcaster(10)
+	broadcaster := relay.NewBroadcaster(10)
 	require.NoError(t, broadcaster.Start(context.Background()))
 	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	broadcaster2 := v2.NewBroadcaster(10)
+	broadcaster2 := relay.NewBroadcaster(10)
 	require.NoError(t, broadcaster2.Start(context.Background()))
-	node2Filter := NewWakuFilterFullnode(broadcaster2, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(5*time.Second))
+	node2Filter := NewWakuFilterFullnode(timesource.NewDefaultClock(), utils.Logger(), WithTimeout(5*time.Second))
 	node2Filter.SetHost(host2)
-	err := node2Filter.Start(ctx)
+	sub := broadcaster.Register(testTopic)
+	err := node2Filter.Start(ctx, sub)
 	require.NoError(t, err)
-
-	broadcaster.Register(&testTopic, node2Filter.MessageChannel())
 
 	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
 	err = host1.Peerstore().AddProtocols(host2.ID(), FilterPushID_v20beta1)

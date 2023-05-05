@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -24,10 +25,6 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 
 	s1 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
-	require.NoError(t, err)
-
-	defer s1.Stop()
 
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
@@ -38,15 +35,18 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
-	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
 	// Simulate a message has been received via relay protocol
-	s1.MsgC <- protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)
+	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	err = s1.Start(ctx, sub)
+	require.NoError(t, err)
+	defer s1.Stop()
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -75,10 +75,6 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 
 	s1 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
-	require.NoError(t, err)
-
-	defer s1.Stop()
 
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
@@ -91,7 +87,10 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 	}
 
 	// Simulate a message has been received via relay protocol
-	s1.MsgC <- protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)
+	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	err = s1.Start(ctx, sub)
+	require.NoError(t, err)
+	defer s1.Stop()
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -116,8 +115,6 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	db := MemoryDB(t)
 	s1 := NewWakuStore(db, timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
-	require.NoError(t, err)
 
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
@@ -129,11 +126,15 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, now+4)
 	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
-	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1)
+	sub := relay.ArraySubscription([]*protocol.Envelope{
+		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1),
+	})
+	err = s1.Start(ctx, sub)
+	require.NoError(t, err)
 
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
@@ -144,7 +145,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -189,8 +190,6 @@ func TestWakuStoreResult(t *testing.T) {
 	db := MemoryDB(t)
 	s1 := NewWakuStore(db, timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
-	require.NoError(t, err)
 
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
@@ -202,11 +201,15 @@ func TestWakuStoreResult(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, now+4)
 	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
-	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1)
+	sub := relay.ArraySubscription([]*protocol.Envelope{
+		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1),
+	})
+	err = s1.Start(ctx, sub)
+	require.NoError(t, err)
 
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
@@ -217,7 +220,7 @@ func TestWakuStoreResult(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -277,9 +280,6 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 
 	s1 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
-	require.NoError(t, err)
-	defer s1.Stop()
 
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
@@ -295,15 +295,20 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	msg8 := tests.CreateWakuMessage(topic1, now+8)
 	msg9 := tests.CreateWakuMessage(topic1, now+9)
 
-	s1.MsgC <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg6, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg7, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg8, utils.GetUnixEpoch(), pubsubTopic1)
-	s1.MsgC <- protocol.NewEnvelope(msg9, utils.GetUnixEpoch(), pubsubTopic1)
+	sub := relay.ArraySubscription([]*protocol.Envelope{
+		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg6, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg7, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg8, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg9, utils.GetUnixEpoch(), pubsubTopic1),
+	})
+	err = s1.Start(ctx, sub)
+	require.NoError(t, err)
+	defer s1.Stop()
 
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
@@ -314,7 +319,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 	defer s2.Stop()
 

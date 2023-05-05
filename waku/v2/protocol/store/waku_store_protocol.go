@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
@@ -85,12 +86,11 @@ type MessageProvider interface {
 
 type Store interface {
 	SetHost(h host.Host)
-	Start(ctx context.Context) error
+	Start(context.Context, relay.Subscription) error
 	Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error)
 	Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error)
 	Next(ctx context.Context, r *Result) (*Result, error)
 	Resume(ctx context.Context, pubsubTopic string, peerList []peer.ID) (int, error)
-	MessageChannel() chan *protocol.Envelope
 	Stop()
 }
 
@@ -105,7 +105,7 @@ func (store *WakuStore) SetHost(h host.Host) {
 }
 
 // Start initializes the WakuStore by enabling the protocol and fetching records from a message provider
-func (store *WakuStore) Start(ctx context.Context) error {
+func (store *WakuStore) Start(ctx context.Context, sub relay.Subscription) error {
 	if store.started {
 		return nil
 	}
@@ -123,7 +123,7 @@ func (store *WakuStore) Start(ctx context.Context) error {
 
 	store.started = true
 	store.ctx, store.cancel = context.WithCancel(ctx)
-	store.MsgC = make(chan *protocol.Envelope, 1024)
+	store.MsgC = sub
 
 	store.h.SetStreamHandlerMatch(StoreID_v20beta4, protocol.PrefixTextMatch(string(StoreID_v20beta4)), store.onRequest)
 
@@ -158,7 +158,7 @@ func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
 
 func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
 	defer store.wg.Done()
-	for envelope := range store.MsgC {
+	for envelope := range store.MsgC.Ch {
 		go func(env *protocol.Envelope) {
 			_ = store.storeMessage(env)
 		}(envelope)
@@ -207,10 +207,6 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	}
 }
 
-func (store *WakuStore) MessageChannel() chan *protocol.Envelope {
-	return store.MsgC
-}
-
 // TODO: queryWithAccounting
 
 // Stop closes the store message channel and removes the protocol stream handler
@@ -223,9 +219,7 @@ func (store *WakuStore) Stop() {
 
 	store.started = false
 
-	if store.MsgC != nil {
-		close(store.MsgC)
-	}
+	store.MsgC.Unsubscribe()
 
 	if store.msgProvider != nil {
 		store.msgProvider.Stop() // TODO: StoreProtocol should not stop a message provider

@@ -4,8 +4,6 @@ import (
 	"context"
 
 	n "github.com/waku-org/go-noise"
-	v2 "github.com/waku-org/go-waku/waku/v2"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -18,15 +16,15 @@ type NoiseMessenger interface {
 }
 
 type contentTopicSubscription struct {
-	envChan chan *protocol.Envelope
-	msgChan chan *pb.WakuMessage
+	broadcastSub relay.Subscription
+	msgChan      chan *pb.WakuMessage
 }
 
 type NoiseWakuRelay struct {
 	NoiseMessenger
 	relay                         *relay.WakuRelay
 	relaySub                      *relay.Subscription
-	broadcaster                   v2.Broadcaster
+	broadcaster                   relay.Broadcaster
 	cancel                        context.CancelFunc
 	timesource                    timesource.Timesource
 	pubsubTopic                   string
@@ -53,7 +51,7 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 		relaySub:                      subs,
 		cancel:                        cancel,
 		timesource:                    timesource,
-		broadcaster:                   v2.NewBroadcaster(1024),
+		broadcaster:                   relay.NewBroadcaster(1024),
 		pubsubTopic:                   topic,
 		subscriptionChPerContentTopic: make(map[string][]contentTopicSubscription),
 	}
@@ -70,7 +68,7 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 				subs.Unsubscribe()
 				wr.broadcaster.Stop()
 				return
-			case envelope := <-subs.C:
+			case envelope := <-subs.Ch:
 				if envelope != nil {
 					wr.broadcaster.Submit(envelope)
 				}
@@ -83,11 +81,11 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 
 func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-chan *pb.WakuMessage {
 	sub := contentTopicSubscription{
-		envChan: make(chan *protocol.Envelope, 1024),
 		msgChan: make(chan *pb.WakuMessage, 1024),
 	}
 
-	r.broadcaster.Register(&r.pubsubTopic, sub.envChan)
+	broadcastSub := r.broadcaster.RegisterForAll(1024)
+	sub.broadcastSub = broadcastSub
 
 	subscriptionCh := r.subscriptionChPerContentTopic[contentTopic]
 	subscriptionCh = append(subscriptionCh, sub)
@@ -98,7 +96,7 @@ func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-c
 			select {
 			case <-ctx.Done():
 				return
-			case env := <-sub.envChan:
+			case env := <-sub.broadcastSub.Ch:
 				if env == nil {
 					return
 				}
@@ -138,7 +136,7 @@ func (r *NoiseWakuRelay) Stop() {
 	r.cancel()
 	for _, contentTopicSubscriptions := range r.subscriptionChPerContentTopic {
 		for _, c := range contentTopicSubscriptions {
-			close(c.envChan)
+			c.broadcastSub.Unsubscribe()
 			close(c.msgChan)
 		}
 	}

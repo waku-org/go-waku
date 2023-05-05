@@ -42,7 +42,7 @@ func TestBasicSendingReceiving(t *testing.T) {
 	sub, err := wakuNode.Relay().Subscribe(ctx)
 	require.NoError(t, err)
 
-	value := <-sub.C
+	value := <-sub.Ch
 	payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
 	require.NoError(t, err)
 

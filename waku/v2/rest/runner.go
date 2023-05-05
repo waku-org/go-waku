@@ -3,20 +3,20 @@ package rest
 import (
 	"context"
 
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 )
 
 type Adder func(msg *protocol.Envelope)
 
 type runnerService struct {
-	broadcaster v2.Broadcaster
-	ch          chan *protocol.Envelope
+	broadcaster relay.Broadcaster
+	sub         relay.Subscription
 	cancel      context.CancelFunc
 	adder       Adder
 }
 
-func newRunnerService(broadcaster v2.Broadcaster, adder Adder) *runnerService {
+func newRunnerService(broadcaster relay.Broadcaster, adder Adder) *runnerService {
 	return &runnerService{
 		broadcaster: broadcaster,
 		adder:       adder,
@@ -25,15 +25,16 @@ func newRunnerService(broadcaster v2.Broadcaster, adder Adder) *runnerService {
 
 func (r *runnerService) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
-	r.ch = make(chan *protocol.Envelope, 1024)
 	r.cancel = cancel
-	r.broadcaster.Register(nil, r.ch)
+	r.sub = r.broadcaster.RegisterForAll(1024)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case envelope := <-r.ch:
-			r.adder(envelope)
+		case envelope, ok := <-r.sub.Ch:
+			if !ok {
+				r.adder(envelope)
+			}
 		}
 	}
 }
@@ -42,7 +43,6 @@ func (r *runnerService) Stop() {
 	if r.cancel == nil {
 		return
 	}
+	r.sub.Unsubscribe()
 	r.cancel()
-	r.broadcaster.Unregister(nil, r.ch)
-	close(r.ch)
 }

@@ -13,7 +13,6 @@ import (
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
@@ -53,7 +52,7 @@ type (
 		cancel     context.CancelFunc
 		h          host.Host
 		isFullNode bool
-		msgC       chan *protocol.Envelope
+		msgSub     relay.Subscription
 		wg         *sync.WaitGroup
 		log        *zap.Logger
 
@@ -66,7 +65,7 @@ type (
 const FilterID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter/2.0.0-beta1")
 
 // NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilter(broadcaster v2.Broadcaster, isFullNode bool, timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilter {
+func NewWakuFilter(broadcaster relay.Broadcaster, isFullNode bool, timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilter {
 	wf := new(WakuFilter)
 	wf.log = log.Named("filter").With(zap.Bool("fullNode", isFullNode))
 
@@ -90,7 +89,7 @@ func (wf *WakuFilter) SetHost(h host.Host) {
 	wf.h = h
 }
 
-func (wf *WakuFilter) Start(ctx context.Context) error {
+func (wf *WakuFilter) Start(ctx context.Context, sub relay.Subscription) error {
 	wf.wg.Wait() // Wait for any goroutines to stop
 
 	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
@@ -104,7 +103,7 @@ func (wf *WakuFilter) Start(ctx context.Context) error {
 	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(ctx))
 
 	wf.cancel = cancel
-	wf.msgC = make(chan *protocol.Envelope, 1024)
+	wf.msgSub = sub
 
 	wf.wg.Add(1)
 	go wf.filterListener(ctx)
@@ -239,7 +238,7 @@ func (wf *WakuFilter) filterListener(ctx context.Context) {
 		return g.Wait()
 	}
 
-	for m := range wf.msgC {
+	for m := range wf.msgSub.Ch {
 		if err := handle(m); err != nil {
 			wf.log.Error("handling message", zap.Error(err))
 		}
@@ -362,7 +361,7 @@ func (wf *WakuFilter) Stop() {
 
 	wf.cancel()
 
-	close(wf.msgC)
+	wf.msgSub.Unsubscribe()
 
 	wf.h.RemoveStreamHandler(FilterID_v20beta1)
 	wf.filters.RemoveAll()
@@ -479,8 +478,4 @@ func (wf *WakuFilter) UnsubscribeFilter(ctx context.Context, cf ContentFilter) e
 	}
 
 	return nil
-}
-
-func (wf *WakuFilter) MessageChannel() chan *protocol.Envelope {
-	return wf.msgC
 }

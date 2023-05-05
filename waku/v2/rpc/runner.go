@@ -1,43 +1,32 @@
 package rpc
 
 import (
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 )
 
 type Adder func(msg *protocol.Envelope)
 
 type runnerService struct {
-	broadcaster v2.Broadcaster
-	ch          chan *protocol.Envelope
-	quit        chan bool
+	broadcaster relay.Broadcaster
+	sub         relay.Subscription
 	adder       Adder
 }
 
-func newRunnerService(broadcaster v2.Broadcaster, adder Adder) *runnerService {
+func newRunnerService(broadcaster relay.Broadcaster, adder Adder) *runnerService {
 	return &runnerService{
 		broadcaster: broadcaster,
-		quit:        make(chan bool),
 		adder:       adder,
 	}
 }
 
 func (r *runnerService) Start() {
-	r.ch = make(chan *protocol.Envelope, 1024)
-	r.broadcaster.Register(nil, r.ch)
-
-	for {
-		select {
-		case <-r.quit:
-			return
-		case envelope := <-r.ch:
-			r.adder(envelope)
-		}
+	r.broadcaster.RegisterForAll(1024)
+	for envelope := range r.sub.Ch {
+		r.adder(envelope)
 	}
 }
 
 func (r *runnerService) Stop() {
-	r.quit <- true
-	r.broadcaster.Unregister(nil, r.ch)
-	close(r.ch)
+	r.sub.Unsubscribe()
 }

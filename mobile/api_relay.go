@@ -98,7 +98,7 @@ func relaySubscribe(topic string) error {
 	relaySubscriptions[topicToSubscribe] = subscription
 
 	go func(subscription *relay.Subscription) {
-		for envelope := range subscription.C {
+		for envelope := range subscription.Ch {
 			send("message", toSubscriptionMessage(envelope))
 		}
 	}(subscription)

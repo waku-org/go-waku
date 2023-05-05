@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -45,7 +46,7 @@ func TestResume(t *testing.T) {
 
 	s1 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
+	err = s1.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 
 	defer s1.Stop()
@@ -67,7 +68,7 @@ func TestResume(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -105,7 +106,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 
 	s1 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
+	err = s1.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 
 	defer s1.Stop()
@@ -119,7 +120,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -146,7 +147,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 
 	s1 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s1.SetHost(host1)
-	err = s1.Start(ctx)
+	err = s1.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 
 	defer s1.Stop()
@@ -160,7 +161,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx)
+	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
 
 	defer s2.Stop()

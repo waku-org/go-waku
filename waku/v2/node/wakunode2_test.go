@@ -116,7 +116,7 @@ func Test500(t *testing.T) {
 			select {
 			case <-ticker.C:
 				require.Fail(t, "Timeout Sub1")
-			case msg := <-sub1.C:
+			case msg := <-sub1.Ch:
 				if msg == nil {
 					return
 				}
@@ -137,7 +137,7 @@ func Test500(t *testing.T) {
 			select {
 			case <-ticker.C:
 				require.Fail(t, "Timeout Sub2")
-			case msg := <-sub2.C:
+			case msg := <-sub2.Ch:
 				if msg == nil {
 					return
 				}

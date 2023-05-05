@@ -37,9 +37,9 @@ func TestGetMessages(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic1, now+2)
 	msg3 := tests.CreateWakuMessage(topic1, now+3)
 
-	node1.Store().MessageChannel() <- protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1)
-	node1.Store().MessageChannel() <- protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1)
-	node1.Store().MessageChannel() <- protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1)
+	node1.Broadcaster().Submit(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1))
+	node1.Broadcaster().Submit(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1))
+	node1.Broadcaster().Submit(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1))
 
 	n1HostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", node1.Host().ID().Pretty()))
 	n1Addr := node1.ListenAddresses()[0].Encapsulate(n1HostInfo)

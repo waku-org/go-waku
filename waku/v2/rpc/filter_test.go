@@ -10,7 +10,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
@@ -50,7 +49,7 @@ func TestFilterSubscription(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	b := v2.NewBroadcaster(10)
+	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
 	node := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), utils.Logger())
 	node.SetHost(host)
@@ -60,11 +59,11 @@ func TestFilterSubscription(t *testing.T) {
 	_, err = node.SubscribeToTopic(context.Background(), testTopic)
 	require.NoError(t, err)
 
-	b2 := v2.NewBroadcaster(10)
+	b2 := relay.NewBroadcaster(10)
 	require.NoError(t, b2.Start(context.Background()))
 	f := legacy_filter.NewWakuFilter(b2, false, timesource.NewDefaultClock(), utils.Logger())
 	f.SetHost(host)
-	err = f.Start(context.Background())
+	err = f.Start(context.Background(), relay.NoopSubscription())
 	require.NoError(t, err)
 
 	d := makeFilterService(t, true)
