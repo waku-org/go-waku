@@ -11,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -26,7 +25,7 @@ func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscri
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	b := v2.NewBroadcaster(10)
+	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
 	relay := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), utils.Logger())
 	relay.SetHost(host)
@@ -101,15 +100,15 @@ func TestWakuLightPush(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		<-sub1.C
-		<-sub1.C
+		<-sub1.Ch
+		<-sub1.Ch
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		<-sub2.C
-		<-sub2.C
+		<-sub2.Ch
+		<-sub2.Ch
 	}()
 
 	// Verifying successful request

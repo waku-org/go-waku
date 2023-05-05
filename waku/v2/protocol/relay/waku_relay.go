@@ -16,7 +16,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/waku-org/go-waku/logging"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/hash"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
@@ -36,7 +35,7 @@ type WakuRelay struct {
 
 	log *zap.Logger
 
-	bcaster v2.Broadcaster
+	bcaster Broadcaster
 
 	minPeersToPublish int
 
@@ -59,7 +58,7 @@ func msgIdFn(pmsg *pubsub_pb.Message) string {
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
-func NewWakuRelay(bcaster v2.Broadcaster, minPeersToPublish int, timesource timesource.Timesource, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
+func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesource.Timesource, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
 	w := new(WakuRelay)
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
@@ -191,7 +190,8 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 			return nil, err
 		}
 		w.relaySubs[topic] = sub
-
+		w.wg.Add(1)
+		go w.subscribeToTopic(topic, sub)
 		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
 	}
 
@@ -275,30 +275,21 @@ func (w *WakuRelay) EnoughPeersToPublishToTopic(topic string) bool {
 
 // SubscribeToTopic returns a Subscription to receive messages from a pubsub topic
 func (w *WakuRelay) SubscribeToTopic(ctx context.Context, topic string) (*Subscription, error) {
-	sub, err := w.subscribe(topic)
+	_, err := w.subscribe(topic)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create client subscription
-	subscription := new(Subscription)
-	subscription.closed = false
-	subscription.C = make(chan *waku_proto.Envelope, 1024) // To avoid blocking
-	subscription.quit = make(chan struct{})
-
-	w.subscriptionsMutex.Lock()
-	defer w.subscriptionsMutex.Unlock()
-
-	w.subscriptions[topic] = append(w.subscriptions[topic], subscription)
-
+	subscription := NoopSubscription()
 	if w.bcaster != nil {
-		w.bcaster.Register(&topic, subscription.C)
+		subscription = w.bcaster.Register(topic)
 	}
-
-	w.wg.Add(1)
-	go w.subscribeToTopic(ctx, topic, subscription, sub)
-
-	return subscription, nil
+	go func() {
+		<-ctx.Done()
+		subscription.Unsubscribe()
+	}()
+	return &subscription, nil
 }
 
 // SubscribeToTopic returns a Subscription to receive messages from the default waku pubsub topic
@@ -332,34 +323,27 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {
 
 func (w *WakuRelay) nextMessage(ctx context.Context, sub *pubsub.Subscription) <-chan *pubsub.Message {
 	msgChannel := make(chan *pubsub.Message, 1024)
-	go func(msgChannel chan *pubsub.Message) {
-		defer func() {
-			if r := recover(); r != nil {
-				w.log.Debug("recovered msgChannel")
-			}
-		}()
-
+	go func() {
+		defer close(msgChannel)
 		for {
 			msg, err := sub.Next(ctx)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
 					w.log.Error("getting message from subscription", zap.Error(err))
 				}
-
 				sub.Cancel()
-				close(msgChannel)
 				for _, subscription := range w.subscriptions[sub.Topic()] {
 					subscription.Unsubscribe()
 				}
+				return
 			}
-
 			msgChannel <- msg
 		}
-	}(msgChannel)
+	}()
 	return msgChannel
 }
 
-func (w *WakuRelay) subscribeToTopic(userCtx context.Context, pubsubTopic string, subscription *Subscription, sub *pubsub.Subscription) {
+func (w *WakuRelay) subscribeToTopic(pubsubTopic string, sub *pubsub.Subscription) {
 	defer w.wg.Done()
 
 	ctx, err := tag.New(w.ctx, tag.Insert(metrics.KeyType, "relay"))
@@ -371,28 +355,11 @@ func (w *WakuRelay) subscribeToTopic(userCtx context.Context, pubsubTopic string
 	subChannel := w.nextMessage(w.ctx, sub)
 	for {
 		select {
-		case <-userCtx.Done():
-			return
 		case <-ctx.Done():
 			return
-		case <-subscription.quit:
-			func(topic string) {
-				subscription.Lock()
-				defer subscription.Unlock()
-
-				if subscription.closed {
-					return
-				}
-				subscription.closed = true
-				if w.bcaster != nil {
-					<-w.bcaster.WaitUnregister(&topic, subscription.C) // Remove from broadcast list
-				}
-
-				close(subscription.C)
-			}(pubsubTopic)
 			// TODO: if there are no more relay subscriptions, close the pubsub subscription
-		case msg := <-subChannel:
-			if msg == nil {
+		case msg, ok := <-subChannel:
+			if !ok {
 				return
 			}
 			wakuMessage := &pb.WakuMessage{}

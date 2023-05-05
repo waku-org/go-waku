@@ -298,7 +298,7 @@ func Execute(options Options) {
 			nodeTopic := nodeTopic
 			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
-			wakuNode.Broadcaster().Unregister(&nodeTopic, sub.C)
+			sub.Unsubscribe()
 		}
 
 		for _, protectedTopic := range options.Relay.ProtectedTopics {

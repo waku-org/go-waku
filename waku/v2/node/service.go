@@ -5,18 +5,19 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 )
 
 type Service interface {
 	SetHost(h host.Host)
-	Start(ctx context.Context) error
+	Start(context.Context) error
 	Stop()
 }
 
 type ReceptorService interface {
-	Service
-	MessageChannel() chan *protocol.Envelope
+	SetHost(h host.Host)
+	Stop()
+	Start(context.Context, relay.Subscription) error
 }
 
 type PeerConnectorService interface {

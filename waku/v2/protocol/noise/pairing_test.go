@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	n "github.com/waku-org/go-noise"
 	"github.com/waku-org/go-waku/tests"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -26,7 +25,7 @@ func createRelayNode(t *testing.T) (host.Host, *relay.WakuRelay) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	b := v2.NewBroadcaster(1024)
+	b := relay.NewBroadcaster(1024)
 	require.NoError(t, b.Start(context.Background()))
 	relay := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), utils.Logger())
 	relay.SetHost(host)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 )
@@ -49,7 +49,7 @@ type WakuStore struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	timesource timesource.Timesource
-	MsgC       chan *protocol.Envelope
+	MsgC       relay.Subscription
 	wg         *sync.WaitGroup
 
 	log *zap.Logger

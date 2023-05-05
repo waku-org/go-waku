@@ -106,11 +106,11 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 		if topic == "" {
 			var sub *relay.Subscription
 			sub, err = r.node.Relay().Subscribe(ctx)
-			r.node.Broadcaster().Unregister(&relay.DefaultWakuTopic, sub.C)
+			sub.Unsubscribe()
 		} else {
 			var sub *relay.Subscription
 			sub, err = r.node.Relay().SubscribeToTopic(ctx, topic)
-			r.node.Broadcaster().Unregister(&topic, sub.C)
+			sub.Unsubscribe()
 		}
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))

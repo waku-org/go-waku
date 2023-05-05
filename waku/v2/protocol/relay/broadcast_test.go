@@ -1,4 +1,4 @@
-package v2
+package relay
 
 import (
 	"context"
@@ -11,8 +11,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-// Adapted from https://github.com/dustin/go-broadcast/commit/f664265f5a662fb4d1df7f3533b1e8d0e0277120
-// by Dustin Sallings (c) 2013, which was released under MIT license
 func TestBroadcast(t *testing.T) {
 	wg := sync.WaitGroup{}
 
@@ -23,12 +21,11 @@ func TestBroadcast(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 
-		cch := make(chan *protocol.Envelope)
-		b.Register(nil, cch)
+		sub := b.RegisterForAll()
 		go func() {
 			defer wg.Done()
-			defer b.Unregister(nil, cch)
-			<-cch
+			defer sub.Unsubscribe()
+			<-sub.Ch
 		}()
 
 	}
@@ -39,7 +36,7 @@ func TestBroadcast(t *testing.T) {
 	wg.Wait()
 }
 
-func TestBroadcastWait(t *testing.T) {
+func TestBroadcastSpecificTopic(t *testing.T) {
 	wg := sync.WaitGroup{}
 
 	b := NewBroadcaster(100)
@@ -49,14 +46,12 @@ func TestBroadcastWait(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 
-		cch := make(chan *protocol.Envelope)
-		<-b.WaitRegister(nil, cch)
+		sub := b.Register("abc")
 
 		go func() {
 			defer wg.Done()
-
-			<-cch
-			<-b.WaitUnregister(nil, cch)
+			<-sub.Ch
+			sub.Unsubscribe()
 		}()
 
 	}
@@ -67,10 +62,31 @@ func TestBroadcastWait(t *testing.T) {
 	wg.Wait()
 }
 
+// check return from channel after Stop and multiple unregister
 func TestBroadcastCleanup(t *testing.T) {
 	b := NewBroadcaster(100)
 	require.NoError(t, b.Start(context.Background()))
-	topic := "test"
-	b.Register(&topic, make(chan *protocol.Envelope))
+	sub := b.Register("test")
 	b.Stop()
+	<-sub.Ch
+	sub.Unsubscribe()
+	sub.Unsubscribe()
+}
+
+func TestBroadcastUnregisterSub(t *testing.T) {
+	b := NewBroadcaster(100)
+	require.NoError(t, b.Start(context.Background()))
+	subForAll := b.RegisterForAll()
+	// unregister before submit
+	specificSub := b.Register("abc")
+	specificSub.Unsubscribe()
+	//
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
+	b.Submit(env)
+	// no message on specific sub
+	require.Nil(t, <-specificSub.Ch)
+	// msg on subForAll
+	require.Equal(t, env, <-subForAll.Ch)
+	b.Stop() // it automatically unregister/unsubscribe all
+	require.Equal(t, nil, <-specificSub.Ch)
 }
