@@ -208,7 +208,7 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.Pa
 		return
 	}
 
-	for value := range sub.C {
+	for value := range sub.Ch {
 		if value.Message().ContentTopic != pairingObj.ContentTopic {
 			continue
 		}

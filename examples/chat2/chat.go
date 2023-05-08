@@ -105,7 +105,12 @@ func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
 		if err != nil {
 			chat.ui.ErrorMessage(err)
 		} else {
-			chat.C = sub.C
+			chat.C = make(chan *protocol.Envelope)
+			go func() {
+				for e := range sub.Ch {
+					chat.C <- e
+				}
+			}()
 		}
 	}
 
