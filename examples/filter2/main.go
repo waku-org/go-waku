@@ -80,11 +80,6 @@ func main() {
 		panic(err)
 	}
 
-	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterSubscribeID_v20beta1)
-	if err != nil {
-		log.Info("Error adding filter peer on light node ", err)
-	}
-
 	err = lightNode.Start(ctx)
 	if err != nil {
 		panic(err)
@@ -93,6 +88,11 @@ func main() {
 	//
 	// Setup filter
 	//
+
+	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], filter.FilterSubscribeID_v20beta1)
+	if err != nil {
+		log.Info("Error adding filter peer on light node ", err)
+	}
 
 	// Send FilterRequest from light node to full node
 	cf := filter.ContentFilter{
@@ -177,7 +177,7 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 		return
 	}
 
-	for value := range sub.C {
+	for value := range sub.Ch {
 		payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
 		if err != nil {
 			fmt.Println(err)

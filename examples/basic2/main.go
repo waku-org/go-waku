@@ -117,7 +117,7 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 		return
 	}
 
-	for envelope := range sub.C {
+	for envelope := range sub.Ch {
 		if envelope.Message().ContentTopic != contentTopic {
 			continue
 		}

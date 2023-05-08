@@ -52,7 +52,7 @@ func getFlags() []cli.Flag {
 		&cli.IntFlag{
 			Name:        "tcp-port",
 			Aliases:     []string{"port", "p"},
-			Value:       60000,
+			Value:       0,
 			Usage:       "Libp2p TCP listening port (0 for random)",
 			Destination: &options.Port,
 		},
