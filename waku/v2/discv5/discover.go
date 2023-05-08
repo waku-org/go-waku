@@ -313,12 +313,15 @@ restartLoop:
 		err := d.iterate(ctx)
 		if err != nil {
 			d.log.Debug("iterating discv5", zap.Error(err))
-			time.Sleep(2 * time.Second)
 		}
+
+		t := time.NewTimer(5 * time.Second)
 		select {
+		case <-t.C:
+			t.Stop()
 		case <-ctx.Done():
+			t.Stop()
 			break restartLoop
-		default:
 		}
 	}
 	d.log.Warn("Discv5 loop stopped")
