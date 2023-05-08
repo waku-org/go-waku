@@ -82,7 +82,7 @@ func (wf *WakuFilterLightnode) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	wf.cancel = cancel
 	wf.ctx = ctx
-	wf.subscriptions = NewSubscriptionMap()
+	wf.subscriptions = NewSubscriptionMap(wf.log)
 
 	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(ctx))
 
@@ -279,7 +279,24 @@ func (wf *WakuFilterLightnode) Ping(ctx context.Context, peerID peer.ID) error {
 }
 
 func (wf *WakuFilterLightnode) IsSubscriptionAlive(ctx context.Context, subscription *SubscriptionDetails) error {
-	return wf.Ping(ctx, subscription.peerID)
+	return wf.Ping(ctx, subscription.PeerID)
+}
+
+func (wf *WakuFilterLightnode) Subscriptions() []*SubscriptionDetails {
+	wf.subscriptions.RLock()
+	defer wf.subscriptions.RUnlock()
+
+	var output []*SubscriptionDetails
+
+	for _, peerSubscription := range wf.subscriptions.items {
+		for _, subscriptionPerTopic := range peerSubscription.subscriptionsPerTopic {
+			for _, subscriptionDetail := range subscriptionPerTopic {
+				output = append(output, subscriptionDetail)
+			}
+		}
+	}
+
+	return output
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
@@ -337,13 +354,13 @@ func (wf *WakuFilterLightnode) Unsubscribe(ctx context.Context, contentFilter Co
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
 func (wf *WakuFilterLightnode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	var contentTopics []string
-	for k := range sub.contentTopics {
+	for k := range sub.ContentTopics {
 		contentTopics = append(contentTopics, k)
 	}
 
-	opts = append(opts, Peer(sub.peerID))
+	opts = append(opts, Peer(sub.PeerID))
 
-	return wf.Unsubscribe(ctx, ContentFilter{Topic: sub.pubsubTopic, ContentTopics: contentTopics}, opts...)
+	return wf.Unsubscribe(ctx, ContentFilter{Topic: sub.PubsubTopic, ContentTopics: contentTopics}, opts...)
 }
 
 // UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions

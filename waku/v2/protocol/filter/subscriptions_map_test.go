@@ -9,40 +9,41 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestSubscriptionMapAppend(t *testing.T) {
-	fmap := NewSubscriptionMap()
+	fmap := NewSubscriptionMap(utils.Logger())
 	peerId := createPeerId(t)
 	contentTopics := []string{"ct1", "ct2"}
 
 	sub := fmap.NewSubscription(peerId, TOPIC, contentTopics)
-	_, found := sub.contentTopics["ct1"]
+	_, found := sub.ContentTopics["ct1"]
 	require.True(t, found)
-	_, found = sub.contentTopics["ct2"]
+	_, found = sub.ContentTopics["ct2"]
 	require.True(t, found)
-	require.False(t, sub.closed)
-	require.Equal(t, sub.peerID, peerId)
-	require.Equal(t, sub.pubsubTopic, TOPIC)
+	require.False(t, sub.Closed)
+	require.Equal(t, sub.PeerID, peerId)
+	require.Equal(t, sub.PubsubTopic, TOPIC)
 
 	sub.Add("ct3")
-	_, found = sub.contentTopics["ct3"]
+	_, found = sub.ContentTopics["ct3"]
 	require.True(t, found)
 
 	sub.Remove("ct3")
-	_, found = sub.contentTopics["ct3"]
+	_, found = sub.ContentTopics["ct3"]
 	require.False(t, found)
 
 	err := sub.Close()
 	require.NoError(t, err)
-	require.True(t, sub.closed)
+	require.True(t, sub.Closed)
 
 	err = sub.Close()
 	require.NoError(t, err)
 }
 
 func TestSubscriptionClear(t *testing.T) {
-	fmap := NewSubscriptionMap()
+	fmap := NewSubscriptionMap(utils.Logger())
 	contentTopics := []string{"ct1", "ct2"}
 
 	var subscriptions = []*SubscriptionDetails{
@@ -73,13 +74,13 @@ func TestSubscriptionClear(t *testing.T) {
 
 	wg.Wait()
 
-	require.True(t, subscriptions[0].closed)
-	require.True(t, subscriptions[1].closed)
-	require.True(t, subscriptions[2].closed)
+	require.True(t, subscriptions[0].Closed)
+	require.True(t, subscriptions[1].Closed)
+	require.True(t, subscriptions[2].Closed)
 }
 
 func TestSubscriptionsNotify(t *testing.T) {
-	fmap := NewSubscriptionMap()
+	fmap := NewSubscriptionMap(utils.Logger())
 	p1 := createPeerId(t)
 	p2 := createPeerId(t)
 	var subscriptions = []*SubscriptionDetails{
@@ -95,7 +96,7 @@ func TestSubscriptionsNotify(t *testing.T) {
 	successOnReceive := func(ctx context.Context, i int) {
 		defer wg.Done()
 
-		if subscriptions[i].closed {
+		if subscriptions[i].Closed {
 			successChan <- struct{}{}
 			return
 		}
@@ -115,7 +116,7 @@ func TestSubscriptionsNotify(t *testing.T) {
 	failOnReceive := func(ctx context.Context, i int) {
 		defer wg.Done()
 
-		if subscriptions[i].closed {
+		if subscriptions[i].Closed {
 			successChan <- struct{}{}
 			return
 		}
