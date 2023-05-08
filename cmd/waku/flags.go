@@ -147,9 +147,16 @@ var (
 		Destination: &options.NAT, // TODO: accept none,any,upnp,extaddr
 		EnvVars:     []string{"WAKUNODE2_NAT"},
 	})
-	AdvertiseAddress = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
+	IPAddress = altsrc.NewStringFlag(&cli.StringFlag{
+		Name:        "ext-ip", // This was added so js-waku test don't fail
+		Usage:       "Set external IP address",
+		Value:       "",
+		Destination: &options.ExtIP,
+		EnvVars:     []string{"WAKUNODE2_EXT_IP"},
+	})
+	ExtMultiaddresses = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "ext-multiaddr",
-		Usage: "External address to advertise to other nodes. Ooverrides --address and --ws-address flags. Option may be repeated",
+		Usage: "External address to advertise to other nodes. Overrides --address and --ws-address flags. Option may be repeated",
 		Value: &cliutils.MultiaddrSlice{
 			Values: &options.AdvertiseAddresses,
 		},
