@@ -1183,7 +1183,7 @@ Returns a list of multiaddress and enrs given a url to a DNS discoverable ENR tr
 **Returns**
 
 A [`JsonResponse`](#jsonresponse-type).
-If the execution is successful, the `result` field contains an array objects describing the multiaddresses, enr and peerID each node found has.
+If the execution is successful, the `result` field contains an array objects describing the multiaddresses, enr and peerID each node found.
 An `error` message otherwise.
 
 ```json
