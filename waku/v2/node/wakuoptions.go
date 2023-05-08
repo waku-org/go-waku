@@ -220,6 +220,31 @@ func WithAdvertiseAddresses(advertiseAddrs ...ma.Multiaddr) WakuNodeOption {
 	}
 }
 
+// WithExternalIP is a WakuNodeOption that allows overriding the advertised external IP used in the waku node with custom value
+func WithExternalIP(ip net.IP) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.addressFactory = func(inputAddr []multiaddr.Multiaddr) (addresses []multiaddr.Multiaddr) {
+			component := "/ip4/"
+			if ip.To4() == nil && ip.To16() != nil {
+				component = "/ip6/"
+			}
+
+			hostAddrMA, err := multiaddr.NewMultiaddr(component + ip.String())
+			if err != nil {
+				panic("Could not build external IP")
+			}
+
+			for _, addr := range inputAddr {
+				_, rest := multiaddr.SplitFirst(addr)
+				addresses = append(addresses, hostAddrMA.Encapsulate(rest))
+			}
+
+			return addresses
+		}
+		return nil
+	}
+}
+
 // WithMultiaddress is a WakuNodeOption that configures libp2p to listen on a list of multiaddresses
 func WithMultiaddress(addresses []multiaddr.Multiaddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {

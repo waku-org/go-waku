@@ -159,6 +159,7 @@ type Options struct {
 	LogEncoding        string
 	LogOutput          string
 	NAT                string
+	ExtIP              string
 	PersistPeers       bool
 	UserAgent          string
 	PProf              bool
