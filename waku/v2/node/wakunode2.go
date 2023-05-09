@@ -433,8 +433,6 @@ func (w *WakuNode) Stop() {
 		return
 	}
 
-	w.cancel()
-
 	w.bcaster.Stop()
 
 	defer w.connectionNotif.Close()
@@ -464,6 +462,8 @@ func (w *WakuNode) Stop() {
 	w.timesource.Stop()
 
 	w.host.Close()
+
+	w.cancel()
 
 	w.wg.Wait()
 

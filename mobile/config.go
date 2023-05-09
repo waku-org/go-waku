@@ -54,16 +54,16 @@ type GossipSubParams struct {
 	// Dlo sets the lower bound on the number of peers we keep in a GossipSub topic mesh.
 	// If we have fewer than Dlo peers, we will attempt to graft some more into the mesh at
 	// the next heartbeat.
-	Dlo *int `json:"dLow,omitempty"`
+	Dlo *int `json:"d_low,omitempty"`
 
 	// Dhi sets the upper bound on the number of peers we keep in a GossipSub topic mesh.
 	// If we have more than Dhi peers, we will select some to prune from the mesh at the next heartbeat.
-	Dhi *int `json:"dHigh,omitempty"`
+	Dhi *int `json:"d_high,omitempty"`
 
 	// Dscore affects how peers are selected when pruning a mesh due to over subscription.
 	// At least Dscore of the retained peers will be high-scoring, while the remainder are
 	// chosen randomly.
-	Dscore *int `json:"dScore,omitempty"`
+	Dscore *int `json:"d_score,omitempty"`
 
 	// Dout sets the quota for the number of outbound connections to maintain in a topic mesh.
 	// When the mesh is pruned due to over subscription, we make sure that we have outbound connections
