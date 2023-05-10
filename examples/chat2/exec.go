@@ -30,10 +30,13 @@ func execute(options Options) {
 		}
 	}
 
+	connNotifier := make(chan node.PeerConnection)
+
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(options.NodeKey),
 		node.WithNTP(),
 		node.WithHostAddress(hostAddr),
+		node.WithConnectionNotification(connNotifier),
 	}
 
 	if options.Relay.Enable {
@@ -130,7 +133,7 @@ func execute(options Options) {
 		return
 	}
 
-	chat := NewChat(ctx, wakuNode, options)
+	chat := NewChat(ctx, wakuNode, connNotifier, options)
 	p := tea.NewProgram(chat.ui)
 	if err := p.Start(); err != nil {
 		fmt.Println(err.Error())

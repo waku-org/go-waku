@@ -46,7 +46,7 @@ type Chat struct {
 	nick string
 }
 
-func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
+func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.PeerConnection, options Options) *Chat {
 	chat := &Chat{
 		ctx:       ctx,
 		node:      node,
@@ -114,7 +114,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
 		}
 	}
 
-	chat.wg.Add(6)
+	chat.wg.Add(7)
 	go chat.parseInput()
 	go chat.receiveMessages()
 
@@ -123,6 +123,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
 
 	go chat.welcomeMessage()
 
+	go chat.connectionWatcher(&connectionWg, connNotifier)
 	go chat.staticNodes(&connectionWg)
 	go chat.discoverNodes(&connectionWg)
 	go chat.retrieveHistory(&connectionWg)
@@ -133,6 +134,18 @@ func NewChat(ctx context.Context, node *node.WakuNode, options Options) *Chat {
 func (c *Chat) Stop() {
 	c.wg.Wait()
 	close(c.inputChan)
+}
+
+func (c *Chat) connectionWatcher(connectionWg *sync.WaitGroup, connNotifier <-chan node.PeerConnection) {
+	defer c.wg.Done()
+
+	for conn := range connNotifier {
+		if conn.Connected {
+			c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID.Pretty()))
+		} else {
+			c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID.Pretty()))
+		}
+	}
 }
 
 func (c *Chat) receiveMessages() {
@@ -200,8 +213,6 @@ func (c *Chat) parseInput() {
 						err = c.node.DialPeerWithMultiAddress(ctx, ma)
 						if err != nil {
 							c.ui.ErrorMessage(err)
-						} else {
-							c.ui.InfoMessage(fmt.Sprintf("Connected to %s", peerID))
 						}
 					}(peer)
 					return
@@ -447,19 +458,11 @@ func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
 			ctx, cancel := context.WithTimeout(c.ctx, time.Duration(10)*time.Second)
 			defer cancel()
 
-			peerID, err := addr.ValueForProtocol(multiaddr.P_P2P)
-			if err != nil {
-				c.ui.ErrorMessage(err)
-				return
-			}
-
 			c.ui.InfoMessage(fmt.Sprintf("Connecting to %s", addr.String()))
 
-			err = c.node.DialPeerWithMultiAddress(ctx, addr)
+			err := c.node.DialPeerWithMultiAddress(ctx, addr)
 			if err != nil {
 				c.ui.ErrorMessage(err)
-			} else {
-				c.ui.InfoMessage(fmt.Sprintf("Connected to %s", peerID))
 			}
 		}(n)
 	}
@@ -539,30 +542,23 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 		if err != nil {
 			c.ui.ErrorMessage(errors.New(err.Error()))
 		} else {
-			var nodeList []multiaddr.Multiaddr
+			var nodeList []peer.AddrInfo
 			for _, n := range nodes {
-				nodeList = append(nodeList, n.Addresses...)
+				nodeList = append(nodeList, n.PeerInfo)
 			}
 			c.ui.InfoMessage(fmt.Sprintf("Discovered and connecting to %v ", nodeList))
 			wg := sync.WaitGroup{}
 			wg.Add(len(nodeList))
 			for _, n := range nodeList {
-				go func(ctx context.Context, addr multiaddr.Multiaddr) {
+				go func(ctx context.Context, info peer.AddrInfo) {
 					defer wg.Done()
-
-					peerID, err := addr.ValueForProtocol(multiaddr.P_P2P)
-					if err != nil {
-						c.ui.ErrorMessage(err)
-						return
-					}
 
 					ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
 					defer cancel()
-					err = c.node.DialPeerWithMultiAddress(ctx, addr)
+					err = c.node.DialPeerWithInfo(ctx, n)
 					if err != nil {
-						c.ui.ErrorMessage(fmt.Errorf("could not connect to %s: %w", peerID, err))
-					} else {
-						c.ui.InfoMessage(fmt.Sprintf("Connected to %s", peerID))
+
+						c.ui.ErrorMessage(fmt.Errorf("co!!uld not connect to %s: %w", info.ID.Pretty(), err))
 					}
 				}(c.ctx, n)
 
