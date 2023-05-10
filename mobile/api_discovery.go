@@ -40,7 +40,7 @@ func DnsDiscovery(url string, nameserver string, ms int) string {
 		item := DnsDiscoveryItem{
 			PeerID: n.PeerID.String(),
 		}
-		for _, addr := range n.Addresses {
+		for _, addr := range n.PeerInfo.Addrs {
 			item.Addresses = append(item.Addresses, addr.String())
 		}
 

@@ -211,11 +211,11 @@ func Execute(options Options) {
 				if err != nil {
 					logger.Warn("dns discovery error ", zap.Error(err))
 				} else {
-					var discAddresses []multiaddr.Multiaddr
+					var discPeerInfo []peer.AddrInfo
 					for _, n := range nodes {
-						discAddresses = append(discAddresses, n.Addresses...)
+						discPeerInfo = append(discPeerInfo, n.PeerInfo)
 					}
-					logger.Info("found dns entries ", logging.MultiAddrs("nodes", discAddresses...))
+					logger.Info("found dns entries ", zap.Any("nodes", discPeerInfo))
 					discoveredNodes = append(discoveredNodes, nodes...)
 				}
 			}
@@ -329,16 +329,15 @@ func Execute(options Options) {
 
 	if len(discoveredNodes) != 0 {
 		for _, n := range discoveredNodes {
-			for _, m := range n.Addresses {
-				go func(ctx context.Context, m multiaddr.Multiaddr) {
-					ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-					defer cancel()
-					err = wakuNode.DialPeerWithMultiAddress(ctx, m)
-					if err != nil {
-						logger.Error("dialing peer", logging.MultiAddrs("peer", m), zap.Error(err))
-					}
-				}(ctx, m)
-			}
+			go func(ctx context.Context, info peer.AddrInfo) {
+				ctx, cancel := context.WithTimeout(ctx, dialTimeout)
+				defer cancel()
+				err = wakuNode.DialPeerWithInfo(ctx, info)
+				if err != nil {
+					logger.Error("dialing peer", logging.HostID("peer", info.ID), zap.Error(err))
+				}
+			}(ctx, n.PeerInfo)
+
 		}
 	}
 
