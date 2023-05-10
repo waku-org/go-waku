@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"encoding/binary"
-	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 
@@ -54,11 +56,41 @@ func withinTimeWindow(t timesource.Timesource, msg *pb.WakuMessage) bool {
 	return now.Sub(msgTime).Abs() <= MessageWindowDuration
 }
 
+const signedTopicPrefix = "signed:"
+
 type validatorFn = func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
 
-func validatorFnBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) (validatorFn, error) {
-	address := crypto.PubkeyToAddress(*publicKey)
-	topic := protocol.NewNamedShardingPubsubTopic(address.String() + "/proto").String()
+func validatorFnBuilder(t timesource.Timesource, topic string, address common.Address) (validatorFn, error) {
+	n := &protocol.NamedShardingPubsubTopic{}
+	err := n.Parse(topic)
+	if err != nil {
+		return nil, err
+	}
+
+	if !strings.HasPrefix(n.Name(), signedTopicPrefix) {
+		return nil, errors.New("topic name must have signed: prefix")
+	}
+
+	topicParts := strings.Split(strings.Replace(n.Name(), signedTopicPrefix, "", -1), "/")
+	fmt.Println("TOPIC PARTS", topicParts)
+	if len(topicParts) != 2 {
+		return nil, errors.New("invalid topic format")
+	}
+
+	if !common.IsHexAddress(topicParts[0]) {
+		return nil, errors.New("invalid address in topic")
+	}
+
+	topicAddress := common.HexToAddress(topicParts[0])
+	if !bytes.Equal(topicAddress[:], address[:]) {
+		return nil, errors.New("address in topic does not match address specified in protected topics list")
+	}
+
+	expectedTopic := protocol.NewNamedShardingPubsubTopic(fmt.Sprintf("%s%s/%s", signedTopicPrefix, strings.ToLower(address.String()), topicParts[1]))
+	if expectedTopic.String() != topic {
+		return nil, fmt.Errorf("invalid pubsub topic. Expected: %s", expectedTopic)
+	}
+
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
 		err := proto.Unmarshal(message.Data, msg)
@@ -84,10 +116,10 @@ func validatorFnBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) (va
 	}, nil
 }
 
-func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
-	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
+func (w *WakuRelay) AddSignedTopicValidator(topic string, address common.Address) error {
+	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("address", strings.ToLower(address.String())))
 
-	fn, err := validatorFnBuilder(w.timesource, publicKey)
+	fn, err := validatorFnBuilder(w.timesource, topic, address)
 	if err != nil {
 		return err
 	}
@@ -104,8 +136,7 @@ func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.Publi
 	return nil
 }
 
-func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage) error {
-	topic := PrivKeyToTopic(privKey)
+func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage, topic string) error {
 	msgHash := MsgHash(topic, msg)
 	sign, err := secp256k1.Sign(msgHash, crypto.FromECDSA(privKey))
 	if err != nil {
@@ -116,7 +147,11 @@ func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage) error {
 	return nil
 }
 
-func PrivKeyToTopic(privKey *ecdsa.PrivateKey) string {
+func PrivKeyToTopic(privKey *ecdsa.PrivateKey, encoding string) string {
 	address := crypto.PubkeyToAddress(privKey.PublicKey)
-	return protocol.NewNamedShardingPubsubTopic(address.String() + "/proto").String()
+	suffix := ""
+	if encoding != "" {
+		suffix = "/" + encoding
+	}
+	return protocol.NewNamedShardingPubsubTopic(signedTopicPrefix + strings.ToLower(address.String()) + suffix).String()
 }

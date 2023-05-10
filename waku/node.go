@@ -311,7 +311,7 @@ func Execute(options Options) {
 		}
 
 		for _, protectedTopic := range options.Relay.ProtectedTopics {
-			err := wakuNode.Relay().AddSignedTopicValidator(protectedTopic.Topic, protectedTopic.PublicKey)
+			err := wakuNode.Relay().AddSignedTopicValidator(protectedTopic.Topic, protectedTopic.Address)
 			failOnErr(err, "Error adding signed topic validator")
 		}
 	}
