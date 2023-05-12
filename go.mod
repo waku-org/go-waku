@@ -35,6 +35,7 @@ require (
 
 require (
 	github.com/berty/go-libp2p-rendezvous v0.4.1
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/lib/pq v1.10.4
 	github.com/waku-org/go-noise v0.0.4

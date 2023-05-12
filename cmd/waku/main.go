@@ -40,6 +40,7 @@ func main() {
 		IPAddress,
 		ExtMultiaddresses,
 		ShowAddresses,
+		CircuitRelay,
 		LogLevel,
 		LogEncoding,
 		LogOutput,
