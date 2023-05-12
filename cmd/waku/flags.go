@@ -167,6 +167,13 @@ var (
 		Usage:       "Display listening addresses according to current configuration",
 		Destination: &options.ShowAddresses,
 	})
+	CircuitRelay = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "circuit-relay",
+		Usage:       "Enable circuit relay service",
+		Value:       true,
+		Destination: &options.CircuitRelay,
+		EnvVars:     []string{"WAKUNODE2_CIRCUIT_RELAY"},
+	})
 	LogLevel = cliutils.NewGenericFlagSingleValue(&cli.GenericFlag{
 		Name:    "log-level",
 		Aliases: []string{"l"},

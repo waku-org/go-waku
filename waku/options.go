@@ -155,6 +155,7 @@ type Options struct {
 	KeepAlive          time.Duration
 	AdvertiseAddresses []multiaddr.Multiaddr
 	ShowAddresses      bool
+	CircuitRelay       bool
 	LogLevel           string
 	LogEncoding        string
 	LogOutput          string

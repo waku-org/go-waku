@@ -133,6 +133,11 @@ func Execute(options Options) {
 		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
 	}
 
+	// Node can be a circuit relay server
+	if options.CircuitRelay {
+		libp2pOpts = append(libp2pOpts, libp2p.EnableRelayService())
+	}
+
 	if options.UserAgent != "" {
 		libp2pOpts = append(libp2pOpts, libp2p.UserAgent(options.UserAgent))
 	}
