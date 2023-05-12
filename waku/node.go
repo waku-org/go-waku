@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
@@ -29,9 +31,11 @@ import (
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/proto"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/p2p/host/autorelay"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
@@ -132,6 +136,43 @@ func Execute(options Options) {
 	if len(options.AdvertiseAddresses) == 0 {
 		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
 	}
+
+	circuitRelayNodes := make(chan peer.AddrInfo)
+
+	// Node can be a relay server
+	libp2pOpts = append(libp2pOpts, libp2p.EnableRelayService())
+
+	// Force node to use relay addrs
+	libp2pOpts = append(libp2pOpts, libp2p.ForceReachabilityPrivate())
+
+	libp2pOpts = append(libp2pOpts, libp2p.EnableHolePunching())
+
+	// Use circuit relay with nodes received on circuitRelayNodes channel
+	libp2pOpts = append(libp2pOpts, libp2p.EnableAutoRelayWithPeerSource(
+		func(ctx context.Context, numPeers int) <-chan peer.AddrInfo {
+			r := make(chan peer.AddrInfo)
+			go func() {
+				defer close(r)
+				for ; numPeers != 0; numPeers-- {
+					select {
+					case v, ok := <-circuitRelayNodes:
+						if !ok {
+							return
+						}
+						select {
+						case r <- v:
+						case <-ctx.Done():
+							return
+						}
+					case <-ctx.Done():
+						return
+					}
+				}
+			}()
+			return r
+		},
+		autorelay.WithMinInterval(0),
+	))
 
 	if options.UserAgent != "" {
 		libp2pOpts = append(libp2pOpts, libp2p.UserAgent(options.UserAgent))
@@ -276,6 +317,57 @@ func Execute(options Options) {
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
+
+	go func() {
+		// Feed peers more often right after the bootstrap, then backoff
+		bo := backoff.NewExponentialBackOff()
+		bo.InitialInterval = 15 * time.Second
+		bo.Multiplier = 3
+		bo.MaxInterval = 1 * time.Hour
+		bo.MaxElapsedTime = 0 // never stop
+		t := backoff.NewTicker(bo)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+			case <-ctx.Done():
+				return
+			}
+
+			peers, err := wakuNode.Peers()
+			if err != nil {
+				logger.Error("failed to fetch peers", zap.Error(err))
+				continue
+			}
+
+			// Shuffle peers
+			rand.Seed(time.Now().UnixNano())
+			rand.Shuffle(len(peers), func(i, j int) { peers[i], peers[j] = peers[j], peers[i] })
+
+			for _, p := range peers {
+				info := wakuNode.Host().Peerstore().PeerInfo(p.ID)
+
+				supportedProtocols, err := wakuNode.Host().Peerstore().SupportsProtocols(p.ID, proto.ProtoIDv2Hop)
+				if err != nil {
+					logger.Error("could not check supported protocols", zap.Error(err))
+					continue
+				}
+
+				if len(supportedProtocols) == 0 {
+					continue
+				}
+
+				select {
+				case <-ctx.Done():
+					logger.Debug("context done, auto-relay has enough peers")
+					return
+
+				case circuitRelayNodes <- info:
+					logger.Debug("published auto-relay peer info", zap.Any("peer-id", p.ID))
+				}
+			}
+		}
+	}()
 
 	if options.DiscV5.Enable {
 		if err = wakuNode.DiscV5().Start(ctx); err != nil {
