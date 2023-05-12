@@ -235,9 +235,17 @@ func WithExternalIP(ip net.IP) WakuNodeOption {
 				panic("Could not build external IP")
 			}
 
+			addrSet := make(map[string]multiaddr.Multiaddr)
 			for _, addr := range inputAddr {
 				_, rest := multiaddr.SplitFirst(addr)
-				addresses = append(addresses, hostAddrMA.Encapsulate(rest))
+
+				addr := hostAddrMA.Encapsulate(rest)
+
+				addrSet[addr.String()] = addr
+			}
+
+			for _, addr := range addrSet {
+				addresses = append(addresses, addr)
 			}
 
 			return addresses
