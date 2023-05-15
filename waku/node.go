@@ -116,16 +116,16 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))
 	}
 
-	if options.Dns4DomainName != "" {
-		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.Dns4DomainName))
-	}
-
 	if options.ExtIP != "" {
 		ip := net.ParseIP(options.ExtIP)
 		if ip == nil {
 			failOnErr(errors.New("invalid IP address"), "could not set external IP address")
 		}
 		nodeOpts = append(nodeOpts, node.WithExternalIP(ip))
+	}
+
+	if options.Dns4DomainName != "" {
+		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.Dns4DomainName))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
