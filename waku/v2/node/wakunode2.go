@@ -124,6 +124,7 @@ func defaultStoreFactory(w *WakuNode) store.Store {
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
 func New(opts ...WakuNodeOption) (*WakuNode, error) {
+	var err error
 	params := new(WakuNodeParameters)
 	params.libP2POpts = DefaultLibP2POptions
 
@@ -157,11 +158,16 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	// Setting default host address if none was provided
 	if params.hostAddr == nil {
-		err := WithHostAddress(&net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 0})(params)
+		params.hostAddr, err = net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+		if err != nil {
+			return nil, err
+		}
+		err = WithHostAddress(params.hostAddr)(params)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	if len(params.multiAddr) > 0 {
 		params.libP2POpts = append(params.libP2POpts, libp2p.ListenAddrs(params.multiAddr...))
 	}
@@ -171,8 +177,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	if params.addressFactory != nil {
 		params.libP2POpts = append(params.libP2POpts, libp2p.AddrsFactory(params.addressFactory))
 	}
-
-	var err error
 
 	w := new(WakuNode)
 	w.bcaster = relay.NewBroadcaster(1024)
