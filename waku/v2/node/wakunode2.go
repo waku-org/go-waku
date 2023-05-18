@@ -486,11 +486,11 @@ func (w *WakuNode) Stop() {
 	w.store.Stop()
 	w.legacyFilter.Stop()
 	w.filterFullnode.Stop()
-	w.peerExchange.Stop()
 
 	if w.opts.enableDiscV5 {
 		w.discoveryV5.Stop()
 	}
+	w.peerExchange.Stop()
 
 	w.peerConnector.Stop()
 
