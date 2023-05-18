@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
+#include <stdint.h>
 
 #include "libgowaku.h"
 #include "nxjson.c"
@@ -66,7 +68,7 @@ int main(int argc, char *argv[])
   char *response;
   waku_set_event_callback(callBack);
 
-  char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000, \"logLevel\":\"error\"}";
+  char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000, \"logLevel\":\"error\", \"store\":true}";
   response = waku_new(configJSON); // configJSON can be NULL too to use defaults
   if (isError(response))
     return 1;
@@ -84,7 +86,7 @@ int main(int argc, char *argv[])
   
   response =  waku_connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS", 0); // Connect to a node
   if (isError(response))
-    return 1;
+    printf("Could not connect to node: %s\n", response);
 
 
   /*
@@ -118,7 +120,7 @@ int main(int argc, char *argv[])
     char wakuMsg[1000];
     char *msgPayload = waku_utils_base64_encode("Hello World!");
     char *contentTopic = waku_content_topic("example", 1, "default", "rfc26");
-    sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%d}", msgPayload, contentTopic, i);
+    sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%lu}", msgPayload, contentTopic, nowInNanosecs());
     free(msgPayload);
     free(contentTopic);
 
@@ -133,6 +135,17 @@ int main(int argc, char *argv[])
 
     sleep(1);
   }
+
+    
+  // To retrieve messages from local store, set store:true in the node config, and use waku_store_local_query
+  /*
+  char query[1000];
+  sprintf(query, "{\"pubsubTopic\":\"%s\", \"pagingOptions\":{\"pageSize\": 40, \"forward\":false}}", waku_default_pubsub_topic());
+  response = waku_store_local_query(query);
+  if (isError(response))
+    return 1;
+  printf("%s\n",response);
+  */
 
   response = waku_stop();
   if (isError(response))

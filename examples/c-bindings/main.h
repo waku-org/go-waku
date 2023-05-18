@@ -4,6 +4,29 @@
 #include <stdbool.h>
 #include "nxjson.c"
 
+/// Convert seconds to nanoseconds
+#define SEC_TO_NS(sec) ((sec)*1000000000)
+
+
+uint64_t nowInNanosecs(){
+  uint64_t nanoseconds;
+  struct timespec ts;
+  int return_code = timespec_get(&ts, TIME_UTC);
+  if (return_code == 0)
+  {
+      printf("Failed to obtain timestamp.\n");
+      nanoseconds = UINT64_MAX; // use this to indicate error
+  }
+  else
+  {
+      // `ts` now contains your timestamp in seconds and nanoseconds! To 
+      // convert the whole struct to nanoseconds, do this:
+      nanoseconds = SEC_TO_NS((uint64_t)ts.tv_sec) + (uint64_t)ts.tv_nsec;
+  }
+  return nanoseconds;
+}
+
+
 bool isError(char *input)
 {
   char *jsonStr = malloc(strlen(input) + 1);
