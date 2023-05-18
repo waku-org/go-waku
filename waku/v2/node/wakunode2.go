@@ -211,7 +211,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 			}()
 			return r
 		},
-		autorelay.WithMinInterval(0),
+		autorelay.WithMinInterval(2*time.Second),
 	))
 
 	if params.enableNTP {
