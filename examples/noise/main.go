@@ -14,7 +14,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/multiformats/go-multiaddr"
+	"github.com/libp2p/go-libp2p/core/peer"
 	n "github.com/waku-org/go-noise"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -134,34 +134,26 @@ func discoverFleetNodes(wakuNode *node.WakuNode) error {
 	if err != nil {
 		return err
 	}
-	var nodeList []multiaddr.Multiaddr
+	var peerInfo []peer.AddrInfo
 	for _, n := range nodes {
-		nodeList = append(nodeList, n.Addresses...)
+		peerInfo = append(peerInfo, n.PeerInfo)
 	}
 
-	log.Info(fmt.Sprintf("Discovered and connecting to %v ", nodeList))
-
 	wg := sync.WaitGroup{}
-	wg.Add(len(nodeList))
-	for _, n := range nodeList {
-		go func(addr multiaddr.Multiaddr) {
+	wg.Add(len(peerInfo))
+	for _, p := range peerInfo {
+		go func(p peer.AddrInfo) {
 			defer wg.Done()
-
-			peerID, err := addr.ValueForProtocol(multiaddr.P_P2P)
-			if err != nil {
-				log.Error("error obtaining peerID", zap.Error(err))
-				return
-			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
 			defer cancel()
-			err = wakuNode.DialPeerWithMultiAddress(ctx, addr)
+			err = wakuNode.DialPeerWithInfo(ctx, p)
 			if err != nil {
-				log.Error("could not connect", zap.String("peerID", peerID), zap.Error(err))
+				log.Error("could not connect", zap.String("peerID", p.String()), zap.Error(err))
 			} else {
-				log.Info("connected", zap.String("peerID", peerID))
+				log.Info("connected", zap.String("peerID", p.String()))
 			}
-		}(n)
+		}(p)
 
 	}
 	wg.Wait()

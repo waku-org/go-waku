@@ -110,11 +110,9 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 		wg:            &sync.WaitGroup{},
 		localnode:     localnode,
 		config: discover.Config{
-			PrivateKey: priv,
-			Bootnodes:  params.bootnodes,
-			V5Config: discover.V5Config{
-				ProtocolID: &protocolID,
-			},
+			PrivateKey:   priv,
+			Bootnodes:    params.bootnodes,
+			V5ProtocolID: &protocolID,
 		},
 		udpAddr: &net.UDPAddr{
 			IP:   net.IPv4zero,
