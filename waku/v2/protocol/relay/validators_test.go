@@ -60,13 +60,11 @@ func TestMsgHash(t *testing.T) {
 
 	msgData, _ := proto.Marshal(msg)
 
-	address := crypto.PubkeyToAddress(prvKey.PublicKey)
-
 	//expectedMessageHash, _ := hex.DecodeString("662F8C20A335F170BD60ABC1F02AD66F0C6A6EE285DA2A53C95259E7937C0AE9")
 	//messageHash := MsgHash(pubsubTopic, msg)
 	//require.True(t, bytes.Equal(expectedMessageHash, messageHash))
 
-	myValidator, err := validatorFnBuilder(NewFakeTimesource(timestamp), address)
+	myValidator, err := validatorFnBuilder(NewFakeTimesource(timestamp), &prvKey.PublicKey)
 	require.NoError(t, err)
 	result := myValidator(context.Background(), "", &pubsub.Message{
 		Message: &pubsub_pb.Message{
@@ -77,7 +75,7 @@ func TestMsgHash(t *testing.T) {
 
 	// Exceed 5m window in both directions
 	now5m1sInPast := timestamp.Add(-5 * time.Minute).Add(-1 * time.Second)
-	myValidator, err = validatorFnBuilder(NewFakeTimesource(now5m1sInPast), address)
+	myValidator, err = validatorFnBuilder(NewFakeTimesource(now5m1sInPast), &prvKey.PublicKey)
 	require.NoError(t, err)
 	result = myValidator(context.Background(), "", &pubsub.Message{
 		Message: &pubsub_pb.Message{
@@ -87,7 +85,7 @@ func TestMsgHash(t *testing.T) {
 	require.False(t, result)
 
 	now5m1sInFuture := timestamp.Add(5 * time.Minute).Add(1 * time.Second)
-	myValidator, err = validatorFnBuilder(NewFakeTimesource(now5m1sInFuture), address)
+	myValidator, err = validatorFnBuilder(NewFakeTimesource(now5m1sInFuture), &prvKey.PublicKey)
 	require.NoError(t, err)
 	result = myValidator(context.Background(), "", &pubsub.Message{
 		Message: &pubsub_pb.Message{

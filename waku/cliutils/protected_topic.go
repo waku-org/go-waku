@@ -1,20 +1,24 @@
 package cliutils
 
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type ProtectedTopic struct {
-	Topic   string
-	Address common.Address
+	Topic     string
+	PublicKey *ecdsa.PublicKey
 }
 
 func (p ProtectedTopic) String() string {
-	return fmt.Sprintf("%s:%s", p.Topic, p.Address.String())
+	pubKBytes := crypto.FromECDSAPub(p.PublicKey)
+	return fmt.Sprintf("%s:%s", p.Topic, hex.EncodeToString(pubKBytes))
 }
 
 type ProtectedTopicSlice struct {
@@ -27,13 +31,13 @@ func (k *ProtectedTopicSlice) Set(value string) error {
 		return errors.New("expected topic_name:hex_encoded_public_key")
 	}
 
-	if !common.IsHexAddress(protectedTopicParts[1]) {
-		return errors.New("invalid address format")
+	pubk, err := crypto.UnmarshalPubkey(common.FromHex(protectedTopicParts[1]))
+	if err != nil {
+		return err
 	}
-
 	*k.Values = append(*k.Values, ProtectedTopic{
-		Topic:   protectedTopicParts[0],
-		Address: common.HexToAddress(protectedTopicParts[1]),
+		Topic:     protectedTopicParts[0],
+		PublicKey: pubk,
 	})
 	return nil
 }

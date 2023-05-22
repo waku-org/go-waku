@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"encoding/binary"
+	"encoding/hex"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 
@@ -55,7 +56,8 @@ func withinTimeWindow(t timesource.Timesource, msg *pb.WakuMessage) bool {
 
 type validatorFn = func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
 
-func validatorFnBuilder(t timesource.Timesource, address common.Address) (validatorFn, error) {
+func validatorFnBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) (validatorFn, error) {
+	address := crypto.PubkeyToAddress(*publicKey)
 	topic := protocol.NewNamedShardingPubsubTopic(address.String() + "/proto").String()
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
@@ -82,10 +84,10 @@ func validatorFnBuilder(t timesource.Timesource, address common.Address) (valida
 	}, nil
 }
 
-func (w *WakuRelay) AddSignedTopicValidator(topic string, address common.Address) error {
-	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("address", address.String()))
+func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
+	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
 
-	fn, err := validatorFnBuilder(w.timesource, address)
+	fn, err := validatorFnBuilder(w.timesource, publicKey)
 	if err != nil {
 		return err
 	}
