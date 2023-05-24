@@ -182,7 +182,7 @@ var (
 		EnvVars:     []string{"WAKUNODE2_RESOURCE_MEMORY_PERCENTAGE"},
 	})
 	ResourceScalingFDPercent = altsrc.NewFloat64Flag(&cli.Float64Flag{
-		Name:        "resource-scaling-file-descriptors-percentage",
+		Name:        "resource-scaling-fd-percentage",
 		Usage:       "Determines the percentage of total file descriptors that wil be dedicated to go-waku.",
 		Value:       50,
 		Destination: &options.ResourceScalingFDPercent,
