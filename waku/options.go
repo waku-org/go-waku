@@ -143,27 +143,29 @@ type RendezvousOptions struct {
 // Options contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
 type Options struct {
-	Port               int
-	Address            string
-	Dns4DomainName     string
-	NodeKey            *ecdsa.PrivateKey
-	KeyFile            string
-	KeyPasswd          string
-	GenerateKey        bool
-	Overwrite          bool
-	StaticNodes        []multiaddr.Multiaddr
-	KeepAlive          time.Duration
-	AdvertiseAddresses []multiaddr.Multiaddr
-	ShowAddresses      bool
-	CircuitRelay       bool
-	LogLevel           string
-	LogEncoding        string
-	LogOutput          string
-	NAT                string
-	ExtIP              string
-	PersistPeers       bool
-	UserAgent          string
-	PProf              bool
+	Port                         int
+	Address                      string
+	Dns4DomainName               string
+	NodeKey                      *ecdsa.PrivateKey
+	KeyFile                      string
+	KeyPasswd                    string
+	GenerateKey                  bool
+	Overwrite                    bool
+	StaticNodes                  []multiaddr.Multiaddr
+	KeepAlive                    time.Duration
+	AdvertiseAddresses           []multiaddr.Multiaddr
+	ShowAddresses                bool
+	CircuitRelay                 bool
+	ResourceScalingMemoryPercent float64
+	ResourceScalingFDPercent     float64
+	LogLevel                     string
+	LogEncoding                  string
+	LogOutput                    string
+	NAT                          string
+	ExtIP                        string
+	PersistPeers                 bool
+	UserAgent                    string
+	PProf                        bool
 
 	PeerExchange PeerExchangeOptions
 	Websocket    WSOptions
