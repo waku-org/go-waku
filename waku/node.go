@@ -14,6 +14,9 @@ import (
 	"syscall"
 	"time"
 
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	"github.com/pbnjay/memory"
+
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
@@ -60,6 +63,18 @@ func failOnErr(err error, msg string) {
 
 func requiresDB(options Options) bool {
 	return options.Store.Enable || options.Rendezvous.Server
+}
+
+func scalePerc(value float64) float64 {
+	if value > 100 {
+		return 100
+	}
+
+	if value < 0.1 {
+		return 0.1
+	}
+
+	return value
 }
 
 const dialTimeout = 7 * time.Second
@@ -129,6 +144,17 @@ func Execute(options Options) {
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
+
+	memPerc := scalePerc(options.ResourceScalingMemoryPercent)
+	fdPerc := scalePerc(options.ResourceScalingFDPercent)
+	limits := rcmgr.DefaultLimits // Default memory limit: 1/8th of total memory, minimum 128MB, maximum 1GB
+	scaledLimits := limits.Scale(int64(float64(memory.TotalMemory())*memPerc/100), int(float64(getNumFDs())*fdPerc/100))
+	resourceManager, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(scaledLimits))
+	failOnErr(err, "setting resource limits")
+
+	libp2pOpts = append(libp2pOpts, libp2p.ResourceManager(resourceManager))
+	libp2p.SetDefaultServiceLimits(&limits)
+
 	if len(options.AdvertiseAddresses) == 0 {
 		libp2pOpts = append(libp2pOpts, libp2p.NATPortMap()) // Attempt to open ports using uPNP for NATed hosts.)
 	}

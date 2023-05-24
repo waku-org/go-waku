@@ -174,6 +174,20 @@ var (
 		Destination: &options.CircuitRelay,
 		EnvVars:     []string{"WAKUNODE2_CIRCUIT_RELAY"},
 	})
+	ResourceScalingMemoryPercent = altsrc.NewFloat64Flag(&cli.Float64Flag{
+		Name:        "resource-scaling-memory-percentage",
+		Usage:       "Determines the percentage of total accessible memory that wil be dedicated to go-waku. A dedicated node with a lot of RAM could allocate 25% or more memory to go-waku",
+		Value:       25,
+		Destination: &options.ResourceScalingMemoryPercent,
+		EnvVars:     []string{"WAKUNODE2_RESOURCE_MEMORY_PERCENTAGE"},
+	})
+	ResourceScalingFDPercent = altsrc.NewFloat64Flag(&cli.Float64Flag{
+		Name:        "resource-scaling-file-descriptors-percentage",
+		Usage:       "Determines the percentage of total file descriptors that wil be dedicated to go-waku.",
+		Value:       50,
+		Destination: &options.ResourceScalingFDPercent,
+		EnvVars:     []string{"WAKUNODE2_RESOURCE_FD_PERCENTAGE"},
+	})
 	LogLevel = cliutils.NewGenericFlagSingleValue(&cli.GenericFlag{
 		Name:    "log-level",
 		Aliases: []string{"l"},
