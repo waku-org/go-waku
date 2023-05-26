@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -56,6 +55,7 @@ func withinTimeWindow(t timesource.Timesource, msg *pb.WakuMessage) bool {
 type validatorFn = func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
 
 func validatorFnBuilder(t timesource.Timesource, topic string, publicKey *ecdsa.PublicKey) (validatorFn, error) {
+	publicKeyBytes := crypto.FromECDSAPub(publicKey)
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
 		err := proto.Unmarshal(message.Data, msg)
@@ -70,12 +70,7 @@ func validatorFnBuilder(t timesource.Timesource, topic string, publicKey *ecdsa.
 		msgHash := MsgHash(topic, msg)
 		signature := msg.Meta
 
-		msgPubKey, err := crypto.SigToPub(msgHash, signature)
-		if err != nil {
-			return false
-		}
-
-		return bytes.Equal(crypto.FromECDSAPub(msgPubKey), crypto.FromECDSAPub(publicKey))
+		return secp256k1.VerifySignature(publicKeyBytes, msgHash, signature)
 	}, nil
 }
 
@@ -106,6 +101,6 @@ func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage, pubsubTopic str
 		return err
 	}
 
-	msg.Meta = sign
+	msg.Meta = sign[0:64] // Remove V
 	return nil
 }
