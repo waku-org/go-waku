@@ -15,7 +15,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/hash"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
@@ -56,9 +55,7 @@ func withinTimeWindow(t timesource.Timesource, msg *pb.WakuMessage) bool {
 
 type validatorFn = func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
 
-func validatorFnBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) (validatorFn, error) {
-	address := crypto.PubkeyToAddress(*publicKey)
-	topic := protocol.NewNamedShardingPubsubTopic(address.String() + "/proto").String()
+func validatorFnBuilder(t timesource.Timesource, topic string, publicKey *ecdsa.PublicKey) (validatorFn, error) {
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		msg := new(pb.WakuMessage)
 		err := proto.Unmarshal(message.Data, msg)
@@ -73,21 +70,19 @@ func validatorFnBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) (va
 		msgHash := MsgHash(topic, msg)
 		signature := msg.Meta
 
-		pubKey, err := crypto.SigToPub(msgHash, signature)
+		msgPubKey, err := crypto.SigToPub(msgHash, signature)
 		if err != nil {
 			return false
 		}
 
-		msgAddress := crypto.PubkeyToAddress(*pubKey)
-
-		return bytes.Equal(msgAddress.Bytes(), address.Bytes())
+		return bytes.Equal(crypto.FromECDSAPub(msgPubKey), crypto.FromECDSAPub(publicKey))
 	}, nil
 }
 
 func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
 	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
 
-	fn, err := validatorFnBuilder(w.timesource, publicKey)
+	fn, err := validatorFnBuilder(w.timesource, topic, publicKey)
 	if err != nil {
 		return err
 	}
@@ -104,9 +99,8 @@ func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.Publi
 	return nil
 }
 
-func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage) error {
-	topic := PrivKeyToTopic(privKey)
-	msgHash := MsgHash(topic, msg)
+func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage, pubsubTopic string) error {
+	msgHash := MsgHash(pubsubTopic, msg)
 	sign, err := secp256k1.Sign(msgHash, crypto.FromECDSA(privKey))
 	if err != nil {
 		return err
@@ -114,9 +108,4 @@ func SignMessage(privKey *ecdsa.PrivateKey, msg *pb.WakuMessage) error {
 
 	msg.Meta = sign
 	return nil
-}
-
-func PrivKeyToTopic(privKey *ecdsa.PrivateKey) string {
-	address := crypto.PubkeyToAddress(privKey.PublicKey)
-	return protocol.NewNamedShardingPubsubTopic(address.String() + "/proto").String()
 }
