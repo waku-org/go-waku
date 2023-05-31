@@ -8,7 +8,7 @@ replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethe
 
 require (
 	github.com/ipfs/go-log/v2 v2.5.1
-	github.com/multiformats/go-multiaddr v0.9.0
+	github.com/libp2p/go-libp2p v0.27.3
 	github.com/waku-org/go-noise v0.0.4
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
 	go.uber.org/zap v1.24.0
@@ -61,7 +61,6 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
-	github.com/libp2p/go-libp2p v0.27.3 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.9.3 // indirect
 	github.com/libp2p/go-mplex v0.7.0 // indirect
@@ -80,6 +79,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
+	github.com/multiformats/go-multiaddr v0.9.0 // indirect
 	github.com/multiformats/go-multiaddr-dns v0.3.1 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
@@ -101,7 +101,7 @@ require (
 	github.com/quic-go/quic-go v0.33.0 // indirect
 	github.com/quic-go/webtransport-go v0.5.2 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/rjeczalik/notify v0.9.1 // indirect
+	github.com/rjeczalik/notify v0.9.3 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/status-im/status-go/extkeys v1.1.2 // indirect
