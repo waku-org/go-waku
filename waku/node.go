@@ -295,11 +295,6 @@ func Execute(options Options) {
 
 	failOnErr(err, "Wakunode")
 
-	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
-	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
-	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
-	addPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
-
 	if options.Filter.UseV1 {
 		addPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
 	}
@@ -307,6 +302,11 @@ func Execute(options Options) {
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
+
+	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
+	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
+	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
+	addPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
 
 	if options.DiscV5.Enable {
 		if err = wakuNode.DiscV5().Start(ctx); err != nil {
