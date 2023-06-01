@@ -1569,6 +1569,10 @@ github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae/go.mod h1:DD4vA1
 github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f/go.mod h1:DD4vA1DwXk04H54A1oHXtwZmA0grkVMdPxx/VGLCah0=
 github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98 h1:xwY0kW5XZFimdqfZb9cZwT1S3VJP9j3AE6bdNd9boXM=
 github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98/go.mod h1:eBHgM6T4EG0RZzxpxKy+rGz/6Dw2Nd8DWxS0lm9ESDw=
+github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230601155048-9806ad621c18 h1:BNd3c24LWmYyLFIFx5OpPMWPTGvkzkb6ITag1Ao/w4Q=
+github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230601155048-9806ad621c18/go.mod h1:/1YwD6sx3xsbrSkVa4++e8AUDcUjC035bgKwDsZo+0Q=
+github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230601172541-0fad5ff68671 h1:iOCDabjZ11Zk0ejdWBR54OEFA/rRZdQgIrX6Rv4U7AM=
+github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230601172541-0fad5ff68671/go.mod h1:/1YwD6sx3xsbrSkVa4++e8AUDcUjC035bgKwDsZo+0Q=
 github.com/waku-org/go-noise v0.0.4 h1:ZfQDcCw8pazm89EBl5SXY7GGAnzDQb9AHFXlw3Ktbvk=
 github.com/waku-org/go-noise v0.0.4/go.mod h1:+PWRfs2eSOVwKrPcQlfhwDngSh3faL/1QoxvoqggEKc=
 github.com/waku-org/go-zerokit-rln v0.1.12 h1:66+tU6sTlmUpuUlEv7kCFOGZ37MwZYFJBXHcm8QquwU=

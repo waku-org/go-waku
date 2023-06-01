@@ -6,6 +6,8 @@
 // 2_messages_index.up.sql (226B)
 // 3_rendezvous.down.sql (65B)
 // 3_rendezvous.up.sql (181B)
+// 4_signed_peer_record.down.sql (166B)
+// 4_signed_peer_record.up.sql (178B)
 // doc.go (74B)
 
 package migrations
@@ -170,7 +172,7 @@ func _3_rendezvousDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "3_rendezvous.down.sql", size: 65, mode: os.FileMode(0664), modTime: time.Unix(1678306445, 0)}
+	info := bindataFileInfo{name: "3_rendezvous.down.sql", size: 65, mode: os.FileMode(0664), modTime: time.Unix(1678392960, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x1f, 0x4b, 0xc0, 0x7d, 0x4f, 0xac, 0xc4, 0x75, 0x59, 0xcc, 0xfc, 0x1a, 0x6c, 0x18, 0x81, 0x29, 0x24, 0x33, 0x3, 0x10, 0x39, 0xd0, 0x67, 0x28, 0xa0, 0xe0, 0xfd, 0x36, 0x91, 0x25, 0x37, 0x83}}
 	return a, nil
 }
@@ -190,8 +192,48 @@ func _3_rendezvousUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "3_rendezvous.up.sql", size: 181, mode: os.FileMode(0664), modTime: time.Unix(1678306380, 0)}
+	info := bindataFileInfo{name: "3_rendezvous.up.sql", size: 181, mode: os.FileMode(0664), modTime: time.Unix(1678392960, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x5c, 0xb8, 0x4f, 0x88, 0xe9, 0xc6, 0xc, 0xbb, 0x2e, 0x56, 0xa2, 0xcd, 0x9, 0xfa, 0x33, 0x94, 0xd7, 0x73, 0xc1, 0xa, 0xc5, 0x69, 0xfb, 0x9f, 0x75, 0xdb, 0x75, 0x58, 0x20, 0x5e, 0xf, 0x14}}
+	return a, nil
+}
+
+var __4_signed_peer_recordDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x6c\xc9\xc1\x0a\x82\x40\x10\x06\xe0\xfb\x3e\xc5\x7f\x54\xf0\x18\x5d\x3c\x8d\x36\x94\x64\x25\xd3\x12\x78\x94\x1c\xc2\xcb\x2a\xb3\x1b\xf4\xf8\x81\xe1\xad\xeb\xf7\x1d\xe4\xd6\xc1\x53\xd5\x32\x4c\x5f\x53\x4c\x36\xa4\x69\x0e\xb1\x74\xae\x16\x26\xcf\xff\x12\x99\x03\x80\xe7\xfc\x0e\x49\x0d\x77\x96\x86\x5a\x74\xd2\x5c\x48\x7a\x9c\xb9\x2f\xd6\x5f\x54\x0d\x0f\x92\xfa\x44\x92\xed\x77\xf9\x4f\x43\xdc\xac\xc0\x0a\xfa\x59\x26\x53\x34\x57\xcf\x47\xde\x70\x18\x47\x8b\xa8\x7a\xcf\xe4\xf2\xf2\x1b\x00\x00\xff\xff\x2b\xea\xec\xa2\xa6\x00\x00\x00")
+
+func _4_signed_peer_recordDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__4_signed_peer_recordDownSql,
+		"4_signed_peer_record.down.sql",
+	)
+}
+
+func _4_signed_peer_recordDownSql() (*asset, error) {
+	bytes, err := _4_signed_peer_recordDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "4_signed_peer_record.down.sql", size: 166, mode: os.FileMode(0664), modTime: time.Unix(1685640630, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x9c, 0x4b, 0x6c, 0x4d, 0xe5, 0x90, 0x9e, 0xd5, 0xf9, 0x86, 0xe5, 0x23, 0xe2, 0xd, 0xbe, 0x3c, 0x28, 0x8f, 0x68, 0x8e, 0x8e, 0xe9, 0xc5, 0xf4, 0x60, 0x9b, 0xc7, 0x40, 0xca, 0x30, 0xb6, 0x9e}}
+	return a, nil
+}
+
+var __4_signed_peer_recordUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x6c\xc9\xb1\xaa\x83\x40\x10\x05\xd0\x7e\xbf\xe2\x96\x0a\x96\x8f\xd7\x58\x8d\x66\x48\x24\x26\x91\xc9\x12\xb0\x0c\x3a\xc8\x36\xab\xcc\x1a\xc8\xe7\x07\x0c\x76\x69\xcf\x39\xc8\xad\x83\xa7\xaa\x65\x98\x4e\x21\xad\xf6\x5c\xc3\x1c\x53\xe9\x5c\x2d\x4c\x9e\x7f\x25\x32\x07\x00\xc3\xfc\x8a\xab\x1a\xee\x2c\x0d\xb5\xe8\xa4\xb9\x90\xf4\x38\x73\x5f\x6c\xbf\xa8\x1a\x1e\x24\xf5\x89\x24\xfb\xff\xcb\xbf\x1a\xd3\x6e\x05\x36\xd0\xf7\x12\x4c\xd1\x5c\x3d\x1f\x79\xc7\x14\xa6\xa8\x63\xa7\x6a\xa2\xc3\x6c\x23\xaa\xde\x33\xb9\xbc\x74\x9f\x00\x00\x00\xff\xff\xa8\x37\x10\xd4\xb2\x00\x00\x00")
+
+func _4_signed_peer_recordUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__4_signed_peer_recordUpSql,
+		"4_signed_peer_record.up.sql",
+	)
+}
+
+func _4_signed_peer_recordUpSql() (*asset, error) {
+	bytes, err := _4_signed_peer_recordUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "4_signed_peer_record.up.sql", size: 178, mode: os.FileMode(0664), modTime: time.Unix(1685640560, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0xb4, 0xa7, 0xfe, 0xfc, 0xdb, 0xd4, 0xad, 0x54, 0xb7, 0x67, 0xb, 0x97, 0x2a, 0xc5, 0x88, 0xc7, 0xe3, 0x49, 0x33, 0xa3, 0x13, 0x7e, 0xb4, 0x6a, 0x15, 0xf3, 0x6b, 0x7e, 0xc5, 0xb6, 0x38, 0x5f}}
 	return a, nil
 }
 
@@ -318,6 +360,10 @@ var _bindata = map[string]func() (*asset, error){
 
 	"3_rendezvous.up.sql": _3_rendezvousUpSql,
 
+	"4_signed_peer_record.down.sql": _4_signed_peer_recordDownSql,
+
+	"4_signed_peer_record.up.sql": _4_signed_peer_recordUpSql,
+
 	"doc.go": docGo,
 }
 
@@ -362,13 +408,15 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"1_messages.down.sql":       &bintree{_1_messagesDownSql, map[string]*bintree{}},
-	"1_messages.up.sql":         &bintree{_1_messagesUpSql, map[string]*bintree{}},
-	"2_messages_index.down.sql": &bintree{_2_messages_indexDownSql, map[string]*bintree{}},
-	"2_messages_index.up.sql":   &bintree{_2_messages_indexUpSql, map[string]*bintree{}},
-	"3_rendezvous.down.sql":     &bintree{_3_rendezvousDownSql, map[string]*bintree{}},
-	"3_rendezvous.up.sql":       &bintree{_3_rendezvousUpSql, map[string]*bintree{}},
-	"doc.go":                    &bintree{docGo, map[string]*bintree{}},
+	"1_messages.down.sql":           &bintree{_1_messagesDownSql, map[string]*bintree{}},
+	"1_messages.up.sql":             &bintree{_1_messagesUpSql, map[string]*bintree{}},
+	"2_messages_index.down.sql":     &bintree{_2_messages_indexDownSql, map[string]*bintree{}},
+	"2_messages_index.up.sql":       &bintree{_2_messages_indexUpSql, map[string]*bintree{}},
+	"3_rendezvous.down.sql":         &bintree{_3_rendezvousDownSql, map[string]*bintree{}},
+	"3_rendezvous.up.sql":           &bintree{_3_rendezvousUpSql, map[string]*bintree{}},
+	"4_signed_peer_record.down.sql": &bintree{_4_signed_peer_recordDownSql, map[string]*bintree{}},
+	"4_signed_peer_record.up.sql":   &bintree{_4_signed_peer_recordUpSql, map[string]*bintree{}},
+	"doc.go":                        &bintree{docGo, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory.
