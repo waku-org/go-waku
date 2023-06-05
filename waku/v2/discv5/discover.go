@@ -299,6 +299,7 @@ func (d *DiscoveryV5) iterate(ctx context.Context) error {
 			peer := v2.PeerData{
 				Origin:   peers.Discv5,
 				AddrInfo: peerAddrs[0],
+				ENR:      iterator.Node(),
 			}
 
 			select {

@@ -139,7 +139,6 @@ func (r *Rendezvous) discover(ctx context.Context) {
 					}
 				}
 			} else {
-				// TODO: change log level to DEBUG in go-libp2p-rendezvous@v0.4.1/svc.go:234  discover query
 				// TODO: improve this by adding an exponential backoff?
 				time.Sleep(5 * time.Second)
 			}

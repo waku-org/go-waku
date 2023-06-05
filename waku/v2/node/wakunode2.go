@@ -742,9 +742,13 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 
 func (w *WakuNode) addPeer(info *peer.AddrInfo, origin peers.Origin, protocols ...protocol.ID) error {
 	w.log.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
-	w.host.Peerstore().(peers.WakuPeerstore).SetOrigin(info.ID, origin)
+	err := w.host.Peerstore().(peers.WakuPeerstore).SetOrigin(info.ID, origin)
+	if err != nil {
+		return err
+	}
+
 	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.AddressTTL)
-	err := w.host.Peerstore().AddProtocols(info.ID, protocols...)
+	err = w.host.Peerstore().AddProtocols(info.ID, protocols...)
 	if err != nil {
 		return err
 	}
@@ -795,9 +799,11 @@ func (w *WakuNode) DialPeerWithInfo(ctx context.Context, peerInfo peer.AddrInfo)
 func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	err := w.host.Connect(ctx, info)
 	if err != nil {
+		w.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(info)
 		return err
 	}
 
+	w.host.Peerstore().(peers.WakuPeerstore).ResetConnFailures(info)
 	stats.Record(ctx, metrics.Dials.M(1))
 	return nil
 }

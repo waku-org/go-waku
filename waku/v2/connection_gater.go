@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/control"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -15,7 +14,6 @@ import (
 
 type ConnectionGater struct {
 	sync.Mutex
-	host     host.Host
 	logger   *zap.Logger
 	limiter  map[string]int
 	inbound  int
