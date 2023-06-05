@@ -10,6 +10,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	rvs "github.com/waku-org/go-libp2p-rendezvous"
+	v2 "github.com/waku-org/go-waku/waku/v2"
+	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
@@ -40,7 +42,7 @@ type Rendezvous struct {
 }
 
 type PeerConnector interface {
-	PeerChannel() chan<- peer.AddrInfo
+	PeerChannel() chan<- v2.PeerData
 }
 
 func NewRendezvous(enableServer bool, db *DB, discoverPeers bool, rendezvousPoints []peer.ID, peerConnector PeerConnector, log *zap.Logger) *Rendezvous {
@@ -126,8 +128,12 @@ func (r *Rendezvous) discover(ctx context.Context) {
 				server.Unlock()
 
 				for _, addr := range addrInfo {
+					peer := v2.PeerData{
+						Origin:   peers.Rendezvous,
+						AddrInfo: addr,
+					}
 					select {
-					case r.peerConnector.PeerChannel() <- addr:
+					case r.peerConnector.PeerChannel() <- peer:
 					case <-ctx.Done():
 						return
 					}

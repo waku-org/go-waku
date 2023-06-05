@@ -15,7 +15,9 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
+	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -85,7 +87,7 @@ func DefaultOptions() []DiscoveryV5Option {
 }
 
 type PeerConnector interface {
-	PeerChannel() chan<- peer.AddrInfo
+	PeerChannel() chan<- v2.PeerData
 }
 
 func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
@@ -294,8 +296,13 @@ func (d *DiscoveryV5) iterate(ctx context.Context) error {
 		}
 
 		if len(peerAddrs) != 0 {
+			peer := v2.PeerData{
+				Origin:   peers.Discv5,
+				AddrInfo: peerAddrs[0],
+			}
+
 			select {
-			case d.peerConnector.PeerChannel() <- peerAddrs[0]:
+			case d.peerConnector.PeerChannel() <- peer:
 			case <-ctx.Done():
 				return nil
 			}

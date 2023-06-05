@@ -10,7 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio/pbio"
+	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/peers"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
 	"go.uber.org/zap"
@@ -61,7 +63,7 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 }
 
 func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb.PeerExchangeResponse) error {
-	var peers []peer.AddrInfo
+	var discoveredPeers []peer.AddrInfo
 	for _, p := range response.PeerInfos {
 		enrRecord := &enr.Record{}
 		buf := bytes.NewBuffer(p.ENR)
@@ -84,19 +86,23 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 			return err
 		}
 
-		peers = append(peers, *peerInfo)
+		discoveredPeers = append(discoveredPeers, *peerInfo)
 	}
 
-	if len(peers) != 0 {
-		wakuPX.log.Info("connecting to newly discovered peers", zap.Int("count", len(peers)))
+	if len(discoveredPeers) != 0 {
+		wakuPX.log.Info("connecting to newly discovered peers", zap.Int("count", len(discoveredPeers)))
 		wakuPX.wg.Add(1)
 		go func() {
 			defer wakuPX.wg.Done()
-			for _, p := range peers {
+			for _, p := range discoveredPeers {
+				peer := v2.PeerData{
+					Origin:   peers.PeerExchange,
+					AddrInfo: p,
+				}
 				select {
 				case <-ctx.Done():
 					return
-				case wakuPX.peerConnector.PeerChannel() <- p:
+				case wakuPX.peerConnector.PeerChannel() <- peer:
 				}
 			}
 		}()

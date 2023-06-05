@@ -18,6 +18,7 @@ import (
 	"github.com/pbnjay/memory"
 
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -31,6 +32,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
@@ -191,7 +193,7 @@ func Execute(options Options) {
 		peerStore, err := pstoreds.NewPeerstore(ctx, datastore, opts)
 		failOnErr(err, "Peerstore")
 
-		libp2pOpts = append(libp2pOpts, libp2p.Peerstore(peerStore))
+		nodeOpts = append(nodeOpts, node.WithPeerStore(peerStore))
 	}
 
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
@@ -296,17 +298,21 @@ func Execute(options Options) {
 	failOnErr(err, "Wakunode")
 
 	if options.Filter.UseV1 {
-		addPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
+		addStaticPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
 
-	addPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
-	addPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
-	addPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
-	addPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
+	for _, d := range discoveredNodes {
+		wakuNode.Host().Peerstore().AddAddrs(d.PeerID, d.PeerInfo.Addrs, peerstore.PermanentAddrTTL)
+	}
+
+	addStaticPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
+	addStaticPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
+	addStaticPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
+	addStaticPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
 
 	if options.DiscV5.Enable {
 		if err = wakuNode.DiscV5().Start(ctx); err != nil {
@@ -318,11 +324,11 @@ func Execute(options Options) {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, peer_exchange.PeerExchangeID_v20alpha1)
+		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, peers.Static, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
-			desiredOutDegree := 6 // TODO: obtain this from gossipsub D
+			desiredOutDegree := wakuNode.Relay().Params().D
 			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(peerId)); err != nil {
 				logger.Error("requesting peers via peer exchange", zap.Error(err))
 			}
@@ -420,9 +426,9 @@ func Execute(options Options) {
 	}
 }
 
-func addPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {
+func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {
 	for _, addr := range addresses {
-		_, err := wakuNode.AddPeer(addr, protocols...)
+		_, err := wakuNode.AddPeer(addr, peers.Static, protocols...)
 		failOnErr(err, "error adding peer")
 	}
 }

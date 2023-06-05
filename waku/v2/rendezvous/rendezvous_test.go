@@ -14,20 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type PeerConn struct {
-	ch chan peer.AddrInfo
+	ch chan v2.PeerData
 }
 
-func (p PeerConn) PeerChannel() chan<- peer.AddrInfo {
+func (p PeerConn) PeerChannel() chan<- v2.PeerData {
 	return p.ch
 }
 
 func NewPeerConn() PeerConn {
 	x := PeerConn{}
-	x.ch = make(chan peer.AddrInfo, 1000)
+	x.ch = make(chan v2.PeerData, 1000)
 	return x
 }
 
@@ -94,6 +95,6 @@ func TestRendezvous(t *testing.T) {
 	case <-timer:
 		require.Fail(t, "no peer discovered")
 	case p := <-myPeerConnector.ch:
-		require.Equal(t, p.ID.Pretty(), host2.ID().Pretty())
+		require.Equal(t, p.AddrInfo.ID.Pretty(), host2.ID().Pretty())
 	}
 }
