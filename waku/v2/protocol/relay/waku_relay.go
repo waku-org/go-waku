@@ -31,6 +31,7 @@ type WakuRelay struct {
 	host       host.Host
 	opts       []pubsub.Option
 	pubsub     *pubsub.PubSub
+	params     pubsub.GossipSubParams
 	timesource timesource.Timesource
 
 	log *zap.Logger
@@ -65,24 +66,28 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.log = log.Named("relay")
 
 	// default options required by WakuRelay
-	opts = append(opts, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	opts = append(opts, pubsub.WithNoAuthor())
-	opts = append(opts, pubsub.WithMessageIdFn(msgIdFn))
-	opts = append(opts, pubsub.WithGossipSubProtocols(
-		[]protocol.ID{pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID, WakuRelayID_v200},
-		func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
-			switch feat {
-			case pubsub.GossipSubFeatureMesh:
-				return proto == pubsub.GossipSubID_v11 || proto == pubsub.GossipSubID_v10
-			case pubsub.GossipSubFeaturePX:
-				return proto == pubsub.GossipSubID_v11
-			default:
-				return false
-			}
-		},
-	))
+	w.opts = append([]pubsub.Option{
+		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
+		pubsub.WithNoAuthor(),
+		pubsub.WithMessageIdFn(msgIdFn),
+		pubsub.WithGossipSubProtocols(
+			[]protocol.ID{pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID, WakuRelayID_v200},
+			func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
+				switch feat {
+				case pubsub.GossipSubFeatureMesh:
+					return proto == pubsub.GossipSubID_v11 || proto == pubsub.GossipSubID_v10
+				case pubsub.GossipSubFeaturePX:
+					return proto == pubsub.GossipSubID_v11
+				default:
+					return false
+				}
+			},
+		),
+	}, opts...)
 
-	w.opts = opts
+	// We disable overriding gossipsub parameters by adding them as the last value in the options
+	cfg := pubsub.DefaultGossipSubParams()
+	w.opts = append(w.opts, pubsub.WithGossipSubParams(cfg))
 
 	return w
 }
@@ -360,4 +365,9 @@ func (w *WakuRelay) subscribeToTopic(pubsubTopic string, sub *pubsub.Subscriptio
 			}
 		}
 	}
+
+}
+
+func (w *WakuRelay) Params() pubsub.GossipSubParams {
+	return w.params
 }

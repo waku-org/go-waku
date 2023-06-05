@@ -16,6 +16,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/libp2p/go-libp2p/p2p/muxer/mplex"
 	"github.com/libp2p/go-libp2p/p2p/muxer/yamux"
@@ -51,6 +52,7 @@ type WakuNodeParameters struct {
 	addressFactory basichost.AddrsFactory
 	privKey        *ecdsa.PrivateKey
 	libP2POpts     []libp2p.Option
+	peerstore      peerstore.Peerstore
 
 	enableNTP bool
 	ntpURLs   []string
@@ -306,6 +308,13 @@ func (w *WakuNodeParameters) GetPrivKey() *crypto.PrivKey {
 func WithLibP2POptions(opts ...libp2p.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.libP2POpts = opts
+		return nil
+	}
+}
+
+func WithPeerStore(ps peerstore.Peerstore) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.peerstore = ps
 		return nil
 	}
 }

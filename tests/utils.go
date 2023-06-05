@@ -15,7 +15,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/multiformats/go-multiaddr"
+	v2 "github.com/waku-org/go-waku/waku/v2"
+	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
@@ -94,11 +97,25 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 	}
 
 	// 0.0.0.0 will listen on any interface device.
-	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port))
+	sourceMultiAddr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	ps, err := pstoremem.NewPeerstore()
+	if err != nil {
+		return nil, err
+	}
+
+	psWrapper := peers.NewWakuPeerstore(ps)
+	if err != nil {
+		return nil, err
+	}
 
 	// libp2p.New constructs a new libp2p Host.
 	// Other options can be added here.
 	return libp2p.New(
+		libp2p.Peerstore(psWrapper),
 		libp2p.ListenAddrs(sourceMultiAddr),
 		libp2p.Identity(prvKey),
 	)
@@ -121,19 +138,19 @@ func RandomHex(n int) (string, error) {
 type TestPeerDiscoverer struct {
 	sync.RWMutex
 	peerMap map[peer.ID]struct{}
-	peerCh  chan peer.AddrInfo
+	peerCh  chan v2.PeerData
 }
 
 func NewTestPeerDiscoverer() *TestPeerDiscoverer {
 	result := &TestPeerDiscoverer{
 		peerMap: make(map[peer.ID]struct{}),
-		peerCh:  make(chan peer.AddrInfo, 10),
+		peerCh:  make(chan v2.PeerData, 10),
 	}
 
 	go func() {
 		for p := range result.peerCh {
 			result.Lock()
-			result.peerMap[p.ID] = struct{}{}
+			result.peerMap[p.AddrInfo.ID] = struct{}{}
 			result.Unlock()
 		}
 	}()
@@ -141,7 +158,7 @@ func NewTestPeerDiscoverer() *TestPeerDiscoverer {
 	return result
 }
 
-func (t *TestPeerDiscoverer) PeerChannel() chan<- peer.AddrInfo {
+func (t *TestPeerDiscoverer) PeerChannel() chan<- v2.PeerData {
 	return t.peerCh
 }
 
