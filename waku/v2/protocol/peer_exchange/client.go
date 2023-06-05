@@ -63,7 +63,11 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 }
 
 func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb.PeerExchangeResponse) error {
-	var discoveredPeers []peer.AddrInfo
+	var discoveredPeers []struct {
+		addrInfo peer.AddrInfo
+		enr      *enode.Node
+	}
+
 	for _, p := range response.PeerInfos {
 		enrRecord := &enr.Record{}
 		buf := bytes.NewBuffer(p.ENR)
@@ -77,16 +81,21 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 		enodeRecord, err := enode.New(enode.ValidSchemes, enrRecord)
 		if err != nil {
 			wakuPX.log.Error("creating enode record", zap.Error(err))
-
 			return err
 		}
 
-		peerInfo, err := wenr.EnodeToPeerInfo(enodeRecord)
+		addrInfo, err := wenr.EnodeToPeerInfo(enodeRecord)
 		if err != nil {
 			return err
 		}
 
-		discoveredPeers = append(discoveredPeers, *peerInfo)
+		discoveredPeers = append(discoveredPeers, struct {
+			addrInfo peer.AddrInfo
+			enr      *enode.Node
+		}{
+			addrInfo: *addrInfo,
+			enr:      enodeRecord,
+		})
 	}
 
 	if len(discoveredPeers) != 0 {
@@ -97,7 +106,8 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 			for _, p := range discoveredPeers {
 				peer := v2.PeerData{
 					Origin:   peers.PeerExchange,
-					AddrInfo: p,
+					AddrInfo: p.addrInfo,
+					ENR:      p.enr,
 				}
 				select {
 				case <-ctx.Done():

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -74,6 +75,7 @@ type connCacheData struct {
 type PeerData struct {
 	Origin   peers.Origin
 	AddrInfo peer.AddrInfo
+	ENR      *enode.Node
 }
 
 // PeerChannel exposes the channel on which discovered peers should be pushed
@@ -181,7 +183,18 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 					return
 				case p := <-c.peerCh:
 					c.host.Peerstore().AddAddrs(p.AddrInfo.ID, p.AddrInfo.Addrs, peerstore.AddressTTL)
-					c.host.Peerstore().(peers.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
+					err := c.host.Peerstore().(peers.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
+					if err != nil {
+						c.logger.Error("could not set origin", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID))
+					}
+
+					if p.ENR != nil {
+						err = c.host.Peerstore().(peers.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
+						if err != nil {
+							c.logger.Error("could not store enr", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
+						}
+					}
+
 					c.publishWork(ctx, p.AddrInfo)
 				case <-time.After(1 * time.Second):
 					// This timeout is to not lock the goroutine
@@ -247,6 +260,7 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				defer cancel()
 				err := c.host.Connect(ctx, pi)
 				if err != nil && !errors.Is(err, context.Canceled) {
+					c.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(pi)
 					c.logger.Info("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
 				}
 				<-sem

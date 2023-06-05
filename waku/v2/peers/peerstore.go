@@ -1,7 +1,10 @@
 package peers
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 )
@@ -20,8 +23,14 @@ const (
 const peerOrigin = "origin"
 const peerENR = "enr"
 
+type ConnectionFailures struct {
+	sync.RWMutex
+	failures map[peer.ID]int
+}
+
 type WakuPeerstoreImpl struct {
-	peerStore peerstore.Peerstore
+	peerStore    peerstore.Peerstore
+	connFailures ConnectionFailures
 }
 
 type WakuPeerstore interface {
@@ -29,12 +38,18 @@ type WakuPeerstore interface {
 	Origin(p peer.ID, origin Origin) (Origin, error)
 	PeersByOrigin(origin Origin) peer.IDSlice
 	SetENR(p peer.ID, enr *enode.Node) error
-	ENR(p peer.ID, origin Origin) (*enode.Node, error)
+	ENR(p peer.ID, origin Origin) (*enr.Record, error)
+	AddConnFailure(p peer.AddrInfo)
+	ResetConnFailures(p peer.AddrInfo)
+	ConnFailures(p peer.AddrInfo) int
 }
 
 func NewWakuPeerstore(p peerstore.Peerstore) peerstore.Peerstore {
 	return &WakuPeerstoreImpl{
 		peerStore: p,
+		connFailures: ConnectionFailures{
+			failures: make(map[peer.ID]int),
+		},
 	}
 }
 
@@ -72,4 +87,22 @@ func (ps *WakuPeerstoreImpl) ENR(p peer.ID, origin Origin) (*enode.Node, error) 
 		return nil, err
 	}
 	return result.(*enode.Node), nil
+}
+
+func (ps *WakuPeerstoreImpl) AddConnFailure(p peer.AddrInfo) {
+	ps.connFailures.Lock()
+	defer ps.connFailures.Unlock()
+	ps.connFailures.failures[p.ID]++
+}
+
+func (ps *WakuPeerstoreImpl) ResetConnFailures(p peer.AddrInfo) {
+	ps.connFailures.Lock()
+	defer ps.connFailures.Unlock()
+	ps.connFailures.failures[p.ID] = 0
+}
+
+func (ps *WakuPeerstoreImpl) ConnFailures(p peer.AddrInfo) int {
+	ps.connFailures.RLock()
+	defer ps.connFailures.RUnlock()
+	return ps.connFailures.failures[p.ID]
 }
