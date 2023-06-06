@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 )
@@ -38,7 +37,7 @@ type WakuPeerstore interface {
 	Origin(p peer.ID, origin Origin) (Origin, error)
 	PeersByOrigin(origin Origin) peer.IDSlice
 	SetENR(p peer.ID, enr *enode.Node) error
-	ENR(p peer.ID, origin Origin) (*enr.Record, error)
+	ENR(p peer.ID, origin Origin) (*enode.Node, error)
 	AddConnFailure(p peer.AddrInfo)
 	ResetConnFailures(p peer.AddrInfo)
 	ConnFailures(p peer.AddrInfo) int
