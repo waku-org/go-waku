@@ -30,11 +30,14 @@ const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic().String()
 
 type WakuRelay struct {
-	host       host.Host
-	opts       []pubsub.Option
-	pubsub     *pubsub.PubSub
-	params     pubsub.GossipSubParams
-	timesource timesource.Timesource
+	host                host.Host
+	opts                []pubsub.Option
+	pubsub              *pubsub.PubSub
+	params              pubsub.GossipSubParams
+	peerScoreParams     *pubsub.PeerScoreParams
+	peerScoreThresholds *pubsub.PeerScoreThresholds
+	topicParams         *pubsub.TopicScoreParams
+	timesource          timesource.Timesource
 
 	log *zap.Logger
 
@@ -81,26 +84,54 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	cfg.HistoryGossip = 3
 	cfg.FanoutTTL = time.Minute
 
-	peerScoreParams := &pubsub.PeerScoreParams{
+	w.peerScoreParams = &pubsub.PeerScoreParams{
+		Topics:        make(map[string]*pubsub.TopicScoreParams),
 		DecayInterval: 12 * time.Second, // how often peer scoring is updated
 		DecayToZero:   0.01,             // below this we consider the parameter to be zero
 		RetainScore:   10 * time.Minute, // remember peer score during x after it disconnects
+		// p5: application specific, unset
 		AppSpecificScore: func(p peer.ID) float64 {
 			return 0
 		},
-		AppSpecificWeight:           0.0, // p5: application specific, unset
-		IPColocationFactorWeight:    -50, // p6: penalizes peers sharing more than threshold ips
-		IPColocationFactorThreshold: 5.0, //
-		BehaviourPenaltyWeight:      -10, // p7: penalizes bad behaviour (weight and decay)
-		BehaviourPenaltyDecay:       0.986,
+		AppSpecificWeight: 0.0,
+		// p6: penalizes peers sharing more than threshold ips
+		IPColocationFactorWeight:    -50,
+		IPColocationFactorThreshold: 5.0,
+		// p7: penalizes bad behaviour (weight and decay)
+		BehaviourPenaltyWeight: -10,
+		BehaviourPenaltyDecay:  0.986,
 	}
 
-	peerScoreThresholds := &pubsub.PeerScoreThresholds{
+	w.peerScoreThresholds = &pubsub.PeerScoreThresholds{
 		GossipThreshold:             -100,   // no gossip is sent to peers below this score
 		PublishThreshold:            -1000,  // no self-published msgs are sent to peers below this score
 		GraylistThreshold:           -10000, // used to trigger disconnections + ignore peer if below this score
 		OpportunisticGraftThreshold: 0,      // grafts better peers if the mesh median score drops below this. unset.
+	}
 
+	w.topicParams = &pubsub.TopicScoreParams{
+		TopicWeight: 1,
+		// p1: favours peers already in the mesh
+		TimeInMeshWeight:  0.01,
+		TimeInMeshQuantum: time.Second,
+		TimeInMeshCap:     10.0,
+		// p2: rewards fast peers
+		FirstMessageDeliveriesWeight: 1.0,
+		FirstMessageDeliveriesDecay:  0.5,
+		FirstMessageDeliveriesCap:    10.0,
+		// p3: penalizes lazy peers. safe low value
+		MeshMessageDeliveriesWeight:     0,
+		MeshMessageDeliveriesDecay:      0,
+		MeshMessageDeliveriesCap:        0,
+		MeshMessageDeliveriesThreshold:  0,
+		MeshMessageDeliveriesWindow:     0,
+		MeshMessageDeliveriesActivation: 0,
+		// p3b: tracks history of prunes
+		MeshFailurePenaltyWeight: 0,
+		MeshFailurePenaltyDecay:  0,
+		// p4: penalizes invalid messages. highly penalize peers sending wrong messages
+		InvalidMessageDeliveriesWeight: -100.0,
+		InvalidMessageDeliveriesDecay:  0.5,
 	}
 
 	// default options required by WakuRelay
@@ -124,7 +155,8 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 		pubsub.WithGossipSubParams(cfg),
 		pubsub.WithFloodPublish(true),
 		pubsub.WithSeenMessagesTTL(2 * time.Minute),
-		pubsub.WithPeerScore(peerScoreParams, peerScoreThresholds),
+		pubsub.WithPeerScore(w.peerScoreParams, w.peerScoreThresholds),
+		pubsub.WithPeerScoreInspect(w.peerScoreInspector, 6*time.Second),
 		pubsub.WithDefaultValidator(func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 			msg := new(pb.WakuMessage)
 			err := proto.Unmarshal(message.Data, msg)
@@ -133,6 +165,22 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	}, opts...)
 
 	return w
+}
+
+func (w *WakuRelay) peerScoreInspector(peerScoresSnapshots map[peer.ID]*pubsub.PeerScoreSnapshot) {
+	if w.host == nil {
+		return
+	}
+
+	for pid, snap := range peerScoresSnapshots {
+		if snap.Score < w.peerScoreThresholds.GraylistThreshold {
+			// Disconnect bad peers
+			err := w.host.Network().ClosePeer(pid)
+			if err != nil {
+				w.log.Error("could not disconnect peer", logging.HostID("peer", pid), zap.Error(err))
+			}
+		}
+	}
 }
 
 // Sets the host to be able to mount or consume a protocol
@@ -195,6 +243,12 @@ func (w *WakuRelay) upsertTopic(topic string) (*pubsub.Topic, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		err = newTopic.SetScoreParams(w.topicParams)
+		if err != nil {
+			return nil, err
+		}
+
 		w.wakuRelayTopics[topic] = newTopic
 		pubSubTopic = newTopic
 	}

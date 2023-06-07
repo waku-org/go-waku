@@ -97,7 +97,7 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 	}
 
 	// 0.0.0.0 will listen on any interface device.
-	sourceMultiAddr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port))
+	sourceMultiAddr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
 	if err != nil {
 		return nil, err
 	}
