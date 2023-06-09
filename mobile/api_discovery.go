@@ -2,9 +2,11 @@ package gowaku
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 )
 
@@ -78,4 +80,39 @@ func StopDiscoveryV5() string {
 	}
 	wakuState.node.DiscV5().Stop()
 	return MakeJSONResponse(nil)
+}
+
+func SetBootnodes(bootnodes string) string {
+	if wakuState.node == nil {
+		return MakeJSONResponse(errWakuNodeNotReady)
+	}
+	if wakuState.node.DiscV5() == nil {
+		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
+	}
+
+	var tmp []json.RawMessage
+	if err := json.Unmarshal([]byte(bootnodes), &tmp); err != nil {
+		return MakeJSONResponse(err)
+	}
+
+	var enrList []string
+	for _, el := range tmp {
+		var enr string
+		if err := json.Unmarshal(el, &enr); err != nil {
+			return MakeJSONResponse(err)
+		}
+		enrList = append(enrList, enr)
+	}
+
+	var nodes []*enode.Node
+	for _, addr := range enrList {
+		node, err := enode.Parse(enode.ValidSchemes, addr)
+		if err != nil {
+			return MakeJSONResponse(err)
+		}
+		nodes = append(nodes, node)
+	}
+
+	err := wakuState.node.DiscV5().SetBootnodes(nodes)
+	return MakeJSONResponse(err)
 }
