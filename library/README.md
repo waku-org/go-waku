@@ -1219,6 +1219,27 @@ For example:
 }
 ```
 
+### `extern char* waku_discv5_update_bootnodes(char* bootnodes)`
+Update the bootnode list used for discovering new peers via DiscoveryV5
+
+**Parameters**
+
+1. `char* bootnodes`: JSON array containing the bootnode ENRs i.e. `["enr:...", "enr:..."]`
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field is set to `true`.
+
+For example:
+
+```json
+{
+  "result": true
+}
+```
+
+
 ### `extern char* waku_discv5_stop()`
 Stops the DiscoveryV5 service
 
