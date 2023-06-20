@@ -291,7 +291,7 @@ func (d *DiscoveryV5) Iterator() (enode.Iterator, error) {
 	}
 }
 
-func (d *DiscoveryV5) FindPeers(ctx context.Context, predicate func(*enode.Node) bool) (enode.Iterator, error) {
+func (d *DiscoveryV5) FindPeersWithPredicate(ctx context.Context, predicate func(*enode.Node) bool) (enode.Iterator, error) {
 	if d.listener == nil {
 		return nil, ErrNoDiscV5Listener
 	}
@@ -302,6 +302,24 @@ func (d *DiscoveryV5) FindPeers(ctx context.Context, predicate func(*enode.Node)
 	}
 
 	return iterator, nil
+}
+
+func (d *DiscoveryV5) FindPeersWithShard(ctx context.Context, cluster, index uint16) (enode.Iterator, error) {
+	if d.listener == nil {
+		return nil, ErrNoDiscV5Listener
+	}
+
+	iterator := enode.Filter(d.listener.RandomNodes(), evaluateNode)
+
+	predicate := func(node *enode.Node) bool {
+		rs, err := enr.RelaySharding(node.Record())
+		if err != nil || rs == nil {
+			return false
+		}
+		return rs.Contains(cluster, index)
+	}
+
+	return enode.Filter(iterator, predicate), nil
 }
 
 func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNode func(*enode.Node, peer.AddrInfo) error) {
@@ -337,13 +355,39 @@ func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNo
 	}
 }
 
-// Iterates over the nodes found via discv5, and sends them to peerConnector
+// Iterates over the nodes found via discv5 belonging to the node's current shard, and sends them to peerConnector
 func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 	iterator, err := d.Iterator()
 	if err != nil {
 		metrics.RecordDiscV5Error(context.Background(), "iterator_failure")
 		return fmt.Errorf("obtaining iterator: %w", err)
 	}
+
+	iterator = enode.Filter(iterator, func(n *enode.Node) bool {
+		// TODO: might make sense to extract the next line outside of the iterator
+		localRS, err := enr.RelaySharding(d.localnode.Node().Record())
+		if err != nil || localRS == nil {
+			return false
+		}
+
+		nodeRS, err := enr.RelaySharding(d.localnode.Node().Record())
+		if err != nil || nodeRS == nil {
+			return false
+		}
+
+		if nodeRS.Cluster != localRS.Cluster {
+			return false
+		}
+
+		// Contains any
+		for _, idx := range nodeRS.Indices {
+			if nodeRS.Contains(localRS.Cluster, idx) {
+				return true
+			}
+		}
+
+		return false
+	})
 
 	defer iterator.Close()
 
