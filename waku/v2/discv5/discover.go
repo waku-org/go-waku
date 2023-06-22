@@ -364,10 +364,13 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 	}
 
 	iterator = enode.Filter(iterator, func(n *enode.Node) bool {
-		// TODO: might make sense to extract the next line outside of the iterator
 		localRS, err := enr.RelaySharding(d.localnode.Node().Record())
-		if err != nil || localRS == nil {
+		if err != nil {
 			return false
+		}
+
+		if localRS == nil { // No shard registered, so no need to check for shards
+			return true
 		}
 
 		nodeRS, err := enr.RelaySharding(d.localnode.Node().Record())
