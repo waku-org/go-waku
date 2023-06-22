@@ -17,7 +17,7 @@ type wakuConfig struct {
 	EnableRelay          *bool            `json:"relay"`
 	RelayTopics          []string         `json:"relayTopics,omitempty"`
 	GossipSubParams      *GossipSubParams `json:"gossipsubParams,omitempty"`
-	EnableFilter         *bool            `json:"filter,omitempty"`
+	EnableLegacyFilter   *bool            `json:"legacyFilter,omitempty"`
 	MinPeersToPublish    *int             `json:"minPeersToPublish,omitempty"`
 	EnableDiscV5         *bool            `json:"discV5,omitempty"`
 	DiscV5BootstrapNodes []string         `json:"discV5BootstrapNodes,omitempty"`
@@ -33,7 +33,7 @@ var defaultPort = 60000
 var defaultKeepAliveInterval = 20
 var defaultEnableRelay = true
 var defaultMinPeersToPublish = 0
-var defaultEnableFilter = false
+var defaultEnableLegacyFilter = false
 var defaultEnableDiscV5 = false
 var defaultDiscV5UDPPort = uint(9000)
 var defaultLogLevel = "INFO"
@@ -207,8 +207,8 @@ func getConfig(configJSON string) (wakuConfig, error) {
 		config.EnableRelay = &defaultEnableRelay
 	}
 
-	if config.EnableFilter == nil {
-		config.EnableFilter = &defaultEnableFilter
+	if config.EnableLegacyFilter == nil {
+		config.EnableLegacyFilter = &defaultEnableLegacyFilter
 	}
 
 	if config.EnableDiscV5 == nil {

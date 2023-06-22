@@ -91,7 +91,24 @@ Fields:
 
 ### `FilterSubscription` type
 
-The criteria to create subscription to a light node in JSON Format:
+The criteria to create subscription to a filter full node in JSON Format:
+
+```ts
+{
+    contentTopics: string[];
+    pubsubTopic: string;
+}
+```
+
+Fields:
+
+- `contentTopics`: Array of content topics.
+- `topic`: pubsub topic.
+
+
+### `LegacyFilterSubscription` type
+
+The criteria to create subscription to a filter full node in JSON Format:
 
 ```ts
 {
@@ -274,7 +291,7 @@ interface JsonConfig {
     relayTopics?: Array<string>;
     gossipsubParameters?: GossipSubParameters;
     minPeersToPublish?: number;
-    filter?: boolean;
+    legacyFilter?: boolean;
     discV5?: boolean;
     discV5BootstrapNodes?: Array<string>;
     discV5UDPPort?: number;
@@ -310,7 +327,7 @@ If a key is `undefined`, or `null`, a default value will be set.
 - `gossipSubParameters`: custom gossipsub parameters. See `GossipSubParameters` section for defaults
 - `minPeersToPublish`: The minimum number of peers required on a topic to allow broadcasting a message.
   Default `0`.
-- `filter`: Enable filter protocol.
+- `legacyFilter`: Enable Legacy Filter protocol.
   Default `false`.
 - `discV5`: Enable DiscoveryV5.
   Default `false`
@@ -918,11 +935,166 @@ For example:
 
 ### `extern char* waku_filter_subscribe(char* filterJSON, char* peerID, int timeoutMs)`
 
-Creates a subscription in a lightnode for messages that matches a content filter and optionally a [PubSub `topic`](https://github.com/libp2p/specs/blob/master/pubsub/README.md#the-topic-descriptor).
+Creates a subscription to a filter full node matching a content filter..
 
 **Parameters**
 
 1. `char* filterJSON`: JSON string containing the [`FilterSubscription`](#filtersubscription-type) to subscribe to.
+2. `char* peerID`: Peer ID to subscribe to.
+   The peer must be already known.
+   It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
+   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+   Use `NULL` to automatically select a node.
+3. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field will contain the subscription details.
+
+For example:
+
+```json
+{
+  "result": {
+    "peerID": "....",
+    "pubsubTopic": "...",
+    "contentTopics": [...]
+  }
+}
+```
+
+**Events**
+
+When a message is received, a ``"message"` event` is emitted containing the message, pubsub topic, and node ID in which
+the message was received.
+
+The `event` type is [`JsonMessageEvent`](#jsonmessageevent-type).
+
+For Example:
+
+```json
+{
+  "type": "message",
+  "event": {
+    "pubsubTopic": "/waku/2/default-waku/proto",
+    "messageId": "0x6496491e40dbe0b6c3a2198c2426b16301688a2daebc4f57ad7706115eac3ad1",
+    "wakuMessage": {
+      "payload": "TODO",
+      "contentTopic": "/my-app/1/notification/proto",
+      "version": 1,
+      "timestamp": 1647826358000000000
+    }
+  }
+}
+```
+
+
+### `extern char* waku_filter_ping(char* peerID, int timeoutMs)`
+
+Used to know if a service node has an active subscription for this client
+
+**Parameters**
+
+1. `char* peerID`: Peer ID to check for an active subscription
+   The peer must be already known.
+   It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
+   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+2. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field is set to `true`.
+
+For example:
+
+```json
+{
+   "result": true
+}
+```
+
+
+### `extern char* waku_filter_unsubscribe(filterJSON *C.char, char* peerID, int timeoutMs)`
+
+Sends a requests to a service node to stop pushing messages matching this filter to this client. It might be used to modify an existing subscription by providing a subset of the original filter criteria
+**Parameters**
+
+1. `char* filterJSON`: JSON string containing the [`FilterSubscription`](#filtersubscription-type) criteria to unsubscribe from
+2. `char* peerID`: Peer ID to unsubscribe from
+   The peer must be already known.
+   It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
+   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+3. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field is set to `true`.
+
+For example:
+```json
+{
+   "result": true
+}
+```
+
+
+### `extern char* waku_filter_unsubscribe_all(char* peerID, int timeoutMs)`
+
+Sends a requests to a service node (or all service nodes) to stop pushing messages
+
+**Parameters**
+
+1. `char* peerID`: Peer ID to unsubscribe from
+   The peer must be already known.
+   It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
+   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+   Use `NULL` to unsubscribe from all peers with active subscriptions
+2. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+
+**Returns**
+
+A [`JsonResponse`](#jsonresponse-type).
+If the execution is successful, the `result` field will contain an array with information about the state of each unsubscription attempt (one per peer)
+
+For example:
+
+```json
+{
+  "result": [
+    {
+      "peerID": ....,
+      "error": "" // Empty if succesful
+    },
+    ...
+  ]
+}
+```
+
+
+## Waku Legacy Filter
+
+### `extern char* waku_legacy_filter_subscribe(char* filterJSON, char* peerID, int timeoutMs)`
+
+Creates a subscription in a lightnode for messages that matches a content filter and optionally a [PubSub `topic`](https://github.com/libp2p/specs/blob/master/pubsub/README.md#the-topic-descriptor).
+
+**Parameters**
+
+1. `char* filterJSON`: JSON string containing the [`LegacyFilterSubscription`](#legacyfiltersubscription-type) to subscribe to.
 2. `char* peerID`: Peer ID to subscribe to.
    The peer must be already known.
    It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
@@ -971,13 +1143,13 @@ For Example:
 }
 ```
 
-### `extern char* waku_filter_unsubscribe(char* filterJSON, int timeoutMs)`
+### `extern char* waku_legacy_filter_unsubscribe(char* filterJSON, int timeoutMs)`
 
 Removes subscriptions in a light node matching a content filter and, optionally, a [PubSub `topic`](https://github.com/libp2p/specs/blob/master/pubsub/README.md#the-topic-descriptor).
 
 **Parameters**
 
-1. `char* filterJSON`: JSON string containing the [`FilterSubscription`](#filtersubscription-type).
+1. `char* filterJSON`: JSON string containing the [`LegacyFilterSubscription`](#filtersubscription-type).
 2. `int timeoutMs`: Timeout value in milliseconds to execute the call.
    If the function execution takes longer than this value,
    the execution will be canceled and an error returned.

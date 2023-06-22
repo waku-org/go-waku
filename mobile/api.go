@@ -107,9 +107,11 @@ func NewNode(configJSON string) string {
 		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish, pubsubOpt...))
 	}
 
-	if *config.EnableFilter {
+	if *config.EnableLegacyFilter {
 		opts = append(opts, node.WithLegacyWakuFilter(false))
 	}
+
+	opts = append(opts, node.WithWakuFilterLightNode())
 
 	if *config.EnableStore {
 		var db *sql.DB
