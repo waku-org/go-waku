@@ -345,6 +345,40 @@ func Execute(options Options) {
 			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
 			sub.Unsubscribe()
+
+			if options.Rendezvous.Enable {
+				// Register the node in rendezvous point
+				// TODO: we have to determine how discovery would work with relay subscriptions.
+				//       It might make sense to use pubsub.WithDiscovery option of gossipsub and
+				//       register DiscV5, PeerExchange and Rendezvous. This should be an
+				//       application concern instead of having (i.e. ./build/waku or the status app)
+				//       instead of having the wakunode being the one deciding to advertise which
+				//       topics/shards it supports
+				wakuNode.Rendezvous().Register(ctx, nodeTopic)
+
+				go func(nodeTopic string) {
+					desiredOutDegree := wakuNode.Relay().Params().D
+					t := time.NewTicker(7 * time.Second)
+					defer t.Stop()
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-t.C:
+							peerCnt := len(wakuNode.Relay().PubSub().ListPeers(nodeTopic))
+							peersToFind := desiredOutDegree - peerCnt
+							if peersToFind <= 0 {
+								continue
+							}
+
+							ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
+							wakuNode.Rendezvous().Discover(ctx, nodeTopic, peersToFind)
+							cancel()
+						}
+					}
+				}(nodeTopic)
+
+			}
 		}
 
 		for _, protectedTopic := range options.Relay.ProtectedTopics {
