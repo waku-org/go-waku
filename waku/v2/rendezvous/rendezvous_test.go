@@ -32,6 +32,8 @@ func NewPeerConn() PeerConn {
 	return x
 }
 
+const testTopic = "test"
+
 func TestRendezvous(t *testing.T) {
 	port1, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -46,7 +48,7 @@ func TestRendezvous(t *testing.T) {
 	require.NoError(t, err)
 
 	rdb := NewDB(context.Background(), db, utils.Logger())
-	rendezvousPoint := NewRendezvous(true, rdb, false, nil, nil, utils.Logger())
+	rendezvousPoint := NewRendezvous(true, rdb, nil, nil, utils.Logger())
 	rendezvousPoint.SetHost(host1)
 	err = rendezvousPoint.Start(context.Background())
 	require.NoError(t, err)
@@ -67,11 +69,13 @@ func TestRendezvous(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(info.ID, RendezvousID)
 	require.NoError(t, err)
 
-	rendezvousClient1 := NewRendezvous(false, nil, false, []peer.ID{host1.ID()}, nil, utils.Logger())
+	rendezvousClient1 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, nil, utils.Logger())
 	rendezvousClient1.SetHost(host2)
 	err = rendezvousClient1.Start(context.Background())
 	require.NoError(t, err)
 	defer rendezvousClient1.Stop()
+
+	rendezvousClient1.Register(context.Background(), testTopic)
 
 	port3, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -84,11 +88,16 @@ func TestRendezvous(t *testing.T) {
 
 	myPeerConnector := NewPeerConn()
 
-	rendezvousClient2 := NewRendezvous(false, nil, true, []peer.ID{host1.ID()}, myPeerConnector, utils.Logger())
+	rendezvousClient2 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, myPeerConnector, utils.Logger())
 	rendezvousClient2.SetHost(host3)
 	err = rendezvousClient2.Start(context.Background())
 	require.NoError(t, err)
 	defer rendezvousClient2.Stop()
+
+	timedCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+
+	go rendezvousClient2.Discover(timedCtx, testTopic, 5)
 
 	timer := time.After(5 * time.Second)
 	select {

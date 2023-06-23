@@ -274,7 +274,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		rendezvousPoints = append(rendezvousPoints, peerID)
 	}
 
-	w.rendezvous = rendezvous.NewRendezvous(w.opts.enableRendezvousServer, w.opts.rendezvousDB, w.opts.enableRendezvous, rendezvousPoints, w.peerConnector, w.log)
+	w.rendezvous = rendezvous.NewRendezvous(w.opts.enableRendezvousServer, w.opts.rendezvousDB, rendezvousPoints, w.peerConnector, w.log)
 	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullnode, w.timesource, w.log, w.opts.legacyFilterOpts...)
 	w.filterFullnode = filter.NewWakuFilterFullnode(w.timesource, w.log, w.opts.filterOpts...)
@@ -474,7 +474,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	w.rendezvous.SetHost(host)
-	if w.opts.enableRendezvousServer || w.opts.enableRendezvous {
+	if w.opts.enableRendezvousServer {
 		err := w.rendezvous.Start(ctx)
 		if err != nil {
 			return err
@@ -504,7 +504,7 @@ func (w *WakuNode) Stop() {
 	defer w.identificationEventSub.Close()
 	defer w.addressChangesSub.Close()
 
-	if w.opts.enableRendezvousServer || w.opts.enableRendezvous {
+	if w.opts.enableRendezvousServer {
 		w.rendezvous.Stop()
 	}
 
@@ -647,6 +647,14 @@ func (w *WakuNode) DiscV5() *discv5.DiscoveryV5 {
 // PeerExchange is used to access any operation related to Peer Exchange
 func (w *WakuNode) PeerExchange() *peer_exchange.WakuPeerExchange {
 	if result, ok := w.peerExchange.(*peer_exchange.WakuPeerExchange); ok {
+		return result
+	}
+	return nil
+}
+
+// Rendezvous is used to access any operation related to Rendezvous
+func (w *WakuNode) Rendezvous() *rendezvous.Rendezvous {
+	if result, ok := w.rendezvous.(*rendezvous.Rendezvous); ok {
 		return result
 	}
 	return nil
