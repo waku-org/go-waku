@@ -18,11 +18,13 @@ endif
 
 ifeq ($(detected_OS),Darwin)
  GOBIN_SHARED_LIB_EXT := dylib
+ TEST_REPORTER_URL := https://codeclimate.com/downloads/test-reporter/test-reporter-latest-darwin-amd64
 else ifeq ($(detected_OS),Windows)
  # on Windows need `--export-all-symbols` flag else expected symbols will not be found in libgowaku.dll
  GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,--export-all-symbols"
  GOBIN_SHARED_LIB_EXT := dll
 else
+ TEST_REPORTER_URL := https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64
  GOBIN_SHARED_LIB_EXT := so
  GOBIN_SHARED_LIB_CGO_LDFLAGS := CGO_LDFLAGS="-Wl,-soname,libgowaku.so.0"
 endif
@@ -74,7 +76,7 @@ test:
 
 COVERAGE_FILE := ./coverage/cc-test-reporter
 $(COVERAGE_FILE):
-	curl -sfL https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 --output ./coverage/cc-test-reporter # TODO: support mac and windows
+	curl -sfL $(TEST_REPORTER_URL) --output ./coverage/cc-test-reporter #TODO: Support windows
 	chmod +x ./coverage/cc-test-reporter
 
 _before-cc: $(COVERAGE_FILE)
