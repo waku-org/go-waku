@@ -8,12 +8,20 @@ else
  detected_OS := $(strip $(shell uname))
 endif
 
+UNAME_P := $(shell uname -p)
+ifneq ($(filter arm%,$(UNAME_P)),)
+		detected_arch := ARM
+endif
+
 all: build
 
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
 else ifeq ($(detected_OS),Darwin)
  PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names -framework CoreFoundation -framework Security
+ ifeq ($(detected_arch),ARM)
+ PLATFORM_FLAGS_TEST_C +=-lresolv -framework CoreServices
+ endif
 endif
 
 build:

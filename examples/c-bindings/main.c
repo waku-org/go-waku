@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "libgowaku.h"
 #include "nxjson.c"
@@ -120,7 +121,7 @@ int main(int argc, char *argv[])
     char wakuMsg[1000];
     char *msgPayload = waku_utils_base64_encode("Hello World!");
     char *contentTopic = waku_content_topic("example", 1, "default", "rfc26");
-    sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%lu}", msgPayload, contentTopic, nowInNanosecs());
+    sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%"PRIu64"}", msgPayload, contentTopic, nowInNanosecs());
     free(msgPayload);
     free(contentTopic);
 
