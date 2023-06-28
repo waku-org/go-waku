@@ -140,7 +140,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 		pubsub.WithNoAuthor(),
 		pubsub.WithMessageIdFn(msgIdFn),
 		pubsub.WithGossipSubProtocols(
-			[]protocol.ID{pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID, WakuRelayID_v200},
+			[]protocol.ID{WakuRelayID_v200, pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID},
 			func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
 				switch feat {
 				case pubsub.GossipSubFeatureMesh:
