@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -149,6 +150,6 @@ func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, protocols ...pr
 	if addr == nil {
 		return nil
 	}
-	_, err := wakuNode.AddPeer(*addr, protocols...)
+	_, err := wakuNode.AddPeer(*addr, peers.Static, protocols...)
 	return err
 }
