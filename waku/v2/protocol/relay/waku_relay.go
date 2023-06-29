@@ -144,9 +144,9 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 			func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
 				switch feat {
 				case pubsub.GossipSubFeatureMesh:
-					return proto == pubsub.GossipSubID_v11 || proto == pubsub.GossipSubID_v10
+					return proto == pubsub.GossipSubID_v11 || proto == pubsub.GossipSubID_v10 || proto == WakuRelayID_v200
 				case pubsub.GossipSubFeaturePX:
-					return proto == pubsub.GossipSubID_v11
+					return proto == pubsub.GossipSubID_v11 || proto == WakuRelayID_v200
 				default:
 					return false
 				}
