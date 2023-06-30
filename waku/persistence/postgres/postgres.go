@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/lib/pq"
+	"github.com/golang-migrate/migrate/v4/database/pgx"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/postgres/migrations"
 )
@@ -91,7 +91,7 @@ func (q Queries) GetSize() string {
 // WithDB is a DBOption that lets you use a postgresql DBStore and run migrations
 func WithDB(dburl string, migrate bool) persistence.DBOption {
 	return func(d *persistence.DBStore) error {
-		driverOption := persistence.WithDriver("postgres", dburl)
+		driverOption := persistence.WithDriver("pgx", dburl)
 		err := driverOption(d)
 		if err != nil {
 			return err
@@ -113,7 +113,7 @@ func WithDB(dburl string, migrate bool) persistence.DBOption {
 
 // NewDB connects to postgres DB in the specified path
 func NewDB(dburl string) (*sql.DB, func(*sql.DB) error, error) {
-	db, err := sql.Open("postgres", dburl)
+	db, err := sql.Open("pgx", dburl)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,8 +122,8 @@ func NewDB(dburl string) (*sql.DB, func(*sql.DB) error, error) {
 }
 
 func migrationDriver(db *sql.DB) (database.Driver, error) {
-	return postgres.WithInstance(db, &postgres.Config{
-		MigrationsTable: "gowaku_" + postgres.DefaultMigrationsTable,
+	return pgx.WithInstance(db, &pgx.Config{
+		MigrationsTable: "gowaku_" + pgx.DefaultMigrationsTable,
 	})
 }
 
