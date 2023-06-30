@@ -250,13 +250,6 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 
 func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 	defer c.wg.Done()
-
-	maxGoRoutines := c.minPeers
-	if maxGoRoutines > 15 {
-		maxGoRoutines = 15
-	}
-
-	sem := make(chan struct{}, maxGoRoutines)
 	for {
 		select {
 		case pi, ok := <-c.dialCh:
@@ -291,20 +284,14 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				continue
 			}
 
-			sem <- struct{}{}
-			c.wg.Add(1)
-			go func(pi peer.AddrInfo) {
-				defer c.wg.Done()
+			dialCtx, dialCtxCancel := context.WithTimeout(c.workerCtx, c.dialTimeout)
+			err := c.host.Connect(dialCtx, pi)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				c.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(pi)
+				c.logger.Info("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
+			}
+			dialCtxCancel()
 
-				ctx, cancel := context.WithTimeout(c.workerCtx, c.dialTimeout)
-				defer cancel()
-				err := c.host.Connect(ctx, pi)
-				if err != nil && !errors.Is(err, context.Canceled) {
-					c.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(pi)
-					c.logger.Info("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
-				}
-				<-sem
-			}(pi)
 		case <-ctx.Done():
 			return
 		}
