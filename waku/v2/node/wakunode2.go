@@ -244,9 +244,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	// Setup peer connection strategy
 	cacheSize := 600
 	rngSrc := rand.NewSource(rand.Int63())
-	minBackoff, maxBackoff := time.Second*30, time.Hour
+	minBackoff, maxBackoff := time.Minute, time.Hour
 	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
-	w.peerConnector, err = v2.NewPeerConnectionStrategy(cacheSize, w.opts.discoveryMinPeers, network.DialPeerTimeout, bkf, w.log)
+	w.peerConnector, err = v2.NewPeerConnectionStrategy(cacheSize, w.opts.discoveryMinPeers, 20*time.Second, bkf, w.log)
 	if err != nil {
 		w.log.Error("creating peer connection strategy", zap.Error(err))
 	}
