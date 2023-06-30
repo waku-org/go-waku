@@ -202,9 +202,6 @@ func (c *PeerConnectionStrategy) publishWork(ctx context.Context, p peer.AddrInf
 	case c.dialCh <- p:
 	case <-ctx.Done():
 		return
-	case <-time.After(1 * time.Second):
-		// This timeout is to not lock the goroutine
-		return
 	}
 }
 
@@ -261,6 +258,10 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				continue
 			}
 
+			if c.host.Network().Connectedness(pi.ID) == network.Connected {
+				continue
+			}
+
 			c.mux.Lock()
 			val, ok := c.cache.Get(pi.ID)
 			var cachedPeer *connCacheData
@@ -279,10 +280,6 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				c.cache.Add(pi.ID, cachedPeer)
 			}
 			c.mux.Unlock()
-
-			if c.host.Network().Connectedness(pi.ID) == network.Connected {
-				continue
-			}
 
 			dialCtx, dialCtxCancel := context.WithTimeout(c.workerCtx, c.dialTimeout)
 			err := c.host.Connect(dialCtx, pi)
