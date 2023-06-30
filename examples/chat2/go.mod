@@ -18,7 +18,7 @@ require (
 	github.com/urfave/cli/v2 v2.24.4
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
 	github.com/waku-org/go-zerokit-rln v0.1.12
-	golang.org/x/crypto v0.7.0
+	golang.org/x/crypto v0.9.0
 	golang.org/x/term v0.8.0
 	google.golang.org/protobuf v1.31.0
 )
