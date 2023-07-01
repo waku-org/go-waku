@@ -16,15 +16,13 @@ import (
 )
 
 ...
-wakuNode, err := node.New(context.Background(),
-    node.WithWakuRelay(),
-)
+wakuNode, err := node.New(node.WithWakuRelay())
 if err != nil {
     fmt.Println(err)
     return
 }
 
-if err := wakuNode.Start(); err != nil {
+if err := wakuNode.Start(context.Background()); err != nil {
     fmt.Println(err)
     return
 }

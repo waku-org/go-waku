@@ -25,15 +25,13 @@ import (
 )
 
 ...
-wakuNode, err := node.New(context.Background(),
-    node.WithLightPush(),
-)
+wakuNode, err := node.New(node.WithLightPush())
 if err != nil {
     fmt.Println(err)
     return
 }
 
-if err := wakuNode.Start(); err != nil {
+if err := wakuNode.Start(context.Background()); err != nil {
     fmt.Println(err)
     return
 }
