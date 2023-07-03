@@ -1,4 +1,4 @@
-package migrations
+package migrate
 
 import (
 	"database/sql"
@@ -10,10 +10,10 @@ import (
 )
 
 // Migrate applies migrations.
-func Migrate(db *sql.DB, driver database.Driver) error {
+func Migrate(db *sql.DB, driver database.Driver, assetNames []string, assetFunc bindata.AssetFunc) error {
 	return migrateDB(db, bindata.Resource(
-		AssetNames(),
-		Asset,
+		assetNames,
+		assetFunc,
 	), driver)
 }
 

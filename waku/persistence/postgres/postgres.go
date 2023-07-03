@@ -8,6 +8,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/pgx"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/migrate"
 	"github.com/waku-org/go-waku/waku/persistence/postgres/migrations"
 )
 
@@ -142,5 +143,5 @@ func Migrate(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	return migrations.Migrate(db, migrationDriver)
+	return migrate.Migrate(db, migrationDriver, migrations.AssetNames(), migrations.Asset)
 }

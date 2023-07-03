@@ -9,6 +9,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/migrate"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
 )
 
@@ -165,5 +166,5 @@ func Migrate(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	return migrations.Migrate(db, migrationDriver)
+	return migrate.Migrate(db, migrationDriver, migrations.AssetNames(), migrations.Asset)
 }
