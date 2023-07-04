@@ -27,6 +27,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/proto"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"go.opencensus.io/stats"
 
@@ -818,6 +819,11 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 		}
 
 		addrs := w.host.Peerstore().Addrs(peerId)
+		hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", peerId.Pretty()))
+		for i := range addrs {
+			addrs[i] = addrs[i].Encapsulate(hostInfo)
+		}
+
 		peers = append(peers, &Peer{
 			ID:        peerId,
 			Protocols: protocols,
