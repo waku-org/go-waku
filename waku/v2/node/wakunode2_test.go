@@ -154,7 +154,7 @@ func Test500(t *testing.T) {
 			msg := createTestMsg(0)
 			msg.Payload = int2Bytes(i)
 			msg.Timestamp = int64(i)
-			if err := wakuNode2.Publish(ctx, msg); err != nil {
+			if _, err := wakuNode2.Relay().Publish(ctx, msg); err != nil {
 				require.Fail(t, "Could not publish all messages")
 			}
 			time.Sleep(5 * time.Millisecond)
@@ -181,6 +181,10 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	err = wakuNode1.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
+
+	subs, err := wakuNode1.Relay().Subscribe(ctx)
+	require.NoError(t, err)
+	subs.Unsubscribe()
 
 	// NODE2: Filter Client/Store
 	db, migration, err := sqlite.NewDB(":memory:")
@@ -230,7 +234,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	if err := wakuNode1.Publish(ctx, msg); err != nil {
+	if _, err := wakuNode1.Relay().Publish(ctx, msg); err != nil {
 		require.Fail(t, "Could not publish all messages")
 	}
 
