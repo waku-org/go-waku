@@ -92,7 +92,6 @@ func NewNode(configJSON string) string {
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(time.Duration(*config.KeepAliveInterval) * time.Second),
-		node.NoDefaultWakuTopic(),
 	}
 
 	if *config.EnableRelay {
