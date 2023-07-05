@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// MessageProvider is an interface that provides access to store/retrieve messages from a persistence store.
 type MessageProvider interface {
 	GetAll() ([]StoredMessage, error)
 	Validate(env *protocol.Envelope) error
@@ -29,8 +30,13 @@ type MessageProvider interface {
 	Stop()
 }
 
+// ErrInvalidCursor indicates that an invalid cursor has been passed to access store
 var ErrInvalidCursor = errors.New("invalid cursor")
+
+// ErrFutureMessage indicates that a message with timestamp in future was requested to be stored
 var ErrFutureMessage = errors.New("message timestamp in the future")
+
+// ErrMessageTooOld indicates that a message that was too old was requested to be stored.
 var ErrMessageTooOld = errors.New("message too old")
 
 // WALMode for sqlite.
@@ -58,6 +64,7 @@ type DBStore struct {
 	cancel context.CancelFunc
 }
 
+// StoredMessage is the format of the message stored in persistence store
 type StoredMessage struct {
 	ID           []byte
 	PubsubTopic  string
@@ -76,6 +83,7 @@ func WithDB(db *sql.DB) DBOption {
 	}
 }
 
+// ConnectionPoolOptions is the options to be used for DB connection pooling
 type ConnectionPoolOptions struct {
 	MaxOpenConnections    int
 	MaxIdleConnections    int
@@ -123,6 +131,7 @@ func WithMigrations(migrationFn func(db *sql.DB) error) DBOption {
 	}
 }
 
+// DefaultOptions returns the default DBoptions to be used.
 func DefaultOptions() []DBOption {
 	return []DBOption{}
 }
@@ -154,6 +163,7 @@ func NewDBStore(log *zap.Logger, options ...DBOption) (*DBStore, error) {
 	return result, nil
 }
 
+// Start starts the store server functionality
 func (d *DBStore) Start(ctx context.Context, timesource timesource.Timesource) error {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -172,17 +182,17 @@ func (d *DBStore) Start(ctx context.Context, timesource timesource.Timesource) e
 	return nil
 }
 
-func (store *DBStore) updateMetrics(ctx context.Context) {
+func (d *DBStore) updateMetrics(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	defer store.wg.Done()
+	defer d.wg.Done()
 
 	for {
 		select {
 		case <-ticker.C:
-			msgCount, err := store.Count()
+			msgCount, err := d.Count()
 			if err != nil {
-				store.log.Error("updating store metrics", zap.Error(err))
+				d.log.Error("updating store metrics", zap.Error(err))
 			} else {
 				metrics.RecordArchiveMessage(ctx, "stored", msgCount)
 			}
@@ -256,6 +266,7 @@ func (d *DBStore) Stop() {
 	d.db.Close()
 }
 
+// Validate validates the message to be stored against possible fradulent conditions.
 func (d *DBStore) Validate(env *protocol.Envelope) error {
 	n := time.Unix(0, env.Index().ReceiverTime)
 	upperBound := n.Add(MaxTimeVariance)
