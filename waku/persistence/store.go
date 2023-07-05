@@ -311,21 +311,65 @@ func (d *DBStore) Put(env *protocol.Envelope) error {
 	return nil
 }
 
-// Query retrieves messages from the DB
-func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, error) {
-	start := time.Now()
-	defer func() {
-		elapsed := time.Since(start)
-		d.log.Info(fmt.Sprintf("Loading records from the DB took %s", elapsed))
-	}()
+func (d *DBStore) handleQueryCursor(query *pb.HistoryQuery, paramCnt *int, conditions []string, parameters []interface{}) ([]string, []interface{}, error) {
+	usesCursor := false
+	if query.PagingInfo.Cursor != nil {
+		usesCursor = true
+		var exists bool
+		cursorDBKey := NewDBKey(uint64(query.PagingInfo.Cursor.SenderTime), uint64(query.PagingInfo.Cursor.ReceiverTime), query.PagingInfo.Cursor.PubsubTopic, query.PagingInfo.Cursor.Digest)
 
+		err := d.db.QueryRow("SELECT EXISTS(SELECT 1 FROM message WHERE id = $1)",
+			cursorDBKey.Bytes(),
+		).Scan(&exists)
+
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if exists {
+			eqOp := ">"
+			if query.PagingInfo.Direction == pb.PagingInfo_BACKWARD {
+				eqOp = "<"
+			}
+			*paramCnt++
+			conditions = append(conditions, fmt.Sprintf("id %s $%d", eqOp, *paramCnt))
+
+			parameters = append(parameters, cursorDBKey.Bytes())
+		} else {
+			return nil, nil, ErrInvalidCursor
+		}
+	}
+
+	handleTimeParam := func(time int64, op string) {
+		*paramCnt++
+		conditions = append(conditions, fmt.Sprintf("id %s $%d", op, *paramCnt))
+		timeDBKey := NewDBKey(uint64(time), uint64(time), "", []byte{})
+		parameters = append(parameters, timeDBKey.Bytes())
+	}
+
+	if query.StartTime != 0 {
+		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_BACKWARD {
+			handleTimeParam(query.StartTime, ">=")
+		}
+	}
+
+	if query.EndTime != 0 {
+		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_FORWARD {
+			handleTimeParam(query.EndTime, "<=")
+		}
+	}
+	return conditions, parameters, nil
+}
+
+func (d *DBStore) prepareQuerySQL(query *pb.HistoryQuery) (string, []interface{}, error) {
 	sqlQuery := `SELECT id, receiverTimestamp, senderTimestamp, contentTopic, pubsubTopic, payload, version 
-					 FROM message 
-					 %s
-					 ORDER BY senderTimestamp %s, id %s, pubsubTopic %s, receiverTimestamp %s `
+	FROM message 
+	%s
+	ORDER BY senderTimestamp %s, id %s, pubsubTopic %s, receiverTimestamp %s `
 
 	var conditions []string
 	var parameters []interface{}
+	//parameters := make([]interface{}, 0) //Allocating size of 1 as pageSize is gauranteed param to be present.
 	paramCnt := 0
 
 	if query.PubsubTopic != "" {
@@ -346,53 +390,10 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 		conditions = append(conditions, "contentTopic IN ("+strings.Join(ctPlaceHolder, ", ")+")")
 	}
 
-	usesCursor := false
-	if query.PagingInfo.Cursor != nil {
-		usesCursor = true
-		var exists bool
-		cursorDBKey := NewDBKey(uint64(query.PagingInfo.Cursor.SenderTime), uint64(query.PagingInfo.Cursor.ReceiverTime), query.PagingInfo.Cursor.PubsubTopic, query.PagingInfo.Cursor.Digest)
-
-		err := d.db.QueryRow("SELECT EXISTS(SELECT 1 FROM message WHERE id = $1)",
-			cursorDBKey.Bytes(),
-		).Scan(&exists)
-
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if exists {
-			eqOp := ">"
-			if query.PagingInfo.Direction == pb.PagingInfo_BACKWARD {
-				eqOp = "<"
-			}
-			paramCnt++
-			conditions = append(conditions, fmt.Sprintf("id %s $%d", eqOp, paramCnt))
-
-			parameters = append(parameters, cursorDBKey.Bytes())
-		} else {
-			return nil, nil, ErrInvalidCursor
-		}
+	conditions, parameters, err := d.handleQueryCursor(query, &paramCnt, conditions, parameters)
+	if err != nil {
+		return "", nil, err
 	}
-
-	if query.StartTime != 0 {
-		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_BACKWARD {
-			paramCnt++
-			conditions = append(conditions, fmt.Sprintf("id >= $%d", paramCnt))
-			startTimeDBKey := NewDBKey(uint64(query.StartTime), uint64(query.StartTime), "", []byte{})
-			parameters = append(parameters, startTimeDBKey.Bytes())
-		}
-
-	}
-
-	if query.EndTime != 0 {
-		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_FORWARD {
-			paramCnt++
-			conditions = append(conditions, fmt.Sprintf("id <= $%d", paramCnt))
-			endTimeDBKey := NewDBKey(uint64(query.EndTime), uint64(query.EndTime), "", []byte{})
-			parameters = append(parameters, endTimeDBKey.Bytes())
-		}
-	}
-
 	conditionStr := ""
 	if len(conditions) != 0 {
 		conditionStr = "WHERE " + strings.Join(conditions, " AND ")
@@ -403,19 +404,41 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 		orderDirection = "DESC"
 	}
 
+	d.log.Info(fmt.Sprintf("conditionstr: %s", conditionStr))
+	d.log.Info(fmt.Sprintf("parameters: %s", parameters))
+
 	paramCnt++
+	d.log.Info(fmt.Sprintf("paramCnt: %d", paramCnt))
+
 	sqlQuery += fmt.Sprintf("LIMIT $%d", paramCnt)
 	sqlQuery = fmt.Sprintf(sqlQuery, conditionStr, orderDirection, orderDirection, orderDirection, orderDirection)
+	d.log.Info(fmt.Sprintf("sqlQuery: %s", sqlQuery))
 
+	return sqlQuery, parameters, nil
+
+}
+
+// Query retrieves messages from the DB
+func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, error) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		d.log.Info(fmt.Sprintf("Loading records from the DB took %s", elapsed))
+	}()
+
+	sqlQuery, parameters, err := d.prepareQuerySQL(query)
+	if err != nil {
+		return nil, nil, err
+	}
 	stmt, err := d.db.Prepare(sqlQuery)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer stmt.Close()
-
 	pageSize := query.PagingInfo.PageSize + 1
 
 	parameters = append(parameters, pageSize)
+
 	measurementStart := time.Now()
 	rows, err := stmt.Query(parameters...)
 	if err != nil {
