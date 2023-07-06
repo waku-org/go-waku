@@ -18,6 +18,7 @@ type Queries struct {
 	getSizeQuery string
 }
 
+// CreateQueries Function creates a set of queries for an SQL table.
 // Note: Do not use this function to create queries for a table, rather use <rdb>.NewQueries to create table as well as queries.
 func CreateQueries(tbl string, db *sql.DB) *Queries {
 	return &Queries{
