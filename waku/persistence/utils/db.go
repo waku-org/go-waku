@@ -1,4 +1,4 @@
-package waku
+package utils
 
 import (
 	"database/sql"
@@ -18,6 +18,7 @@ func validateDBUrl(val string) error {
 	return nil
 }
 
+// ExtractDBAndMigration will return a database connection, and migration function that should be used depending on a database connection string
 func ExtractDBAndMigration(databaseURL string) (*sql.DB, func(*sql.DB) error, error) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error

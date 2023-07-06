@@ -1,7 +1,7 @@
 //go:build gowaku_rln
 // +build gowaku_rln
 
-package waku
+package main
 
 import (
 	"crypto/ecdsa"

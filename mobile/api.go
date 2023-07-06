@@ -25,8 +25,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/persistence"
+	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peers"
@@ -115,7 +115,7 @@ func NewNode(configJSON string) string {
 	if *config.EnableStore {
 		var db *sql.DB
 		var migrationFn func(*sql.DB) error
-		db, migrationFn, err = waku.ExtractDBAndMigration(*config.DatabaseURL)
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL)
 		if err != nil {
 			return MakeJSONResponse(err)
 		}
