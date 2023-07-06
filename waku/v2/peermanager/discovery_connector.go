@@ -1,4 +1,4 @@
-package v2
+package peermanager
 
 // Adapted from github.com/libp2p/go-libp2p@v0.23.2/p2p/discovery/backoff/backoffconnector.go
 

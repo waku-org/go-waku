@@ -17,7 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/multiformats/go-multiaddr"
-	v2 "github.com/waku-org/go-waku/waku/v2"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
@@ -138,13 +138,13 @@ func RandomHex(n int) (string, error) {
 type TestPeerDiscoverer struct {
 	sync.RWMutex
 	peerMap map[peer.ID]struct{}
-	peerCh  chan v2.PeerData
+	peerCh  chan peermanager.PeerData
 }
 
 func NewTestPeerDiscoverer() *TestPeerDiscoverer {
 	result := &TestPeerDiscoverer{
 		peerMap: make(map[peer.ID]struct{}),
-		peerCh:  make(chan v2.PeerData, 10),
+		peerCh:  make(chan peermanager.PeerData, 10),
 	}
 
 	go func() {
@@ -158,7 +158,7 @@ func NewTestPeerDiscoverer() *TestPeerDiscoverer {
 	return result
 }
 
-func (t *TestPeerDiscoverer) PeerChannel() chan<- v2.PeerData {
+func (t *TestPeerDiscoverer) PeerChannel() chan<- peermanager.PeerData {
 	return t.peerCh
 }
 

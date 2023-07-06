@@ -13,9 +13,9 @@ import (
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
@@ -45,7 +45,7 @@ type WakuPeerExchange struct {
 }
 
 type PeerConnector interface {
-	PeerChannel() chan<- v2.PeerData
+	PeerChannel() chan<- peermanager.PeerData
 }
 
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
