@@ -117,6 +117,8 @@ func (c *PeerConnectionStrategy) Stop() {
 
 	close(c.peerCh)
 	close(c.dialCh)
+
+	c.cancel = nil
 }
 
 func (c *PeerConnectionStrategy) isPaused() bool {

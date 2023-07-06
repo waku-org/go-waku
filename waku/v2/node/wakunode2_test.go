@@ -10,15 +10,18 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"go.uber.org/zap"
 )
 
 func createTestMsg(version uint32) *pb.WakuMessage {
@@ -57,6 +60,46 @@ func int2Bytes(i int) []byte {
 		return append(big.NewInt(int64(i)).Bytes(), byte(1))
 	}
 	return append(big.NewInt(int64(i)).Bytes(), byte(0))
+}
+
+func TestUpAndDown(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	hostAddr1, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	key1, _ := tests.RandomHex(32)
+	prvKey1, _ := crypto.HexToECDSA(key1)
+
+	nodes, err := dnsdisc.RetrieveNodes(context.Background(), "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im")
+	require.NoError(t, err)
+
+	var bootnodes []*enode.Node
+	for _, n := range nodes {
+		if n.ENR != nil {
+			bootnodes = append(bootnodes, n.ENR)
+		}
+	}
+
+	wakuNode1, err := New(
+		WithPrivateKey(prvKey1),
+		WithHostAddress(hostAddr1),
+		WithWakuRelay(),
+		WithDiscoveryV5(0, bootnodes, true),
+	)
+	require.NoError(t, err)
+
+	for i := 0; i < 5; i++ {
+		utils.Logger().Info("Starting...", zap.Int("iteration", i))
+		err = wakuNode1.Start(ctx)
+		require.NoError(t, err)
+		err = wakuNode1.DiscV5().Start(ctx)
+		require.NoError(t, err)
+		utils.Logger().Info("Started!", zap.Int("iteration", i))
+		time.Sleep(3 * time.Second)
+		utils.Logger().Info("Stopping...", zap.Int("iteration", i))
+		wakuNode1.Stop()
+		utils.Logger().Info("Stopped!", zap.Int("iteration", i))
+	}
 }
 
 func Test500(t *testing.T) {
