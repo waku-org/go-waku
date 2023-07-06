@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/pgx"
@@ -57,4 +58,23 @@ func Migrate(db *sql.DB) error {
 		return err
 	}
 	return migrate.Migrate(db, migrationDriver, migrations.AssetNames(), migrations.Asset)
+}
+
+// CreateTable creates the table that will persist the peers
+func CreateTable(db *sql.DB, tableName string) error {
+	sqlStmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key TEXT NOT NULL UNIQUE, data BYTEA);", tableName)
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// NewQueries creates a new SQL set of queries for the passed table
+func NewQueries(tbl string, db *sql.DB) (*persistence.Queries, error) {
+	err := CreateTable(db, tbl)
+	if err != nil {
+		return nil, err
+	}
+	return persistence.CreateQueries(tbl, db), nil
 }

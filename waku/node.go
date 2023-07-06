@@ -17,6 +17,7 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/pbnjay/memory"
 
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -184,7 +185,7 @@ func Execute(options Options) {
 
 	if options.Store.Enable && options.PersistPeers {
 		// Create persistent peerstore
-		queries, err := persistence.NewQueries("peerstore", db)
+		queries, err := sqlite.NewQueries("peerstore", db)
 		failOnErr(err, "Peerstore")
 
 		datastore := dssql.NewDatastore(db, queries)

@@ -368,8 +368,8 @@ func (d *DBStore) prepareQuerySQL(query *pb.HistoryQuery) (string, []interface{}
 	ORDER BY senderTimestamp %s, id %s, pubsubTopic %s, receiverTimestamp %s `
 
 	var conditions []string
-	var parameters []interface{}
-	//parameters := make([]interface{}, 0) //Allocating size of 1 as pageSize is gauranteed param to be present.
+	//var parameters []interface{}
+	parameters := make([]interface{}, 0) //Allocating as a slice so that references get passed rather than value
 	paramCnt := 0
 
 	if query.PubsubTopic != "" {
@@ -404,11 +404,7 @@ func (d *DBStore) prepareQuerySQL(query *pb.HistoryQuery) (string, []interface{}
 		orderDirection = "DESC"
 	}
 
-	d.log.Info(fmt.Sprintf("conditionstr: %s", conditionStr))
-	d.log.Info(fmt.Sprintf("parameters: %s", parameters))
-
 	paramCnt++
-	d.log.Info(fmt.Sprintf("paramCnt: %d", paramCnt))
 
 	sqlQuery += fmt.Sprintf("LIMIT $%d", paramCnt)
 	sqlQuery = fmt.Sprintf(sqlQuery, conditionStr, orderDirection, orderDirection, orderDirection, orderDirection)
