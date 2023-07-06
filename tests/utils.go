@@ -18,7 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/multiformats/go-multiaddr"
 	v2 "github.com/waku-org/go-waku/waku/v2"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
@@ -107,7 +107,7 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 		return nil, err
 	}
 
-	psWrapper := peers.NewWakuPeerstore(ps)
+	psWrapper := peerstore.NewWakuPeerstore(ps)
 	if err != nil {
 		return nil, err
 	}

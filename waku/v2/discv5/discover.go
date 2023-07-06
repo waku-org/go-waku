@@ -17,7 +17,7 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -396,7 +396,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 
 	d.Iterate(ctx, iterator, func(n *enode.Node, p peer.AddrInfo) error {
 		peer := v2.PeerData{
-			Origin:   peers.Discv5,
+			Origin:   peerstore.Discv5,
 			AddrInfo: p,
 			ENR:      n,
 		}

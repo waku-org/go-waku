@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	rvs "github.com/waku-org/go-libp2p-rendezvous"
 	v2 "github.com/waku-org/go-waku/waku/v2"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
 )
@@ -120,7 +120,7 @@ func (r *Rendezvous) Discover(ctx context.Context, topic string, numPeers int) {
 
 				for _, addr := range addrInfo {
 					peer := v2.PeerData{
-						Origin:   peers.Rendezvous,
+						Origin:   peerstore.Rendezvous,
 						AddrInfo: addr,
 					}
 					select {

@@ -16,7 +16,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	peerstore1 "github.com/waku-org/go-waku/waku/v2/peerstore"
 
 	"go.uber.org/zap"
 
@@ -73,7 +73,7 @@ type connCacheData struct {
 }
 
 type PeerData struct {
-	Origin   peers.Origin
+	Origin   peerstore1.Origin
 	AddrInfo peer.AddrInfo
 	ENR      *enode.Node
 }
@@ -183,13 +183,13 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 					return
 				case p := <-c.peerCh:
 					c.host.Peerstore().AddAddrs(p.AddrInfo.ID, p.AddrInfo.Addrs, peerstore.AddressTTL)
-					err := c.host.Peerstore().(peers.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
+					err := c.host.Peerstore().(peerstore1.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
 					if err != nil {
 						c.logger.Error("could not set origin", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID))
 					}
 
 					if p.ENR != nil {
-						err = c.host.Peerstore().(peers.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
+						err = c.host.Peerstore().(peerstore1.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
 						if err != nil {
 							c.logger.Error("could not store enr", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 						}
@@ -260,7 +260,7 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				defer cancel()
 				err := c.host.Connect(ctx, pi)
 				if err != nil && !errors.Is(err, context.Canceled) {
-					c.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(pi)
+					c.host.Peerstore().(peerstore1.WakuPeerstore).AddConnFailure(pi)
 					c.logger.Info("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
 				}
 				<-sem

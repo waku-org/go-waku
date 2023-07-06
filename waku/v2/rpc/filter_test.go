@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -83,7 +83,7 @@ func TestFilterSubscription(t *testing.T) {
 		break
 	}
 
-	_, err = d.node.AddPeer(addr, peers.Static, legacy_filter.FilterID_v20beta1)
+	_, err = d.node.AddPeer(addr, peerstore.Static, legacy_filter.FilterID_v20beta1)
 	require.NoError(t, err)
 
 	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: "ct"}}}

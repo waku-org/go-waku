@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-msgio/pbio"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
 	"go.uber.org/zap"
@@ -105,7 +105,7 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 			defer wakuPX.wg.Done()
 			for _, p := range discoveredPeers {
 				peer := v2.PeerData{
-					Origin:   peers.PeerExchange,
+					Origin:   peerstore.PeerExchange,
 					AddrInfo: p.addrInfo,
 					ENR:      p.enr,
 				}
