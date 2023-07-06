@@ -1,4 +1,4 @@
-package waku
+package main
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 	"github.com/pbnjay/memory"
 
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -104,7 +105,7 @@ func Execute(options Options) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	if requiresDB(options) {
-		db, migrationFn, err = ExtractDBAndMigration(options.Store.DatabaseURL)
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL)
 		failOnErr(err, "Could not connect to DB")
 	}
 
@@ -141,8 +142,8 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithExternalIP(ip))
 	}
 
-	if options.Dns4DomainName != "" {
-		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.Dns4DomainName))
+	if options.DNS4DomainName != "" {
+		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.DNS4DomainName))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
@@ -386,12 +387,12 @@ func Execute(options Options) {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, peers.Static, peer_exchange.PeerExchangeID_v20alpha1)
+		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, peers.Static, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
 			desiredOutDegree := wakuNode.Relay().Params().D
-			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(peerId)); err != nil {
+			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(peerID)); err != nil {
 				logger.Error("requesting peers via peer exchange", zap.Error(err))
 			}
 		}

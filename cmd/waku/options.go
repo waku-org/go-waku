@@ -1,4 +1,4 @@
-package waku
+package main
 
 import (
 	"crypto/ecdsa"
@@ -30,6 +30,9 @@ type RelayOptions struct {
 	MinRelayPeersToPublish int
 }
 
+// RLNRelayOptions are settings used to enable RLN Relay. This is a protocol
+// used to rate limit messages and penalize those attempting to send more than
+// N messages per epoch
 type RLNRelayOptions struct {
 	Enable                    bool
 	CredentialsPath           string
@@ -134,6 +137,7 @@ type PeerExchangeOptions struct {
 	Node   *multiaddr.Multiaddr
 }
 
+// RendezvousOptions are settings used with the rendezvous protocol
 type RendezvousOptions struct {
 	Enable bool
 	Server bool
@@ -145,7 +149,7 @@ type RendezvousOptions struct {
 type Options struct {
 	Port                         int
 	Address                      string
-	Dns4DomainName               string
+	DNS4DomainName               string
 	NodeKey                      *ecdsa.PrivateKey
 	KeyFile                      string
 	KeyPasswd                    string
