@@ -330,10 +330,43 @@ func (d *DiscoveryV5) FindPeersWithShard(ctx context.Context, cluster, index uin
 	return enode.Filter(iterator, predicate), nil
 }
 
+const peerDelay = 100 * time.Millisecond
+const bucketSize = 16
+
 func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNode func(*enode.Node, peer.AddrInfo) error) {
 	defer iterator.Close()
 
-	for iterator.Next() { // while next exists, run for loop
+	peerCnt := 0
+	for {
+		// Delay if .Next() is too fast
+		start := time.Now()
+		hasNext := iterator.Next()
+		if !hasNext {
+			break
+		}
+		elapsed := time.Since(start)
+		if elapsed < peerDelay {
+			t := time.NewTimer(peerDelay - elapsed)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				t.Stop()
+			}
+		}
+
+		// Delay every 15 peers being returned
+		peerCnt++
+		if peerCnt == bucketSize {
+			t := time.NewTimer(5 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				t.Stop()
+			}
+		}
+
 		_, addresses, err := enr.Multiaddress(iterator.Node())
 		if err != nil {
 			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
