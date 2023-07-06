@@ -334,9 +334,10 @@ func (w *WakuNode) Start(ctx context.Context) error {
 
 	ctx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
-	w.opts.libP2POpts = append(w.opts.libP2POpts, libp2p.ConnectionGater(connGater))
 
-	host, err := libp2p.New(w.opts.libP2POpts...)
+	libP2POpts := append(w.opts.libP2POpts, libp2p.ConnectionGater(connGater))
+
+	host, err := libp2p.New(libP2POpts...)
 	if err != nil {
 		return err
 	}
