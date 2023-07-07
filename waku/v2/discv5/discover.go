@@ -64,6 +64,10 @@ type DiscoveryV5Option func(*discV5Parameters)
 
 var protocolID = [6]byte{'d', '5', 'w', 'a', 'k', 'u'}
 
+const peerDelay = 100 * time.Millisecond
+const bucketSize = 16
+const delayBetweenDiscoveredPeerCnt = 5 * time.Second
+
 func WithAutoUpdate(autoUpdate bool) DiscoveryV5Option {
 	return func(params *discV5Parameters) {
 		params.autoUpdate = autoUpdate
@@ -330,35 +334,20 @@ func (d *DiscoveryV5) FindPeersWithShard(ctx context.Context, cluster, index uin
 	return enode.Filter(iterator, predicate), nil
 }
 
-const peerDelay = 100 * time.Millisecond
-const bucketSize = 16
-
 func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNode func(*enode.Node, peer.AddrInfo) error) {
 	defer iterator.Close()
 
 	peerCnt := 0
 	for {
-		// Delay if .Next() is too fast
-		start := time.Now()
-		hasNext := iterator.Next()
-		if !hasNext {
-			break
-		}
-		elapsed := time.Since(start)
-		if elapsed < peerDelay {
-			t := time.NewTimer(peerDelay - elapsed)
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				t.Stop()
-			}
+
+		if !delayedHasNext(ctx, iterator) {
+			return
 		}
 
-		// Delay every 15 peers being returned
 		peerCnt++
-		if peerCnt == bucketSize {
-			t := time.NewTimer(5 * time.Second)
+		if peerCnt == bucketSize { // Delay every bucketSize peers discovered
+			peerCnt = 0
+			t := time.NewTimer(delayBetweenDiscoveredPeerCnt)
 			select {
 			case <-ctx.Done():
 				return
@@ -394,6 +383,28 @@ func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNo
 		default:
 		}
 	}
+}
+
+func delayedHasNext(ctx context.Context, iterator enode.Iterator) bool {
+	// Delay if .Next() is too fast
+	start := time.Now()
+	hasNext := iterator.Next()
+	if !hasNext {
+		return false
+	}
+
+	elapsed := time.Since(start)
+	if elapsed < peerDelay {
+		t := time.NewTimer(peerDelay - elapsed)
+		select {
+		case <-ctx.Done():
+			return false
+		case <-t.C:
+			t.Stop()
+		}
+	}
+
+	return true
 }
 
 // Iterates over the nodes found via discv5 belonging to the node's current shard, and sends them to peerConnector

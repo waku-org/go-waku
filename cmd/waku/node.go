@@ -615,10 +615,9 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		panic(err)
 	}
 
-	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
-
-	for _, addr := range h.Addrs() {
-		fmt.Println(addr.Encapsulate(hostInfo))
+	hostAddrs := utils.EncapsulatePeerID(h.ID(), h.Addrs()...)
+	for _, addr := range hostAddrs {
+		fmt.Println(addr)
 	}
 
 }
