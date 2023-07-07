@@ -17,6 +17,7 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/pbnjay/memory"
 
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -43,7 +44,6 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
-	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
