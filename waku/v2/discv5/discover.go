@@ -373,7 +373,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 			return true
 		}
 
-		nodeRS, err := enr.RelaySharding(d.localnode.Node().Record())
+		nodeRS, err := enr.RelaySharding(n.Record())
 		if err != nil || nodeRS == nil {
 			return false
 		}
@@ -383,7 +383,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 		}
 
 		// Contains any
-		for _, idx := range nodeRS.Indices {
+		for _, idx := range localRS.Indices {
 			if nodeRS.Contains(localRS.Cluster, idx) {
 				return true
 			}

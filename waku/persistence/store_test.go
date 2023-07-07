@@ -10,7 +10,8 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
-	"github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
+	"github.com/waku-org/go-waku/waku/persistence/migrate"
+	sqlitemigrations "github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -24,7 +25,7 @@ func Migrate(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	return migrations.Migrate(db, migrationDriver)
+	return migrate.Migrate(db, migrationDriver, sqlitemigrations.AssetNames(), sqlitemigrations.Asset)
 }
 
 func NewMock() *sql.DB {

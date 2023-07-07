@@ -17,12 +17,12 @@ import (
 
 // SignalHandler defines a minimal interface
 // a signal handler needs to implement.
-//nolint
+// nolint
 type SignalHandler interface {
 	HandleSignal(string)
 }
 
-// SignalHandler is a simple callback function that gets called when any signal is received
+// MobileSignalHandler is a simple callback function that gets called when any signal is received
 type MobileSignalHandler func([]byte)
 
 // storing the current mobile signal handler here
@@ -64,7 +64,7 @@ func send(signalType string, event interface{}) {
 
 // SetMobileSignalHandler setup geth callback to notify about new signal
 // used for gomobile builds
-//nolint
+// nolint
 func SetMobileSignalHandler(handler SignalHandler) {
 	mobileSignalHandler = func(data []byte) {
 		if len(data) > 0 {
@@ -73,6 +73,8 @@ func SetMobileSignalHandler(handler SignalHandler) {
 	}
 }
 
+// SetEventCallback is to set a callback in order to receive application
+// signals which are used to react to asynchronous events in waku.
 func SetEventCallback(cb unsafe.Pointer) {
 	C.SetEventCallback(cb)
 }
