@@ -147,19 +147,17 @@ func NewTestPeerDiscoverer() *TestPeerDiscoverer {
 		peerCh:  make(chan v2.PeerData, 10),
 	}
 
-	go func() {
-		for p := range result.peerCh {
-			result.Lock()
-			result.peerMap[p.AddrInfo.ID] = struct{}{}
-			result.Unlock()
-		}
-	}()
-
 	return result
 }
 
-func (t *TestPeerDiscoverer) PeerChannel() chan<- v2.PeerData {
-	return t.peerCh
+func (t *TestPeerDiscoverer) Subscribe(ctx context.Context, ch <-chan v2.PeerData) {
+	go func() {
+		for p := range ch {
+			t.Lock()
+			t.peerMap[p.AddrInfo.ID] = struct{}{}
+			t.Unlock()
+		}
+	}()
 }
 
 func (t *TestPeerDiscoverer) HasPeer(p peer.ID) bool {

@@ -28,14 +28,20 @@ import (
 
 var ErrNoDiscV5Listener = errors.New("no discv5 listener")
 
+type PeerConnector interface {
+	Subscribe(context.Context, <-chan v2.PeerData)
+}
+
 type DiscoveryV5 struct {
-	params        *discV5Parameters
-	host          host.Host
-	config        discover.Config
-	udpAddr       *net.UDPAddr
-	listener      *discover.UDPv5
-	localnode     *enode.LocalNode
+	params    *discV5Parameters
+	host      host.Host
+	config    discover.Config
+	udpAddr   *net.UDPAddr
+	listener  *discover.UDPv5
+	localnode *enode.LocalNode
+
 	peerConnector PeerConnector
+	peerCh        chan v2.PeerData
 	NAT           nat.Interface
 
 	log *zap.Logger
@@ -101,10 +107,6 @@ func DefaultOptions() []DiscoveryV5Option {
 	}
 }
 
-type PeerConnector interface {
-	PeerChannel() chan<- v2.PeerData
-}
-
 func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
 	params := new(discV5Parameters)
 	optList := DefaultOptions()
@@ -121,8 +123,8 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 	}
 
 	return &DiscoveryV5{
-		peerConnector: peerConnector,
 		params:        params,
+		peerConnector: peerConnector,
 		NAT:           NAT,
 		wg:            &sync.WaitGroup{},
 		localnode:     localnode,
@@ -195,6 +197,9 @@ func (d *DiscoveryV5) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	d.cancel = cancel
 
+	d.peerCh = make(chan v2.PeerData)
+	d.peerConnector.Subscribe(ctx, d.peerCh)
+
 	err := d.listen(ctx)
 	if err != nil {
 		return err
@@ -225,6 +230,7 @@ func (d *DiscoveryV5) Stop() {
 	if !d.started.CompareAndSwap(true, false) { // if Discoveryv5 is running, set started to false
 		return
 	}
+
 	d.cancel()
 
 	if d.listener != nil {
@@ -234,6 +240,8 @@ func (d *DiscoveryV5) Stop() {
 	}
 
 	d.wg.Wait()
+
+	close(d.peerCh)
 }
 
 /*
@@ -402,7 +410,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 		}
 
 		select {
-		case d.peerConnector.PeerChannel() <- peer:
+		case d.peerCh <- peer:
 		case <-ctx.Done():
 			return nil
 		}

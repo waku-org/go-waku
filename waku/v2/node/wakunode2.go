@@ -80,11 +80,11 @@ type WakuNode struct {
 	log        *zap.Logger
 	timesource timesource.Timesource
 
-	peerstore peerstore.Peerstore
+	peerstore     peerstore.Peerstore
+	peerConnector *v2.PeerConnectionStrategy
 
 	relay           Service
 	lightPush       Service
-	peerConnector   PeerConnectorService
 	discoveryV5     Service
 	peerExchange    Service
 	rendezvous      Service
