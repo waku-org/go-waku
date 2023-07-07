@@ -26,6 +26,10 @@ type rendezvousPoint struct {
 	cookie []byte
 }
 
+type PeerConnector interface {
+	Subscribe(context.Context, <-chan v2.PeerData)
+}
+
 type Rendezvous struct {
 	host host.Host
 
@@ -41,10 +45,7 @@ type Rendezvous struct {
 	cancel context.CancelFunc
 }
 
-type PeerConnector interface {
-	PeerChannel() chan<- v2.PeerData
-}
-
+// NewRendezvous creates an instance of a Rendezvous which might act as rendezvous point for other nodes, or act as a client node
 func NewRendezvous(enableServer bool, db *DB, rendezvousPoints []peer.ID, peerConnector PeerConnector, log *zap.Logger) *Rendezvous {
 	logger := log.Named("rendezvous")
 
@@ -95,7 +96,6 @@ func (r *Rendezvous) getRandomServer() *rendezvousPoint {
 }
 
 func (r *Rendezvous) Discover(ctx context.Context, topic string, numPeers int) {
-	defer r.wg.Done()
 	for {
 		select {
 		case <-ctx.Done():
@@ -118,17 +118,22 @@ func (r *Rendezvous) Discover(ctx context.Context, topic string, numPeers int) {
 				server.cookie = cookie
 				server.Unlock()
 
+				peerCh := make(chan v2.PeerData)
+				r.peerConnector.Subscribe(context.Background(), peerCh)
 				for _, addr := range addrInfo {
 					peer := v2.PeerData{
 						Origin:   peers.Rendezvous,
 						AddrInfo: addr,
 					}
+					fmt.Println("PPPPPPPPPPPPPP")
 					select {
-					case r.peerConnector.PeerChannel() <- peer:
+					case peerCh <- peer:
+						fmt.Println("DISCOVERED")
 					case <-ctx.Done():
 						return
 					}
 				}
+				close(peerCh)
 			} else {
 				// TODO: improve this by adding an exponential backoff?
 				time.Sleep(5 * time.Second)
