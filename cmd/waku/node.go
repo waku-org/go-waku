@@ -228,6 +228,7 @@ func Execute(options Options) {
 	}
 
 	if options.Store.Enable {
+		nodeOpts = append(nodeOpts, node.WithWakuStore())
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 	}
 
