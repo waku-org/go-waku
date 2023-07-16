@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-FROM golang:1.19-alpine3.16 as builder
+FROM golang:1.20-alpine3.18 as builder
 
 # Get build tools and required header files
 RUN apk add --no-cache build-base
@@ -14,7 +14,7 @@ RUN make -j$(nproc) build
 
 # ACTUAL IMAGE -------------------------------------------------------
 
-FROM alpine:3.16
+FROM alpine:3.18
 
 ARG GIT_COMMIT=unknown
 
