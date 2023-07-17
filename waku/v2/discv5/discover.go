@@ -241,6 +241,12 @@ func (d *DiscoveryV5) Stop() {
 
 	d.wg.Wait()
 
+	defer func() {
+		if r := recover(); r != nil {
+			d.log.Info("recovering from panic and quitting")
+		}
+	}()
+
 	close(d.peerCh)
 }
 
