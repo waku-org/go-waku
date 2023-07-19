@@ -79,7 +79,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
-	rootTracker, err := group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance)
+	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
@@ -170,7 +170,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
 	s.Require().NoError(err)
 
-	rootTracker, err := group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance)
+	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
@@ -221,8 +221,8 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	msgValidate4, err := rlnRelay.ValidateMessage(wm4, &now)
 	s.Require().NoError(err)
 
-	s.Require().Equal(MessageValidationResult_Valid, msgValidate1)
-	s.Require().Equal(MessageValidationResult_Spam, msgValidate2)
-	s.Require().Equal(MessageValidationResult_Valid, msgValidate3)
-	s.Require().Equal(MessageValidationResult_Invalid, msgValidate4)
+	s.Require().Equal(validMessage, msgValidate1)
+	s.Require().Equal(spamMessage, msgValidate2)
+	s.Require().Equal(validMessage, msgValidate3)
+	s.Require().Equal(invalidMessage, msgValidate4)
 }

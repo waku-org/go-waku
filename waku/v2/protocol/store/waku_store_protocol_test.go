@@ -154,7 +154,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 		ContentTopics: []string{topic1},
 	}
 
-	response, err := s2.Query(ctx, q, WithAutomaticPeerSelection(), WithAutomaticRequestId(), WithPaging(true, 2))
+	response, err := s2.Query(ctx, q, WithAutomaticPeerSelection(), WithAutomaticRequestID(), WithPaging(true, 2))
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 2)
 	require.Equal(t, response.Messages[0].Timestamp, msg1.Timestamp)
@@ -229,7 +229,7 @@ func TestWakuStoreResult(t *testing.T) {
 		ContentTopics: []string{topic1},
 	}
 
-	result, err := s2.Query(ctx, q, WithAutomaticPeerSelection(), WithAutomaticRequestId(), WithPaging(true, 2))
+	result, err := s2.Query(ctx, q, WithAutomaticPeerSelection(), WithAutomaticRequestID(), WithPaging(true, 2))
 	require.NoError(t, err)
 	require.False(t, result.started)
 	require.Len(t, result.GetMessages(), 0)
@@ -331,7 +331,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 		return msg.ContentTopic == "hello", nil
 	}
 
-	foundMsg, err := s2.Find(ctx, q, fn, WithAutomaticPeerSelection(), WithAutomaticRequestId(), WithPaging(true, 2))
+	foundMsg, err := s2.Find(ctx, q, fn, WithAutomaticPeerSelection(), WithAutomaticRequestID(), WithPaging(true, 2))
 	require.NoError(t, err)
 	require.NotNil(t, foundMsg)
 	require.Equal(t, "hello", foundMsg.ContentTopic)
@@ -340,7 +340,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 		return msg.ContentTopic == "bye", nil
 	}
 
-	foundMsg, err = s2.Find(ctx, q, fn2, WithAutomaticPeerSelection(), WithAutomaticRequestId(), WithPaging(true, 2))
+	foundMsg, err = s2.Find(ctx, q, fn2, WithAutomaticPeerSelection(), WithAutomaticRequestID(), WithPaging(true, 2))
 	require.NoError(t, err)
 	require.Nil(t, foundMsg)
 }

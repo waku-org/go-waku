@@ -40,7 +40,7 @@ type StoreMessagesReply struct {
 
 func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs, reply *StoreMessagesReply) error {
 	options := []store.HistoryRequestOption{
-		store.WithAutomaticRequestId(),
+		store.WithAutomaticRequestID(),
 		store.WithAutomaticPeerSelection(),
 		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
 		store.WithCursor(args.PagingOptions.Cursor),

@@ -27,10 +27,13 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
+// WakuRelayID_v200 is the current protocol ID used for WakuRelay
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
 
+// DefaultWakuTopic is the default pubsub topic used across all Waku protocols
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic().String()
 
+// WakuRelay is the implementation of the Waku Relay protocol
 type WakuRelay struct {
 	host                host.Host
 	opts                []pubsub.Option
@@ -202,11 +205,12 @@ func (w *WakuRelay) peerScoreInspector(peerScoresSnapshots map[peer.ID]*pubsub.P
 	}
 }
 
-// Sets the host to be able to mount or consume a protocol
+// SetHost sets the host to be able to mount or consume a protocol
 func (w *WakuRelay) SetHost(h host.Host) {
 	w.host = h
 }
 
+// Start initiates the WakuRelay protocol
 func (w *WakuRelay) Start(ctx context.Context) error {
 	w.wg.Wait()
 	ctx, cancel := context.WithCancel(ctx)
@@ -249,6 +253,7 @@ func (w *WakuRelay) Topics() []string {
 	return result
 }
 
+// IsSubscribed indicates whether the node is subscribed to a pubsub topic or not
 func (w *WakuRelay) IsSubscribed(topic string) bool {
 	defer w.topicsMutex.Unlock()
 	w.topicsMutex.Lock()
@@ -487,6 +492,7 @@ func (w *WakuRelay) subscribeToTopic(pubsubTopic string, sub *pubsub.Subscriptio
 
 }
 
+// Params returns the gossipsub configuration parameters used by WakuRelay
 func (w *WakuRelay) Params() pubsub.GossipSubParams {
 	return w.params
 }

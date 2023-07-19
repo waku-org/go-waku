@@ -15,14 +15,14 @@ type (
 	FilterSubscribeParameters struct {
 		host         host.Host
 		selectedPeer peer.ID
-		requestId    []byte
+		requestID    []byte
 		log          *zap.Logger
 	}
 
 	FilterUnsubscribeParameters struct {
 		unsubscribeAll bool
 		selectedPeer   peer.ID
-		requestId      []byte
+		requestID      []byte
 		log            *zap.Logger
 	}
 
@@ -78,22 +78,26 @@ func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Fi
 	}
 }
 
-func WithRequestId(requestId []byte) FilterSubscribeOption {
+// WithRequestID is an option to set a specific request ID to be used when
+// creating a filter subscription
+func WithRequestID(requestID []byte) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		params.requestId = requestId
+		params.requestID = requestID
 	}
 }
 
-func WithAutomaticRequestId() FilterSubscribeOption {
+// WithAutomaticRequestID is an option to automatically generate a request ID
+// when creating a filter subscription
+func WithAutomaticRequestID() FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		params.requestId = protocol.GenerateRequestId()
+		params.requestID = protocol.GenerateRequestId()
 	}
 }
 
 func DefaultSubscriptionOptions() []FilterSubscribeOption {
 	return []FilterSubscribeOption{
 		WithAutomaticPeerSelection(),
-		WithAutomaticRequestId(),
+		WithAutomaticRequestID(),
 	}
 }
 
@@ -109,15 +113,17 @@ func Peer(p peer.ID) FilterUnsubscribeOption {
 	}
 }
 
-func RequestID(requestId []byte) FilterUnsubscribeOption {
+// RequestID is an option to set a specific request ID to be used when
+// removing a subscription from a filter node
+func RequestID(requestID []byte) FilterUnsubscribeOption {
 	return func(params *FilterUnsubscribeParameters) {
-		params.requestId = requestId
+		params.requestID = requestID
 	}
 }
 
 func AutomaticRequestId() FilterUnsubscribeOption {
 	return func(params *FilterUnsubscribeParameters) {
-		params.requestId = protocol.GenerateRequestId()
+		params.requestID = protocol.GenerateRequestId()
 	}
 }
 

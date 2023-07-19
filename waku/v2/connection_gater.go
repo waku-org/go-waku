@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// ConnectionGater is the implementation of the connection gater used to limit
+// the number of connections per IP address
 type ConnectionGater struct {
 	sync.Mutex
 	logger   *zap.Logger
@@ -22,6 +24,7 @@ type ConnectionGater struct {
 
 const maxConnsPerIP = 10
 
+// NewConnectionGater creates a new instance of ConnectionGater
 func NewConnectionGater(logger *zap.Logger) *ConnectionGater {
 	c := &ConnectionGater{
 		logger:   logger.Named("connection-gater"),

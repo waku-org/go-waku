@@ -62,7 +62,7 @@ func New(
 		return nil, err
 	}
 
-	rootTracker, err := group_manager.NewMerkleRootTracker(AcceptableRootWindowSize, rlnInstance)
+	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
 	if err != nil {
 		return nil, err
 	}
@@ -166,15 +166,15 @@ func (rlnRelay *WakuRLNRelay) updateLog(proofMD rln.ProofMetadata) (bool, error)
 	return true, nil
 }
 
-func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time.Time) (MessageValidationResult, error) {
-	// validate the supplied `msg` based on the waku-rln-relay routing protocol i.e.,
-	// the `msg`'s epoch is within MAX_EPOCH_GAP of the current epoch
-	// the `msg` has valid rate limit proof
-	// the `msg` does not violate the rate limit
-	// `timeOption` indicates Unix epoch time (fractional part holds sub-seconds)
-	// if `timeOption` is supplied, then the current epoch is calculated based on that
+// ValidateMessage validates the supplied message based on the waku-rln-relay routing protocol i.e.,
+// the message's epoch is within `maxEpochGap` of the current epoch
+// the message's has valid rate limit proof
+// the message's does not violate the rate limit
+// if `optionalTime` is supplied, then the current epoch is calculated based on that, otherwise the current time will be used
+func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time.Time) (messageValidationResult, error) {
+	//
 	if msg == nil {
-		return MessageValidationResult_Unknown, errors.New("nil message")
+		return validationError, errors.New("nil message")
 	}
 
 	//  checks if the `msg`'s epoch is far from the current epoch
@@ -191,46 +191,46 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	if msgProof == nil {
 		// message does not contain a proof
 		rlnRelay.log.Debug("invalid message: message does not contain a proof")
-		return MessageValidationResult_Invalid, nil
+		return invalidMessage, nil
 	}
 
 	proofMD, err := rlnRelay.RLN.ExtractMetadata(*msgProof)
 	if err != nil {
 		rlnRelay.log.Debug("could not extract metadata", zap.Error(err))
-		return MessageValidationResult_Invalid, nil
+		return invalidMessage, nil
 	}
 
 	// calculate the gaps and validate the epoch
 	gap := rln.Diff(epoch, msgProof.Epoch)
-	if int64(math.Abs(float64(gap))) > MAX_EPOCH_GAP {
+	if int64(math.Abs(float64(gap))) > maxEpochGap {
 		// message's epoch is too old or too ahead
 		// accept messages whose epoch is within +-MAX_EPOCH_GAP from the current epoch
 		rlnRelay.log.Debug("invalid message: epoch gap exceeds a threshold", zap.Int64("gap", gap))
-		return MessageValidationResult_Invalid, nil
+		return invalidMessage, nil
 	}
 
 	valid, err := rlnRelay.verifyProof(msg, msgProof)
 	if err != nil {
 		rlnRelay.log.Debug("could not verify proof", zap.Error(err))
-		return MessageValidationResult_Invalid, nil
+		return invalidMessage, nil
 	}
 
 	if !valid {
 		// invalid proof
 		rlnRelay.log.Debug("Invalid proof")
-		return MessageValidationResult_Invalid, nil
+		return invalidMessage, nil
 	}
 
 	// check if double messaging has happened
 	hasDup, err := rlnRelay.HasDuplicate(proofMD)
 	if err != nil {
 		rlnRelay.log.Debug("validation error", zap.Error(err))
-		return MessageValidationResult_Unknown, err
+		return validationError, err
 	}
 
 	if hasDup {
 		rlnRelay.log.Debug("spam received")
-		return MessageValidationResult_Spam, nil
+		return spamMessage, nil
 	}
 
 	// insert the message to the log
@@ -238,11 +238,11 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	// it will never error out
 	_, err = rlnRelay.updateLog(proofMD)
 	if err != nil {
-		return MessageValidationResult_Unknown, err
+		return validationError, err
 	}
 
 	rlnRelay.log.Debug("message is valid")
-	return MessageValidationResult_Valid, nil
+	return validMessage, nil
 }
 
 func (rlnRelay *WakuRLNRelay) verifyProof(msg *pb.WakuMessage, proof *rln.RateLimitProof) (bool, error) {
@@ -303,19 +303,19 @@ func (rlnRelay *WakuRLNRelay) addValidator(
 		}
 
 		switch validationRes {
-		case MessageValidationResult_Valid:
+		case validMessage:
 			rlnRelay.log.Debug("message verified",
 				zap.String("pubsubTopic", pubsubTopic),
 				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
 			return true
-		case MessageValidationResult_Invalid:
+		case invalidMessage:
 			rlnRelay.log.Debug("message could not be verified",
 				zap.String("pubsubTopic", pubsubTopic),
 				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
 			return false
-		case MessageValidationResult_Spam:
+		case spamMessage:
 			rlnRelay.log.Debug("spam message found",
 				zap.String("pubsubTopic", pubsubTopic),
 				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),

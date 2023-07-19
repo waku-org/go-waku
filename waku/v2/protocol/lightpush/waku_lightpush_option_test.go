@@ -17,15 +17,15 @@ func TestLightPushOption(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	options := []LightPushOption{
+	options := []Option{
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 		WithAutomaticPeerSelection(),
 		WithFastestPeerSelection(context.Background()),
-		WithRequestId([]byte("requestId")),
-		WithAutomaticRequestId(),
+		WithRequestID([]byte("requestID")),
+		WithAutomaticRequestID(),
 	}
 
-	params := new(LightPushParameters)
+	params := new(lightPushParameters)
 	params.host = host
 	params.log = utils.Logger()
 
@@ -35,5 +35,5 @@ func TestLightPushOption(t *testing.T) {
 
 	require.Equal(t, host, params.host)
 	require.NotNil(t, params.selectedPeer)
-	require.NotNil(t, params.requestId)
+	require.NotNil(t, params.requestID)
 }
