@@ -144,7 +144,7 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 			// We're on a full node.
 			// This is a filter request coming from a light node.
 			if filterRPCRequest.Request.Subscribe {
-				subscriber := Subscriber{peer: s.Conn().RemotePeer(), requestId: filterRPCRequest.RequestId, filter: filterRPCRequest.Request}
+				subscriber := Subscriber{peer: s.Conn().RemotePeer(), requestID: filterRPCRequest.RequestId, filter: filterRPCRequest.Request}
 				if subscriber.filter.Topic == "" { // @TODO: review if empty topic is possible
 					subscriber.filter.Topic = relay.DefaultWakuTopic
 				}
@@ -168,7 +168,7 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 }
 
 func (wf *WakuFilter) pushMessage(ctx context.Context, subscriber Subscriber, msg *wpb.WakuMessage) error {
-	pushRPC := &pb.FilterRPC{RequestId: subscriber.requestId, Push: &pb.MessagePush{Messages: []*wpb.WakuMessage{msg}}}
+	pushRPC := &pb.FilterRPC{RequestId: subscriber.requestID, Push: &pb.MessagePush{Messages: []*wpb.WakuMessage{msg}}}
 	logger := wf.log.With(logging.HostID("peer", subscriber.peer))
 
 	conn, err := wf.h.NewStream(ctx, subscriber.peer, FilterID_v20beta1)

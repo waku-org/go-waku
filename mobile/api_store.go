@@ -80,7 +80,7 @@ func StoreQuery(queryJSON string, peerID string, ms int) string {
 	}
 
 	options := []store.HistoryRequestOption{
-		store.WithAutomaticRequestId(),
+		store.WithAutomaticRequestID(),
 		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
 		store.WithCursor(args.PagingOptions.Cursor),
 	}
@@ -120,7 +120,7 @@ func StoreLocalQuery(queryJSON string) string {
 	}
 
 	options := []store.HistoryRequestOption{
-		store.WithAutomaticRequestId(),
+		store.WithAutomaticRequestID(),
 		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
 		store.WithCursor(args.PagingOptions.Cursor),
 		store.WithLocalQuery(),
