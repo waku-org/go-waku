@@ -90,8 +90,8 @@ type WakuNode struct {
 	peerExchange    Service
 	rendezvous      Service
 	legacyFilter    ReceptorService
-	filterFullnode  ReceptorService
-	filterLightnode Service
+	filterFullNode  ReceptorService
+	filterLightNode Service
 	store           ReceptorService
 	rlnRelay        RLNRelay
 
@@ -272,9 +272,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w.rendezvous = rendezvous.NewRendezvous(w.opts.rendezvousDB, w.peerConnector, w.log)
 	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
-	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullnode, w.timesource, w.log, w.opts.legacyFilterOpts...)
-	w.filterFullnode = filter.NewWakuFilterFullnode(w.timesource, w.log, w.opts.filterOpts...)
-	w.filterLightnode = filter.NewWakuFilterLightnode(w.bcaster, w.peermanager, w.timesource, w.log)
+	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullNode, w.timesource, w.log, w.opts.legacyFilterOpts...)
+	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.log, w.opts.filterOpts...)
+	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.log)
 
 	if params.storeFactory != nil {
@@ -434,10 +434,10 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		w.log.Info("Subscribing filter to broadcaster")
 	}
 
-	w.filterFullnode.SetHost(host)
+	w.filterFullNode.SetHost(host)
 	if w.opts.enableFilterFullNode {
 		sub := w.bcaster.RegisterForAll()
-		err := w.filterFullnode.Start(ctx, sub)
+		err := w.filterFullNode.Start(ctx, sub)
 		if err != nil {
 			return err
 		}
@@ -445,9 +445,9 @@ func (w *WakuNode) Start(ctx context.Context) error {
 
 	}
 
-	w.filterLightnode.SetHost(host)
+	w.filterLightNode.SetHost(host)
 	if w.opts.enableFilterLightNode {
-		err := w.filterLightnode.Start(ctx)
+		err := w.filterLightNode.Start(ctx)
 		if err != nil {
 			return err
 		}
@@ -501,7 +501,7 @@ func (w *WakuNode) Stop() {
 	w.lightPush.Stop()
 	w.store.Stop()
 	w.legacyFilter.Stop()
-	w.filterFullnode.Stop()
+	w.filterFullNode.Stop()
 
 	if w.opts.enableDiscV5 {
 		w.discoveryV5.Stop()
@@ -598,16 +598,16 @@ func (w *WakuNode) LegacyFilter() *legacy_filter.WakuFilter {
 }
 
 // FilterLightnode is used to access any operation related to Waku Filter protocol Full node feature
-func (w *WakuNode) FilterFullnode() *filter.WakuFilterFullNode {
-	if result, ok := w.filterFullnode.(*filter.WakuFilterFullNode); ok {
+func (w *WakuNode) FilterFullNode() *filter.WakuFilterFullNode {
+	if result, ok := w.filterFullNode.(*filter.WakuFilterFullNode); ok {
 		return result
 	}
 	return nil
 }
 
-// FilterFullnode is used to access any operation related to Waku Filter protocol Light node feature
-func (w *WakuNode) FilterLightnode() *filter.WakuFilterLightnode {
-	if result, ok := w.filterLightnode.(*filter.WakuFilterLightnode); ok {
+// FilterFullNode is used to access any operation related to Waku Filter protocol Light node feature
+func (w *WakuNode) FilterLightnode() *filter.WakuFilterLightNode {
+	if result, ok := w.filterLightNode.(*filter.WakuFilterLightNode); ok {
 		return result
 	}
 	return nil

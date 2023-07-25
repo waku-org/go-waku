@@ -45,8 +45,8 @@ type (
 	}
 )
 
-// NewWakuFilterFullnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterFullnode(timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilterFullNode {
+// NewWakuFilterFullNode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
+func NewWakuFilterFullNode(timesource timesource.Timesource, log *zap.Logger, opts ...Option) *WakuFilterFullNode {
 	wf := new(WakuFilterFullNode)
 	wf.log = log.Named("filterv2-fullnode")
 
