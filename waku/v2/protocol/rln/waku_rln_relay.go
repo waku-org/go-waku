@@ -124,7 +124,7 @@ func (rlnRelay *WakuRLNRelay) HasDuplicate(proofMD rln.ProofMetadata) (bool, err
 	for _, p := range proofs {
 		if p.Equals(proofMD) {
 			// there is an identical record, ignore rhe mag
-			return false, nil
+			return true, nil
 		}
 	}
 
