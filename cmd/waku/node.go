@@ -42,6 +42,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/cmd/waku/rest"
+	"github.com/waku-org/go-waku/cmd/waku/rpc"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -53,8 +55,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/rest"
-	"github.com/waku-org/go-waku/waku/v2/rpc"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
