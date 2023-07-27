@@ -18,7 +18,8 @@ import (
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peers"
-	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
+
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
@@ -276,7 +277,7 @@ func evaluateNode(node *enode.Node) bool {
 		return false
 	}*/
 
-	_, err := enr.EnodeToPeerInfo(node)
+	_, err := wenr.EnodeToPeerInfo(node)
 
 	if err != nil {
 		metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
@@ -287,51 +288,27 @@ func evaluateNode(node *enode.Node) bool {
 	return true
 }
 
-// get random nodes from DHT via discv5 listender
-// used for caching enr address in peerExchange
-// used for connecting to peers in discovery_connector
-func (d *DiscoveryV5) Iterator() (enode.Iterator, error) {
+// Predicate is a function that is applied to an iterator to filter the nodes to be retrieved according to some logic
+type Predicate func(enode.Iterator) enode.Iterator
+
+// PeerIterator gets random nodes from DHT via discv5 listener.
+// Used for caching enr address in peerExchange
+// Used for connecting to peers in discovery_connector
+func (d *DiscoveryV5) PeerIterator(predicate ...Predicate) (enode.Iterator, error) {
 	if d.listener == nil {
 		return nil, ErrNoDiscV5Listener
 	}
 
 	iterator := enode.Filter(d.listener.RandomNodes(), evaluateNode)
 	if d.params.loopPredicate != nil {
-		return enode.Filter(iterator, d.params.loopPredicate), nil
-	} else {
-		return iterator, nil
-	}
-}
-
-func (d *DiscoveryV5) FindPeersWithPredicate(ctx context.Context, predicate func(*enode.Node) bool) (enode.Iterator, error) {
-	if d.listener == nil {
-		return nil, ErrNoDiscV5Listener
+		iterator = enode.Filter(iterator, d.params.loopPredicate)
 	}
 
-	iterator := enode.Filter(d.listener.RandomNodes(), evaluateNode)
-	if predicate != nil {
-		iterator = enode.Filter(iterator, predicate)
+	for _, p := range predicate {
+		iterator = p(iterator)
 	}
 
 	return iterator, nil
-}
-
-func (d *DiscoveryV5) FindPeersWithShard(ctx context.Context, cluster, index uint16) (enode.Iterator, error) {
-	if d.listener == nil {
-		return nil, ErrNoDiscV5Listener
-	}
-
-	iterator := enode.Filter(d.listener.RandomNodes(), evaluateNode)
-
-	predicate := func(node *enode.Node) bool {
-		rs, err := enr.RelaySharding(node.Record())
-		if err != nil || rs == nil {
-			return false
-		}
-		return rs.Contains(cluster, index)
-	}
-
-	return enode.Filter(iterator, predicate), nil
 }
 
 func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNode func(*enode.Node, peer.AddrInfo) error) {
@@ -356,7 +333,7 @@ func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNo
 			}
 		}
 
-		_, addresses, err := enr.Multiaddress(iterator.Node())
+		_, addresses, err := wenr.Multiaddress(iterator.Node())
 		if err != nil {
 			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
 			d.log.Error("extracting multiaddrs from enr", zap.Error(err))
@@ -409,14 +386,8 @@ func delayedHasNext(ctx context.Context, iterator enode.Iterator) bool {
 
 // Iterates over the nodes found via discv5 belonging to the node's current shard, and sends them to peerConnector
 func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
-	iterator, err := d.Iterator()
-	if err != nil {
-		metrics.RecordDiscV5Error(context.Background(), "iterator_failure")
-		return fmt.Errorf("obtaining iterator: %w", err)
-	}
-
-	iterator = enode.Filter(iterator, func(n *enode.Node) bool {
-		localRS, err := enr.RelaySharding(d.localnode.Node().Record())
+	iterator, err := d.PeerIterator(FilterPredicate(func(n *enode.Node) bool {
+		localRS, err := wenr.RelaySharding(d.localnode.Node().Record())
 		if err != nil {
 			return false
 		}
@@ -425,7 +396,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 			return true
 		}
 
-		nodeRS, err := enr.RelaySharding(n.Record())
+		nodeRS, err := wenr.RelaySharding(n.Record())
 		if err != nil || nodeRS == nil {
 			return false
 		}
@@ -442,7 +413,11 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 		}
 
 		return false
-	})
+	}))
+	if err != nil {
+		metrics.RecordDiscV5Error(context.Background(), "iterator_failure")
+		return fmt.Errorf("obtaining iterator: %w", err)
+	}
 
 	defer iterator.Close()
 

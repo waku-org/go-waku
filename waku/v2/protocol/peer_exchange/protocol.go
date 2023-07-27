@@ -136,7 +136,7 @@ func (wakuPX *WakuPeerExchange) Stop() {
 }
 
 func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
-	iterator, err := wakuPX.disc.Iterator()
+	iterator, err := wakuPX.disc.PeerIterator()
 	if err != nil {
 		return fmt.Errorf("obtaining iterator: %w", err)
 	}
