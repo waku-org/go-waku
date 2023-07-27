@@ -2,16 +2,13 @@ package rendezvous
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
-	"math/rand"
-	"sort"
 	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	rvs "github.com/waku-org/go-libp2p-rendezvous"
 	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/peers"
@@ -20,60 +17,31 @@ import (
 )
 
 const RendezvousID = rvs.RendezvousProto
-
-type rendezvousPoint struct {
-	sync.RWMutex
-
-	id     peer.ID
-	cookie []byte
-
-	bkf     backoff.BackoffStrategy
-	nextTry time.Time
-}
-
-type PeerConnector interface {
-	Subscribe(context.Context, <-chan v2.PeerData)
-}
+const RegisterDefaultTTL = rvs.DefaultTTL * time.Second
 
 type Rendezvous struct {
 	host host.Host
 
-	enableServer  bool
 	db            *DB
 	rendezvousSvc *rvs.RendezvousService
 
-	rendezvousPoints []*rendezvousPoint
-	peerConnector    PeerConnector
+	peerConnector PeerConnector
 
 	log    *zap.Logger
 	wg     sync.WaitGroup
 	cancel context.CancelFunc
 }
 
-// NewRendezvous creates an instance of a Rendezvous which might act as rendezvous point for other nodes, or act as a client node
-func NewRendezvous(enableServer bool, db *DB, rendezvousPoints []peer.ID, peerConnector PeerConnector, log *zap.Logger) *Rendezvous {
+type PeerConnector interface {
+	Subscribe(context.Context, <-chan v2.PeerData)
+}
+
+func NewRendezvous(db *DB, peerConnector PeerConnector, log *zap.Logger) *Rendezvous {
 	logger := log.Named("rendezvous")
-
-	rngSrc := rand.NewSource(rand.Int63())
-	minBackoff, maxBackoff := time.Second*30, time.Hour
-	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
-
-	var rendevousPoints []*rendezvousPoint
-	now := time.Now()
-	for _, rp := range rendezvousPoints {
-		rendevousPoints = append(rendevousPoints, &rendezvousPoint{
-			id:      rp,
-			nextTry: now,
-			bkf:     bkf(),
-		})
-	}
-
 	return &Rendezvous{
-		enableServer:     enableServer,
-		db:               db,
-		rendezvousPoints: rendevousPoints,
-		peerConnector:    peerConnector,
-		log:              logger,
+		db:            db,
+		peerConnector: peerConnector,
+		log:           logger,
 	}
 }
 
@@ -83,18 +51,20 @@ func (r *Rendezvous) SetHost(h host.Host) {
 }
 
 func (r *Rendezvous) Start(ctx context.Context) error {
+	if r.cancel != nil {
+		return errors.New("already started")
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
 
-	if r.enableServer {
-		err := r.db.Start(ctx)
-		if err != nil {
-			cancel()
-			return err
-		}
-
-		r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
+	err := r.db.Start(ctx)
+	if err != nil {
+		cancel()
+		return err
 	}
+
+	r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
 
 	r.log.Info("rendezvous protocol started")
 	return nil
@@ -103,93 +73,49 @@ func (r *Rendezvous) Start(ctx context.Context) error {
 const registerBackoff = 200 * time.Millisecond
 const registerMaxRetries = 7
 
-func (r *Rendezvous) getRandomRendezvousPoint(ctx context.Context) <-chan *rendezvousPoint {
-	var dialableRP []*rendezvousPoint
-	now := time.Now()
-	for _, rp := range r.rendezvousPoints {
-		if now.After(rp.NextTry()) {
-			dialableRP = append(dialableRP, rp)
-		}
+func (r *Rendezvous) Discover(ctx context.Context, rp *RendezvousPoint, numPeers int) {
+	r.DiscoverWithTopic(ctx, protocol.DefaultPubsubTopic().String(), rp, numPeers)
+}
+
+func (r *Rendezvous) DiscoverShard(ctx context.Context, rp *RendezvousPoint, cluster uint16, shard uint16, numPeers int) {
+	namespace := ShardToNamespace(cluster, shard)
+	r.DiscoverWithTopic(ctx, namespace, rp, numPeers)
+}
+
+func (r *Rendezvous) DiscoverWithTopic(ctx context.Context, topic string, rp *RendezvousPoint, numPeers int) {
+	rendezvousClient := rvs.NewRendezvousClient(r.host, rp.id)
+
+	addrInfo, cookie, err := rendezvousClient.Discover(ctx, topic, numPeers, rp.cookie)
+	if err != nil {
+		r.log.Error("could not discover new peers", zap.Error(err))
+		rp.Delay()
+		return
 	}
 
-	result := make(chan *rendezvousPoint, 1)
+	if len(addrInfo) != 0 {
+		rp.SetSuccess(cookie)
 
-	if len(dialableRP) > 0 {
-		result <- r.rendezvousPoints[rand.Intn(len(r.rendezvousPoints))] // nolint: gosec
-	} else {
-		if len(r.rendezvousPoints) > 0 {
-			sort.Slice(r.rendezvousPoints, func(i, j int) bool {
-				return r.rendezvousPoints[i].nextTry.Before(r.rendezvousPoints[j].nextTry)
-			})
-
-			tryIn := r.rendezvousPoints[0].NextTry().Sub(now)
-			timer := time.NewTimer(tryIn)
-			defer timer.Stop()
-
+		peerCh := make(chan v2.PeerData)
+		defer close(peerCh)
+		r.peerConnector.Subscribe(ctx, peerCh)
+		for _, p := range addrInfo {
+			peer := v2.PeerData{
+				Origin:   peers.Rendezvous,
+				AddrInfo: p,
+			}
 			select {
 			case <-ctx.Done():
-				break
-			case <-timer.C:
-				result <- r.rendezvousPoints[0]
-			}
-		}
-	}
-
-	close(result)
-	return result
-}
-
-func (r *Rendezvous) Discover(ctx context.Context, topic string, numPeers int) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case server, ok := <-r.getRandomRendezvousPoint(ctx):
-			if !ok {
 				return
-			}
-
-			rendezvousClient := rvs.NewRendezvousClient(r.host, server.id)
-
-			addrInfo, cookie, err := rendezvousClient.Discover(ctx, topic, numPeers, server.cookie)
-			if err != nil {
-				r.log.Error("could not discover new peers", zap.Error(err))
-				server.Delay()
-				continue
-			}
-
-			if len(addrInfo) != 0 {
-				server.SetSuccess(cookie)
-
-				peerCh := make(chan v2.PeerData)
-				r.peerConnector.Subscribe(context.Background(), peerCh)
-				for _, addr := range addrInfo {
-					peer := v2.PeerData{
-						Origin:   peers.Rendezvous,
-						AddrInfo: addr,
-					}
-					fmt.Println("PPPPPPPPPPPPPP")
-					select {
-					case peerCh <- peer:
-						fmt.Println("DISCOVERED")
-					case <-ctx.Done():
-						return
-					}
-				}
-				close(peerCh)
-			} else {
-				server.Delay()
+			case peerCh <- peer:
 			}
 		}
+	} else {
+		rp.Delay()
 	}
+
 }
 
-func (r *Rendezvous) DiscoverShard(ctx context.Context, cluster uint16, shard uint16, numPeers int) {
-	namespace := ShardToNamespace(cluster, shard)
-	r.Discover(ctx, namespace, numPeers)
-}
-
-func (r *Rendezvous) callRegister(ctx context.Context, rendezvousClient rvs.RendezvousClient, topic string, retries int) (<-chan time.Time, int) {
+func (r *Rendezvous) callRegister(ctx context.Context, topic string, rendezvousClient rvs.RendezvousClient, retries int) (<-chan time.Time, int) {
 	ttl, err := rendezvousClient.Register(ctx, topic, rvs.DefaultTTL)
 	var t <-chan time.Time
 	if err != nil {
@@ -204,23 +130,38 @@ func (r *Rendezvous) callRegister(ctx context.Context, rendezvousClient rvs.Rend
 	return t, retries
 }
 
-func (r *Rendezvous) Register(ctx context.Context, topic string) {
-	for _, m := range r.rendezvousPoints {
+func (r *Rendezvous) Register(ctx context.Context, rendezvousPoints []*RendezvousPoint) {
+	r.RegisterWithTopic(ctx, protocol.DefaultPubsubTopic().String(), rendezvousPoints)
+}
+
+func (r *Rendezvous) RegisterShard(ctx context.Context, cluster uint16, shard uint16, rendezvousPoints []*RendezvousPoint) {
+	namespace := ShardToNamespace(cluster, shard)
+	r.RegisterWithTopic(ctx, namespace, rendezvousPoints)
+}
+
+func (r *Rendezvous) RegisterRelayShards(ctx context.Context, rs protocol.RelayShards, rendezvousPoints []*RendezvousPoint) {
+	for _, idx := range rs.Indices {
+		go r.RegisterShard(ctx, rs.Cluster, idx, rendezvousPoints)
+	}
+}
+
+func (r *Rendezvous) RegisterWithTopic(ctx context.Context, topic string, rendezvousPoints []*RendezvousPoint) {
+	for _, m := range rendezvousPoints {
 		r.wg.Add(1)
-		go func(m *rendezvousPoint) {
+		go func(m *RendezvousPoint) {
 			r.wg.Done()
 
 			rendezvousClient := rvs.NewRendezvousClient(r.host, m.id)
 			retries := 0
 			var t <-chan time.Time
 
-			t, retries = r.callRegister(ctx, rendezvousClient, topic, retries)
+			t, retries = r.callRegister(ctx, topic, rendezvousClient, retries)
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case <-t:
-					t, retries = r.callRegister(ctx, rendezvousClient, topic, retries)
+					t, retries = r.callRegister(ctx, topic, rendezvousClient, retries)
 					if retries >= registerMaxRetries {
 						return
 					}
@@ -230,18 +171,11 @@ func (r *Rendezvous) Register(ctx context.Context, topic string) {
 	}
 }
 
-func (r *Rendezvous) RegisterShard(ctx context.Context, cluster uint16, shard uint16) {
-	namespace := ShardToNamespace(cluster, shard)
-	r.Register(ctx, namespace)
-}
-
-func (r *Rendezvous) RegisterRelayShards(ctx context.Context, rs protocol.RelayShards) {
-	for _, idx := range rs.Indices {
-		go r.RegisterShard(ctx, rs.Cluster, idx)
-	}
-}
-
 func (r *Rendezvous) Stop() {
+	if r.cancel == nil {
+		return
+	}
+
 	r.cancel()
 	r.wg.Wait()
 	r.host.RemoveStreamHandler(rvs.RendezvousProto)
@@ -250,25 +184,4 @@ func (r *Rendezvous) Stop() {
 
 func ShardToNamespace(cluster uint16, shard uint16) string {
 	return fmt.Sprintf("rs/%d/%d", cluster, shard)
-}
-
-func (rp *rendezvousPoint) Delay() {
-	rp.Lock()
-	defer rp.Unlock()
-
-	rp.nextTry = time.Now().Add(rp.bkf.Delay())
-}
-
-func (rp *rendezvousPoint) SetSuccess(cookie []byte) {
-	rp.Lock()
-	defer rp.Unlock()
-
-	rp.bkf.Reset()
-	rp.cookie = cookie
-}
-
-func (rp *rendezvousPoint) NextTry() time.Time {
-	rp.RLock()
-	defer rp.RUnlock()
-	return rp.nextTry
 }

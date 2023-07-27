@@ -35,9 +35,12 @@ func NewPeerConn() *PeerConn {
 const testTopic = "test"
 
 func TestRendezvous(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	port1, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
-	host1, err := tests.MakeHost(context.Background(), port1, rand.Reader)
+	host1, err := tests.MakeHost(ctx, port1, rand.Reader)
 	require.NoError(t, err)
 
 	var db *sql.DB
@@ -47,19 +50,20 @@ func TestRendezvous(t *testing.T) {
 	err = migration(db)
 	require.NoError(t, err)
 
-	rdb := NewDB(context.Background(), db, utils.Logger())
-	rendezvousPoint := NewRendezvous(true, rdb, nil, NewPeerConn(), utils.Logger())
+	rdb := NewDB(ctx, db, utils.Logger())
+	rendezvousPoint := NewRendezvous(rdb, nil, utils.Logger())
 	rendezvousPoint.SetHost(host1)
-	err = rendezvousPoint.Start(context.Background())
+	err = rendezvousPoint.Start(ctx)
 	require.NoError(t, err)
 	defer rendezvousPoint.Stop()
+	host1RP := NewRendezvousPoint(host1.ID())
 
 	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host1.ID().Pretty()))
 	host1Addr := host1.Addrs()[0].Encapsulate(hostInfo)
 
 	port2, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
-	host2, err := tests.MakeHost(context.Background(), port2, rand.Reader)
+	host2, err := tests.MakeHost(ctx, port2, rand.Reader)
 	require.NoError(t, err)
 
 	info, err := peer.AddrInfoFromP2pAddr(host1Addr)
@@ -69,13 +73,10 @@ func TestRendezvous(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(info.ID, RendezvousID)
 	require.NoError(t, err)
 
-	rendezvousClient1 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, NewPeerConn(), utils.Logger())
+	rendezvousClient1 := NewRendezvous(nil, nil, utils.Logger())
 	rendezvousClient1.SetHost(host2)
-	err = rendezvousClient1.Start(context.Background())
-	require.NoError(t, err)
-	defer rendezvousClient1.Stop()
 
-	rendezvousClient1.Register(context.Background(), testTopic)
+	rendezvousClient1.RegisterWithTopic(context.Background(), testTopic, []*RendezvousPoint{host1RP})
 
 	port3, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -87,16 +88,14 @@ func TestRendezvous(t *testing.T) {
 	require.NoError(t, err)
 
 	myPeerConnector := NewPeerConn()
-	rendezvousClient2 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, myPeerConnector, utils.Logger())
-	rendezvousClient2.SetHost(host3)
-	err = rendezvousClient2.Start(context.Background())
-	require.NoError(t, err)
-	defer rendezvousClient2.Stop()
 
-	timedCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	rendezvousClient2 := NewRendezvous(nil, myPeerConnector, utils.Logger())
+	rendezvousClient2.SetHost(host3)
+
+	timedCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 
-	go rendezvousClient2.Discover(timedCtx, testTopic, 5)
+	go rendezvousClient2.DiscoverWithTopic(timedCtx, testTopic, host1RP, 1)
 	time.Sleep(500 * time.Millisecond)
 
 	timer := time.After(3 * time.Second)

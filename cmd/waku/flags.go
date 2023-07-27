@@ -395,8 +395,8 @@ var (
 	})
 	RendezvousServer = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rendezvous-server",
-		Usage:       "Enable rendezvous protocol server so other peers can use this node for discovery",
-		Destination: &options.Rendezvous.Server,
+		Usage:       "Enable rendezvous protocol so other peers can use this node for discovery",
+		Destination: &options.Rendezvous.Enable,
 		EnvVars:     []string{"WAKUNODE2_RENDEZVOUS_SERVER"},
 	})
 	PeerExchange = altsrc.NewBoolFlag(&cli.BoolFlag{

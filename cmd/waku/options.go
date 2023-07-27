@@ -140,7 +140,6 @@ type PeerExchangeOptions struct {
 // RendezvousOptions are settings used with the rendezvous protocol
 type RendezvousOptions struct {
 	Enable bool
-	Server bool
 	Nodes  []multiaddr.Multiaddr
 }
 
