@@ -80,10 +80,8 @@ type WakuNodeParameters struct {
 	enableStore     bool
 	messageProvider store.MessageProvider
 
-	rendezvousNodes        []multiaddr.Multiaddr
-	enableRendezvousServer bool
-
-	rendezvousDB *rendezvous.DB
+	enableRendezvous bool
+	rendezvousDB     *rendezvous.DB
 
 	discoveryMinPeers int
 
@@ -470,19 +468,11 @@ func WithWebsockets(address string, port int) WakuNodeOption {
 	}
 }
 
-// WithRendezvous is a WakuOption used to enable rendezvous as a discovery
-func WithRendezvous(rendezvousPoints []multiaddr.Multiaddr) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.rendezvousNodes = rendezvousPoints
-		return nil
-	}
-}
-
-// WithRendezvousServer is a WakuOption used to set the node as a rendezvous
+// WithRendezvous is a WakuOption used to set the node as a rendezvous
 // point, using an specific storage for the peer information
-func WithRendezvousServer(db *rendezvous.DB) WakuNodeOption {
+func WithRendezvous(db *rendezvous.DB) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableRendezvousServer = true
+		params.enableRendezvous = true
 		params.rendezvousDB = db
 		return nil
 	}

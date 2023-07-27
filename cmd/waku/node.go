@@ -65,7 +65,7 @@ func failOnErr(err error, msg string) {
 }
 
 func requiresDB(options Options) bool {
-	return options.Store.Enable || options.Rendezvous.Server
+	return options.Store.Enable || options.Rendezvous.Enable
 }
 
 func scalePerc(value float64) float64 {
@@ -282,12 +282,8 @@ func Execute(options Options) {
 	}
 
 	if options.Rendezvous.Enable {
-		nodeOpts = append(nodeOpts, node.WithRendezvous(options.Rendezvous.Nodes))
-	}
-
-	if options.Rendezvous.Server {
 		rdb := rendezvous.NewDB(ctx, db, logger)
-		nodeOpts = append(nodeOpts, node.WithRendezvousServer(rdb))
+		nodeOpts = append(nodeOpts, node.WithRendezvous(rdb))
 	}
 
 	checkForRLN(logger, options, &nodeOpts)
@@ -319,6 +315,8 @@ func Execute(options Options) {
 		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)
 	}
 
+	var wg sync.WaitGroup
+
 	if options.Relay.Enable {
 		for _, nodeTopic := range options.Relay.Topics.Value() {
 			nodeTopic := nodeTopic
@@ -326,17 +324,38 @@ func Execute(options Options) {
 			failOnErr(err, "Error subscring to topic")
 			sub.Unsubscribe()
 
-			if options.Rendezvous.Enable {
+			if len(options.Rendezvous.Nodes) != 0 {
 				// Register the node in rendezvous point
-				// TODO: we have to determine how discovery would work with relay subscriptions.
-				//       It might make sense to use pubsub.WithDiscovery option of gossipsub and
-				//       register DiscV5, PeerExchange and Rendezvous. This should be an
-				//       application concern instead of having (i.e. ./build/waku or the status app)
-				//       instead of having the wakunode being the one deciding to advertise which
-				//       topics/shards it supports
-				wakuNode.Rendezvous().Register(ctx, nodeTopic)
+				var rp []peer.ID
+				for _, n := range options.Rendezvous.Nodes {
+					peerID, err := utils.GetPeerID(n)
+					if err != nil {
+						failOnErr(err, "registering rendezvous nodes")
+					}
+					rp = append(rp, peerID)
+				}
+				iter := rendezvous.NewRendezvousPointIterator(rp)
 
+				wg.Add(1)
 				go func(nodeTopic string) {
+					t := time.NewTicker(rendezvous.RegisterDefaultTTL)
+					defer t.Stop()
+					defer wg.Done()
+
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-t.C:
+							// Register in rendezvous points periodically
+							wakuNode.Rendezvous().RegisterWithTopic(ctx, nodeTopic, iter.RendezvousPoints())
+						}
+					}
+				}(nodeTopic)
+
+				wg.Add(1)
+				go func(nodeTopic string) {
+					defer wg.Done()
 					desiredOutDegree := wakuNode.Relay().Params().D
 					t := time.NewTicker(7 * time.Second)
 					defer t.Stop()
@@ -351,8 +370,12 @@ func Execute(options Options) {
 								continue
 							}
 
+							rp := <-iter.Next(ctx)
+							if rp == nil {
+								continue
+							}
 							ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
-							wakuNode.Rendezvous().Discover(ctx, nodeTopic, peersToFind)
+							wakuNode.Rendezvous().DiscoverWithTopic(ctx, nodeTopic, rp, peersToFind)
 							cancel()
 						}
 					}
@@ -412,8 +435,6 @@ func Execute(options Options) {
 
 		}
 	}
-
-	var wg sync.WaitGroup
 
 	if options.Store.Enable && len(options.Store.ResumeNodes) != 0 {
 		// TODO: extract this to a function and run it when you go offline
