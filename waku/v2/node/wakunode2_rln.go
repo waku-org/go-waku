@@ -12,6 +12,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/static"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 // RLNRelay is used to access any operation related to Waku RLN protocol
@@ -73,7 +74,12 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 		}
 	}
 
-	rlnRelay, err := rln.New(w.Relay(), groupManager, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.timesource, w.log)
+	var limiter *rate.Limiter
+	if w.opts.rlnRelayBandwidthThreshold != 0 {
+		limiter = rate.NewLimiter(rate.Limit(w.opts.rlnRelayBandwidthThreshold), w.opts.rlnRelayBandwidthThreshold)
+	}
+
+	rlnRelay, err := rln.New(w.Relay(), groupManager, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, limiter, w.timesource, w.log)
 	if err != nil {
 		return err
 	}

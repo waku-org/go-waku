@@ -106,6 +106,7 @@ type WakuNodeParameters struct {
 	keystorePassword             string
 	rlnMembershipContractAddress common.Address
 	rlnRegistrationHandler       func(tx *types.Transaction)
+	rlnRelayBandwidthThreshold   int
 
 	keepAliveInterval time.Duration
 

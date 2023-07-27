@@ -26,6 +26,8 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 				ethPrivKey = options.RLNRelay.ETHPrivateKey
 			}
 
+			*nodeOpts = append(*nodeOpts, node.WithRLNBandwidthThreshold(options.RLNRelay.BandwidthThreshold))
+
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,

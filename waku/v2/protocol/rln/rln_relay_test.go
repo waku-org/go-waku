@@ -58,7 +58,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
 	s.Require().NoError(err)
 
-	wakuRLNRelay, err := New(relay, groupManager, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	wakuRLNRelay, err := New(relay, groupManager, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	err = wakuRLNRelay.Start(context.TODO())

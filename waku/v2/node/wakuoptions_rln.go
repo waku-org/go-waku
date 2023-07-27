@@ -11,6 +11,14 @@ import (
 	r "github.com/waku-org/go-zerokit-rln/rln"
 )
 
+// WithRLNBandwidthThreshold sets the message rate in bytes/sec after which verification of proofs should happen
+func WithRLNBandwidthThreshold(rateLimit int) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.rlnRelayBandwidthThreshold = rateLimit
+		return nil
+	}
+}
+
 // WithStaticRLNRelay enables the Waku V2 RLN protocol in offchain mode
 // Requires the `gowaku_rln` build constrain (or the env variable RLN=true if building go-waku)
 func WithStaticRLNRelay(pubsubTopic string, contentTopic string, memberIndex r.MembershipIndex, spamHandler rln.SpamHandler) WakuNodeOption {

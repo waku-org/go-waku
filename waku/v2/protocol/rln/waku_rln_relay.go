@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 	proto "google.golang.org/protobuf/proto"
 )
 
@@ -34,6 +35,7 @@ type WakuRLNRelay struct {
 
 	groupManager GroupManager
 	rootTracker  *group_manager.MerkleRootTracker
+	rateLimiter  *rate.Limiter
 
 	// pubsubTopic is the topic for which rln relay is mounted
 	pubsubTopic  string
@@ -55,6 +57,7 @@ func New(
 	pubsubTopic string,
 	contentTopic string,
 	spamHandler SpamHandler,
+	rateLimiter *rate.Limiter,
 	timesource timesource.Timesource,
 	log *zap.Logger) (*WakuRLNRelay, error) {
 	rlnInstance, err := rln.NewRLN()
@@ -72,6 +75,7 @@ func New(
 		RLN:          rlnInstance,
 		groupManager: groupManager,
 		rootTracker:  rootTracker,
+		rateLimiter:  rateLimiter,
 		pubsubTopic:  pubsubTopic,
 		contentTopic: contentTopic,
 		relay:        relay,
@@ -280,26 +284,32 @@ func (rlnRelay *WakuRLNRelay) addValidator(
 	pubsubTopic string,
 	contentTopic string,
 	spamHandler SpamHandler) error {
-	validator := func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
-		rlnRelay.log.Debug("rln-relay topic validator called")
+	validator := func(ctx context.Context, peerID peer.ID, message *pubsub.Message) pubsub.ValidationResult {
+		rlnRelay.log.Debug("topic validator called")
 
 		wakuMessage := &pb.WakuMessage{}
 		if err := proto.Unmarshal(message.Data, wakuMessage); err != nil {
 			rlnRelay.log.Debug("could not unmarshal message")
-			return true
+			return pubsub.ValidationReject
 		}
 
 		// check the contentTopic
 		if (wakuMessage.ContentTopic != "") && (contentTopic != "") && (wakuMessage.ContentTopic != contentTopic) {
 			rlnRelay.log.Debug("content topic did not match", zap.String("contentTopic", contentTopic))
-			return true
+			return pubsub.ValidationAccept
 		}
+
+		if rlnRelay.rateLimiter != nil && rlnRelay.rateLimiter.AllowN(time.Now(), len(message.Data)) {
+			return pubsub.ValidationAccept
+		}
+
+		rlnRelay.log.Debug("message bandwidth limit exceeded, running rate limit proof validation")
 
 		// validate the message
 		validationRes, err := rlnRelay.ValidateMessage(wakuMessage, nil)
 		if err != nil {
 			rlnRelay.log.Debug("validating message", zap.Error(err))
-			return false
+			return pubsub.ValidationReject
 		}
 
 		switch validationRes {
@@ -308,13 +318,13 @@ func (rlnRelay *WakuRLNRelay) addValidator(
 				zap.String("pubsubTopic", pubsubTopic),
 				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
-			return true
+			return pubsub.ValidationAccept
 		case invalidMessage:
 			rlnRelay.log.Debug("message could not be verified",
 				zap.String("pubsubTopic", pubsubTopic),
 				zap.String("id", hex.EncodeToString(wakuMessage.Hash(pubsubTopic))),
 			)
-			return false
+			return pubsub.ValidationReject
 		case spamMessage:
 			rlnRelay.log.Debug("spam message found",
 				zap.String("pubsubTopic", pubsubTopic),
@@ -327,10 +337,10 @@ func (rlnRelay *WakuRLNRelay) addValidator(
 				}
 			}
 
-			return false
+			return pubsub.ValidationReject
 		default:
 			rlnRelay.log.Debug("unhandled validation result", zap.Int("validationResult", int(validationRes)))
-			return false
+			return pubsub.ValidationIgnore
 		}
 	}
 

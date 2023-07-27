@@ -73,5 +73,11 @@ func rlnFlags() []cli.Flag {
 				Value: &options.RLNRelay.MembershipContractAddress,
 			},
 		},
+		&cli.IntFlag{
+			Name:        "rln-relay-bandwidth-threshold",
+			Value:       0,
+			Usage:       "Message rate in bytes/sec after which verification of proofs should happen. Use 0 to disable bandwidth rate limits",
+			Destination: &options.RLNRelay.BandwidthThreshold,
+		},
 	}
 }
