@@ -102,6 +102,7 @@ type WakuNodeParameters struct {
 	rlnETHClientAddress          string
 	keystorePath                 string
 	keystorePassword             string
+	keystoreIndex                int
 	rlnMembershipContractAddress common.Address
 	rlnRegistrationHandler       func(tx *types.Transaction)
 

@@ -18,7 +18,7 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")
 		}
 		if !options.RLNRelay.Dynamic {
-			*nodeOpts = append(*nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipIndex), nil))
+			*nodeOpts = append(*nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex), nil))
 		} else {
 
 			var ethPrivKey *ecdsa.PrivateKey
@@ -31,7 +31,9 @@ func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeO
 				options.RLNRelay.ContentTopic,
 				options.RLNRelay.CredentialsPath,
 				options.RLNRelay.CredentialsPassword,
+				options.RLNRelay.CredentialsIndex,
 				options.RLNRelay.MembershipContractAddress,
+				rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex),
 				nil,
 				options.RLNRelay.ETHClientAddress,
 				ethPrivKey,
