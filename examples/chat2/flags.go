@@ -195,10 +195,16 @@ func getFlags() []cli.Flag {
 			Destination: &options.RLNRelay.Enable,
 		},
 		&cli.IntFlag{
+			Name:        "rln-relay-membership-group-index",
+			Value:       0,
+			Usage:       "the index of credentials to use, within a specific rln membership set",
+			Destination: &options.RLNRelay.MembershipGroupIndex,
+		},
+		&cli.IntFlag{
 			Name:        "rln-relay-membership-index",
 			Value:       0,
-			Usage:       "(experimental) the index of node in the rln-relay group: a value between 0-99 inclusive",
-			Destination: &options.RLNRelay.MembershipIndex,
+			Usage:       "the index of credentials to use",
+			Destination: &options.RLNRelay.CredentialsIndex,
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-pubsub-topic",

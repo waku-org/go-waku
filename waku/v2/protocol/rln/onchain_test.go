@@ -138,7 +138,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	rt, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
 	s.Require().NoError(err)
 
-	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	// initialize the WakuRLNRelay
@@ -239,7 +239,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	defer sub.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay, err := New(relay, gm, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
@@ -283,7 +283,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer sub1.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay1, err := New(relay1, gm1, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
@@ -309,7 +309,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer sub2.Unsubscribe()
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u2PrivKey, s.rlnAddr, "./test_onchain.json", "", false, nil, utils.Logger())
+	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u2PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay2, err := New(relay2, gm2, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())

@@ -37,6 +37,7 @@ type DynamicGroupManager struct {
 	membershipIndex    *rln.MembershipIndex
 
 	membershipContractAddress common.Address
+	membershipGroupIndex      uint
 	ethClientAddress          string
 	ethClient                 *ethclient.Client
 
@@ -55,6 +56,7 @@ type DynamicGroupManager struct {
 	saveKeystore     bool
 	keystorePath     string
 	keystorePassword string
+	keystoreIndex    int
 
 	rootTracker *group_manager.MerkleRootTracker
 }
@@ -101,8 +103,10 @@ func NewDynamicGroupManager(
 	ethClientAddr string,
 	ethAccountPrivateKey *ecdsa.PrivateKey,
 	memContractAddr common.Address,
+	membershipGroupIndex uint,
 	keystorePath string,
 	keystorePassword string,
+	keystoreIndex int,
 	saveKeystore bool,
 	registrationHandler RegistrationHandler,
 	log *zap.Logger,
@@ -122,6 +126,7 @@ func NewDynamicGroupManager(
 	}
 
 	return &DynamicGroupManager{
+		membershipGroupIndex:      membershipGroupIndex,
 		membershipContractAddress: memContractAddr,
 		ethClientAddress:          ethClientAddr,
 		ethAccountPrivateKey:      ethAccountPrivateKey,
@@ -130,6 +135,7 @@ func NewDynamicGroupManager(
 		saveKeystore:              saveKeystore,
 		keystorePath:              path,
 		keystorePassword:          password,
+		keystoreIndex:             keystoreIndex,
 		log:                       log,
 	}, nil
 }
@@ -193,10 +199,9 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 			return err
 		}
 
-		// TODO: accept an index from the config
-		if len(credentials) != 0 {
-			gm.identityCredential = &credentials[0].IdentityCredential
-			gm.membershipIndex = &credentials[0].MembershipGroups[0].TreeIndex
+		if len(credentials) >= gm.keystoreIndex+1 {
+			gm.identityCredential = &credentials[gm.keystoreIndex].IdentityCredential
+			gm.membershipIndex = &credentials[gm.keystoreIndex].MembershipGroups[gm.membershipGroupIndex].TreeIndex
 		}
 	}
 
