@@ -66,12 +66,12 @@ func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) e
 	toInsertTable := om.New()
 	for _, event := range events {
 		if event.Raw.Removed {
-			var indexes []uint64
+			var indexes []uint
 			i_idx, ok := toRemoveTable.Get(event.Raw.BlockNumber)
 			if ok {
-				indexes = i_idx.([]uint64)
+				indexes = i_idx.([]uint)
 			}
-			indexes = append(indexes, event.Index.Uint64())
+			indexes = append(indexes, uint(event.Index.Uint64()))
 			toRemoveTable.Set(event.Raw.BlockNumber, indexes)
 		} else {
 			var eventsPerBlock []*contracts.RLNMemberRegistered
@@ -278,17 +278,28 @@ func (gm *DynamicGroupManager) persistCredentials() error {
 func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 	for pair := toInsert.Oldest(); pair != nil; pair = pair.Next() {
 		events := pair.Value.([]*contracts.RLNMemberRegistered) // TODO: should these be sortered by index? we assume all members arrive in order
+		var idCommitments []rln.IDCommitment
+		var oldestIndexInBlock *big.Int
 		for _, evt := range events {
-			pubkey := rln.Bytes32(evt.Pubkey.Bytes())
-			// TODO: should we track indexes to identify missing?
-			err := gm.rln.InsertMember(pubkey)
-			if err != nil {
-				gm.log.Error("inserting member into merkletree", zap.Error(err))
-				return err
+			if oldestIndexInBlock == nil {
+				oldestIndexInBlock = evt.Index
 			}
+			idCommitments = append(idCommitments, rln.Bytes32(evt.Pubkey.Bytes()))
 		}
 
-		_, err := gm.rootTracker.UpdateLatestRoot(pair.Key.(uint64))
+		if len(idCommitments) == 0 {
+			continue
+		}
+
+		// TODO: should we track indexes to identify missing?
+		startIndex := rln.MembershipIndex(uint(oldestIndexInBlock.Int64()))
+		err := gm.rln.InsertMembers(startIndex, idCommitments)
+		if err != nil {
+			gm.log.Error("inserting members into merkletree", zap.Error(err))
+			return err
+		}
+
+		_, err = gm.rootTracker.UpdateLatestRoot(pair.Key.(uint64))
 		if err != nil {
 			return err
 		}
@@ -298,13 +309,11 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 
 func (gm *DynamicGroupManager) RemoveMembers(toRemove *om.OrderedMap) error {
 	for pair := toRemove.Newest(); pair != nil; pair = pair.Prev() {
-		memberIndexes := pair.Value.([]uint64)
-		for _, index := range memberIndexes {
-			err := gm.rln.DeleteMember(uint(index))
-			if err != nil {
-				gm.log.Error("deleting member", zap.Error(err))
-				return err
-			}
+		memberIndexes := pair.Value.([]uint)
+		err := gm.rln.DeleteMembers(memberIndexes)
+		if err != nil {
+			gm.log.Error("deleting members", zap.Error(err))
+			return err
 		}
 		gm.rootTracker.Backfill(pair.Key.(uint64))
 	}
