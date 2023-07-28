@@ -39,7 +39,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.1
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230628220917-7b4e5ae4c0e7
 	github.com/waku-org/go-noise v0.0.4
-	github.com/waku-org/go-zerokit-rln v0.1.13-0.20230803113701-ea89e5d7eedb
+	github.com/waku-org/go-zerokit-rln v0.1.13
 	github.com/wk8/go-ordered-map v1.0.0
 )
 
