@@ -44,7 +44,7 @@ type RLNRelayOptions struct {
 	ETHPrivateKey             *ecdsa.PrivateKey
 	ETHClientAddress          string
 	MembershipContractAddress common.Address
-	BandwidthThreshold        int
+	BandwidthThreshold        int64
 }
 
 // FilterOptions are settings used to enable filter protocol. This is a protocol

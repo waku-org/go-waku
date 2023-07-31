@@ -12,7 +12,7 @@ import (
 )
 
 // WithRLNBandwidthThreshold sets the message rate in bytes/sec after which verification of proofs should happen
-func WithRLNBandwidthThreshold(rateLimit int) WakuNodeOption {
+func WithRLNBandwidthThreshold(rateLimit int64) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.rlnRelayBandwidthThreshold = rateLimit
 		return nil

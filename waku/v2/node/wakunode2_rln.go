@@ -76,7 +76,7 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 
 	var limiter *rate.Limiter
 	if w.opts.rlnRelayBandwidthThreshold != 0 {
-		limiter = rate.NewLimiter(rate.Limit(w.opts.rlnRelayBandwidthThreshold), w.opts.rlnRelayBandwidthThreshold)
+		limiter = rate.NewLimiter(rate.Limit(w.opts.rlnRelayBandwidthThreshold), int(w.opts.rlnRelayBandwidthThreshold))
 	}
 
 	rlnRelay, err := rln.New(w.Relay(), groupManager, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, limiter, w.timesource, w.log)
