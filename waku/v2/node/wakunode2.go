@@ -457,7 +457,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	w.rendezvous.SetHost(host)
-	if w.opts.enableRendezvous {
+	if w.opts.enableRendezvousPoint {
 		err := w.rendezvous.Start(ctx)
 		if err != nil {
 			return err

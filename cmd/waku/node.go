@@ -326,15 +326,7 @@ func Execute(options Options) {
 
 			if len(options.Rendezvous.Nodes) != 0 {
 				// Register the node in rendezvous point
-				var rp []peer.ID
-				for _, n := range options.Rendezvous.Nodes {
-					peerID, err := utils.GetPeerID(n)
-					if err != nil {
-						failOnErr(err, "registering rendezvous nodes")
-					}
-					rp = append(rp, peerID)
-				}
-				iter := rendezvous.NewRendezvousPointIterator(rp)
+				iter := rendezvous.NewRendezvousPointIterator(options.Rendezvous.Nodes)
 
 				wg.Add(1)
 				go func(nodeTopic string) {
@@ -348,7 +340,7 @@ func Execute(options Options) {
 							return
 						case <-t.C:
 							// Register in rendezvous points periodically
-							wakuNode.Rendezvous().RegisterWithTopic(ctx, nodeTopic, iter.RendezvousPoints())
+							wakuNode.Rendezvous().RegisterWithNamespace(ctx, nodeTopic, iter.RendezvousPoints())
 						}
 					}
 				}(nodeTopic)
@@ -375,7 +367,7 @@ func Execute(options Options) {
 								continue
 							}
 							ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
-							wakuNode.Rendezvous().DiscoverWithTopic(ctx, nodeTopic, rp, peersToFind)
+							wakuNode.Rendezvous().DiscoverWithNamespace(ctx, nodeTopic, rp, peersToFind)
 							cancel()
 						}
 					}
