@@ -80,8 +80,8 @@ type WakuNodeParameters struct {
 	enableStore     bool
 	messageProvider store.MessageProvider
 
-	enableRendezvous bool
-	rendezvousDB     *rendezvous.DB
+	enableRendezvousPoint bool
+	rendezvousDB          *rendezvous.DB
 
 	discoveryMinPeers int
 
@@ -472,7 +472,7 @@ func WithWebsockets(address string, port int) WakuNodeOption {
 // point, using an specific storage for the peer information
 func WithRendezvous(db *rendezvous.DB) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableRendezvous = true
+		params.enableRendezvousPoint = true
 		params.rendezvousDB = db
 		return nil
 	}

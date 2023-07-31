@@ -28,6 +28,7 @@ import (
 
 var ErrNoDiscV5Listener = errors.New("no discv5 listener")
 
+// PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
 type PeerConnector interface {
 	Subscribe(context.Context, <-chan v2.PeerData)
 }

@@ -76,7 +76,7 @@ func TestRendezvous(t *testing.T) {
 	rendezvousClient1 := NewRendezvous(nil, nil, utils.Logger())
 	rendezvousClient1.SetHost(host2)
 
-	rendezvousClient1.RegisterWithTopic(context.Background(), testTopic, []*RendezvousPoint{host1RP})
+	rendezvousClient1.RegisterWithNamespace(context.Background(), testTopic, []*RendezvousPoint{host1RP})
 
 	port3, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestRendezvous(t *testing.T) {
 	timedCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 
-	go rendezvousClient2.DiscoverWithTopic(timedCtx, testTopic, host1RP, 1)
+	go rendezvousClient2.DiscoverWithNamespace(timedCtx, testTopic, host1RP, 1)
 	time.Sleep(500 * time.Millisecond)
 
 	timer := time.After(3 * time.Second)

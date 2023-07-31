@@ -31,6 +31,7 @@ var (
 	ErrInvalidId        = errors.New("invalid request id")
 )
 
+// PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
 type PeerConnector interface {
 	Subscribe(context.Context, <-chan v2.PeerData)
 }

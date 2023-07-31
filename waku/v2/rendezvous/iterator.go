@@ -6,17 +6,22 @@ import (
 	"sort"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type RendezvousPointIterator struct {
 	rendezvousPoints []*RendezvousPoint
 }
 
-func NewRendezvousPointIterator(rendezvousPoints []peer.ID) *RendezvousPointIterator {
+// NewRendezvousPointIterator creates an iterator with a backoff mechanism to use random rendezvous points taking into account successful/unsuccesful connection attempts
+func NewRendezvousPointIterator(rendezvousPoints []multiaddr.Multiaddr) *RendezvousPointIterator {
 	var rendevousPoints []*RendezvousPoint
 	for _, rp := range rendezvousPoints {
-		rendevousPoints = append(rendevousPoints, NewRendezvousPoint(rp))
+		peerID, err := utils.GetPeerID(rp)
+		if err == nil {
+			rendevousPoints = append(rendevousPoints, NewRendezvousPoint(peerID))
+		}
 	}
 
 	return &RendezvousPointIterator{
@@ -24,10 +29,12 @@ func NewRendezvousPointIterator(rendezvousPoints []peer.ID) *RendezvousPointIter
 	}
 }
 
+// RendezvousPoints returns the list of rendezvous points registered in this iterator
 func (r *RendezvousPointIterator) RendezvousPoints() []*RendezvousPoint {
 	return r.rendezvousPoints
 }
 
+// Next will return a channel that will be triggered as soon as the next rendevous point is available to be used (depending on backoff time)
 func (r *RendezvousPointIterator) Next(ctx context.Context) <-chan *RendezvousPoint {
 	var dialableRP []*RendezvousPoint
 	now := time.Now()
