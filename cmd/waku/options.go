@@ -37,8 +37,8 @@ type RLNRelayOptions struct {
 	Enable                    bool
 	CredentialsPath           string
 	CredentialsPassword       string
-	CredentialsIndex          int
-	MembershipGroupIndex      int
+	CredentialsIndex          uint
+	MembershipGroupIndex      uint
 	PubsubTopic               string
 	ContentTopic              string
 	Dynamic                   bool

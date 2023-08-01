@@ -39,7 +39,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.1
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230628220917-7b4e5ae4c0e7
 	github.com/waku-org/go-noise v0.0.4
-	github.com/waku-org/go-zerokit-rln v0.1.13-0.20230726180145-0496a42e60fb
+	github.com/waku-org/go-zerokit-rln v0.1.13-0.20230803113701-ea89e5d7eedb
 	github.com/wk8/go-ordered-map v1.0.0
 )
 
@@ -71,9 +71,9 @@ require (
 	github.com/rjeczalik/notify v0.9.3 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/status-im/status-go/extkeys v1.1.2 // indirect
-	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230726162122-13b66414cd5b // indirect
-	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230726162204-c48a56712ef0 // indirect
-	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230726162310-d761ca9911d8 // indirect
+	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230803113401-9a7ef94d120e // indirect
+	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230801152407-8101ff87ee0a // indirect
+	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230801140722-0a4e68d0b8f5 // indirect
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/fx v1.19.2 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
