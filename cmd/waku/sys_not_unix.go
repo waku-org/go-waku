@@ -1,6 +1,6 @@
 //go:build !linux && !darwin && !windows
 
-package waku
+package main
 
 import "runtime"
 

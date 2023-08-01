@@ -69,6 +69,15 @@ func main() {}
 // - databaseURL: url connection string. Default: "sqlite3://store.db". Also accepts PostgreSQL connection strings
 // - storeRetentionMaxMessages: max number of messages to store in the database. Default 10000
 // - storeRetentionTimeSeconds: max number of seconds that a message will be persisted in the database. Default 2592000 (30d)
+// - websockets: an optional object containing settings to setup the websocket configuration
+//   - enabled: indicates if websockets support will be enabled. Default `false`
+//   - host: listening address for websocket connections. Default `0.0.0.0`
+//   - port: TCP listening port for websocket connection (0 for random, binding to 443 requires root access). Default: `60001“, if secure websockets support is enabled, the default is `6443“
+//   - secure: enable secure websockets support. Default `false`
+//   - certPath: secure websocket certificate path
+//   - keyPath: secure websocket key path
+//
+// - dns4DomainName: the domain name resolving to the node's public IPv4 address.
 //
 //export waku_new
 func waku_new(configJSON *C.char) *C.char {

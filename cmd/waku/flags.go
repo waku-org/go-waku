@@ -79,11 +79,11 @@ var (
 		Destination: &options.Websocket.CertPath,
 		EnvVars:     []string{"WAKUNODE2_WEBSOCKET_SECURE_CERT_PATH"},
 	})
-	Dns4DomainName = altsrc.NewStringFlag(&cli.StringFlag{
+	DNS4DomainName = altsrc.NewStringFlag(&cli.StringFlag{
 		Name:        "dns4-domain-name",
 		Value:       "",
 		Usage:       "The domain name resolving to the node's public IPv4 address",
-		Destination: &options.Dns4DomainName,
+		Destination: &options.DNS4DomainName,
 		EnvVars:     []string{"WAKUNODE2_WEBSOCKET_DNS4_DOMAIN_NAME"},
 	})
 	NodeKey = cliutils.NewGenericFlagSingleValue(&cli.GenericFlag{

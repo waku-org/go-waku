@@ -107,7 +107,6 @@ int main(int argc, char *argv[])
     return 1;
   printf("%s\n",response);
   */
-
   response = waku_relay_subscribe(NULL);
   if (isError(response))
     return 1;

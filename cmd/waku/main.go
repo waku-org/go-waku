@@ -5,11 +5,10 @@ import (
 
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
-	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
-var options waku.Options
+var options Options
 
 func main() {
 	// Defaults
@@ -27,7 +26,7 @@ func main() {
 		WebsocketSecureSupport,
 		WebsocketSecureKeyPath,
 		WebsocketSecureCertPath,
-		Dns4DomainName,
+		DNS4DomainName,
 		NodeKey,
 		KeyFile,
 		KeyPassword,
@@ -110,7 +109,7 @@ func main() {
 		Before:  altsrc.InitInputSourceWithContext(cliFlags, altsrc.NewTomlSourceFromFlagFunc("config-file")),
 		Flags:   cliFlags,
 		Action: func(c *cli.Context) error {
-			waku.Execute(options)
+			Execute(options)
 			return nil
 		},
 	}

@@ -10,18 +10,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type LightPushParameters struct {
+type lightPushParameters struct {
 	host         host.Host
 	selectedPeer peer.ID
-	requestId    []byte
+	requestID    []byte
 	log          *zap.Logger
 }
 
-type LightPushOption func(*LightPushParameters)
+// Option is the type of options accepted when performing LightPush protocol requests
+type Option func(*lightPushParameters)
 
 // WithPeer is an option used to specify the peerID to push a waku message to
-func WithPeer(p peer.ID) LightPushOption {
-	return func(params *LightPushParameters) {
+func WithPeer(p peer.ID) Option {
+	return func(params *lightPushParameters) {
 		params.selectedPeer = p
 	}
 }
@@ -30,8 +31,8 @@ func WithPeer(p peer.ID) LightPushOption {
 // to push a waku message to. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
-func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) LightPushOption {
-	return func(params *LightPushParameters) {
+func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) Option {
+	return func(params *lightPushParameters) {
 		p, err := utils.SelectPeer(params.host, LightPushID_v20beta1, fromThesePeers, params.log)
 		if err == nil {
 			params.selectedPeer = p
@@ -45,8 +46,8 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) LightPushOption {
 // with the lowest ping. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) LightPushOption {
-	return func(params *LightPushParameters) {
+func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Option {
+	return func(params *lightPushParameters) {
 		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, LightPushID_v20beta1, fromThesePeers, params.log)
 		if err == nil {
 			params.selectedPeer = p
@@ -56,26 +57,26 @@ func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Li
 	}
 }
 
-// WithRequestId is an option to set a specific request ID to be used when
+// WithRequestID is an option to set a specific request ID to be used when
 // publishing a message
-func WithRequestId(requestId []byte) LightPushOption {
-	return func(params *LightPushParameters) {
-		params.requestId = requestId
+func WithRequestID(requestID []byte) Option {
+	return func(params *lightPushParameters) {
+		params.requestID = requestID
 	}
 }
 
-// WithAutomaticRequestId is an option to automatically generate a request ID
+// WithAutomaticRequestID is an option to automatically generate a request ID
 // when publishing a message
-func WithAutomaticRequestId() LightPushOption {
-	return func(params *LightPushParameters) {
-		params.requestId = protocol.GenerateRequestId()
+func WithAutomaticRequestID() Option {
+	return func(params *lightPushParameters) {
+		params.requestID = protocol.GenerateRequestId()
 	}
 }
 
 // DefaultOptions are the default options to be used when using the lightpush protocol
-func DefaultOptions(host host.Host) []LightPushOption {
-	return []LightPushOption{
-		WithAutomaticRequestId(),
+func DefaultOptions(host host.Host) []Option {
+	return []Option{
+		WithAutomaticRequestID(),
 		WithAutomaticPeerSelection(),
 	}
 }

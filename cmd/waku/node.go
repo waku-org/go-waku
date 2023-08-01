@@ -1,4 +1,4 @@
-package waku
+package main
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 	"github.com/pbnjay/memory"
 
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -41,6 +42,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/cmd/waku/rest"
+	"github.com/waku-org/go-waku/cmd/waku/rpc"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -52,8 +55,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/rest"
-	"github.com/waku-org/go-waku/waku/v2/rpc"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -104,7 +105,7 @@ func Execute(options Options) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	if requiresDB(options) {
-		db, migrationFn, err = ExtractDBAndMigration(options.Store.DatabaseURL)
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL)
 		failOnErr(err, "Could not connect to DB")
 	}
 
@@ -141,8 +142,8 @@ func Execute(options Options) {
 		nodeOpts = append(nodeOpts, node.WithExternalIP(ip))
 	}
 
-	if options.Dns4DomainName != "" {
-		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.Dns4DomainName))
+	if options.DNS4DomainName != "" {
+		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.DNS4DomainName))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
@@ -227,6 +228,7 @@ func Execute(options Options) {
 	}
 
 	if options.Store.Enable {
+		nodeOpts = append(nodeOpts, node.WithWakuStore())
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 	}
 
@@ -386,12 +388,12 @@ func Execute(options Options) {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerId, err := wakuNode.AddPeer(*options.PeerExchange.Node, wakupeerstore.Static, peer_exchange.PeerExchangeID_v20alpha1)
+		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, wakupeerstore.Static, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
 			desiredOutDegree := wakuNode.Relay().Params().D
-			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(peerId)); err != nil {
+			if err = wakuNode.PeerExchange().Request(ctx, desiredOutDegree, peer_exchange.WithPeer(peerID)); err != nil {
 				logger.Error("requesting peers via peer exchange", zap.Error(err))
 			}
 		}
@@ -614,10 +616,9 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		panic(err)
 	}
 
-	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
-
-	for _, addr := range h.Addrs() {
-		fmt.Println(addr.Encapsulate(hostInfo))
+	hostAddrs := utils.EncapsulatePeerID(h.ID(), h.Addrs()...)
+	for _, addr := range hostAddrs {
+		fmt.Println(addr)
 	}
 
 }

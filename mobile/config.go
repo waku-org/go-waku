@@ -2,12 +2,14 @@ package gowaku
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
-type wakuConfig struct {
+// WakuConfig contains all the configuration settings exposed to users of mobile and c libraries
+type WakuConfig struct {
 	Host                 *string          `json:"host,omitempty"`
 	Port                 *int             `json:"port,omitempty"`
 	AdvertiseAddress     *string          `json:"advertiseAddr,omitempty"`
@@ -26,6 +28,18 @@ type wakuConfig struct {
 	DatabaseURL          *string          `json:"databaseURL,omitempty"`
 	RetentionMaxMessages *int             `json:"storeRetentionMaxMessages,omitempty"`
 	RetentionTimeSeconds *int             `json:"storeRetentionTimeSeconds,omitempty"`
+	DNS4DomainName       string           `json:"dns4DomainName,omitempty"`
+	Websockets           *WebsocketConfig `json:"websockets,omitempty"`
+}
+
+// WebsocketConfig contains all the settings required to setup websocket support in waku
+type WebsocketConfig struct {
+	Enabled  bool   `json:"enabled,omitempty"`
+	Host     string `json:"host,omitempty"`
+	Port     *int   `json:"port,omitempty"`
+	Secure   bool   `json:"secure,omitempty"`
+	CertPath string `json:"certPath"`
+	KeyPath  string `json:"keyPath"`
 }
 
 var defaultHost = "0.0.0.0"
@@ -41,6 +55,10 @@ var defaultEnableStore = false
 var defaultDatabaseURL = "sqlite3://store.db"
 var defaultRetentionMaxMessages = 10000
 var defaultRetentionTimeSeconds = 30 * 24 * 60 * 60 // 30d
+
+var defaultWSPort = 60001
+var defaultWSSPort = 6443
+var defaultWSHost = "0.0.0.0"
 
 // GossipSubParams defines all the gossipsub specific parameters.
 type GossipSubParams struct {
@@ -190,12 +208,12 @@ type GossipSubParams struct {
 	SeenMessagesTTLSeconds *int `json:"seenMessagesTTLSeconds"`
 }
 
-func getConfig(configJSON string) (wakuConfig, error) {
-	var config wakuConfig
+func getConfig(configJSON string) (WakuConfig, error) {
+	var config WakuConfig
 	if configJSON != "" {
 		err := json.Unmarshal([]byte(configJSON), &config)
 		if err != nil {
-			return wakuConfig{}, err
+			return WakuConfig{}, err
 		}
 	}
 
@@ -255,10 +273,34 @@ func getConfig(configJSON string) (wakuConfig, error) {
 		config.RetentionTimeSeconds = &defaultRetentionTimeSeconds
 	}
 
+	if config.Websockets == nil {
+		config.Websockets = &WebsocketConfig{}
+	}
+
+	if config.Websockets.Host == "" {
+		config.Websockets.Host = defaultWSHost
+	}
+
+	if config.Websockets.Port == nil {
+		if config.Websockets.Secure {
+			config.Websockets.Port = &defaultWSSPort
+		} else {
+			config.Websockets.Port = &defaultWSPort
+		}
+	}
+
+	if config.Websockets.CertPath == "" && config.Websockets.Secure {
+		return WakuConfig{}, errors.New("certPath is required")
+	}
+
+	if config.Websockets.KeyPath == "" && config.Websockets.Secure {
+		return WakuConfig{}, errors.New("keyPath is required")
+	}
+
 	return config, nil
 }
 
-func GetSeenTTL(cfg wakuConfig) time.Duration {
+func getSeenTTL(cfg WakuConfig) time.Duration {
 	if cfg.GossipSubParams == nil || *cfg.GossipSubParams.SeenMessagesTTLSeconds == 0 {
 		return pubsub.TimeCacheDuration
 	}

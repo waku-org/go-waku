@@ -299,6 +299,8 @@ interface JsonConfig {
     databaseURL?: string;
     storeRetentionMaxMessages?: number;
     storeRetentionTimeSeconds?: number;
+    websocket?: Websocket;
+    dns4DomainName?: string;
 }
 ```
 
@@ -342,8 +344,10 @@ If a key is `undefined`, or `null`, a default value will be set.
   Default `10000`
 - `storeRetentionTimeSeconds`: max number of seconds that a message will be persisted in the database.
   Default `2592000` (30d)
+- `websocket`: custom websocket support parameters. See `Websocket` section for defaults
+- `dns4DomainName`: the domain name resolving to the node's public IPv4 address.
 
-  
+
 For example:
 ```json
 {
@@ -458,6 +462,40 @@ If a key is `undefined`, or `null`, a default value will be set.
   Default `3` seconds
 - `seenMessagesTTLSeconds`: configures when a previously seen message ID can be forgotten about.
   Default `120` seconds
+
+
+### `Websocket` type
+
+Type holding custom websocket support configuration:
+
+```ts
+interface Websocket {
+    enabled?: bool;
+    host?: string;
+    port?: number;
+    secure?: bool;
+    certPath?: string;
+    keyPath?: string;
+}
+```
+
+Fields: 
+
+All fields are optional.
+If a key is `undefined`, or `null`, a default value will be set. If using `secure` websockets support, `certPath` and `keyPath` become mandatory attributes. Unless selfsigned certificates are used, it will probably make sense in the `JsonConfiguration` to specify the domain name used in the certificate in the `dns4DomainName` attribute.
+
+- `enabled`:  indicates if websockets support will be enabled 
+  Default `false`
+- `host`: listening address for websocket connections
+  Default `0.0.0.0`
+- `port`: TCP listening port for websocket connection (`0` for random, binding to `443` requires root access)
+  Default `60001`, if secure websockets support is enabled, the default is `6443“`
+- `secure`: enable secure websockets support
+  Default `false`
+- `certPath`: secure websocket certificate path
+- `keyPath`: secure websocket key path
+
+
 
 
 ### `extern char* waku_new(char* jsonConfig)`

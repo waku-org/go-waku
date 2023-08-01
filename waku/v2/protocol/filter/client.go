@@ -165,7 +165,7 @@ func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscr
 	reader := pbio.NewDelimitedReader(conn, math.MaxInt32)
 
 	request := &pb.FilterSubscribeRequest{
-		RequestId:           hex.EncodeToString(params.requestId),
+		RequestId:           hex.EncodeToString(params.requestID),
 		FilterSubscribeType: reqType,
 		PubsubTopic:         contentFilter.Topic,
 		ContentTopics:       contentFilter.ContentTopics,
@@ -188,7 +188,7 @@ func (wf *WakuFilterLightnode) request(ctx context.Context, params *FilterSubscr
 	}
 
 	if filterSubscribeResponse.RequestId != request.RequestId {
-		wf.log.Error("requestId mismatch", zap.String("expected", request.RequestId), zap.String("received", filterSubscribeResponse.RequestId))
+		wf.log.Error("requestID mismatch", zap.String("expected", request.RequestId), zap.String("received", filterSubscribeResponse.RequestId))
 		metrics.RecordFilterError(ctx, "request_id_mismatch")
 		err := NewFilterError(300, "request_id_mismatch")
 		return &err

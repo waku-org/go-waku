@@ -1,6 +1,6 @@
 //go:build linux || darwin
 
-package waku
+package main
 
 import (
 	"fmt"

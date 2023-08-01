@@ -1,7 +1,7 @@
 //go:build !gowaku_rln
 // +build !gowaku_rln
 
-package waku
+package main
 
 import (
 	"github.com/waku-org/go-waku/waku/v2/node"

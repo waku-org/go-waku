@@ -35,11 +35,12 @@ type PeerConnectionStrategy struct {
 	workerCtx    context.Context
 	workerCancel context.CancelFunc
 
-	wg          sync.WaitGroup
-	minPeers    int
-	dialTimeout time.Duration
-	peerCh      chan PeerData
-	dialCh      chan peer.AddrInfo
+	wg            sync.WaitGroup
+	minPeers      int
+	dialTimeout   time.Duration
+	peerCh        chan PeerData
+	dialCh        chan peer.AddrInfo
+	subscriptions []<-chan PeerData
 
 	backoff backoff.BackoffFactory
 	mux     sync.Mutex
@@ -78,9 +79,33 @@ type PeerData struct {
 	ENR      *enode.Node
 }
 
-// PeerChannel exposes the channel on which discovered peers should be pushed
-func (c *PeerConnectionStrategy) PeerChannel() chan<- PeerData {
-	return c.peerCh
+// Subscribe receives channels on which discovered peers should be pushed
+func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerData) {
+	if c.cancel != nil {
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.consumeSubscription(ctx, ch)
+		}()
+	} else {
+		c.subscriptions = append(c.subscriptions, ch)
+	}
+}
+
+func (c *PeerConnectionStrategy) consumeSubscription(ctx context.Context, ch <-chan PeerData) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case p := <-ch:
+			select {
+			case <-ctx.Done():
+				return
+			case c.peerCh <- p:
+			}
+		}
+	}
+
 }
 
 // Sets the host to be able to mount or consume a protocol
@@ -104,6 +129,8 @@ func (c *PeerConnectionStrategy) Start(ctx context.Context) error {
 	go c.workPublisher(ctx)
 	go c.dialPeers(ctx)
 
+	c.consumeSubscriptions(ctx)
+
 	return nil
 }
 
@@ -117,6 +144,9 @@ func (c *PeerConnectionStrategy) Stop() {
 
 	close(c.peerCh)
 	close(c.dialCh)
+
+	c.subscriptions = nil
+	c.cancel = nil
 }
 
 func (c *PeerConnectionStrategy) isPaused() bool {
@@ -157,13 +187,20 @@ func (c *PeerConnectionStrategy) shouldDialPeers(ctx context.Context) {
 	}
 }
 
+func (c *PeerConnectionStrategy) consumeSubscriptions(ctx context.Context) {
+	for _, subs := range c.subscriptions {
+		c.wg.Add(1)
+		go func(s <-chan PeerData) {
+			defer c.wg.Done()
+			c.consumeSubscription(ctx, s)
+		}(subs)
+	}
+}
+
 func (c *PeerConnectionStrategy) publishWork(ctx context.Context, p peer.AddrInfo) {
 	select {
 	case c.dialCh <- p:
 	case <-ctx.Done():
-		return
-	case <-time.After(1 * time.Second):
-		// This timeout is to not lock the goroutine
 		return
 	}
 }
@@ -208,15 +245,18 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 	}
 }
 
+const maxActiveDials = 5
+
 func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 	defer c.wg.Done()
 
 	maxGoRoutines := c.minPeers
-	if maxGoRoutines > 15 {
-		maxGoRoutines = 15
+	if maxGoRoutines > maxActiveDials {
+		maxGoRoutines = maxActiveDials
 	}
 
 	sem := make(chan struct{}, maxGoRoutines)
+
 	for {
 		select {
 		case pi, ok := <-c.dialCh:
@@ -225,6 +265,10 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 			}
 
 			if pi.ID == c.host.ID() || pi.ID == "" {
+				continue
+			}
+
+			if c.host.Network().Connectedness(pi.ID) == network.Connected {
 				continue
 			}
 
@@ -247,15 +291,10 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 			}
 			c.mux.Unlock()
 
-			if c.host.Network().Connectedness(pi.ID) == network.Connected {
-				continue
-			}
-
 			sem <- struct{}{}
 			c.wg.Add(1)
 			go func(pi peer.AddrInfo) {
 				defer c.wg.Done()
-
 				ctx, cancel := context.WithTimeout(c.workerCtx, c.dialTimeout)
 				defer cancel()
 				err := c.host.Connect(ctx, pi)
@@ -265,6 +304,7 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				}
 				<-sem
 			}(pi)
+
 		case <-ctx.Done():
 			return
 		}

@@ -31,6 +31,10 @@ var (
 	ErrInvalidId        = errors.New("invalid request id")
 )
 
+type PeerConnector interface {
+	Subscribe(context.Context, <-chan peermanager.PeerData)
+}
+
 type WakuPeerExchange struct {
 	h    host.Host
 	disc *discv5.DiscoveryV5
@@ -44,10 +48,6 @@ type WakuPeerExchange struct {
 	enrCache      *enrCache
 }
 
-type PeerConnector interface {
-	PeerChannel() chan<- peermanager.PeerData
-}
-
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
 func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, log *zap.Logger) (*WakuPeerExchange, error) {
 	newEnrCache, err := newEnrCache(MaxCacheSize)
@@ -59,6 +59,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.log = log.Named("wakupx")
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
+
 	return wakuPX, nil
 }
 
@@ -135,7 +136,7 @@ func (wakuPX *WakuPeerExchange) Stop() {
 }
 
 func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
-	iterator, err := wakuPX.disc.Iterator()
+	iterator, err := wakuPX.disc.PeerIterator()
 	if err != nil {
 		return fmt.Errorf("obtaining iterator: %w", err)
 	}

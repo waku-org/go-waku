@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 )
 
@@ -18,9 +17,4 @@ type ReceptorService interface {
 	SetHost(h host.Host)
 	Stop()
 	Start(context.Context, relay.Subscription) error
-}
-
-type PeerConnectorService interface {
-	Service
-	PeerChannel() chan<- peermanager.PeerData
 }

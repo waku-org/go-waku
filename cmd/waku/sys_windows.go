@@ -1,6 +1,6 @@
 //go:build windows
 
-package waku
+package main
 
 import (
 	"math"

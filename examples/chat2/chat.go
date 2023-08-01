@@ -344,7 +344,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	}
 
 	if c.options.LightPush.Enable {
-		var lightOpt lightpush.LightPushOption
+		var lightOpt lightpush.Option
 		var peerID peer.ID
 		peerID, err = options.LightPush.NodePeerID()
 		if err != nil {
@@ -426,7 +426,7 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 	}
 
 	response, err := c.node.Store().Query(tCtx, q,
-		store.WithAutomaticRequestId(),
+		store.WithAutomaticRequestID(),
 		storeOpt,
 		store.WithPaging(false, 100))
 

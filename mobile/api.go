@@ -25,8 +25,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/waku-org/go-waku/waku"
 	"github.com/waku-org/go-waku/waku/persistence"
+	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
@@ -101,9 +101,25 @@ func NewNode(configJSON string) string {
 			pubsubOpt = append(pubsubOpt, pubsub.WithGossipSubParams(params))
 		}
 
-		pubsubOpt = append(pubsubOpt, pubsub.WithSeenMessagesTTL(GetSeenTTL(config)))
+		pubsubOpt = append(pubsubOpt, pubsub.WithSeenMessagesTTL(getSeenTTL(config)))
 
 		opts = append(opts, node.WithWakuRelayAndMinPeers(*config.MinPeersToPublish, pubsubOpt...))
+	}
+
+	if config.DNS4DomainName != "" {
+		opts = append(opts, node.WithDns4Domain(config.DNS4DomainName))
+	}
+
+	if config.Websockets.Enabled {
+		if config.Websockets.Secure {
+			if config.DNS4DomainName == "" {
+				utils.Logger().Warn("using secure websockets without a dns4 domain name might indicate a misconfiguration")
+			}
+			opts = append(opts, node.WithSecureWebsockets(config.Websockets.Host, *config.Websockets.Port, config.Websockets.CertPath, config.Websockets.KeyPath))
+		} else {
+			opts = append(opts, node.WithWebsockets(config.Websockets.Host, *config.Websockets.Port))
+
+		}
 	}
 
 	if *config.EnableLegacyFilter {
@@ -115,7 +131,7 @@ func NewNode(configJSON string) string {
 	if *config.EnableStore {
 		var db *sql.DB
 		var migrationFn func(*sql.DB) error
-		db, migrationFn, err = waku.ExtractDBAndMigration(*config.DatabaseURL)
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL)
 		if err != nil {
 			return MakeJSONResponse(err)
 		}

@@ -19,17 +19,16 @@ import (
 )
 
 type PeerConn struct {
-	ch chan peermanager.PeerData
+	ch <-chan peermanager.PeerData
 }
 
-func (p PeerConn) PeerChannel() chan<- peermanager.PeerData {
-	return p.ch
+func (p *PeerConn) Subscribe(ctx context.Context, ch <-chan peermanager.PeerData) {
+	p.ch = ch
 }
 
-func NewPeerConn() PeerConn {
+func NewPeerConn() *PeerConn {
 	x := PeerConn{}
-	x.ch = make(chan peermanager.PeerData, 1000)
-	return x
+	return &x
 }
 
 const testTopic = "test"
@@ -48,7 +47,7 @@ func TestRendezvous(t *testing.T) {
 	require.NoError(t, err)
 
 	rdb := NewDB(context.Background(), db, utils.Logger())
-	rendezvousPoint := NewRendezvous(true, rdb, nil, nil, utils.Logger())
+	rendezvousPoint := NewRendezvous(true, rdb, nil, NewPeerConn(), utils.Logger())
 	rendezvousPoint.SetHost(host1)
 	err = rendezvousPoint.Start(context.Background())
 	require.NoError(t, err)
@@ -69,7 +68,7 @@ func TestRendezvous(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(info.ID, RendezvousID)
 	require.NoError(t, err)
 
-	rendezvousClient1 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, nil, utils.Logger())
+	rendezvousClient1 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, NewPeerConn(), utils.Logger())
 	rendezvousClient1.SetHost(host2)
 	err = rendezvousClient1.Start(context.Background())
 	require.NoError(t, err)
@@ -87,7 +86,6 @@ func TestRendezvous(t *testing.T) {
 	require.NoError(t, err)
 
 	myPeerConnector := NewPeerConn()
-
 	rendezvousClient2 := NewRendezvous(false, nil, []peer.ID{host1.ID()}, myPeerConnector, utils.Logger())
 	rendezvousClient2.SetHost(host3)
 	err = rendezvousClient2.Start(context.Background())
@@ -98,8 +96,9 @@ func TestRendezvous(t *testing.T) {
 	defer cancel()
 
 	go rendezvousClient2.Discover(timedCtx, testTopic, 5)
+	time.Sleep(500 * time.Millisecond)
 
-	timer := time.After(5 * time.Second)
+	timer := time.After(3 * time.Second)
 	select {
 	case <-timer:
 		require.Fail(t, "no peer discovered")
