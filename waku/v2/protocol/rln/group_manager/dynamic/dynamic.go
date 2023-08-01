@@ -56,7 +56,7 @@ type DynamicGroupManager struct {
 	saveKeystore     bool
 	keystorePath     string
 	keystorePassword string
-	keystoreIndex    int
+	keystoreIndex    uint
 
 	rootTracker *group_manager.MerkleRootTracker
 }
@@ -106,7 +106,7 @@ func NewDynamicGroupManager(
 	membershipGroupIndex uint,
 	keystorePath string,
 	keystorePassword string,
-	keystoreIndex int,
+	keystoreIndex uint,
 	saveKeystore bool,
 	registrationHandler RegistrationHandler,
 	log *zap.Logger,
@@ -199,9 +199,18 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 			return err
 		}
 
-		if len(credentials) >= gm.keystoreIndex+1 {
-			gm.identityCredential = &credentials[gm.keystoreIndex].IdentityCredential
-			gm.membershipIndex = &credentials[gm.keystoreIndex].MembershipGroups[gm.membershipGroupIndex].TreeIndex
+		if len(credentials) != 0 {
+			if int(gm.keystoreIndex) <= len(credentials)-1 {
+				credential := credentials[gm.keystoreIndex]
+				gm.identityCredential = &credential.IdentityCredential
+				if int(gm.membershipGroupIndex) <= len(credential.MembershipGroups)-1 {
+					gm.membershipIndex = &credential.MembershipGroups[gm.membershipGroupIndex].TreeIndex
+				} else {
+					return errors.New("invalid membership group index")
+				}
+			} else {
+				return errors.New("invalid keystore index")
+			}
 		}
 	}
 

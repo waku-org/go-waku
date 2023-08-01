@@ -16,7 +16,7 @@ func rlnFlags() []cli.Flag {
 			Usage:       "Enable spam protection through rln-relay",
 			Destination: &options.RLNRelay.Enable,
 		},
-		&cli.IntFlag{
+		&cli.UintFlag{
 			Name:        "rln-relay-membership-group-index",
 			Value:       0,
 			Usage:       "the index of credentials to use, within a specific rln membership set",
@@ -51,7 +51,7 @@ func rlnFlags() []cli.Flag {
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
 		},
-		&cli.IntFlag{
+		&cli.UintFlag{
 			Name:        "rln-relay-membership-index",
 			Value:       0,
 			Usage:       "the index of credentials to use",
