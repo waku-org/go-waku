@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 /*
 #include <stddef.h>

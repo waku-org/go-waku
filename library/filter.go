@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"context"
@@ -28,14 +28,14 @@ func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
 	}, nil
 }
 
-func FilterSubscribe(filterJSON string, peerID string, ms int) string {
+func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return "", errWakuNodeNotReady
 	}
 
 	var ctx context.Context
@@ -52,7 +52,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return MakeJSONResponse(err)
+			return "", err
 		}
 		fOptions = append(fOptions, filter.WithPeer(p))
 	} else {
@@ -61,7 +61,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 
 	subscriptionDetails, err := wakuState.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
 	go func(subscriptionDetails *filter.SubscriptionDetails) {
@@ -70,12 +70,12 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) string {
 		}
 	}(subscriptionDetails)
 
-	return PrepareJSONResponse(subscriptionDetails, nil)
+	return MarshalJSON(subscriptionDetails)
 }
 
-func FilterPing(peerID string, ms int) string {
+func FilterPing(peerID string, ms int) error {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 
 	var ctx context.Context
@@ -93,25 +93,23 @@ func FilterPing(peerID string, ms int) string {
 	if peerID != "" {
 		pID, err = peer.Decode(peerID)
 		if err != nil {
-			return MakeJSONResponse(err)
+			return err
 		}
 	} else {
-		return MakeJSONResponse(errors.New("peerID is required"))
+		return errors.New("peerID is required")
 	}
 
-	err = wakuState.node.FilterLightnode().Ping(ctx, pID)
-
-	return MakeJSONResponse(err)
+	return wakuState.node.FilterLightnode().Ping(ctx, pID)
 }
 
-func FilterUnsubscribe(filterJSON string, peerID string, ms int) string {
+func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 
 	var ctx context.Context
@@ -128,21 +126,21 @@ func FilterUnsubscribe(filterJSON string, peerID string, ms int) string {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return MakeJSONResponse(err)
+			return err
 		}
 		fOptions = append(fOptions, filter.Peer(p))
 	} else {
-		return MakeJSONResponse(errors.New("peerID is required"))
+		return errors.New("peerID is required")
 	}
 
 	pushResult, err := wakuState.node.FilterLightnode().Unsubscribe(ctx, cf, fOptions...)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	result := <-pushResult
 
-	return MakeJSONResponse(result.Err)
+	return result.Err
 }
 
 type unsubscribeAllResult struct {
@@ -150,9 +148,9 @@ type unsubscribeAllResult struct {
 	Error  string `json:"error"`
 }
 
-func FilterUnsubscribeAll(peerID string, ms int) string {
+func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return "", errWakuNodeNotReady
 	}
 
 	var ctx context.Context
@@ -169,7 +167,7 @@ func FilterUnsubscribeAll(peerID string, ms int) string {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return MakeJSONResponse(err)
+			return "", err
 		}
 		fOptions = append(fOptions, filter.Peer(p))
 	} else {
@@ -178,7 +176,7 @@ func FilterUnsubscribeAll(peerID string, ms int) string {
 
 	pushResult, err := wakuState.node.FilterLightnode().UnsubscribeAll(ctx, fOptions...)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
 	var unsubscribeResult []unsubscribeAllResult
@@ -193,5 +191,5 @@ func FilterUnsubscribeAll(peerID string, ms int) string {
 		unsubscribeResult = append(unsubscribeResult, ur)
 	}
 
-	return PrepareJSONResponse(unsubscribeResult, nil)
+	return MarshalJSON(unsubscribeResult)
 }

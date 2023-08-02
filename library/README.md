@@ -1465,41 +1465,6 @@ For example:
   "result": true
 }
 ```
-## Utils
-
-### `extern char* waku_utils_base64_encode(char* data)`
-
-Encode a byte array to base64.
-Useful for creating the payload of a Waku Message in the format understood by [`waku_relay_publish`](#extern-char-waku_relay_publishchar-messagejson-char-pubsubtopic-int-timeoutms)
-
-**Parameters**
-
-1. `char* data`: Byte array to encode
-
-**Returns**
-
-A `char *` containing the base64 encoded byte array.
-
-### `extern char* waku_utils_base64_decode(char* data)`
-
-Decode a base64 string (useful for reading the payload from Waku Messages).
-
-**Parameters**
-
-1. `char* data`: base64 encoded byte array to decode.
-
-**Returns**
-
-A [`JsonResponse`](#jsonresponse-type).
-If the execution is successful, the `result` field contains the decoded payload.
-
-
-### `extern void waku_utils_free(char* data)`
-Frees a char* since all strings returned by gowaku are allocated in the C heap using malloc.
-
-**Parameters**
-
-1. `char* data`: variable to free
 
 
 # Copyright

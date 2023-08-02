@@ -4,14 +4,26 @@ package main
 /*
 #include <stdlib.h>
 #include <stddef.h>
+
+// The possible returned values for the functions that return int
+#define RET_OK                0
+#define RET_ERR               1
+#define RET_MISSING_CALLBACK  2
+
+typedef void (*WakuCallBack) (const char* msg, size_t len_0);
 */
 import "C"
 import (
+	"fmt"
 	"unsafe"
 
-	mobile "github.com/waku-org/go-waku/mobile"
+	"github.com/waku-org/go-waku/library"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
+
+const RET_OK = C.RET_OK
+const RET_ERR = C.RET_ERR
+const RET_MISSING_CALLBACK = C.RET_MISSING_CALLBACK
 
 func main() {}
 
@@ -80,110 +92,130 @@ func main() {}
 // - dns4DomainName: the domain name resolving to the node's public IPv4 address.
 //
 //export waku_new
-func waku_new(configJSON *C.char) *C.char {
-	response := mobile.NewNode(C.GoString(configJSON))
-	return C.CString(response)
+func waku_new(configJSON *C.char, onErrCb C.WakuCallBack) C.int {
+	err := library.NewNode(C.GoString(configJSON))
+	return execErrCB(onErrCb, err)
 }
 
 // Starts the waku node
 //
 //export waku_start
-func waku_start() *C.char {
-	response := mobile.Start()
-	return C.CString(response)
+func waku_start(onErrCb C.WakuCallBack) C.int {
+	err := library.Start()
+	return execErrCB(onErrCb, err)
 }
 
 // Stops a waku node
 //
 //export waku_stop
-func waku_stop() *C.char {
-	response := mobile.Stop()
-	return C.CString(response)
+func waku_stop(onErrCb C.WakuCallBack) C.int {
+	err := library.Stop()
+	return execErrCB(onErrCb, err)
 }
 
 // Determine is a node is started or not
 //
 //export waku_is_started
-func waku_is_started() *C.char {
-	response := mobile.IsStarted()
-	return C.CString(response)
+func waku_is_started() C.int {
+	started := library.IsStarted()
+	if started {
+		return 1
+	}
+	return 0
+}
+
+type fn func() (string, error)
+
+func single_fn_exec(f fn, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	result, err := f()
+	if err != nil {
+		return execErrCB(onErrCb, err)
+	}
+	return execOkCB(onOkCb, result)
 }
 
 // Obtain the peer ID of the waku node
 //
 //export waku_peerid
-func waku_peerid() *C.char {
-	response := mobile.PeerID()
-	return C.CString(response)
+func waku_peerid(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		return library.PeerID()
+	}, onOkCb, onErrCb)
 }
 
 // Obtain the multiaddresses the wakunode is listening to
 //
 //export waku_listen_addresses
-func waku_listen_addresses() *C.char {
-	response := mobile.ListenAddresses()
-	return C.CString(response)
+func waku_listen_addresses(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		return library.ListenAddresses()
+	}, onOkCb, onErrCb)
 }
 
 // Add node multiaddress and protocol to the wakunode peerstore
 //
 //export waku_add_peer
-func waku_add_peer(address *C.char, protocolID *C.char) *C.char {
-	response := mobile.AddPeer(C.GoString(address), C.GoString(protocolID))
-	return C.CString(response)
+func waku_add_peer(address *C.char, protocolID *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		return library.AddPeer(C.GoString(address), C.GoString(protocolID))
+	}, onOkCb, onErrCb)
 }
 
 // Connect to peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 //
 //export waku_connect
-func waku_connect(address *C.char, ms C.int) *C.char {
-	response := mobile.Connect(C.GoString(address), int(ms))
-	return C.CString(response)
+func waku_connect(address *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+	err := library.Connect(C.GoString(address), int(ms))
+	return execErrCB(onErrCb, err)
 }
 
 // Connect to known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 //
 //export waku_connect_peerid
-func waku_connect_peerid(peerID *C.char, ms C.int) *C.char {
-	response := mobile.ConnectPeerID(C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_connect_peerid(peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+	err := library.ConnectPeerID(C.GoString(peerID), int(ms))
+	return execErrCB(onErrCb, err)
 }
 
 // Close connection to a known peer by peerID
 //
 //export waku_disconnect
-func waku_disconnect(peerID *C.char) *C.char {
-	response := mobile.Disconnect(C.GoString(peerID))
-	return C.CString(response)
+func waku_disconnect(peerID *C.char, onErrCb C.WakuCallBack) C.int {
+	err := library.Disconnect(C.GoString(peerID))
+	return execErrCB(onErrCb, err)
 }
 
 // Get number of connected peers
 //
 //export waku_peer_cnt
-func waku_peer_cnt() *C.char {
-	response := mobile.PeerCnt()
-	return C.CString(response)
+func waku_peer_cnt(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		peerCnt, err := library.PeerCnt()
+		return fmt.Sprintf("%d", peerCnt), err
+	}, onOkCb, onErrCb)
 }
 
 // Create a content topic string according to RFC 23
 //
 //export waku_content_topic
-func waku_content_topic(applicationName *C.char, applicationVersion C.uint, contentTopicName *C.char, encoding *C.char) *C.char {
-	return C.CString(protocol.NewContentTopic(C.GoString(applicationName), uint(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding)).String())
+func waku_content_topic(applicationName *C.char, applicationVersion C.uint, contentTopicName *C.char, encoding *C.char, onOkCb C.WakuCallBack) C.int {
+	contentTopic := protocol.NewContentTopic(C.GoString(applicationName), uint(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding)).String()
+	return execOkCB(onOkCb, contentTopic)
 }
 
 // Create a pubsub topic string according to RFC 23
 //
 //export waku_pubsub_topic
-func waku_pubsub_topic(name *C.char, encoding *C.char) *C.char {
-	return C.CString(mobile.PubsubTopic(C.GoString(name), C.GoString(encoding)))
+func waku_pubsub_topic(name *C.char, encoding *C.char, onOkCb C.WakuCallBack) C.int {
+	topic := library.PubsubTopic(C.GoString(name), C.GoString(encoding))
+	return execOkCB(onOkCb, topic)
 }
 
 // Get the default pubsub topic used in waku2: /waku/2/default-waku/proto
 //
 //export waku_default_pubsub_topic
-func waku_default_pubsub_topic() *C.char {
-	return C.CString(mobile.DefaultPubsubTopic())
+func waku_default_pubsub_topic(onOkCb C.WakuCallBack) C.int {
+	return execOkCB(onOkCb, library.DefaultPubsubTopic())
 }
 
 // Register callback to act as signal handler and receive application signals
@@ -191,30 +223,33 @@ func waku_default_pubsub_topic() *C.char {
 // signature for the callback should be `void myCallback(char* signalJSON)`
 //
 //export waku_set_event_callback
-func waku_set_event_callback(cb unsafe.Pointer) {
-	mobile.SetEventCallback(cb)
+func waku_set_event_callback(cb C.WakuCallBack) {
+	library.SetEventCallback(unsafe.Pointer(cb))
 }
 
 // Retrieve the list of peers known by the waku node
 //
 //export waku_peers
-func waku_peers() *C.char {
-	response := mobile.Peers()
-	return C.CString(response)
+func waku_peers(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		return library.Peers()
+	}, onOkCb, onErrCb)
 }
 
 // Decode a waku message using a 32 bytes symmetric key. The key must be a hex encoded string with "0x" prefix
 //
 //export waku_decode_symmetric
-func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char) *C.char {
-	response := mobile.DecodeSymmetric(C.GoString(messageJSON), C.GoString(symmetricKey))
-	return C.CString(response)
+func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		return library.DecodeSymmetric(C.GoString(messageJSON), C.GoString(symmetricKey))
+	}, onOkCb, onErrCb)
 }
 
 // Decode a waku message using a secp256k1 private key. The key must be a hex encoded string with "0x" prefix
 //
 //export waku_decode_asymmetric
-func waku_decode_asymmetric(messageJSON *C.char, privateKey *C.char) *C.char {
-	response := mobile.DecodeAsymmetric(C.GoString(messageJSON), C.GoString(privateKey))
-	return C.CString(response)
+func waku_decode_asymmetric(messageJSON *C.char, privateKey *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return single_fn_exec(func() (string, error) {
+		return library.DecodeAsymmetric(C.GoString(messageJSON), C.GoString(privateKey))
+	}, onOkCb, onErrCb)
 }

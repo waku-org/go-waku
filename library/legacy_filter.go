@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"context"
@@ -33,14 +33,14 @@ func toLegacyContentFilter(filterJSON string) (legacy_filter.ContentFilter, erro
 }
 
 // Deprecated: Use FilterSubscribe instead
-func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) string {
+func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) error {
 	cf, err := toLegacyContentFilter(filterJSON)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 
 	var ctx context.Context
@@ -57,7 +57,7 @@ func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) string {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return MakeJSONResponse(err)
+			return err
 		}
 		fOptions = append(fOptions, legacy_filter.WithPeer(p))
 	} else {
@@ -66,7 +66,7 @@ func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) string {
 
 	_, f, err := wakuState.node.LegacyFilter().Subscribe(ctx, cf, fOptions...)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	go func(f legacy_filter.Filter) {
@@ -75,18 +75,18 @@ func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) string {
 		}
 	}(f)
 
-	return PrepareJSONResponse(true, nil)
+	return nil
 }
 
 // Deprecated: Use FilterUnsubscribe or FilterUnsubscribeAll instead
-func LegacyFilterUnsubscribe(filterJSON string, ms int) string {
+func LegacyFilterUnsubscribe(filterJSON string, ms int) error {
 	cf, err := toLegacyContentFilter(filterJSON)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 
 	var ctx context.Context
@@ -99,10 +99,5 @@ func LegacyFilterUnsubscribe(filterJSON string, ms int) string {
 		ctx = context.Background()
 	}
 
-	err = wakuState.node.LegacyFilter().UnsubscribeFilter(ctx, cf)
-	if err != nil {
-		return MakeJSONResponse(err)
-	}
-
-	return MakeJSONResponse(nil)
+	return wakuState.node.LegacyFilter().UnsubscribeFilter(ctx, cf)
 }

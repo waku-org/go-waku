@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"context"
@@ -41,34 +41,29 @@ func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms
 	return hexutil.Encode(hash), err
 }
 
-func LightpushPublish(messageJSON string, topic string, peerID string, ms int) string {
+func LightpushPublish(messageJSON string, topic string, peerID string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	hash, err := lightpushPublish(msg, getTopic(topic), peerID, ms)
-	return PrepareJSONResponse(hash, err)
+	return lightpushPublish(msg, getTopic(topic), peerID, ms)
 }
 
-func LightpushPublishEncodeAsymmetric(messageJSON string, topic string, peerID string, publicKey string, optionalSigningKey string, ms int) string {
+func LightpushPublishEncodeAsymmetric(messageJSON string, topic string, peerID string, publicKey string, optionalSigningKey string, ms int) (string, error) {
 	msg, err := wakuMessageAsymmetricEncoding(messageJSON, publicKey, optionalSigningKey)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	hash, err := lightpushPublish(msg, getTopic(topic), peerID, ms)
-
-	return PrepareJSONResponse(hash, err)
+	return lightpushPublish(msg, getTopic(topic), peerID, ms)
 }
 
-func LightpushPublishEncodeSymmetric(messageJSON string, topic string, peerID string, symmetricKey string, optionalSigningKey string, ms int) string {
+func LightpushPublishEncodeSymmetric(messageJSON string, topic string, peerID string, symmetricKey string, optionalSigningKey string, ms int) (string, error) {
 	msg, err := wakuMessageSymmetricEncoding(messageJSON, symmetricKey, optionalSigningKey)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	hash, err := lightpushPublish(msg, getTopic(topic), peerID, ms)
-
-	return PrepareJSONResponse(hash, err)
+	return lightpushPublish(msg, getTopic(topic), peerID, ms)
 }

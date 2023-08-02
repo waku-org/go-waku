@@ -122,7 +122,7 @@ static-library:
 		-buildmode=c-archive \
 		-tags="${BUILD_TAGS}" \
 		-o ./build/lib/libgowaku.a \
-		./library/
+		./library/c/
 	@echo "Static library built:"
 	@ls -la ./build/lib/libgowaku.*
 
@@ -132,7 +132,7 @@ dynamic-library:
 		-buildmode=c-shared \
 		-tags="${BUILD_TAGS}" \
 		-o ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT) \
-		./library/
+		./library/c/
 ifeq ($(detected_OS),Linux)
 	cd ./build/lib && \
 	ls -lah . && \
@@ -146,14 +146,14 @@ mobile-android:
 	@echo "Android target: ${ANDROID_TARGET} (override with ANDROID_TARGET var)"
 	gomobile init && \
 	${GOBIN} get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -v -target=android -androidapi=${ANDROID_TARGET} -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./mobile
+	gomobile bind -v -target=android -androidapi=${ANDROID_TARGET} -ldflags="-s -w" -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/gowaku.aar ./library/mobile
 	@echo "Android library built:"
 	@ls -la ./build/lib/*.aar ./build/lib/*.jar
 
 mobile-ios:
 	gomobile init && \
 	${GOBIN} get -d golang.org/x/mobile/cmd/gomobile && \
-	gomobile bind -target=ios -ldflags="-s -w" -tags="nowatchdog ${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/Gowaku.xcframework ./mobile
+	gomobile bind -target=ios -ldflags="-s -w" -tags="nowatchdog ${BUILD_TAGS}" $(BUILD_FLAGS) -o ./build/lib/Gowaku.xcframework ./library/mobile
 	@echo "IOS library built:"
 	@ls -la ./build/lib/*.xcframework
 

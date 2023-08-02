@@ -1,10 +1,10 @@
 package main
 
-import (
-	"C"
-
-	mobile "github.com/waku-org/go-waku/mobile"
-)
+/*
+#include <cgo_utils.h>
+*/
+import "C"
+import "github.com/waku-org/go-waku/library"
 
 // Creates a subscription to a light node matching a content filter and, optionally, a pubSub topic.
 // filterJSON must contain a JSON with this format:
@@ -23,9 +23,9 @@ import (
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_legacy_filter_subscribe
-func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char {
-	response := mobile.LegacyFilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+	err := library.LegacyFilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
+	return execErrCB(onErrCb, err)
 }
 
 // Removes subscriptions in a light node matching a content filter and, optionally, a pubSub topic.
@@ -44,7 +44,7 @@ func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) 
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_legacy_filter_unsubscribe
-func waku_legacy_filter_unsubscribe(filterJSON *C.char, ms C.int) *C.char {
-	response := mobile.LegacyFilterUnsubscribe(C.GoString(filterJSON), int(ms))
-	return C.CString(response)
+func waku_legacy_filter_unsubscribe(filterJSON *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+	err := library.LegacyFilterUnsubscribe(C.GoString(filterJSON), int(ms))
+	return execErrCB(onErrCb, err)
 }
