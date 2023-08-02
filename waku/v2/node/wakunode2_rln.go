@@ -26,19 +26,6 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 		return errors.New("relay protocol is required")
 	}
 
-	// check whether the pubsub topic is supported at the relay level
-	topicFound := false
-	for _, t := range w.Relay().Topics() {
-		if t == w.opts.rlnRelayPubsubTopic {
-			topicFound = true
-			break
-		}
-	}
-
-	if !topicFound {
-		return errors.New("relay protocol does not support the configured pubsub topic")
-	}
-
 	var err error
 	var groupManager rln.GroupManager
 

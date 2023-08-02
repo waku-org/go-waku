@@ -45,7 +45,7 @@ func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscri
 //
 // Node1 and Node 2 are peers
 // Client and Node 2 are peers
-// Node 3 will use lightpush request, sending the message to Node2
+// Client will use lightpush request, sending the message to Node2
 //
 // Client send a successful message using lightpush
 // Node2 receive the message and broadcast it

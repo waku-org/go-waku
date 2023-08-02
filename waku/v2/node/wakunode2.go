@@ -265,16 +265,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		return nil, err
 	}
 
-	var rendezvousPoints []peer.ID
-	for _, p := range w.opts.rendezvousNodes {
-		peerID, err := utils.GetPeerID(p)
-		if err != nil {
-			return nil, err
-		}
-		rendezvousPoints = append(rendezvousPoints, peerID)
-	}
-
-	w.rendezvous = rendezvous.NewRendezvous(w.opts.enableRendezvousServer, w.opts.rendezvousDB, rendezvousPoints, w.peerConnector, w.log)
+	w.rendezvous = rendezvous.NewRendezvous(w.opts.rendezvousDB, w.peerConnector, w.log)
 	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullnode, w.timesource, w.log, w.opts.legacyFilterOpts...)
 	w.filterFullnode = filter.NewWakuFilterFullnode(w.timesource, w.log, w.opts.filterOpts...)
@@ -467,7 +458,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	w.rendezvous.SetHost(host)
-	if w.opts.enableRendezvousServer {
+	if w.opts.enableRendezvousPoint {
 		err := w.rendezvous.Start(ctx)
 		if err != nil {
 			return err
@@ -497,10 +488,6 @@ func (w *WakuNode) Stop() {
 	defer w.identificationEventSub.Close()
 	defer w.addressChangesSub.Close()
 
-	if w.opts.enableRendezvousServer {
-		w.rendezvous.Stop()
-	}
-
 	w.relay.Stop()
 	w.lightPush.Stop()
 	w.store.Stop()
@@ -511,6 +498,7 @@ func (w *WakuNode) Stop() {
 		w.discoveryV5.Stop()
 	}
 	w.peerExchange.Stop()
+	w.rendezvous.Stop()
 
 	w.peerConnector.Stop()
 
