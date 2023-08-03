@@ -1,7 +1,6 @@
 package peermanager
 
 import (
-	"math"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -34,13 +33,10 @@ const peerConnectivityLoopSecs = 15
 
 // NewPeerManager creates a new peerManager instance.
 func NewPeerManager(maxConnections uint, logger *zap.Logger) *PeerManager {
+
 	maxRelayPeersValue := maxConnections - (maxConnections / maxRelayPeersShare)
-	var outRelayPeersTargetValue uint
-	if maxRelayPeersValue > defaultMaxOutRelayPeersTarget {
-		outRelayPeersTargetValue = uint(math.Max(float64(maxRelayPeersValue/outRelayPeersShare), defaultMaxOutRelayPeersTarget))
-	} else {
-		outRelayPeersTargetValue = maxRelayPeersValue / outRelayPeersShare
-	}
+	outRelayPeersTargetValue := uint(maxRelayPeersValue / outRelayPeersShare)
+
 	pm := &PeerManager{
 		logger:              logger.Named("peer-manager"),
 		maxRelayPeers:       maxRelayPeersValue,
@@ -72,6 +68,22 @@ func (pm *PeerManager) connectivityLoop() {
 	}
 }
 
+func (pm *PeerManager) filterPeersByProto(peers peer.IDSlice, proto protocol.ID) peer.IDSlice {
+	var filteredPeers peer.IDSlice
+	//TODO: This can be optimized once we have waku's own peerStore
+
+	for _, p := range peers {
+		supportedProtocols, err := pm.host.Peerstore().GetProtocols(p)
+		if err != nil {
+			pm.logger.Warn("Failed to get supported protocols for peer", zap.String("peerID", p.String()))
+		}
+		if slices.Contains(supportedProtocols, proto) {
+			filteredPeers = append(filteredPeers, p)
+		}
+	}
+	return filteredPeers
+}
+
 func (pm *PeerManager) pruneInRelayConns() {
 
 	var inRelayPeers peer.IDSlice
@@ -83,17 +95,9 @@ func (pm *PeerManager) pruneInRelayConns() {
 	pm.logger.Info("Number of peers connected", zap.Int("inPeers", inPeers.Len()), zap.Int("outPeers", outPeers.Len()))
 
 	//Need to filter peers to check if they support relay
-	//TODO: This can be optimized once we have waku's own peerStore
-
-	for _, p := range inPeers {
-		supportedProtocols, err := pm.host.Peerstore().GetProtocols(p)
-		if err != nil {
-			pm.logger.Warn("Failed to get supported protocols for peer", zap.String("peerID", p.String()))
-		}
-		if slices.Contains(supportedProtocols, WakuRelayIDv200) {
-			inRelayPeers = append(inRelayPeers, p)
-		}
-	}
+	inRelayPeers = pm.filterPeersByProto(inPeers, WakuRelayIDv200)
+	outRelayPeers := pm.filterPeersByProto(outPeers, WakuRelayIDv200)
+	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("outRelayPeers", outRelayPeers.Len()))
 
 	if inRelayPeers.Len() > int(pm.InRelayPeersTarget) {
 		//Start disconnecting peers, based on what?

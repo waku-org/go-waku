@@ -68,7 +68,7 @@ func (c ConnectionNotifier) ListenClose(n network.Network, m multiaddr.Multiaddr
 
 // Connected is called when a connection is opened
 func (c ConnectionNotifier) Connected(n network.Network, cc network.Conn) {
-	c.log.Info("peer connected", logging.HostID("peer", cc.RemotePeer()))
+	c.log.Info("peer connected", logging.HostID("peer", cc.RemotePeer()), zap.String("direction", cc.Stat().Direction.String()))
 	if c.connNotifCh != nil {
 		select {
 		case c.connNotifCh <- PeerConnection{cc.RemotePeer(), true}:
