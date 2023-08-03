@@ -17,8 +17,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/multiformats/go-multiaddr"
-	v2 "github.com/waku-org/go-waku/waku/v2"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 )
 
@@ -107,7 +107,7 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 		return nil, err
 	}
 
-	psWrapper := peers.NewWakuPeerstore(ps)
+	psWrapper := peerstore.NewWakuPeerstore(ps)
 	if err != nil {
 		return nil, err
 	}
@@ -138,19 +138,19 @@ func RandomHex(n int) (string, error) {
 type TestPeerDiscoverer struct {
 	sync.RWMutex
 	peerMap map[peer.ID]struct{}
-	peerCh  chan v2.PeerData
+	peerCh  chan peermanager.PeerData
 }
 
 func NewTestPeerDiscoverer() *TestPeerDiscoverer {
 	result := &TestPeerDiscoverer{
 		peerMap: make(map[peer.ID]struct{}),
-		peerCh:  make(chan v2.PeerData, 10),
+		peerCh:  make(chan peermanager.PeerData, 10),
 	}
 
 	return result
 }
 
-func (t *TestPeerDiscoverer) Subscribe(ctx context.Context, ch <-chan v2.PeerData) {
+func (t *TestPeerDiscoverer) Subscribe(ctx context.Context, ch <-chan peermanager.PeerData) {
 	go func() {
 		for p := range ch {
 			t.Lock()

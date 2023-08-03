@@ -30,10 +30,10 @@ import (
 	"go.opencensus.io/stats"
 
 	"github.com/waku-org/go-waku/logging"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	peerstore1 "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
@@ -82,7 +82,7 @@ type WakuNode struct {
 	timesource timesource.Timesource
 
 	peerstore     peerstore.Peerstore
-	peerConnector *v2.PeerConnectionStrategy
+	peerConnector *peermanager.PeerConnectionStrategy
 
 	relay           Service
 	lightPush       Service
@@ -119,6 +119,8 @@ type WakuNode struct {
 	connStatusChan chan<- ConnStatus
 
 	storeFactory storeFactory
+
+	peermanager *peermanager.PeerManager
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
@@ -193,14 +195,14 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	// Setup peerstore wrapper
 	if params.peerstore != nil {
-		w.peerstore = peers.NewWakuPeerstore(params.peerstore)
+		w.peerstore = peerstore1.NewWakuPeerstore(params.peerstore)
 		params.libP2POpts = append(params.libP2POpts, libp2p.Peerstore(w.peerstore))
 	} else {
 		ps, err := pstoremem.NewPeerstore()
 		if err != nil {
 			return nil, err
 		}
-		w.peerstore = peers.NewWakuPeerstore(ps)
+		w.peerstore = peerstore1.NewWakuPeerstore(ps)
 		params.libP2POpts = append(params.libP2POpts, libp2p.Peerstore(w.peerstore))
 	}
 
@@ -241,13 +243,17 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	if err != nil {
 		w.log.Error("creating localnode", zap.Error(err))
 	}
+	//Initialize peer manager.
+	w.peermanager = peermanager.NewPeerManager(uint(w.opts.maxPeerConnections), w.log)
+	maxOutPeers := int(w.peermanager.OutRelayPeersTarget)
 
 	// Setup peer connection strategy
 	cacheSize := 600
 	rngSrc := rand.NewSource(rand.Int63())
 	minBackoff, maxBackoff := time.Minute, time.Hour
 	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
-	w.peerConnector, err = v2.NewPeerConnectionStrategy(cacheSize, w.opts.discoveryMinPeers, discoveryConnectTimeout, bkf, w.log)
+
+	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(cacheSize, maxOutPeers, discoveryConnectTimeout, bkf, w.log)
 	if err != nil {
 		w.log.Error("creating peer connection strategy", zap.Error(err))
 	}
@@ -322,7 +328,7 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start(ctx context.Context) error {
-	connGater := v2.NewConnectionGater(w.log)
+	connGater := peermanager.NewConnectionGater(w.log)
 
 	ctx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
@@ -394,6 +400,8 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		w.peermanager.SetHost(host)
+		w.peermanager.Start(ctx)
 	}
 
 	w.store = w.storeFactory(w)
@@ -668,9 +676,9 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 	return nil
 }
 
-func (w *WakuNode) addPeer(info *peer.AddrInfo, origin peers.Origin, protocols ...protocol.ID) error {
+func (w *WakuNode) addPeer(info *peer.AddrInfo, origin peerstore1.Origin, protocols ...protocol.ID) error {
 	w.log.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
-	err := w.host.Peerstore().(peers.WakuPeerstore).SetOrigin(info.ID, origin)
+	err := w.host.Peerstore().(peerstore1.WakuPeerstore).SetOrigin(info.ID, origin)
 	if err != nil {
 		return err
 	}
@@ -685,7 +693,7 @@ func (w *WakuNode) addPeer(info *peer.AddrInfo, origin peers.Origin, protocols .
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, origin peers.Origin, protocols ...protocol.ID) (peer.ID, error) {
+func (w *WakuNode) AddPeer(address ma.Multiaddr, origin peerstore1.Origin, protocols ...protocol.ID) (peer.ID, error) {
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
 		return "", err
@@ -727,11 +735,11 @@ func (w *WakuNode) DialPeerWithInfo(ctx context.Context, peerInfo peer.AddrInfo)
 func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	err := w.host.Connect(ctx, info)
 	if err != nil {
-		w.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(info)
+		w.host.Peerstore().(peerstore1.WakuPeerstore).AddConnFailure(info)
 		return err
 	}
 
-	w.host.Peerstore().(peers.WakuPeerstore).ResetConnFailures(info)
+	w.host.Peerstore().(peerstore1.WakuPeerstore).ResetConnFailures(info)
 	stats.Record(ctx, metrics.Dials.M(1))
 	return nil
 }
@@ -842,7 +850,6 @@ func (w *WakuNode) findRelayNodes(ctx context.Context) {
 
 		for _, p := range peers {
 			info := w.Host().Peerstore().PeerInfo(p.ID)
-
 			supportedProtocols, err := w.Host().Peerstore().SupportsProtocols(p.ID, proto.ProtoIDv2Hop)
 			if err != nil {
 				w.log.Error("could not check supported protocols", zap.Error(err))

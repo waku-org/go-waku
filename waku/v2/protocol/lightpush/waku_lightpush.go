@@ -36,7 +36,7 @@ type WakuLightPush struct {
 	log *zap.Logger
 }
 
-// NewWakuRelay returns a new instance of Waku Lightpush struct
+// NewWakuLightPush returns a new instance of Waku Lightpush struct
 func NewWakuLightPush(relay *relay.WakuRelay, log *zap.Logger) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay

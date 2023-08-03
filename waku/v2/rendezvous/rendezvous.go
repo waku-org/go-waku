@@ -10,8 +10,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	rvs "github.com/waku-org/go-libp2p-rendezvous"
-	v2 "github.com/waku-org/go-waku/waku/v2"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
 )
@@ -39,7 +39,7 @@ type Rendezvous struct {
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
 type PeerConnector interface {
-	Subscribe(context.Context, <-chan v2.PeerData)
+	Subscribe(context.Context, <-chan peermanager.PeerData)
 }
 
 // NewRendezvous creates an instance of Rendezvous struct
@@ -105,12 +105,12 @@ func (r *Rendezvous) DiscoverWithNamespace(ctx context.Context, namespace string
 	if len(addrInfo) != 0 {
 		rp.SetSuccess(cookie)
 
-		peerCh := make(chan v2.PeerData)
+		peerCh := make(chan peermanager.PeerData)
 		defer close(peerCh)
 		r.peerConnector.Subscribe(ctx, peerCh)
 		for _, p := range addrInfo {
-			peer := v2.PeerData{
-				Origin:   peers.Rendezvous,
+			peer := peermanager.PeerData{
+				Origin:   peerstore.Rendezvous,
 				AddrInfo: p,
 			}
 			select {

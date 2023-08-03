@@ -1,4 +1,4 @@
-package v2
+package peermanager
 
 // Adapted from github.com/libp2p/go-libp2p@v0.23.2/p2p/discovery/backoff/backoffconnector.go
 
@@ -16,12 +16,19 @@ import (
 
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 
 	"go.uber.org/zap"
 
 	lru "github.com/hashicorp/golang-lru"
 )
+
+// PeerData contains information about a peer useful in establishing connections with it.
+type PeerData struct {
+	Origin   wps.Origin
+	AddrInfo peer.AddrInfo
+	ENR      *enode.Node
+}
 
 // PeerConnectionStrategy is a utility to connect to peers, but only if we have not recently tried connecting to them already
 type PeerConnectionStrategy struct {
@@ -36,7 +43,7 @@ type PeerConnectionStrategy struct {
 	workerCancel context.CancelFunc
 
 	wg            sync.WaitGroup
-	minPeers      int
+	maxOutPeers   int
 	dialTimeout   time.Duration
 	peerCh        chan PeerData
 	dialCh        chan peer.AddrInfo
@@ -52,7 +59,7 @@ type PeerConnectionStrategy struct {
 // dialTimeout is how long we attempt to connect to a peer before giving up
 // minPeers is the minimum number of peers that the node should have
 // backoff describes the strategy used to decide how long to backoff after previously attempting to connect to a peer
-func NewPeerConnectionStrategy(cacheSize int, minPeers int, dialTimeout time.Duration, backoff backoff.BackoffFactory, logger *zap.Logger) (*PeerConnectionStrategy, error) {
+func NewPeerConnectionStrategy(cacheSize int, maxOutPeers int, dialTimeout time.Duration, backoff backoff.BackoffFactory, logger *zap.Logger) (*PeerConnectionStrategy, error) {
 	cache, err := lru.New2Q(cacheSize)
 	if err != nil {
 		return nil, err
@@ -61,7 +68,7 @@ func NewPeerConnectionStrategy(cacheSize int, minPeers int, dialTimeout time.Dur
 	return &PeerConnectionStrategy{
 		cache:       cache,
 		wg:          sync.WaitGroup{},
-		minPeers:    minPeers,
+		maxOutPeers: maxOutPeers,
 		dialTimeout: dialTimeout,
 		backoff:     backoff,
 		logger:      logger.Named("discovery-connector"),
@@ -71,12 +78,6 @@ func NewPeerConnectionStrategy(cacheSize int, minPeers int, dialTimeout time.Dur
 type connCacheData struct {
 	nextTry time.Time
 	strat   backoff.BackoffStrategy
-}
-
-type PeerData struct {
-	Origin   peers.Origin
-	AddrInfo peer.AddrInfo
-	ENR      *enode.Node
 }
 
 // Subscribe receives channels on which discovered peers should be pushed
@@ -171,13 +172,18 @@ func (c *PeerConnectionStrategy) shouldDialPeers(ctx context.Context) {
 			return
 		case <-ticker.C:
 			isPaused := c.isPaused()
-			numPeers := len(c.host.Network().Peers())
-			if numPeers >= c.minPeers && !isPaused {
+			_, outRelayPeers, err := c.host.Peerstore().(wps.WakuPeerstore).GroupPeersByDirection()
+			if err != nil {
+				c.logger.Info("Failed to get outRelayPeers from peerstore", zap.Error(err))
+				continue
+			}
+			numPeers := outRelayPeers.Len()
+			if numPeers >= c.maxOutPeers && !isPaused {
 				c.Lock()
 				c.paused = true
 				c.workerCancel()
 				c.Unlock()
-			} else if numPeers < c.minPeers && isPaused {
+			} else if numPeers < c.maxOutPeers && isPaused {
 				c.Lock()
 				c.paused = false
 				c.workerCtx, c.workerCancel = context.WithCancel(ctx)
@@ -220,13 +226,13 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 					return
 				case p := <-c.peerCh:
 					c.host.Peerstore().AddAddrs(p.AddrInfo.ID, p.AddrInfo.Addrs, peerstore.AddressTTL)
-					err := c.host.Peerstore().(peers.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
+					err := c.host.Peerstore().(wps.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
 					if err != nil {
 						c.logger.Error("could not set origin", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID))
 					}
 
 					if p.ENR != nil {
-						err = c.host.Peerstore().(peers.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
+						err = c.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
 						if err != nil {
 							c.logger.Error("could not store enr", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 						}
@@ -250,7 +256,7 @@ const maxActiveDials = 5
 func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 	defer c.wg.Done()
 
-	maxGoRoutines := c.minPeers
+	maxGoRoutines := c.maxOutPeers
 	if maxGoRoutines > maxActiveDials {
 		maxGoRoutines = maxActiveDials
 	}
@@ -299,7 +305,7 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				defer cancel()
 				err := c.host.Connect(ctx, pi)
 				if err != nil && !errors.Is(err, context.Canceled) {
-					c.host.Peerstore().(peers.WakuPeerstore).AddConnFailure(pi)
+					c.host.Peerstore().(wps.WakuPeerstore).AddConnFailure(pi)
 					c.logger.Info("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
 				}
 				<-sem

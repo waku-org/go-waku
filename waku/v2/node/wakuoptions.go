@@ -83,7 +83,7 @@ type WakuNodeParameters struct {
 	enableRendezvousPoint bool
 	rendezvousDB          *rendezvous.DB
 
-	discoveryMinPeers int
+	maxPeerConnections int
 
 	enableDiscV5     bool
 	udpPort          uint
@@ -120,7 +120,7 @@ type WakuNodeOption func(*WakuNodeParameters) error
 
 // Default options used in the libp2p node
 var DefaultWakuNodeOptions = []WakuNodeOption{
-	WithDiscoverParams(150),
+	WithMaxPeerConnections(50),
 }
 
 // MultiAddresses return the list of multiaddresses configured in the node
@@ -332,9 +332,9 @@ func WithWakuRelayAndMinPeers(minRelayPeersToPublish int, opts ...pubsub.Option)
 	}
 }
 
-func WithDiscoverParams(minPeers int) WakuNodeOption {
+func WithMaxPeerConnections(maxPeers int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.discoveryMinPeers = minPeers
+		params.maxPeerConnections = maxPeers
 		return nil
 	}
 }

@@ -14,17 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
-	v2 "github.com/waku-org/go-waku/waku/v2"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type PeerConn struct {
-	ch <-chan v2.PeerData
+	ch <-chan peermanager.PeerData
 }
 
-func (p *PeerConn) Subscribe(ctx context.Context, ch <-chan v2.PeerData) {
+func (p *PeerConn) Subscribe(ctx context.Context, ch <-chan peermanager.PeerData) {
 	p.ch = ch
-
 }
 
 func NewPeerConn() *PeerConn {

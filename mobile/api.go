@@ -29,7 +29,7 @@ import (
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -256,7 +256,7 @@ func AddPeer(address string, protocolID string) string {
 		return MakeJSONResponse(err)
 	}
 
-	peerID, err := wakuState.node.AddPeer(ma, peers.Static, libp2pProtocol.ID(protocolID))
+	peerID, err := wakuState.node.AddPeer(ma, peerstore.Static, libp2pProtocol.ID(protocolID))
 	return PrepareJSONResponse(peerID, err)
 }
 

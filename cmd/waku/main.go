@@ -19,6 +19,7 @@ func main() {
 		&cli.StringFlag{Name: "config-file", Usage: "loads configuration from a TOML file (cmd-line parameters take precedence)"},
 		TcpPort,
 		Address,
+		MaxPeerConnections,
 		WebsocketSupport,
 		WebsocketPort,
 		WebsocketSecurePort,

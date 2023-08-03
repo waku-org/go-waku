@@ -20,7 +20,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -129,6 +129,7 @@ func Execute(options Options) {
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(options.KeepAlive),
+		node.WithMaxPeerConnections(options.MaxPeerConnections),
 	}
 	if len(options.AdvertiseAddresses) != 0 {
 		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))
@@ -403,7 +404,7 @@ func Execute(options Options) {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, peers.Static, peer_exchange.PeerExchangeID_v20alpha1)
+		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, wakupeerstore.Static, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
@@ -434,7 +435,7 @@ func Execute(options Options) {
 
 		var peerIDs []peer.ID
 		for _, n := range options.Store.ResumeNodes {
-			pID, err := wakuNode.AddPeer(n, peers.Static, store.StoreID_v20beta4)
+			pID, err := wakuNode.AddPeer(n, wakupeerstore.Static, store.StoreID_v20beta4)
 			if err != nil {
 				logger.Warn("adding peer to peerstore", logging.MultiAddrs("peer", n), zap.Error(err))
 			}
@@ -502,7 +503,7 @@ func Execute(options Options) {
 
 func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {
 	for _, addr := range addresses {
-		_, err := wakuNode.AddPeer(addr, peers.Static, protocols...)
+		_, err := wakuNode.AddPeer(addr, wakupeerstore.Static, protocols...)
 		failOnErr(err, "error adding peer")
 	}
 }

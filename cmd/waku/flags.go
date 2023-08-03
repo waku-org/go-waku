@@ -25,6 +25,13 @@ var (
 		Destination: &options.Address,
 		EnvVars:     []string{"WAKUNODE2_ADDRESS"},
 	})
+	MaxPeerConnections = altsrc.NewIntFlag(&cli.IntFlag{
+		Name:        "max-connections",
+		Value:       50,
+		Usage:       "Maximum allowed number of libp2p connections.",
+		Destination: &options.MaxPeerConnections,
+		EnvVars:     []string{"WAKUNODE2_MAX_CONNECTIONS"},
+	})
 	WebsocketSupport = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "websocket-support",
 		Aliases:     []string{"ws"},

@@ -15,11 +15,10 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
-	v2 "github.com/waku-org/go-waku/waku/v2"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
-
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
@@ -31,7 +30,7 @@ var ErrNoDiscV5Listener = errors.New("no discv5 listener")
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
 type PeerConnector interface {
-	Subscribe(context.Context, <-chan v2.PeerData)
+	Subscribe(context.Context, <-chan peermanager.PeerData)
 }
 
 type DiscoveryV5 struct {
@@ -43,7 +42,7 @@ type DiscoveryV5 struct {
 	localnode *enode.LocalNode
 
 	peerConnector PeerConnector
-	peerCh        chan v2.PeerData
+	peerCh        chan peermanager.PeerData
 	NAT           nat.Interface
 
 	log *zap.Logger
@@ -203,7 +202,7 @@ func (d *DiscoveryV5) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	d.cancel = cancel
 
-	d.peerCh = make(chan v2.PeerData)
+	d.peerCh = make(chan peermanager.PeerData)
 	d.peerConnector.Subscribe(ctx, d.peerCh)
 
 	err := d.listen(ctx)
@@ -423,8 +422,8 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 	defer iterator.Close()
 
 	d.Iterate(ctx, iterator, func(n *enode.Node, p peer.AddrInfo) error {
-		peer := v2.PeerData{
-			Origin:   peers.Discv5,
+		peer := peermanager.PeerData{
+			Origin:   peerstore.Discv5,
 			AddrInfo: p,
 			ENR:      n,
 		}
