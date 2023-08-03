@@ -124,18 +124,20 @@ static-library:
 		-o ./build/lib/libgowaku.a \
 		./library/c/
 	@echo "Static library built:"
+	sed -i "s/#include <cgo_utils.h>//gi" ./build/lib/libgowaku.h
 	@ls -la ./build/lib/libgowaku.*
 
 dynamic-library:
 	@echo "Building shared library..."
+	rm -f ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT)*
 	$(GOBIN_SHARED_LIB_CFLAGS) $(GOBIN_SHARED_LIB_CGO_LDFLAGS) ${GOBIN} build \
 		-buildmode=c-shared \
 		-tags="${BUILD_TAGS}" \
 		-o ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT) \
 		./library/c/
+	sed -i "s/#include <cgo_utils.h>//gi" ./build/lib/libgowaku.h
 ifeq ($(detected_OS),Linux)
 	cd ./build/lib && \
-	ls -lah . && \
 	mv ./libgowaku.$(GOBIN_SHARED_LIB_EXT) ./libgowaku.$(GOBIN_SHARED_LIB_EXT).0 && \
 	ln -s ./libgowaku.$(GOBIN_SHARED_LIB_EXT).0 ./libgowaku.$(GOBIN_SHARED_LIB_EXT)
 endif

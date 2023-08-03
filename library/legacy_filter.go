@@ -10,13 +10,13 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 )
 
-type LegacyFilterArgument struct {
+type legacyFilterArgument struct {
 	Topic          string                            `json:"pubsubTopic,omitempty"`
 	ContentFilters []*pb.FilterRequest_ContentFilter `json:"contentFilters,omitempty"`
 }
 
 func toLegacyContentFilter(filterJSON string) (legacy_filter.ContentFilter, error) {
-	var f LegacyFilterArgument
+	var f legacyFilterArgument
 	err := json.Unmarshal([]byte(filterJSON), &f)
 	if err != nil {
 		return legacy_filter.ContentFilter{}, err
@@ -32,6 +32,7 @@ func toLegacyContentFilter(filterJSON string) (legacy_filter.ContentFilter, erro
 	return result, err
 }
 
+// LegacyFilterSubscribe is used to create a subscription to a filter node to receive messages
 // Deprecated: Use FilterSubscribe instead
 func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) error {
 	cf, err := toLegacyContentFilter(filterJSON)
@@ -78,6 +79,7 @@ func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) error {
 	return nil
 }
 
+// LegacyFilterUnsubscribe is used to remove a filter criteria from an active subscription with a filter node
 // Deprecated: Use FilterUnsubscribe or FilterUnsubscribeAll instead
 func LegacyFilterUnsubscribe(filterJSON string, ms int) error {
 	cf, err := toLegacyContentFilter(filterJSON)

@@ -21,9 +21,9 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
-const RET_OK = C.RET_OK
-const RET_ERR = C.RET_ERR
-const RET_MISSING_CALLBACK = C.RET_MISSING_CALLBACK
+const retOk = C.RET_OK
+const retErr = C.RET_ERR
+const retMissingCallback = C.RET_MISSING_CALLBACK
 
 func main() {}
 
@@ -126,7 +126,7 @@ func waku_is_started() C.int {
 
 type fn func() (string, error)
 
-func single_fn_exec(f fn, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+func singleFnExec(f fn, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
 	result, err := f()
 	if err != nil {
 		return execErrCB(onErrCb, err)
@@ -138,7 +138,7 @@ func single_fn_exec(f fn, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
 //
 //export waku_peerid
 func waku_peerid(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.PeerID()
 	}, onOkCb, onErrCb)
 }
@@ -147,7 +147,7 @@ func waku_peerid(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
 //
 //export waku_listen_addresses
 func waku_listen_addresses(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.ListenAddresses()
 	}, onOkCb, onErrCb)
 }
@@ -156,7 +156,7 @@ func waku_listen_addresses(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int 
 //
 //export waku_add_peer
 func waku_add_peer(address *C.char, protocolID *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.AddPeer(C.GoString(address), C.GoString(protocolID))
 	}, onOkCb, onErrCb)
 }
@@ -189,7 +189,7 @@ func waku_disconnect(peerID *C.char, onErrCb C.WakuCallBack) C.int {
 //
 //export waku_peer_cnt
 func waku_peer_cnt(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		peerCnt, err := library.PeerCnt()
 		return fmt.Sprintf("%d", peerCnt), err
 	}, onOkCb, onErrCb)
@@ -231,7 +231,7 @@ func waku_set_event_callback(cb C.WakuCallBack) {
 //
 //export waku_peers
 func waku_peers(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.Peers()
 	}, onOkCb, onErrCb)
 }
@@ -240,7 +240,7 @@ func waku_peers(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
 //
 //export waku_decode_symmetric
 func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.DecodeSymmetric(C.GoString(messageJSON), C.GoString(symmetricKey))
 	}, onOkCb, onErrCb)
 }
@@ -249,7 +249,7 @@ func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char, onOkCb C.W
 //
 //export waku_decode_asymmetric
 func waku_decode_asymmetric(messageJSON *C.char, privateKey *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.DecodeAsymmetric(C.GoString(messageJSON), C.GoString(privateKey))
 	}, onOkCb, onErrCb)
 }

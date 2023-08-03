@@ -15,6 +15,7 @@ import (
 var relaySubscriptions map[string]*relay.Subscription = make(map[string]*relay.Subscription)
 var relaySubsMutex sync.Mutex
 
+// RelayEnoughPeers determines if there are enough peers to publish a message on a topic
 func RelayEnoughPeers(topic string) (bool, error) {
 	if wakuState.node == nil {
 		return false, errWakuNodeNotReady
@@ -47,6 +48,7 @@ func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, erro
 	return hexutil.Encode(hash), err
 }
 
+// RelayPublish publishes a message using waku relay and returns the message ID
 func RelayPublish(messageJSON string, topic string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
@@ -56,6 +58,7 @@ func RelayPublish(messageJSON string, topic string, ms int) (string, error) {
 	return relayPublish(msg, getTopic(topic), int(ms))
 }
 
+// RelayPublishEncodeAsymmetric publish a message encrypted with a secp256k1 public key using waku relay and returns the message ID
 func RelayPublishEncodeAsymmetric(messageJSON string, topic string, publicKey string, optionalSigningKey string, ms int) (string, error) {
 	msg, err := wakuMessageAsymmetricEncoding(messageJSON, publicKey, optionalSigningKey)
 	if err != nil {
@@ -65,6 +68,7 @@ func RelayPublishEncodeAsymmetric(messageJSON string, topic string, publicKey st
 	return relayPublish(msg, getTopic(topic), int(ms))
 }
 
+// RelayPublishEncodeSymmetric publishes a message encrypted with a 32 bytes symmetric key using waku relay and returns the message ID
 func RelayPublishEncodeSymmetric(messageJSON string, topic string, symmetricKey string, optionalSigningKey string, ms int) (string, error) {
 	msg, err := wakuMessageSymmetricEncoding(messageJSON, symmetricKey, optionalSigningKey)
 	if err != nil {
@@ -101,6 +105,7 @@ func relaySubscribe(topic string) error {
 	return nil
 }
 
+// RelaySubscribe subscribes to a WakuRelay topic.
 func RelaySubscribe(topic string) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -109,14 +114,16 @@ func RelaySubscribe(topic string) error {
 	return relaySubscribe(topic)
 }
 
+// RelayTopics returns a list of pubsub topics the node is subscribed to in WakuRelay
 func RelayTopics() (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
 	}
 
-	return MarshalJSON(wakuState.node.Relay().Topics())
+	return marshalJSON(wakuState.node.Relay().Topics())
 }
 
+// RelayUnsubscribe closes the pubsub subscription to a pubsub topic
 func RelayUnsubscribe(topic string) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady

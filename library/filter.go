@@ -10,13 +10,13 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 )
 
-type FilterArgument struct {
+type filterArgument struct {
 	Topic         string   `json:"pubsubTopic,omitempty"`
 	ContentTopics []string `json:"contentTopics,omitempty"`
 }
 
 func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
-	var f FilterArgument
+	var f filterArgument
 	err := json.Unmarshal([]byte(filterJSON), &f)
 	if err != nil {
 		return filter.ContentFilter{}, err
@@ -28,6 +28,7 @@ func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
 	}, nil
 }
 
+// FilterSubscribe is used to create a subscription to a filter node to receive messages
 func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
@@ -70,9 +71,10 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 		}
 	}(subscriptionDetails)
 
-	return MarshalJSON(subscriptionDetails)
+	return marshalJSON(subscriptionDetails)
 }
 
+// FilterPing is used to determine if a peer has an active subscription
 func FilterPing(peerID string, ms int) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -102,6 +104,7 @@ func FilterPing(peerID string, ms int) error {
 	return wakuState.node.FilterLightnode().Ping(ctx, pID)
 }
 
+// FilterUnsubscribe is used to remove a filter criteria from an active subscription with a filter node
 func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
@@ -148,6 +151,7 @@ type unsubscribeAllResult struct {
 	Error  string `json:"error"`
 }
 
+// FilterUnsubscribeAll is used to remove an active subscription to a peer. If no peerID is defined, it will stop all active filter subscriptions
 func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
@@ -191,5 +195,5 @@ func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 		unsubscribeResult = append(unsubscribeResult, ur)
 	}
 
-	return MarshalJSON(unsubscribeResult)
+	return marshalJSON(unsubscribeResult)
 }

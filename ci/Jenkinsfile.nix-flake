@@ -53,7 +53,7 @@ pipeline {
         }
         stage('Check') {
           steps {
-            sh 'ldd ./result/bin/library'
+            sh 'ldd ./result/bin/c'
           }
         }
       }

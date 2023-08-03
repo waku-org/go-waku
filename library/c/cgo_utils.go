@@ -10,7 +10,7 @@ import "unsafe"
 
 func execOkCB(onOkCb C.WakuCallBack, value string) C.int {
 	if onOkCb == nil {
-		return RET_MISSING_CALLBACK
+		return retMissingCallback
 	}
 
 	val := C.CString(value)
@@ -19,19 +19,19 @@ func execOkCB(onOkCb C.WakuCallBack, value string) C.int {
 
 	C.free(unsafe.Pointer(val))
 
-	return RET_OK
+	return retOk
 }
 
 func execErrCB(onErrCb C.WakuCallBack, err error) C.int {
 	if onErrCb == nil {
-		return RET_MISSING_CALLBACK
+		return retMissingCallback
 	}
 
 	if err != nil {
 		errMsg := err.Error()
 		execOkCB(onErrCb, errMsg) // reusing ok cb
-		return RET_ERR
-	} else {
-		return RET_OK
+		return retErr
 	}
+
+	return retOk
 }

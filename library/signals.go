@@ -4,7 +4,7 @@ package library
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
-extern bool StatusServiceSignalEvent(const char *jsonEvent);
+extern bool StatusServiceSignalEvent(const char *jsonEvent, size_t len);
 extern void SetEventCallback(void *cb);
 */
 import "C"
@@ -56,8 +56,9 @@ func send(signalType string, event interface{}) {
 		mobileSignalHandler(data)
 	} else {
 		// ...and fallback to C implementation otherwise.
-		str := C.CString(string(data))
-		C.StatusServiceSignalEvent(str)
+		dataStr := string(data)
+		str := C.CString(dataStr)
+		C.StatusServiceSignalEvent(str, C.size_t(len(data)))
 		C.free(unsafe.Pointer(str))
 	}
 }

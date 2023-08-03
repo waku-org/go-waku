@@ -33,6 +33,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
+// WakuState represents the state of the waku node
 type WakuState struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -54,6 +55,7 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+// NewNode initializes a waku node. Receives a JSON string containing the configuration, and use default values for those config items not specified
 func NewNode(configJSON string) error {
 	if wakuState.node != nil {
 		return errors.New("go-waku already initialized. stop it first")
@@ -95,7 +97,7 @@ func NewNode(configJSON string) error {
 	if *config.EnableRelay {
 		var pubsubOpt []pubsub.Option
 		if config.GossipSubParams != nil {
-			params := GetGossipSubParams(config.GossipSubParams)
+			params := getGossipSubParams(config.GossipSubParams)
 			pubsubOpt = append(pubsubOpt, pubsub.WithGossipSubParams(params))
 		}
 
@@ -176,6 +178,7 @@ func NewNode(configJSON string) error {
 	return nil
 }
 
+// Start starts the waku node
 func Start() error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -205,6 +208,7 @@ func Start() error {
 	return nil
 }
 
+// Stop stops a waku node
 func Stop() error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -219,10 +223,12 @@ func Stop() error {
 	return nil
 }
 
+// IsStarted is used to determine is a node is started or not
 func IsStarted() bool {
 	return wakuState.node != nil
 }
 
+// PeerID is used to obtain the peer ID of the waku node
 func PeerID() (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
@@ -231,6 +237,7 @@ func PeerID() (string, error) {
 	return wakuState.node.ID(), nil
 }
 
+// ListenAddresses returns the multiaddresses the wakunode is listening to
 func ListenAddresses() (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
@@ -241,9 +248,10 @@ func ListenAddresses() (string, error) {
 		addresses = append(addresses, addr.String())
 	}
 
-	return MarshalJSON(addresses)
+	return marshalJSON(addresses)
 }
 
+// AddPeer adds a node multiaddress and protocol to the wakunode peerstore
 func AddPeer(address string, protocolID string) (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
@@ -259,9 +267,10 @@ func AddPeer(address string, protocolID string) (string, error) {
 		return "", err
 	}
 
-	return MarshalJSON(peerID)
+	return marshalJSON(peerID)
 }
 
+// Connect is used to connect to a peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 func Connect(address string, ms int) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -280,6 +289,7 @@ func Connect(address string, ms int) error {
 	return wakuState.node.DialPeer(ctx, address)
 }
 
+// ConnectPeerID is usedd to connect to a known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 func ConnectPeerID(peerID string, ms int) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -303,6 +313,7 @@ func ConnectPeerID(peerID string, ms int) error {
 	return wakuState.node.DialPeerByID(ctx, pID)
 }
 
+// Disconnect closes a connection to a known peer by peerID
 func Disconnect(peerID string) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -316,6 +327,7 @@ func Disconnect(peerID string) error {
 	return wakuState.node.ClosePeerById(pID)
 }
 
+// PeerCnt returns the number of connected peers
 func PeerCnt() (int, error) {
 	if wakuState.node == nil {
 		return 0, errWakuNodeNotReady
@@ -324,14 +336,17 @@ func PeerCnt() (int, error) {
 	return wakuState.node.PeerCount(), nil
 }
 
+// ContentTopic creates a content topic string according to RFC 23
 func ContentTopic(applicationName string, applicationVersion int, contentTopicName string, encoding string) string {
 	return protocol.NewContentTopic(applicationName, uint(applicationVersion), contentTopicName, encoding).String()
 }
 
+// PubsubTopic creates a pubsub topic string according to RFC 23
 func PubsubTopic(name string, encoding string) string {
 	return protocol.NewNamedShardingPubsubTopic(name + "/" + encoding).String()
 }
 
+// DefaultPubsubTopic returns the default pubsub topic used in waku2: /waku/2/default-waku/proto
 func DefaultPubsubTopic() string {
 	return protocol.DefaultPubsubTopic().String()
 }
@@ -357,6 +372,7 @@ func toSubscriptionMessage(msg *protocol.Envelope) *subscriptionMsg {
 	}
 }
 
+// Peers retrieves the list of peers known by the waku node
 func Peers() (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
@@ -367,7 +383,7 @@ func Peers() (string, error) {
 		return "", err
 	}
 
-	return MarshalJSON(peers)
+	return marshalJSON(peers)
 }
 
 func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {
@@ -391,6 +407,7 @@ func extractPubKeyAndSignature(payload *payload.DecodedPayload) (pubkey string, 
 	return
 }
 
+// DecodeSymmetric decodes a waku message using a 32 bytes symmetric key. The key must be a hex encoded string with "0x" prefix
 func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
@@ -399,7 +416,7 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 	}
 
 	if msg.Version == 0 {
-		return MarshalJSON(msg.Payload)
+		return marshalJSON(msg.Payload)
 	} else if msg.Version > 1 {
 		return "", errors.New("unsupported wakumessage version")
 	}
@@ -432,9 +449,10 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 		Padding:   payload.Padding,
 	}
 
-	return MarshalJSON(response)
+	return marshalJSON(response)
 }
 
+// DecodeAsymmetric decodes a waku message using a secp256k1 private key. The key must be a hex encoded string with "0x" prefix
 func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
@@ -443,7 +461,7 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 	}
 
 	if msg.Version == 0 {
-		return MarshalJSON(msg.Payload)
+		return marshalJSON(msg.Payload)
 	} else if msg.Version > 1 {
 		return "", errors.New("unsupported wakumessage version")
 	}
@@ -481,5 +499,5 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 		Padding:   payload.Padding,
 	}
 
-	return MarshalJSON(response)
+	return marshalJSON(response)
 }

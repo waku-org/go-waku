@@ -13,7 +13,7 @@ import "github.com/waku-org/go-waku/library"
 //
 //export waku_lightpush_publish
 func waku_lightpush_publish(messageJSON *C.char, topic *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.LightpushPublish(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), int(ms))
 	}, onOkCb, onErrCb)
 }
@@ -27,7 +27,7 @@ func waku_lightpush_publish(messageJSON *C.char, topic *C.char, peerID *C.char, 
 //
 //export waku_lightpush_publish_enc_asymmetric
 func waku_lightpush_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, peerID *C.char, publicKey *C.char, optionalSigningKey *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.LightpushPublishEncodeAsymmetric(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), C.GoString(publicKey), C.GoString(optionalSigningKey), int(ms))
 	}, onOkCb, onErrCb)
 }
@@ -41,7 +41,7 @@ func waku_lightpush_publish_enc_asymmetric(messageJSON *C.char, topic *C.char, p
 //
 //export waku_lightpush_publish_enc_symmetric
 func waku_lightpush_publish_enc_symmetric(messageJSON *C.char, topic *C.char, peerID *C.char, symmetricKey *C.char, optionalSigningKey *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.LightpushPublishEncodeSymmetric(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), C.GoString(symmetricKey), C.GoString(optionalSigningKey), int(ms))
 	}, onOkCb, onErrCb)
 }

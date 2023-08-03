@@ -37,7 +37,7 @@ import "github.com/waku-org/go-waku/library"
 //
 //export waku_store_query
 func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.StoreQuery(C.GoString(queryJSON), C.GoString(peerID), int(ms))
 	}, onOkCb, onErrCb)
 }
@@ -71,7 +71,7 @@ func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int, onOkCb C.Waku
 //
 //export waku_store_local_query
 func waku_store_local_query(queryJSON *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.StoreLocalQuery(C.GoString(queryJSON))
 	}, onOkCb, onErrCb)
 }

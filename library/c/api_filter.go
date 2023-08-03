@@ -21,7 +21,7 @@ import "github.com/waku-org/go-waku/library"
 //
 //export waku_filter_subscribe
 func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.FilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
 	}, onOkCb, onErrCb)
 }
@@ -64,7 +64,7 @@ func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int, onErr
 //
 //export waku_filter_unsubscribe_all
 func waku_filter_unsubscribe_all(peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
+	return singleFnExec(func() (string, error) {
 		return library.FilterUnsubscribeAll(C.GoString(peerID), int(ms))
 	}, onOkCb, onErrCb)
 }

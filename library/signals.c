@@ -7,12 +7,12 @@
 #include <stdbool.h>
 #include "_cgo_export.h"
 
-typedef void (*callback)(const char *jsonEvent);
+typedef void (*callback)(const char *jsonEvent, size_t len_0);
 callback gCallback = 0;
 
-bool StatusServiceSignalEvent(const char *jsonEvent) {
+bool StatusServiceSignalEvent(const char *jsonEvent, size_t len_0) {
 	if (gCallback) {
-		gCallback(jsonEvent);
+		gCallback(jsonEvent, len_0);
 	}
 
 	return true;

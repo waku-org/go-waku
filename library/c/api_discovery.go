@@ -18,8 +18,8 @@ import "github.com/waku-org/go-waku/library"
 //
 //export waku_dns_discovery
 func waku_dns_discovery(url *C.char, nameserver *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return single_fn_exec(func() (string, error) {
-		return library.DnsDiscovery(C.GoString(url), C.GoString(nameserver), int(ms))
+	return singleFnExec(func() (string, error) {
+		return library.DNSDiscovery(C.GoString(url), C.GoString(nameserver), int(ms))
 	}, onOkCb, onErrCb)
 }
 

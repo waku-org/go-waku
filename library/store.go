@@ -56,7 +56,7 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 
 	if err != nil {
 		reply.Error = err.Error()
-		return MarshalJSON(reply)
+		return marshalJSON(reply)
 	}
 	reply.Messages = res.Messages
 	reply.PagingInfo = storePagingOptions{
@@ -65,9 +65,10 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 		Forward:  args.PagingOptions.Forward,
 	}
 
-	return MarshalJSON(reply)
+	return marshalJSON(reply)
 }
 
+// StoreQuery is used to retrieve historic messages using waku store protocol.
 func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady
@@ -108,6 +109,7 @@ func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
 	return queryResponse(ctx, args, options)
 }
 
+// StoreLocalQuery is used to retrieve historic messages stored in the localDB using waku store protocol.
 func StoreLocalQuery(queryJSON string) (string, error) {
 	if wakuState.node == nil {
 		return "", errWakuNodeNotReady

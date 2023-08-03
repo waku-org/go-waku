@@ -10,7 +10,7 @@ type jsonResponseSuccess struct {
 	Result interface{} `json:"result"`
 }
 
-func PrepareJSONResponse(result interface{}, err error) string {
+func prepareJSONResponse(result interface{}, err error) string {
 
 	if err != nil {
 		errStr := err.Error()
@@ -23,12 +23,12 @@ func PrepareJSONResponse(result interface{}, err error) string {
 
 	data, err := json.Marshal(jsonResponseSuccess{Result: result})
 	if err != nil {
-		return PrepareJSONResponse(nil, err)
+		return prepareJSONResponse(nil, err)
 	}
 	return string(data)
 }
 
-func MakeJSONResponse(err error) string {
+func makeJSONResponse(err error) string {
 	if err != nil {
 		errStr := err.Error()
 		outBytes, _ := json.Marshal(jsonResponseError{Error: &errStr})

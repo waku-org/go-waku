@@ -35,7 +35,7 @@
     in rec {
       packages = forAllSystems (system: {
         node    = buildPackage system ["cmd/waku"];
-        library = buildPackage system ["library"];
+        library = buildPackage system ["library/c"];
       });
 
       defaultPackage = forAllSystems (system:

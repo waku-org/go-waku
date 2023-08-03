@@ -2,7 +2,7 @@ package library
 
 import "encoding/json"
 
-func MarshalJSON(result interface{}) (string, error) {
+func marshalJSON(result interface{}) (string, error) {
 	data, err := json.Marshal(result)
 	if err != nil {
 		return "", err

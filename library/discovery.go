@@ -10,13 +10,14 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 )
 
-type DnsDiscoveryItem struct {
+type dnsDiscoveryItem struct {
 	PeerID    string   `json:"peerID"`
 	Addresses []string `json:"multiaddrs"`
 	ENR       string   `json:"enr,omitempty"`
 }
 
-func DnsDiscovery(url string, nameserver string, ms int) (string, error) {
+// DNSDiscovery executes dns discovery on an url and returns a list of nodes
+func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -37,9 +38,9 @@ func DnsDiscovery(url string, nameserver string, ms int) (string, error) {
 		return "", err
 	}
 
-	var response []DnsDiscoveryItem
+	var response []dnsDiscoveryItem
 	for _, n := range nodes {
-		item := DnsDiscoveryItem{
+		item := dnsDiscoveryItem{
 			PeerID: n.PeerID.String(),
 		}
 		for _, addr := range n.PeerInfo.Addrs {
@@ -53,9 +54,10 @@ func DnsDiscovery(url string, nameserver string, ms int) (string, error) {
 		response = append(response, item)
 	}
 
-	return MarshalJSON(response)
+	return marshalJSON(response)
 }
 
+// StartDiscoveryV5 starts discv5 discovery
 func StartDiscoveryV5() error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -66,6 +68,7 @@ func StartDiscoveryV5() error {
 	return wakuState.node.DiscV5().Start(context.Background())
 }
 
+// StopDiscoveryV5 stops discv5 discovery
 func StopDiscoveryV5() error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
@@ -77,6 +80,7 @@ func StopDiscoveryV5() error {
 	return nil
 }
 
+// SetBootnodes is used to update the bootnodes receiving a JSON array of ENRs
 func SetBootnodes(bootnodes string) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
