@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 )
@@ -21,6 +22,7 @@ const (
 
 const peerOrigin = "origin"
 const peerENR = "enr"
+const peerDirection = "direction"
 
 type ConnectionFailures struct {
 	sync.RWMutex
@@ -41,6 +43,10 @@ type WakuPeerstore interface {
 	AddConnFailure(p peer.AddrInfo)
 	ResetConnFailures(p peer.AddrInfo)
 	ConnFailures(p peer.AddrInfo) int
+
+	SetDirection(p peer.ID, direction network.Direction) error
+	Direction(p peer.ID) (network.Direction, error)
+	GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error)
 }
 
 func NewWakuPeerstore(p peerstore.Peerstore) peerstore.Peerstore {
@@ -104,4 +110,34 @@ func (ps *WakuPeerstoreImpl) ConnFailures(p peer.AddrInfo) int {
 	ps.connFailures.RLock()
 	defer ps.connFailures.RUnlock()
 	return ps.connFailures.failures[p.ID]
+}
+
+func (ps *WakuPeerstoreImpl) SetDirection(p peer.ID, direction network.Direction) error {
+	return ps.peerStore.Put(p, peerDirection, direction)
+}
+
+func (ps *WakuPeerstoreImpl) Direction(p peer.ID) (network.Direction, error) {
+	result, err := ps.peerStore.Get(p, peerDirection)
+	if err != nil {
+		return network.DirUnknown, err
+	}
+
+	return result.(network.Direction), nil
+}
+
+func (ps *WakuPeerstoreImpl) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
+
+	for _, p := range ps.Peers() {
+		direction, err := ps.Direction(p)
+		if err == nil {
+			if direction == network.DirInbound {
+				inPeers = append(inPeers, p)
+			} else if direction == network.DirOutbound {
+				outPeers = append(outPeers, p)
+			}
+		} else {
+			//TODO: Log error for now??
+		}
+	}
+	return inPeers, outPeers, nil
 }

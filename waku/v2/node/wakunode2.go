@@ -119,6 +119,8 @@ type WakuNode struct {
 	connStatusChan chan<- ConnStatus
 
 	storeFactory storeFactory
+
+	peermanager *peermanager.PeerManager
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
@@ -395,6 +397,9 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		//TODO: Move maxConnections to config.
+		w.peermanager = peermanager.NewPeerManager(5, w.host, w.log)
+		w.peermanager.Start()
 	}
 
 	w.store = w.storeFactory(w)
@@ -843,7 +848,6 @@ func (w *WakuNode) findRelayNodes(ctx context.Context) {
 
 		for _, p := range peers {
 			info := w.Host().Peerstore().PeerInfo(p.ID)
-
 			supportedProtocols, err := w.Host().Peerstore().SupportsProtocols(p.ID, proto.ProtoIDv2Hop)
 			if err != nil {
 				w.log.Error("could not check supported protocols", zap.Error(err))

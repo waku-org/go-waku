@@ -16,6 +16,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"go.opencensus.io/stats"
 	"go.uber.org/zap"
+
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 )
 
 // PeerStatis is a map of peer IDs to supported protocols
@@ -73,6 +75,11 @@ func (c ConnectionNotifier) Connected(n network.Network, cc network.Conn) {
 		default:
 			c.log.Warn("subscriber is too slow")
 		}
+	}
+	//TODO: Move this to be stored in Waku's own peerStore
+	err := c.h.Peerstore().(wps.WakuPeerstore).SetDirection(cc.RemotePeer(), cc.Stat().Direction)
+	if err != nil {
+		c.log.Error("Failed to set peer direction for an outgoing connection", zap.Error(err))
 	}
 	stats.Record(c.ctx, metrics.Peers.M(1))
 }
