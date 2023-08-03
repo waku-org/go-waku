@@ -57,6 +57,7 @@ func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 	return marshalJSON(response)
 }
 
+// StartDiscoveryV5 starts discv5 discovery
 func StartDiscoveryV5() error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
