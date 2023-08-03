@@ -15,7 +15,8 @@ import (
 )
 
 // TODO: Move all the protocol IDs to a common location.
-const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
+// WakuRelayIDv200 is protocol ID for Waku v2 relay protocol
+const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
@@ -85,7 +86,7 @@ func (pm *PeerManager) pruneInRelayConns() {
 		if err != nil {
 			pm.logger.Warn("Failed to get supported protocols for peer", zap.String("peerID", p.String()))
 		}
-		if slices.Contains(supportedProtocols, WakuRelayID_v200) {
+		if slices.Contains(supportedProtocols, WakuRelayIDv200) {
 			inRelayPeers = append(inRelayPeers, p)
 		}
 	}
