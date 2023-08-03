@@ -1,13 +1,4 @@
 ---
-name: MileStone Issue Template
-about: This template should be used to create a milestone
-title: "[Milestone]"
-labels: ''
-assignees: ''
-
----
-
----
 name: Milestone Issue Template
 about: Track Milestones
 title: "[Milestone] "
