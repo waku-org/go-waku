@@ -398,7 +398,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 			return err
 		}
 		//TODO: Move maxConnections to config.
-		w.peermanager = peermanager.NewPeerManager(5, w.host, w.log)
+		w.peermanager = peermanager.NewPeerManager(50, w.host, w.log)
 		w.peermanager.Start()
 	}
 
