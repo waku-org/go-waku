@@ -129,6 +129,7 @@ func Execute(options Options) {
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(options.KeepAlive),
+		node.WithMaxPeerConnections(options.MaxPeerConnections),
 	}
 	if len(options.AdvertiseAddresses) != 0 {
 		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))

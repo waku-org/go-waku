@@ -169,6 +169,7 @@ type Options struct {
 	PersistPeers                 bool
 	UserAgent                    string
 	PProf                        bool
+	MaxPeerConnections           int
 
 	PeerExchange PeerExchangeOptions
 	Websocket    WSOptions

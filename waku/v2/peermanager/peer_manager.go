@@ -22,17 +22,18 @@ const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 type PeerManager struct {
 	maxRelayPeers       uint
 	logger              *zap.Logger
-	inRelayPeersTarget  uint
-	outRelayPeersTarget uint
+	InRelayPeersTarget  uint
+	OutRelayPeersTarget uint
 	host                host.Host
 }
 
 const maxRelayPeersShare = 5
 const defaultMaxOutRelayPeersTarget = 10
 const outRelayPeersShare = 3
+const peerConnectivityLoopSecs = 15
 
 // NewPeerManager creates a new peerManager instance.
-func NewPeerManager(maxConnections uint, host host.Host, logger *zap.Logger) *PeerManager {
+func NewPeerManager(maxConnections uint, logger *zap.Logger) *PeerManager {
 	maxRelayPeersValue := maxConnections - (maxConnections / maxRelayPeersShare)
 	var outRelayPeersTargetValue uint
 	if maxRelayPeersValue > defaultMaxOutRelayPeersTarget {
@@ -43,15 +44,18 @@ func NewPeerManager(maxConnections uint, host host.Host, logger *zap.Logger) *Pe
 	pm := &PeerManager{
 		logger:              logger.Named("peer-manager"),
 		maxRelayPeers:       maxRelayPeersValue,
-		inRelayPeersTarget:  maxRelayPeersValue - outRelayPeersTargetValue,
-		outRelayPeersTarget: outRelayPeersTargetValue,
-		host:                host,
+		InRelayPeersTarget:  maxRelayPeersValue - outRelayPeersTargetValue,
+		OutRelayPeersTarget: outRelayPeersTargetValue,
 	}
 	logger.Info("PeerManager init values", zap.Uint("maxConnections", maxConnections),
 		zap.Uint("maxRelayPeersValue", maxRelayPeersValue), zap.Uint("outRelayPeersTargetValue", outRelayPeersTargetValue),
-		zap.Uint("inRelayPeersTarget", pm.inRelayPeersTarget))
+		zap.Uint("inRelayPeersTarget", pm.InRelayPeersTarget))
 
 	return pm
+}
+
+func (pm *PeerManager) SetHost(host host.Host) {
+	pm.host = host
 }
 
 // Start starts the processing to be done by peer manager.
@@ -64,7 +68,7 @@ func (pm *PeerManager) connectivityLoop() {
 
 	for {
 		pm.pruneInRelayConns()
-		time.Sleep(5 * time.Second)
+		time.Sleep(peerConnectivityLoopSecs * time.Second)
 	}
 }
 
@@ -91,12 +95,12 @@ func (pm *PeerManager) pruneInRelayConns() {
 		}
 	}
 
-	if inRelayPeers.Len() > int(pm.inRelayPeersTarget) {
+	if inRelayPeers.Len() > int(pm.InRelayPeersTarget) {
 		//Start disconnecting peers, based on what?
 		//For now, just disconnect most recently connected peers
 		//TODO: Need to have more intelligent way of doing this, maybe peer scores.
-		pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning", zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Uint("inRelayPeersTarget", pm.inRelayPeersTarget))
-		for pruningStartIndex := pm.inRelayPeersTarget; pruningStartIndex < uint(inRelayPeers.Len()); pruningStartIndex++ {
+		pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning", zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Uint("inRelayPeersTarget", pm.InRelayPeersTarget))
+		for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < uint(inRelayPeers.Len()); pruningStartIndex++ {
 			p := inRelayPeers[pruningStartIndex]
 			err := pm.host.Network().ClosePeer(p)
 			if err != nil {

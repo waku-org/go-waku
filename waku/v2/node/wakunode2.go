@@ -243,6 +243,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	if err != nil {
 		w.log.Error("creating localnode", zap.Error(err))
 	}
+	//Initialize peer manager.
+	w.peermanager = peermanager.NewPeerManager(uint(w.opts.maxPeerConnections), w.log)
+	maxOutPeers := int(w.peermanager.OutRelayPeersTarget)
 
 	// Setup peer connection strategy
 	cacheSize := 600
@@ -250,7 +253,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	minBackoff, maxBackoff := time.Minute, time.Hour
 	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
 
-	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(cacheSize, w.opts.discoveryMinPeers, discoveryConnectTimeout, bkf, w.log)
+	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(cacheSize, maxOutPeers, discoveryConnectTimeout, bkf, w.log)
 	if err != nil {
 		w.log.Error("creating peer connection strategy", zap.Error(err))
 	}
@@ -397,8 +400,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		//TODO: Move maxConnections to config.
-		w.peermanager = peermanager.NewPeerManager(50, w.host, w.log)
+		w.peermanager.SetHost(host)
 		w.peermanager.Start()
 	}
 
