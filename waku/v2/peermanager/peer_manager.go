@@ -68,16 +68,17 @@ func (pm *PeerManager) connectivityLoop() {
 	}
 }
 
-func (pm *PeerManager) filterPeersByProto(peers peer.IDSlice, proto protocol.ID) peer.IDSlice {
+func (pm *PeerManager) filterPeersByProto(peers peer.IDSlice, proto ...protocol.ID) peer.IDSlice {
 	var filteredPeers peer.IDSlice
 	//TODO: This can be optimized once we have waku's own peerStore
 
 	for _, p := range peers {
-		supportedProtocols, err := pm.host.Peerstore().GetProtocols(p)
+		supportedProtocols, err := pm.host.Peerstore().SupportsProtocols(p, proto...)
 		if err != nil {
 			pm.logger.Warn("Failed to get supported protocols for peer", zap.String("peerID", p.String()))
+		        continue
 		}
-		if slices.Contains(supportedProtocols, proto) {
+		if len(supportedProtocols) != 0 {
 			filteredPeers = append(filteredPeers, p)
 		}
 	}
