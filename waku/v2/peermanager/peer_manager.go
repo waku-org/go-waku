@@ -26,7 +26,8 @@ type PeerManager struct {
 }
 
 const maxRelayPeersShare = 5
-const defaultMaxOutRelayPeersTarget = 10
+
+// const defaultMaxOutRelayPeersTarget = 10
 const outRelayPeersShare = 3
 const peerConnectivityLoopSecs = 15
 
