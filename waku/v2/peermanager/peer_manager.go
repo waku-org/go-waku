@@ -103,7 +103,10 @@ func (pm *PeerManager) pruneInRelayConns() {
 				pm.logger.Warn("Failed to disconnect connection towards peer", zap.String("peerID", p.String()))
 			}
 			pm.host.Peerstore().RemovePeer(p) //TODO: Should we remove the peer immediately?
-			pm.host.Peerstore().(wps.WakuPeerstore).SetDirection(p, network.DirUnknown)
+			err = pm.host.Peerstore().(wps.WakuPeerstore).SetDirection(p, network.DirUnknown)
+			if err != nil {
+				pm.logger.Warn("Failed to remove metadata for peer", zap.String("peerID", p.String()))
+			}
 			pm.logger.Info("Successfully disconnected connection towards peer", zap.String("peerID", p.String()))
 		}
 	}
