@@ -55,16 +55,20 @@ func (pm *PeerManager) SetHost(host host.Host) {
 }
 
 // Start starts the processing to be done by peer manager.
-func (pm *PeerManager) Start() {
-	go pm.connectivityLoop()
+func (pm *PeerManager) Start(ctx context.Context) {
+	go pm.connectivityLoop(ctx)
 }
 
 // This is a connectivity loop, which currently checks and prunes inbound connections.
-func (pm *PeerManager) connectivityLoop() {
-
+func (pm *PeerManager) connectivityLoop(ctx context.Context) {
+        t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
 	for {
-		pm.pruneInRelayConns()
-		time.Sleep(peerConnectivityLoopSecs * time.Second)
+	       select {
+	               case <-ctx.Done():
+	                     return
+	               case <-t.C:
+	                          pm.pruneInRelayConns()
+	       }
 	}
 }
 
