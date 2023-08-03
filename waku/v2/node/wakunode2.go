@@ -401,7 +401,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 			return err
 		}
 		w.peermanager.SetHost(host)
-		w.peermanager.Start()
+		w.peermanager.Start(ctx)
 	}
 
 	w.store = w.storeFactory(w)

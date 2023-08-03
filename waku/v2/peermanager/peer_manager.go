@@ -1,14 +1,13 @@
 package peermanager
 
 import (
+	"context"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
-	"golang.org/x/exp/slices"
 
 	"go.uber.org/zap"
 )
@@ -61,14 +60,14 @@ func (pm *PeerManager) Start(ctx context.Context) {
 
 // This is a connectivity loop, which currently checks and prunes inbound connections.
 func (pm *PeerManager) connectivityLoop(ctx context.Context) {
-        t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
+	t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
 	for {
-	       select {
-	               case <-ctx.Done():
-	                     return
-	               case <-t.C:
-	                          pm.pruneInRelayConns()
-	       }
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			pm.pruneInRelayConns()
+		}
 	}
 }
 
@@ -80,7 +79,7 @@ func (pm *PeerManager) filterPeersByProto(peers peer.IDSlice, proto ...protocol.
 		supportedProtocols, err := pm.host.Peerstore().SupportsProtocols(p, proto...)
 		if err != nil {
 			pm.logger.Warn("Failed to get supported protocols for peer", zap.String("peerID", p.String()))
-		        continue
+			continue
 		}
 		if len(supportedProtocols) != 0 {
 			filteredPeers = append(filteredPeers, p)
@@ -116,10 +115,6 @@ func (pm *PeerManager) pruneInRelayConns() {
 				pm.logger.Warn("Failed to disconnect connection towards peer", zap.String("peerID", p.String()))
 			}
 			pm.host.Peerstore().RemovePeer(p) //TODO: Should we remove the peer immediately?
-			err = pm.host.Peerstore().(wps.WakuPeerstore).SetDirection(p, network.DirUnknown)
-			if err != nil {
-				pm.logger.Warn("Failed to remove metadata for peer", zap.String("peerID", p.String()))
-			}
 			pm.logger.Info("Successfully disconnected connection towards peer", zap.String("peerID", p.String()))
 		}
 	}
