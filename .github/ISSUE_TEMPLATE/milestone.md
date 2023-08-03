@@ -1,5 +1,5 @@
 ---
-name: Milestone Issue Template
+name: Milestone
 about: Track Milestones
 title: "[Milestone] "
 labels: milestone
