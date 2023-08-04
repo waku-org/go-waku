@@ -18,7 +18,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -59,47 +58,24 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
 
 	if options.Filter.Enable {
-		if options.Filter.UseV2 {
-			cf := filter.ContentFilter{
-				Topic:         relay.DefaultWakuTopic,
-				ContentTopics: []string{options.ContentTopic},
-			}
-			var filterOpt filter.FilterSubscribeOption
-			peerID, err := options.Filter.NodePeerID()
-			if err != nil {
-				filterOpt = filter.WithAutomaticPeerSelection()
-			} else {
-				filterOpt = filter.WithPeer(peerID)
-				chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
-			}
-			theFilter, err := node.FilterLightnode().Subscribe(ctx, cf, filterOpt)
-			if err != nil {
-				chat.ui.ErrorMessage(err)
-			} else {
-				chat.C = theFilter.C
-			}
-		} else {
-			// TODO: remove
-			cf := legacy_filter.ContentFilter{
-				Topic:         relay.DefaultWakuTopic,
-				ContentTopics: []string{options.ContentTopic},
-			}
-			var filterOpt legacy_filter.FilterSubscribeOption
-			peerID, err := options.Filter.NodePeerID()
-			if err != nil {
-				filterOpt = legacy_filter.WithAutomaticPeerSelection()
-			} else {
-				filterOpt = legacy_filter.WithPeer(peerID)
-				chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
-			}
-			_, theFilter, err := node.LegacyFilter().Subscribe(ctx, cf, filterOpt)
-			if err != nil {
-				chat.ui.ErrorMessage(err)
-			} else {
-				chat.C = theFilter.Chan
-			}
+		cf := filter.ContentFilter{
+			Topic:         relay.DefaultWakuTopic,
+			ContentTopics: []string{options.ContentTopic},
 		}
-
+		var filterOpt filter.FilterSubscribeOption
+		peerID, err := options.Filter.NodePeerID()
+		if err != nil {
+			filterOpt = filter.WithAutomaticPeerSelection()
+		} else {
+			filterOpt = filter.WithPeer(peerID)
+			chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
+		}
+		theFilter, err := node.FilterLightnode().Subscribe(ctx, cf, filterOpt)
+		if err != nil {
+			chat.ui.ErrorMessage(err)
+		} else {
+			chat.C = theFilter.C
+		}
 	} else {
 		sub, err := node.Relay().Subscribe(ctx)
 		if err != nil {
@@ -161,7 +137,7 @@ func (c *Chat) receiveMessages() {
 				continue // Discard messages from other topics
 			}
 
-			msg, err := decodeMessage(c.options.UsePayloadV1, c.options.ContentTopic, value.Message())
+			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
 			if err == nil {
 				// send valid messages to the UI
 				c.ui.ChatMessage(int64(msg.Timestamp), msg.Nick, string(msg.Payload))
@@ -303,17 +279,10 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 		return err
 	}
 
-	var version uint32
-	var timestamp int64 = utils.GetUnixEpochFrom(c.node.Timesource().Now())
-	var keyInfo *payload.KeyInfo = &payload.KeyInfo{}
-
-	if c.options.UsePayloadV1 { // Use WakuV1 encryption
-		keyInfo.Kind = payload.Symmetric
-		keyInfo.SymKey = generateSymKey(c.options.ContentTopic)
-		version = 1
-	} else {
-		keyInfo.Kind = payload.None
-		version = 0
+	version := uint32(0)
+	timestamp := utils.GetUnixEpochFrom(c.node.Timesource().Now())
+	keyInfo := &payload.KeyInfo{
+		Kind: payload.None,
 	}
 
 	p := new(payload.Payload)
@@ -361,13 +330,9 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	return err
 }
 
-func decodeMessage(useV1Payload bool, contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
-	var keyInfo *payload.KeyInfo = &payload.KeyInfo{}
-	if useV1Payload { // Use WakuV1 encryption
-		keyInfo.Kind = payload.Symmetric
-		keyInfo.SymKey = generateSymKey(contentTopic)
-	} else {
-		keyInfo.Kind = payload.None
+func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
+	keyInfo := &payload.KeyInfo{
+		Kind: payload.None,
 	}
 
 	payload, err := payload.DecodePayload(wakumsg, keyInfo)

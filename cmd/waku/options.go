@@ -106,7 +106,6 @@ type RPCServerOptions struct {
 	Port               int
 	Address            string
 	Admin              bool
-	Private            bool
 	RelayCacheCapacity int
 }
 
@@ -116,7 +115,6 @@ type RESTServerOptions struct {
 	Port               int
 	Address            string
 	Admin              bool
-	Private            bool
 	RelayCacheCapacity int
 }
 

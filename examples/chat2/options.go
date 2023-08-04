@@ -61,7 +61,6 @@ func nodePeerID(node *multiaddr.Multiaddr) (peer.ID, error) {
 // restricted devices.
 type FilterOptions struct {
 	Enable bool
-	UseV2  bool
 	Node   *multiaddr.Multiaddr
 }
 
@@ -118,7 +117,6 @@ type Options struct {
 	Address      string
 	NodeKey      *ecdsa.PrivateKey
 	ContentTopic string
-	UsePayloadV1 bool
 	Nickname     string
 	LogLevel     string
 	StaticNodes  []multiaddr.Multiaddr

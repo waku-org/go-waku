@@ -104,12 +104,6 @@ func getFlags() []cli.Flag {
 			Usage:       "Enable relay protocol",
 			Destination: &options.Relay.Enable,
 		},
-		&cli.BoolFlag{
-			Name:        "payloadV1",
-			Value:       false,
-			Usage:       "use Waku v1 payload encoding/encryption",
-			Destination: &options.UsePayloadV1,
-		},
 		&cli.StringSliceFlag{
 			Name:        "topics",
 			Usage:       "List of topics to listen",
@@ -132,11 +126,6 @@ func getFlags() []cli.Flag {
 			Name:        "filter",
 			Usage:       "Enable filter protocol",
 			Destination: &options.Filter.Enable,
-		},
-		&cli.BoolFlag{
-			Name:        "use-filterv2",
-			Usage:       "Use filterV2 protocol (experimental)",
-			Destination: &options.Filter.UseV2,
 		},
 		&cli.GenericFlag{
 			Name:  "filternode",

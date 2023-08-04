@@ -17,7 +17,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/urfave/cli/v2 v2.24.4
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
-	github.com/waku-org/go-zerokit-rln v0.1.12
+	github.com/waku-org/go-zerokit-rln v0.1.13-0.20230726180145-0496a42e60fb
 	golang.org/x/crypto v0.9.0
 	golang.org/x/term v0.8.0
 	google.golang.org/protobuf v1.31.0
@@ -126,9 +126,9 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98 // indirect
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230628220917-7b4e5ae4c0e7 // indirect
-	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230331231302-258cacb91327 // indirect
-	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230331223149-f90e66aebb0d // indirect
-	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230331181847-cba74520bae9 // indirect
+	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230726162122-13b66414cd5b // indirect
+	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230726162204-c48a56712ef0 // indirect
+	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230726162310-d761ca9911d8 // indirect
 	github.com/wk8/go-ordered-map v1.0.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.opencensus.io v0.24.0 // indirect
