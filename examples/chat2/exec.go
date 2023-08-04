@@ -13,7 +13,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peers"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -94,11 +93,7 @@ func execute(options Options) {
 	}
 
 	if options.Filter.Enable {
-		if options.Filter.UseV2 {
-			opts = append(opts, node.WithWakuFilterLightNode())
-		} else {
-			opts = append(opts, node.WithLegacyWakuFilter(false))
-		}
+		opts = append(opts, node.WithWakuFilterLightNode())
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -121,11 +116,8 @@ func execute(options Options) {
 		return
 	}
 
-	if options.Filter.UseV2 {
-		err = addPeer(wakuNode, options.Filter.Node, filter.FilterSubscribeID_v20beta1)
-	} else {
-		err = addPeer(wakuNode, options.Filter.Node, legacy_filter.FilterID_v20beta1)
-	}
+	err = addPeer(wakuNode, options.Filter.Node, filter.FilterSubscribeID_v20beta1)
+
 	if err != nil {
 		fmt.Println(err.Error())
 		return
