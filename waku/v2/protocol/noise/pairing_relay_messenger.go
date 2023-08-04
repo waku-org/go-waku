@@ -95,6 +95,7 @@ func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-c
 		for {
 			select {
 			case <-ctx.Done():
+				close(sub.msgChan)
 				return
 			case env := <-sub.broadcastSub.Ch:
 				if env == nil {
@@ -137,7 +138,6 @@ func (r *NoiseWakuRelay) Stop() {
 	for _, contentTopicSubscriptions := range r.subscriptionChPerContentTopic {
 		for _, c := range contentTopicSubscriptions {
 			c.broadcastSub.Unsubscribe()
-			close(c.msgChan)
 		}
 	}
 }
