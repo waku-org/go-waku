@@ -50,6 +50,9 @@ all: build
 
 deps: lint-install
 
+build-with-race:
+	${GOBIN} build -race -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku ./cmd/waku
+
 build:
 	${GOBIN} build -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku ./cmd/waku
 
@@ -70,7 +73,7 @@ lint:
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
 test:
-	${GOBIN} test -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
+	${GOBIN} test -race -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
 	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
 	${GOBIN} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 

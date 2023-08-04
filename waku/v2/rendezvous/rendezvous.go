@@ -91,7 +91,7 @@ func (r *Rendezvous) DiscoverShard(ctx context.Context, rp *RendezvousPoint, clu
 	r.DiscoverWithNamespace(ctx, namespace, rp, numPeers)
 }
 
-// DiscoverWithNamespace is uded to find a number of peers using a custom namespace (usually a pubsub topic)
+// DiscoverWithNamespace is used to find a number of peers using a custom namespace (usually a pubsub topic)
 func (r *Rendezvous) DiscoverWithNamespace(ctx context.Context, namespace string, rp *RendezvousPoint, numPeers int) {
 	rendezvousClient := rvs.NewRendezvousClient(r.host, rp.id)
 

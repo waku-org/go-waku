@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,11 +20,14 @@ import (
 )
 
 type PeerConn struct {
+	sync.RWMutex
 	ch <-chan peermanager.PeerData
 }
 
 func (p *PeerConn) Subscribe(ctx context.Context, ch <-chan peermanager.PeerData) {
+	p.Lock()
 	p.ch = ch
+	p.Unlock()
 }
 
 func NewPeerConn() *PeerConn {
@@ -98,6 +102,8 @@ func TestRendezvous(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	timer := time.After(3 * time.Second)
+	myPeerConnector.RLock()
+	defer myPeerConnector.RUnlock()
 	select {
 	case <-timer:
 		require.Fail(t, "no peer discovered")
