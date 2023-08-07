@@ -436,9 +436,7 @@ func (wf *WakuFilterLightnode) UnsubscribeAll(ctx context.Context, opts ...Filte
 	localWg.Wait()
 	close(resultChan)
 	for _, peerID := range peersUnsubscribed {
-		if len(wf.subscriptions.items[peerID].subscriptionsPerTopic) == 0 {
-			delete(wf.subscriptions.items, peerID)
-		}
+		delete(wf.subscriptions.items, peerID)
 	}
 	return resultChan, nil
 }
