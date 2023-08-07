@@ -26,12 +26,15 @@ func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuN
 				ethPrivKey = options.RLNRelay.ETHPrivateKey
 			}
 
+			// TODO: too many parameters in this function
+			// consider passing a config struct instead
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
 				options.RLNRelay.PubsubTopic,
 				options.RLNRelay.ContentTopic,
 				options.RLNRelay.CredentialsPath,
 				options.RLNRelay.CredentialsPassword,
 				options.RLNRelay.CredentialsIndex,
+				options.RLNRelay.TreePath,
 				options.RLNRelay.MembershipContractAddress,
 				rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex),
 				nil,

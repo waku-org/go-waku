@@ -112,7 +112,17 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 }
 
 func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
-	events, err := gm.getEvents(ctx, 0, nil)
+
+	metadata, err := gm.GetMetadata()
+	fromBlock := uint64(0)
+	if err == nil {
+		fromBlock = metadata.LastProcessedBlock
+		gm.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
+	} else {
+		gm.log.Warn("could not load last processed block from metadata. Starting onchain sync from scratch", zap.Error(err))
+	}
+
+	events, err := gm.getEvents(ctx, fromBlock, nil)
 	if err != nil {
 		return err
 	}

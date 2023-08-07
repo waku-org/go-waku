@@ -93,6 +93,7 @@ func (gm *StaticGroupManager) MembershipIndex() (rln.MembershipIndex, error) {
 	return *gm.membershipIndex, nil
 }
 
-func (gm *StaticGroupManager) Stop() {
+func (gm *StaticGroupManager) Stop() error {
 	// Do nothing
+	return nil
 }
