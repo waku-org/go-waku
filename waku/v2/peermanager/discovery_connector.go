@@ -301,7 +301,9 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 			c.wg.Add(1)
 			go func(pi peer.AddrInfo) {
 				defer c.wg.Done()
+				c.RLock()
 				ctx, cancel := context.WithTimeout(c.workerCtx, c.dialTimeout)
+				c.RUnlock()
 				defer cancel()
 				err := c.host.Connect(ctx, pi)
 				if err != nil && !errors.Is(err, context.Canceled) {
