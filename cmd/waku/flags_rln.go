@@ -51,6 +51,12 @@ func rlnFlags() []cli.Flag {
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
 		},
+		&cli.StringFlag{
+			Name:        "rln-relay-tree-path",
+			Value:       "",
+			Usage:       "Path to the RLN merkle tree sled db (https://github.com/spacejam/sled)",
+			Destination: &options.RLNRelay.TreePath,
+		},
 		&cli.UintFlag{
 			Name:        "rln-relay-membership-index",
 			Value:       0,

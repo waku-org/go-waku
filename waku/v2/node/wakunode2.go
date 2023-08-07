@@ -72,7 +72,7 @@ type RLNRelay interface {
 	IdentityCredential() (IdentityCredential, error)
 	MembershipIndex() (uint, error)
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
-	Stop()
+	Stop() error
 }
 
 type WakuNode struct {

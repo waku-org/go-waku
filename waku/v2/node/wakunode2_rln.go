@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/static"
@@ -62,7 +63,7 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 		}
 	}
 
-	rlnRelay, err := rln.New(w.Relay(), groupManager, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.timesource, w.log)
+	rlnRelay, err := rln.New(w.Relay(), groupManager, w.opts.rlnTreePath, w.opts.rlnRelayPubsubTopic, w.opts.rlnRelayContentTopic, w.opts.rlnSpamHandler, w.timesource, w.log)
 	if err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 
 func (w *WakuNode) stopRlnRelay() error {
 	if w.rlnRelay != nil {
-		w.rlnRelay.Stop()
+		return w.rlnRelay.Stop()
 	}
 	return nil
 }

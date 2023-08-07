@@ -38,6 +38,7 @@ type RLNRelayOptions struct {
 	CredentialsPath           string
 	CredentialsPassword       string
 	CredentialsIndex          uint
+	TreePath                  string
 	MembershipGroupIndex      uint
 	PubsubTopic               string
 	ContentTopic              string

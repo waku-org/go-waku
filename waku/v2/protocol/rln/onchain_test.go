@@ -242,7 +242,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay, err := New(relay, gm, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay, err := New(relay, gm, "test-merkle-tree.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	// PreRegistering the keypair
@@ -286,7 +286,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay1, err := New(relay1, gm1, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay1, err := New(relay1, gm1, "test-correct-registration-1.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay1.Start(context.TODO())
 	s.Require().NoError(err)
@@ -312,7 +312,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u2PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay2, err := New(relay2, gm2, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay2, err := New(relay2, gm2, "test-correct-registration-2.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay2.Start(context.TODO())
 	s.Require().NoError(err)
