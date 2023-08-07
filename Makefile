@@ -72,8 +72,11 @@ lint:
 	@echo "lint"
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
 
+test-with-race:
+	${GOBIN} test -race -timeout 300s ./waku/... 
+
 test:
-	${GOBIN} test -race -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
+	${GOBIN} test -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
 	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
 	${GOBIN} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
 
@@ -187,3 +190,5 @@ test-onchain: BUILD_TAGS += include_onchain_tests
 test-onchain:
 	${GOBIN} test -v -count 1 -tags="${BUILD_TAGS}" github.com/waku-org/go-waku/waku/v2/protocol/rln
 
+test-onchain-with-race:
+	${GOBIN} test -race -v -count 1 -tags="${BUILD_TAGS}" github.com/waku-org/go-waku/waku/v2/protocol/rln
