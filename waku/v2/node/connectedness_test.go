@@ -69,7 +69,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node2.Start(ctx)
 	require.NoError(t, err)
 
-	db, migration, err := sqlite.NewDB(":memory:")
+	db, migration, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
 	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migration))
 	require.NoError(t, err)

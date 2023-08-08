@@ -131,7 +131,7 @@ func NewNode(configJSON string) error {
 	if *config.EnableStore {
 		var db *sql.DB
 		var migrationFn func(*sql.DB) error
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL)
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL, dbutils.DBSettings{SQLiteVacuum: true}, utils.Logger())
 		if err != nil {
 			return err
 		}

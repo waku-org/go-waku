@@ -230,7 +230,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	subs.Unsubscribe()
 
 	// NODE2: Filter Client/Store
-	db, migration, err := sqlite.NewDB(":memory:")
+	db, migration, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
 	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migration))
 	require.NoError(t, err)

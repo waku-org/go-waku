@@ -47,7 +47,7 @@ func TestRendezvous(t *testing.T) {
 	require.NoError(t, err)
 
 	var db *sql.DB
-	db, migration, err := sqlite.NewDB(":memory:")
+	db, migration, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
 
 	err = migration(db)
