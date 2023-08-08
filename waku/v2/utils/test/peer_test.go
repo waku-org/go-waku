@@ -1,4 +1,4 @@
-package utils
+package tests
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestSelectPeer(t *testing.T) {
@@ -31,17 +32,17 @@ func TestSelectPeer(t *testing.T) {
 	proto := protocol.ID("test/protocol")
 
 	h1.Peerstore().AddAddrs(h2.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
+	h1.Peerstore().AddAddrs(h3.ID(), h3.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 
 	// No peers with selected protocol
-	_, err = SelectPeer(h1, proto, nil, Logger())
-	require.Error(t, ErrNoPeersAvailable, err)
+	_, err = utils.SelectPeer(h1, proto, nil, utils.Logger())
+	require.Error(t, utils.ErrNoPeersAvailable, err)
 
 	// Peers with selected protocol
 	_ = h1.Peerstore().AddProtocols(h2.ID(), proto)
 	_ = h1.Peerstore().AddProtocols(h3.ID(), proto)
 
-	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, nil, Logger())
+	_, err = utils.SelectPeerWithLowestRTT(ctx, h1, proto, nil, utils.Logger())
 	require.NoError(t, err)
 
 }
@@ -70,13 +71,13 @@ func TestSelectPeerWithLowestRTT(t *testing.T) {
 	h1.Peerstore().AddAddrs(h3.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 
 	// No peers with selected protocol
-	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, nil, Logger())
-	require.Error(t, ErrNoPeersAvailable, err)
+	_, err = utils.SelectPeerWithLowestRTT(ctx, h1, proto, nil, utils.Logger())
+	require.Error(t, utils.ErrNoPeersAvailable, err)
 
 	// Peers with selected protocol
 	_ = h1.Peerstore().AddProtocols(h2.ID(), proto)
 	_ = h1.Peerstore().AddProtocols(h3.ID(), proto)
 
-	_, err = SelectPeerWithLowestRTT(ctx, h1, proto, nil, Logger())
+	_, err = utils.SelectPeerWithLowestRTT(ctx, h1, proto, nil, utils.Logger())
 	require.NoError(t, err)
 }

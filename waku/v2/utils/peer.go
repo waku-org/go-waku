@@ -34,6 +34,7 @@ func GetPeerID(m multiaddr.Multiaddr) (peer.ID, error) {
 }
 
 // SelectPeer is used to return a random peer that supports a given protocol.
+// Note: Use this method only if WakuNode is not being initialized, otherwise use peermanager.SelectPeer.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the node peerstore
 func SelectPeer(host host.Host, protocolId protocol.ID, specificPeers []peer.ID, log *zap.Logger) (peer.ID, error) {

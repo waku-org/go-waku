@@ -124,7 +124,7 @@ type WakuNode struct {
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
-	return store.NewWakuStore(w.opts.messageProvider, w.timesource, w.log)
+	return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, w.log)
 }
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
@@ -688,7 +688,6 @@ func (w *WakuNode) addPeer(info *peer.AddrInfo, origin peerstore1.Origin, protoc
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -698,7 +697,12 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, origin peerstore1.Origin, proto
 	if err != nil {
 		return "", err
 	}
-
+	//Add Service peers to serviceSlots.
+	for _, service := range protocols {
+		if service != relay.WakuRelayID_v200 {
+			w.peermanager.AddServicePeer(string(service), info.ID)
+		}
+	}
 	return info.ID, w.addPeer(info, origin, protocols...)
 }
 

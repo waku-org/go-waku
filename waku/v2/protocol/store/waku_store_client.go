@@ -107,7 +107,14 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeer(params.s.h, StoreID_v20beta4, fromThesePeers, params.s.log)
+		var p peer.ID
+		var err error
+		//TODO: This is hacky, but could not find a more elegant way to do this.
+		if params.s.pm == nil {
+			p, err = utils.SelectPeer(params.s.h, StoreID_v20beta4, fromThesePeers, params.s.log)
+		} else {
+			p, err = params.s.pm.SelectPeer(string(StoreID_v20beta4), fromThesePeers, params.s.log)
+		}
 		if err == nil {
 			params.selectedPeer = p
 		} else {
