@@ -147,15 +147,15 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 // Adding to peerStore is already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
 // For relay peers use AddPeer.
-func (pm *PeerManager) AddServicePeer(proto string, peerId peer.ID) {
+func (pm *PeerManager) AddServicePeer(proto string, peerID peer.ID) {
 	if proto == string(WakuRelayIDv200) {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
 	}
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
 	//TODO: Ideally we should maintain multiple peers per service and return best peer based on peer score or RTT etc.
-	pm.logger.Info("Adding peer to service slots", zap.String("peerId", peerId.Pretty()), zap.String("service", proto))
-	pm.serviceSlots[proto] = peerId
+	pm.logger.Info("Adding peer to service slots", zap.String("peerId", peerID.Pretty()), zap.String("service", proto))
+	pm.serviceSlots[proto] = peerID
 }
 
 // SelectPeer is used to return a random peer that supports a given protocol.
@@ -184,17 +184,17 @@ func (pm *PeerManager) SelectPeer(proto string, specificPeers []peer.ID, logger 
 	}
 
 	//Try to fetch from serviceSlot
-	peerId, ok := pm.serviceSlots[proto]
+	peerID, ok := pm.serviceSlots[proto]
 	if ok {
-		pm.logger.Info("Got peer from service slots", zap.String("peerId", peerId.Pretty()))
-		return peerId, nil
+		pm.logger.Info("Got peer from service slots", zap.String("peerId", peerID.Pretty()))
+		return peerID, nil
 	}
 
 	if len(filteredPeers) >= 1 {
-		peerId := filteredPeers[rand.Intn(len(filteredPeers))]
-		pm.logger.Info("Got random peer from peerstore", zap.String("peerId", peerId.Pretty()))
+		peerID = filteredPeers[rand.Intn(len(filteredPeers))]
+		pm.logger.Info("Got random peer from peerstore", zap.String("peerId", peerID.Pretty()))
 		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-		return peerId, nil // nolint: gosec
+		return peerID, nil // nolint: gosec
 	}
 
 	return "", utils.ErrNoPeersAvailable
