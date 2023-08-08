@@ -496,13 +496,6 @@ var (
 		Destination: &options.RPCServer.Admin,
 		EnvVars:     []string{"WAKUNODE2_RPC_ADMIN"},
 	})
-	RPCPrivate = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "rpc-private",
-		Value:       false,
-		Usage:       "Enable access to JSON-RPC Private API",
-		Destination: &options.RPCServer.Private,
-		EnvVars:     []string{"WAKUNODE2_RPC_PRIVATE"},
-	})
 	RESTFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rest",
 		Usage:       "Enable Waku REST HTTP server",
@@ -536,13 +529,6 @@ var (
 		Usage:       "Enable access to REST HTTP Admin API",
 		Destination: &options.RESTServer.Admin,
 		EnvVars:     []string{"WAKUNODE2_REST_ADMIN"},
-	})
-	RESTPrivate = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "rest-private",
-		Value:       false,
-		Usage:       "Enable access to REST HTTP Private API",
-		Destination: &options.RESTServer.Private,
-		EnvVars:     []string{"WAKUNODE2_REST_PRIVATE"},
 	})
 	PProf = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "pprof",

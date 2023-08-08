@@ -19,13 +19,12 @@ type WakuRpc struct {
 
 	log *zap.Logger
 
-	relayService   *RelayService
-	filterService  *FilterService
-	privateService *PrivateService
-	adminService   *AdminService
+	relayService  *RelayService
+	filterService *FilterService
+	adminService  *AdminService
 }
 
-func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePrivate bool, enablePProf bool, cacheCapacity int, log *zap.Logger) *WakuRpc {
+func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePProf bool, cacheCapacity int, log *zap.Logger) *WakuRpc {
 	wrpc := new(WakuRpc)
 	wrpc.log = log.Named("rpc")
 
@@ -80,15 +79,6 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 		wrpc.log.Error("registering filter service", zap.Error(err))
 	}
 
-	if enablePrivate {
-		privateService := NewPrivateService(node, cacheCapacity, log)
-		err = s.RegisterService(privateService, "Private")
-		if err != nil {
-			wrpc.log.Error("registering private service", zap.Error(err))
-		}
-		wrpc.privateService = privateService
-	}
-
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
 
 	server := &http.Server{
@@ -101,9 +91,6 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 
 		if relayService != nil {
 			relayService.Stop()
-		}
-		if wrpc.privateService != nil {
-			wrpc.privateService.Stop()
 		}
 	})
 
@@ -121,9 +108,6 @@ func (r *WakuRpc) Start() {
 	}
 
 	go r.filterService.Start()
-	if r.privateService != nil {
-		go r.privateService.Start()
-	}
 
 	go func() {
 		_ = r.server.ListenAndServe()

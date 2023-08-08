@@ -86,13 +86,11 @@ func main() {
 		RPCAddress,
 		RPCRelayCacheCapacity,
 		RPCAdmin,
-		RPCPrivate,
 		RESTFlag,
 		RESTAddress,
 		RESTPort,
 		RESTRelayCacheCapacity,
 		RESTAdmin,
-		RESTPrivate,
 		PProf,
 	}
 
