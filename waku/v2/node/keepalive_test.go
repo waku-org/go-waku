@@ -21,10 +21,11 @@ func TestKeepAlive(t *testing.T) {
 	require.NoError(t, err)
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
+	peerID2 := host2.ID()
 
-	host1.Peerstore().AddAddrs(host2.ID(), host2.Addrs(), peerstore.PermanentAddrTTL)
+	host1.Peerstore().AddAddrs(peerID2, host2.Addrs(), peerstore.PermanentAddrTTL)
 
-	err = host1.Connect(ctx, host1.Peerstore().PeerInfo(host2.ID()))
+	err = host1.Connect(ctx, host1.Peerstore().PeerInfo(peerID2))
 	require.NoError(t, err)
 
 	require.Len(t, host1.Network().Peers(), 1)
@@ -42,7 +43,7 @@ func TestKeepAlive(t *testing.T) {
 	}
 
 	w.wg.Add(1)
-	w.pingPeer(ctx2, w.wg, host2.ID())
+	w.pingPeer(ctx2, w.wg, peerID2, false)
 
 	require.NoError(t, ctx.Err())
 }
