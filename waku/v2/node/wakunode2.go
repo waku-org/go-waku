@@ -395,12 +395,13 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	w.relay.SetHost(host)
+	w.peermanager.SetHost(host)
+
 	if w.opts.enableRelay {
 		err := w.relay.Start(ctx)
 		if err != nil {
 			return err
 		}
-		w.peermanager.SetHost(host)
 		w.peermanager.Start(ctx)
 	}
 
