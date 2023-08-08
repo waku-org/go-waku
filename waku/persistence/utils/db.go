@@ -8,6 +8,7 @@ import (
 
 	"github.com/waku-org/go-waku/waku/persistence/postgres"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	"go.uber.org/zap"
 )
 
 func validateDBUrl(val string) error {
@@ -18,11 +19,18 @@ func validateDBUrl(val string) error {
 	return nil
 }
 
+// DBSettings hold db specific configuration settings required during the db initialization
+type DBSettings struct {
+	SQLiteVacuum bool
+}
+
 // ExtractDBAndMigration will return a database connection, and migration function that should be used depending on a database connection string
-func ExtractDBAndMigration(databaseURL string) (*sql.DB, func(*sql.DB) error, error) {
+func ExtractDBAndMigration(databaseURL string, dbSettings DBSettings, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	var err error
+
+	logger = logger.Named("db-setup")
 
 	dbURL := ""
 	if databaseURL != "" {
@@ -41,7 +49,7 @@ func ExtractDBAndMigration(databaseURL string) (*sql.DB, func(*sql.DB) error, er
 	dbParams := dbURLParts[1]
 	switch dbEngine {
 	case "sqlite3":
-		db, migrationFn, err = sqlite.NewDB(dbParams)
+		db, migrationFn, err = sqlite.NewDB(dbParams, dbSettings.SQLiteVacuum, logger)
 	case "postgresql":
 		db, migrationFn, err = postgres.NewDB(dbURL)
 	default:

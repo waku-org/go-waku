@@ -56,6 +56,8 @@ func main() {
 		StoreMessageDBURL,
 		StoreMessageRetentionTime,
 		StoreMessageRetentionCapacity,
+		StoreMessageDBVacuum,
+		StoreMessageDBMigration,
 		StoreResumePeer,
 		FilterFlag,
 		FilterNode,

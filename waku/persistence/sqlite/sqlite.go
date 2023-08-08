@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/migrate"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
+	"go.uber.org/zap"
 )
 
 func addSqliteURLDefaults(dburl string) string {
@@ -56,7 +57,7 @@ func WithDB(dburl string, migrate bool) persistence.DBOption {
 }
 
 // NewDB creates a sqlite3 DB in the specified path
-func NewDB(dburl string) (*sql.DB, func(*sql.DB) error, error) {
+func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
 	db, err := sql.Open("sqlite3", addSqliteURLDefaults(dburl))
 	if err != nil {
 		return nil, nil, err
@@ -64,6 +65,17 @@ func NewDB(dburl string) (*sql.DB, func(*sql.DB) error, error) {
 
 	// Disable concurrent access as not supported by the driver
 	db.SetMaxOpenConns(1)
+
+	logger.Info("starting sqlite database vacuuming")
+
+	if shouldVacuum {
+		_, err := db.Exec("VACUUM")
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	logger.Info("finished sqlite database vacuuming")
 
 	return db, Migrate, nil
 }

@@ -288,6 +288,19 @@ var (
 		Destination: &options.Store.DatabaseURL,
 		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_URL"},
 	})
+	StoreMessageDBVacuum = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "store-message-db-vacuum",
+		Usage:       "Enable database vacuuming at start. Only supported by SQLite database engine.",
+		Destination: &options.Store.Vacuum,
+		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_VACUUM"},
+	})
+	StoreMessageDBMigration = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "store-message-db-migration",
+		Usage:       "Enable database migration at start.",
+		Destination: &options.Store.Migration,
+		Value:       true,
+		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_MIGRATION"},
+	})
 	StoreResumePeer = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "store-resume-peer",
 		Usage: "Peer multiaddress to resume the message store at boot. Option may be repeated",

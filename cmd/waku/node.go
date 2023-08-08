@@ -96,8 +96,11 @@ func Execute(options NodeOptions) {
 
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
-	if requiresDB(options) {
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL)
+	if requiresDB(options) && options.Store.Migration {
+		dbSettings := dbutils.DBSettings{
+			SQLiteVacuum: options.Store.Vacuum,
+		}
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL, dbSettings, logger)
 		failOnErr(err, "Could not connect to DB")
 	}
 
@@ -211,11 +214,16 @@ func Execute(options NodeOptions) {
 
 	var dbStore *persistence.DBStore
 	if requiresDB(options) {
-		dbStore, err = persistence.NewDBStore(logger,
+		dbOptions := []persistence.DBOption{
 			persistence.WithDB(db),
-			persistence.WithMigrations(migrationFn), // TODO: refactor migrations out of DBStore, or merge DBStore with rendezvous DB
 			persistence.WithRetentionPolicy(options.Store.RetentionMaxMessages, options.Store.RetentionTime),
-		)
+		}
+
+		if options.Store.Migration {
+			dbOptions = append(dbOptions, persistence.WithMigrations(migrationFn)) // TODO: refactor migrations out of DBStore, or merge DBStore with rendezvous DB
+		}
+
+		dbStore, err = persistence.NewDBStore(logger, dbOptions...)
 		failOnErr(err, "DBStore")
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 	}

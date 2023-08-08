@@ -81,6 +81,8 @@ type StoreOptions struct {
 	RetentionMaxMessages int
 	ResumeNodes          []multiaddr.Multiaddr
 	Nodes                []multiaddr.Multiaddr
+	Vacuum               bool
+	Migration            bool
 }
 
 // DNSDiscoveryOptions are settings used for enabling DNS-based discovery
