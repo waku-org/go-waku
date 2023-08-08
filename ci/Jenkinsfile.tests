@@ -26,7 +26,7 @@ pipeline {
     PATH    = "${env.PATH}:${env.GOPATH}/bin"
     /* Necesary to avoid cache poisoning by other builds. */
     GOLANGCI_LINT_CACHE = "${env.WORKSPACE_TMP}/golangci-lint"
-     /* Ganache config */
+    /* Ganache config */
     GANACHE_RPC_PORT = "${8989 + env.EXECUTOR_NUMBER.toInteger()}"
     GANACHE_MNEMONIC = 'swim relax risk shy chimney please usual search industry board music segment'
   }

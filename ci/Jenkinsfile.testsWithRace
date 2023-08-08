@@ -26,19 +26,21 @@ pipeline {
     PATH    = "${env.PATH}:${env.GOPATH}/bin"
     /* Necesary to avoid cache poisoning by other builds. */
     GOLANGCI_LINT_CACHE = "${env.WORKSPACE_TMP}/golangci-lint"
-     /* Ganache config */
+    /* Ganache config */
     GANACHE_RPC_PORT = "${8989 + env.EXECUTOR_NUMBER.toInteger()}"
-    GANACHE_MNEMONIC = 'swim relax risk shy chimney please usual search industry board music segment'
   }
 
   stages {
-    stage('Test') {
+    stage('Tests with race flag') {
       steps { script { dir(env.REPO) {
         nix.develop('make test-with-race', pure: false)
       } } }
     }
 
     stage('Ganache') {
+      environment {
+        GANACHE_MNEMONIC = 'swim relax risk shy chimney please usual search industry board music segment'
+      }
       steps { script {
         ganache = docker.image(
           'trufflesuite/ganache:v7.4.1'
@@ -49,7 +51,7 @@ pipeline {
       } }
     }
 
-    stage('On-chain tests') {
+    stage('On-chain tests with race flag') {
       environment {
         GANACHE_NETWORK_RPC_URL = "ws://localhost:${env.GANACHE_RPC_PORT}"
       }
