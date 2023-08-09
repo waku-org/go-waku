@@ -10,10 +10,11 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/migrate"
 	"github.com/waku-org/go-waku/waku/persistence/postgres/migrations"
+	"go.uber.org/zap"
 )
 
 // WithDB is a DBOption that lets you use a postgresql DBStore and run migrations
-func WithDB(dburl string, migrate bool) persistence.DBOption {
+func WithDB(dburl string, migrate bool, shouldVacuum bool) persistence.DBOption {
 	return func(d *persistence.DBStore) error {
 		driverOption := persistence.WithDriver("pgx", dburl)
 		err := driverOption(d)
@@ -35,11 +36,28 @@ func WithDB(dburl string, migrate bool) persistence.DBOption {
 	}
 }
 
+func executeVacuum(db *sql.DB, logger *zap.Logger) error {
+	logger.Info("starting PostgreSQL database vacuuming")
+	_, err := db.Exec("VACUUM")
+	if err != nil {
+		return err
+	}
+	logger.Info("finished PostgreSQL database vacuuming")
+	return nil
+}
+
 // NewDB connects to postgres DB in the specified path
-func NewDB(dburl string) (*sql.DB, func(*sql.DB) error, error) {
+func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
 	db, err := sql.Open("pgx", dburl)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if shouldVacuum {
+		err := executeVacuum(db, logger)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return db, Migrate, nil

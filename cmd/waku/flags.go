@@ -290,7 +290,7 @@ var (
 	})
 	StoreMessageDBVacuum = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "store-message-db-vacuum",
-		Usage:       "Enable database vacuuming at start. Only supported by SQLite database engine.",
+		Usage:       "Enable database vacuuming at start.",
 		Destination: &options.Store.Vacuum,
 		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_VACUUM"},
 	})

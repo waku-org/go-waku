@@ -56,6 +56,16 @@ func WithDB(dburl string, migrate bool) persistence.DBOption {
 	}
 }
 
+func executeVacuum(db *sql.DB, logger *zap.Logger) error {
+	logger.Info("starting sqlite database vacuuming")
+	_, err := db.Exec("VACUUM")
+	if err != nil {
+		return err
+	}
+	logger.Info("finished sqlite database vacuuming")
+	return nil
+}
+
 // NewDB creates a sqlite3 DB in the specified path
 func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
 	db, err := sql.Open("sqlite3", addSqliteURLDefaults(dburl))
@@ -66,16 +76,12 @@ func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*
 	// Disable concurrent access as not supported by the driver
 	db.SetMaxOpenConns(1)
 
-	logger.Info("starting sqlite database vacuuming")
-
 	if shouldVacuum {
-		_, err := db.Exec("VACUUM")
+		err := executeVacuum(db, logger)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-
-	logger.Info("finished sqlite database vacuuming")
 
 	return db, Migrate, nil
 }

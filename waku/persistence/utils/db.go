@@ -21,7 +21,7 @@ func validateDBUrl(val string) error {
 
 // DBSettings hold db specific configuration settings required during the db initialization
 type DBSettings struct {
-	SQLiteVacuum bool
+	Vacuum bool
 }
 
 // ExtractDBAndMigration will return a database connection, and migration function that should be used depending on a database connection string
@@ -49,9 +49,9 @@ func ExtractDBAndMigration(databaseURL string, dbSettings DBSettings, logger *za
 	dbParams := dbURLParts[1]
 	switch dbEngine {
 	case "sqlite3":
-		db, migrationFn, err = sqlite.NewDB(dbParams, dbSettings.SQLiteVacuum, logger)
+		db, migrationFn, err = sqlite.NewDB(dbParams, dbSettings.Vacuum, logger)
 	case "postgresql":
-		db, migrationFn, err = postgres.NewDB(dbURL)
+		db, migrationFn, err = postgres.NewDB(dbURL, dbSettings.Vacuum, logger)
 	default:
 		err = errors.New("unsupported database engine")
 	}
