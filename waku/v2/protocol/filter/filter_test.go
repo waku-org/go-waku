@@ -44,7 +44,7 @@ func makeWakuFilterLightNode(t *testing.T) (*WakuFilterLightnode, host.Host) {
 
 	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
-	filterPush := NewWakuFilterLightnode(b, timesource.NewDefaultClock(), utils.Logger())
+	filterPush := NewWakuFilterLightnode(b, nil, timesource.NewDefaultClock(), utils.Logger())
 	filterPush.SetHost(host)
 	err = filterPush.Start(context.Background())
 	require.NoError(t, err)

@@ -27,7 +27,7 @@ type PeerManager struct {
 	InRelayPeersTarget  uint
 	OutRelayPeersTarget uint
 	host                host.Host
-	serviceSlots        map[string]peer.ID
+	serviceSlots        map[protocol.ID]peer.ID
 }
 
 const maxRelayPeersShare = 5
@@ -47,7 +47,7 @@ func NewPeerManager(maxConnections uint, logger *zap.Logger) *PeerManager {
 		maxRelayPeers:       maxRelayPeersValue,
 		InRelayPeersTarget:  maxRelayPeersValue - outRelayPeersTargetValue,
 		OutRelayPeersTarget: outRelayPeersTargetValue,
-		serviceSlots:        make(map[string]peer.ID),
+		serviceSlots:        make(map[protocol.ID]peer.ID),
 	}
 	logger.Info("PeerManager init values", zap.Uint("maxConnections", maxConnections),
 		zap.Uint("maxRelayPeersValue", maxRelayPeersValue), zap.Uint("outRelayPeersTargetValue", outRelayPeersTargetValue),
@@ -129,14 +129,14 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 // Adding to peerStore is already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
 // For relay peers use AddPeer.
-func (pm *PeerManager) AddServicePeer(proto string, peerID peer.ID) {
-	if proto == string(WakuRelayIDv200) {
+func (pm *PeerManager) AddServicePeer(proto protocol.ID, peerID peer.ID) {
+	if proto == WakuRelayIDv200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
 	}
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
 	//TODO: Ideally we should maintain multiple peers per service and return best peer based on peer score or RTT etc.
-	pm.logger.Info("Adding peer to service slots", zap.String("peerId", peerID.Pretty()), zap.String("service", proto))
+	pm.logger.Info("Adding peer to service slots", zap.String("peerId", peerID.Pretty()), zap.String("service", string(proto)))
 	pm.serviceSlots[proto] = peerID
 }
 
@@ -144,18 +144,18 @@ func (pm *PeerManager) AddServicePeer(proto string, peerID peer.ID) {
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-func (pm *PeerManager) SelectPeer(proto string, specificPeers []peer.ID, logger *zap.Logger) (peer.ID, error) {
+func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, logger *zap.Logger) (peer.ID, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
 	//  - which topics they track
 	//  - latency?
 
-	filteredPeers, err := utils.FilterPeersByProto(pm.host, specificPeers, protocol.ID(proto))
+	filteredPeers, err := utils.FilterPeersByProto(pm.host, specificPeers, proto)
 	if err != nil {
 		return "", err
 	}
-	if proto == string(WakuRelayIDv200) {
+	if proto == WakuRelayIDv200 {
 		if filteredPeers.Len() > 0 {
 			pm.logger.Info("Got peer from peerstore", zap.String("peerId", filteredPeers[0].Pretty()))
 			return filteredPeers[0], nil

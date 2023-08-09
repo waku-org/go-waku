@@ -28,8 +28,8 @@ func TestServiceSlots(t *testing.T) {
 	h3, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h3.Close()
-	protocol := "test/protocol"
-	protocol1 := "test/protocol1"
+	protocol := libp2pProtocol.ID("test/protocol")
+	protocol1 := libp2pProtocol.ID("test/protocol1")
 
 	pm := peermanager.NewPeerManager(10, utils.Logger())
 	pm.SetHost(h1)
@@ -75,24 +75,24 @@ func TestServiceSlots(t *testing.T) {
 	defer h5.Close()
 
 	//Test empty peer selection for relay protocol
-	_, err = pm.SelectPeer(string(peermanager.WakuRelayIDv200), nil, utils.Logger())
+	_, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 	//Test peer selection for relay protocol from peer store
 	h1.Peerstore().AddAddrs(h5.ID(), h5.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddServicePeer(string(peermanager.WakuRelayIDv200), h5.ID())
+	pm.AddServicePeer(peermanager.WakuRelayIDv200, h5.ID())
 
-	_, err = pm.SelectPeer(string(peermanager.WakuRelayIDv200), nil, utils.Logger())
+	_, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	err = h1.Peerstore().AddProtocols(h5.ID(), peermanager.WakuRelayIDv200)
 	require.NoError(t, err)
 
-	peerId, err = pm.SelectPeer(string(peermanager.WakuRelayIDv200), nil, utils.Logger())
+	peerId, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
 	require.NoError(t, err)
 	require.Equal(t, peerId, h5.ID())
 
 	//Test random peer selection
-	protocol2 := "test/protocol2"
+	protocol2 := libp2pProtocol.ID("test/protocol2")
 	h6, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h6.Close()

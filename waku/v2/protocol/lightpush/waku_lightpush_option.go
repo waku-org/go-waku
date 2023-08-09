@@ -5,6 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -14,6 +15,7 @@ type lightPushParameters struct {
 	host         host.Host
 	selectedPeer peer.ID
 	requestID    []byte
+	pm           *peermanager.PeerManager
 	log          *zap.Logger
 }
 
@@ -33,7 +35,13 @@ func WithPeer(p peer.ID) Option {
 // from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
-		p, err := utils.SelectPeer(params.host, LightPushID_v20beta1, fromThesePeers, params.log)
+		var p peer.ID
+		var err error
+		if params.pm == nil {
+			p, err = utils.SelectPeer(params.host, LightPushID_v20beta1, fromThesePeers, params.log)
+		} else {
+			p, err = params.pm.SelectPeer(LightPushID_v20beta1, fromThesePeers, params.log)
+		}
 		if err == nil {
 			params.selectedPeer = p
 		} else {

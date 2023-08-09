@@ -265,7 +265,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
-	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.DiscV5(), w.peerConnector, w.log)
+	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.DiscV5(), w.peerConnector, w.peermanager, w.log)
 	if err != nil {
 		return nil, err
 	}
@@ -274,8 +274,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
 	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullnode, w.timesource, w.log, w.opts.legacyFilterOpts...)
 	w.filterFullnode = filter.NewWakuFilterFullnode(w.timesource, w.log, w.opts.filterOpts...)
-	w.filterLightnode = filter.NewWakuFilterLightnode(w.bcaster, w.timesource, w.log)
-	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.log)
+	w.filterLightnode = filter.NewWakuFilterLightnode(w.bcaster, w.peermanager, w.timesource, w.log)
+	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.log)
 
 	if params.storeFactory != nil {
 		w.storeFactory = params.storeFactory
@@ -701,7 +701,7 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, origin peerstore1.Origin, proto
 	//Add Service peers to serviceSlots.
 	for _, service := range protocols {
 		if service != relay.WakuRelayID_v200 {
-			w.peermanager.AddServicePeer(string(service), info.ID)
+			w.peermanager.AddServicePeer(service, info.ID)
 		}
 	}
 	return info.ID, w.addPeer(info, origin, protocols...)

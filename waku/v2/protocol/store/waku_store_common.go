@@ -63,12 +63,15 @@ type WakuStore struct {
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(p MessageProvider, peermanager *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
+// Takes an optional peermanager if WakuStore is being created along with WakuNode.
+// If using libp2p host, then pass peermanager as nil
+func NewWakuStore(p MessageProvider, pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.log = log.Named("store")
 	wakuStore.timesource = timesource
-	wakuStore.pm = peermanager
+	wakuStore.pm = pm
+
 	return wakuStore
 }
