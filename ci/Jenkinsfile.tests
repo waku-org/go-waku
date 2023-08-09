@@ -40,7 +40,11 @@ pipeline {
 
     stage('Test') {
       steps { script { dir(env.REPO) {
-        nix.develop('make test-ci', pure: false)
+        if (env.JOB_BASE_NAME == "race") {
+          nix.develop('make test-with-race', pure: false)
+        }else {
+          nix.develop('make test-ci', pure: false)
+        }
       } } }
     }
 
@@ -60,7 +64,11 @@ pipeline {
         GANACHE_NETWORK_RPC_URL = "ws://localhost:${env.GANACHE_RPC_PORT}"
       }
       steps { script { dir(env.REPO) {
-        nix.develop('make test-onchain', pure: false)
+        if (env.JOB_BASE_NAME == "race") {
+          nix.develop('make test-onchain-with-race', pure: false)
+        }else {
+          nix.develop('make test-onchain', pure: false)
+        }
       } } }
     }
   }
