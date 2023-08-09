@@ -50,6 +50,9 @@ all: build
 
 deps: lint-install
 
+build-with-race:
+	${GOBIN} build -race -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku ./cmd/waku
+
 build:
 	${GOBIN} build -tags="${BUILD_TAGS}" $(BUILD_FLAGS) -o build/waku ./cmd/waku
 
@@ -68,6 +71,9 @@ lint-install:
 lint:
 	@echo "lint"
 	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
+
+test-with-race:
+	${GOBIN} test -race -timeout 300s ./waku/... 
 
 test:
 	${GOBIN} test -timeout 300s ./waku/... -coverprofile=${GO_TEST_OUTFILE}.tmp
@@ -184,3 +190,5 @@ test-onchain: BUILD_TAGS += include_onchain_tests
 test-onchain:
 	${GOBIN} test -v -count 1 -tags="${BUILD_TAGS}" github.com/waku-org/go-waku/waku/v2/protocol/rln
 
+test-onchain-with-race:
+	${GOBIN} test -race -v -count 1 -tags="${BUILD_TAGS}" github.com/waku-org/go-waku/waku/v2/protocol/rln
