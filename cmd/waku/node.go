@@ -98,7 +98,7 @@ func Execute(options NodeOptions) {
 	var migrationFn func(*sql.DB) error
 	if requiresDB(options) && options.Store.Migration {
 		dbSettings := dbutils.DBSettings{
-			SQLiteVacuum: options.Store.Vacuum,
+			Vacuum: options.Store.Vacuum,
 		}
 		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL, dbSettings, logger)
 		failOnErr(err, "Could not connect to DB")
