@@ -78,24 +78,6 @@ func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 	}
 }
 
-// filterPeersByProto filters peers from the peerSet based on protocols passed.
-func (pm *PeerManager) filterPeersByProto(peers peer.IDSlice, proto ...protocol.ID) peer.IDSlice {
-	var filteredPeers peer.IDSlice
-	//TODO: This can be optimized once we have waku's own peerStore
-
-	for _, p := range peers {
-		supportedProtocols, err := pm.host.Peerstore().SupportsProtocols(p, proto...)
-		if err != nil {
-			pm.logger.Warn("Failed to get supported protocols for peer", zap.String("peerID", p.String()))
-			continue
-		}
-		if len(supportedProtocols) != 0 {
-			filteredPeers = append(filteredPeers, p)
-		}
-	}
-	return filteredPeers
-}
-
 func (pm *PeerManager) pruneInRelayConns() {
 
 	var inRelayPeers peer.IDSlice
@@ -107,8 +89,8 @@ func (pm *PeerManager) pruneInRelayConns() {
 	pm.logger.Info("Number of peers connected", zap.Int("inPeers", inPeers.Len()), zap.Int("outPeers", outPeers.Len()))
 
 	//Need to filter peers to check if they support relay
-	inRelayPeers = pm.filterPeersByProto(inPeers, WakuRelayIDv200)
-	outRelayPeers := pm.filterPeersByProto(outPeers, WakuRelayIDv200)
+	inRelayPeers, _ = utils.FilterPeersByProto(pm.host, inPeers, WakuRelayIDv200)
+	outRelayPeers, _ := utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
 	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("outRelayPeers", outRelayPeers.Len()))
 
 	if inRelayPeers.Len() > int(pm.InRelayPeersTarget) {
@@ -168,13 +150,11 @@ func (pm *PeerManager) SelectPeer(proto string, specificPeers []peer.ID, logger 
 	// This will require us to check for various factors such as:
 	//  - which topics they track
 	//  - latency?
-	peerSet := specificPeers
-	if len(peerSet) == 0 {
-		peerSet = pm.host.Peerstore().Peers()
+
+	filteredPeers, err := utils.FilterPeersByProto(pm.host, specificPeers, protocol.ID(proto))
+	if err != nil {
+		return "", err
 	}
-
-	filteredPeers := pm.filterPeersByProto(peerSet, protocol.ID(proto))
-
 	if proto == string(WakuRelayIDv200) {
 		if filteredPeers.Len() > 0 {
 			pm.logger.Info("Got peer from peerstore", zap.String("peerId", filteredPeers[0].Pretty()))

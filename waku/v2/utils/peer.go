@@ -33,6 +33,28 @@ func GetPeerID(m multiaddr.Multiaddr) (peer.ID, error) {
 	return peerID, nil
 }
 
+// FilterPeersByProto filters list of peers that support specified protocols.
+// If specificPeers is nil, all peers in the host's peerStore are considered for filtering.
+func FilterPeersByProto(host host.Host, specificPeers peer.IDSlice, proto ...protocol.ID) (peer.IDSlice, error) {
+	peerSet := specificPeers
+	if len(peerSet) == 0 {
+		peerSet = host.Peerstore().Peers()
+	}
+
+	var peers peer.IDSlice
+	for _, peer := range peerSet {
+		protocols, err := host.Peerstore().SupportsProtocols(peer, proto...)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(protocols) > 0 {
+			peers = append(peers, peer)
+		}
+	}
+	return peers, nil
+}
+
 // SelectPeer is used to return a random peer that supports a given protocol.
 // Note: Use this method only if WakuNode is not being initialized, otherwise use peermanager.SelectPeer.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
@@ -45,21 +67,9 @@ func SelectPeer(host host.Host, protocolId protocol.ID, specificPeers []peer.ID,
 	//  - latency?
 	//  - default store peer?
 
-	peerSet := specificPeers
-	if len(peerSet) == 0 {
-		peerSet = host.Peerstore().Peers()
-	}
-
-	var peers peer.IDSlice
-	for _, peer := range peerSet {
-		protocols, err := host.Peerstore().SupportsProtocols(peer, protocolId)
-		if err != nil {
-			return "", err
-		}
-
-		if len(protocols) > 0 {
-			peers = append(peers, peer)
-		}
+	peers, err := FilterPeersByProto(host, specificPeers, protocolId)
+	if err != nil {
+		return "", err
 	}
 
 	if len(peers) >= 1 {
