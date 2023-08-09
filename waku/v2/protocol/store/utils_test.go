@@ -12,10 +12,10 @@ import (
 
 func MemoryDB(t *testing.T) *persistence.DBStore {
 	var db *sql.DB
-	db, migration, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
 
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migration))
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)
 
 	return dbStore
