@@ -16,7 +16,6 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -103,10 +102,6 @@ func (store *WakuStore) SetMessageProvider(p MessageProvider) {
 // Sets the host to be able to mount or consume a protocol
 func (store *WakuStore) SetHost(h host.Host) {
 	store.h = h
-}
-
-func (store *WakuStore) SetPeerManager(pm *peermanager.PeerManager) {
-	store.pm = pm
 }
 
 // Start initializes the WakuStore by enabling the protocol and fetching records from a message provider

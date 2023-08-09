@@ -55,6 +55,17 @@ func FilterPeersByProto(host host.Host, specificPeers peer.IDSlice, proto ...pro
 	return peers, nil
 }
 
+func SelectRandomPeer(peers peer.IDSlice, log *zap.Logger) (peer.ID, error) {
+	if len(peers) >= 1 {
+		peerID := peers[rand.Intn(len(peers))]
+		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
+		log.Info("Got random peer from peerstore", zap.String("peerId", peerID.Pretty()))
+		return peerID, nil // nolint: gosec
+	}
+
+	return "", ErrNoPeersAvailable
+}
+
 // SelectPeer is used to return a random peer that supports a given protocol.
 // Note: Use this method only if WakuNode is not being initialized, otherwise use peermanager.SelectPeer.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
@@ -72,12 +83,7 @@ func SelectPeer(host host.Host, protocolId protocol.ID, specificPeers []peer.ID,
 		return "", err
 	}
 
-	if len(peers) >= 1 {
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-		return peers[rand.Intn(len(peers))], nil // nolint: gosec
-	}
-
-	return "", ErrNoPeersAvailable
+	return SelectRandomPeer(peers, log)
 }
 
 type pingResult struct {

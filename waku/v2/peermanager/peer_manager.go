@@ -2,7 +2,6 @@ package peermanager
 
 import (
 	"context"
-	"math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -170,12 +169,5 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 		return peerID, nil
 	}
 
-	if len(filteredPeers) >= 1 {
-		peerID = filteredPeers[rand.Intn(len(filteredPeers))]
-		pm.logger.Info("Got random peer from peerstore", zap.String("peerId", peerID.Pretty()))
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-		return peerID, nil // nolint: gosec
-	}
-
-	return "", utils.ErrNoPeersAvailable
+	return utils.SelectRandomPeer(filteredPeers, pm.logger)
 }
