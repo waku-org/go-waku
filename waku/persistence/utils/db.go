@@ -49,9 +49,11 @@ func ExtractDBAndMigration(databaseURL string, dbSettings DBSettings, logger *za
 	dbParams := dbURLParts[1]
 	switch dbEngine {
 	case "sqlite3":
-		db, migrationFn, err = sqlite.NewDB(dbParams, dbSettings.Vacuum, logger)
+		db, err = sqlite.NewDB(dbParams, dbSettings.Vacuum, logger)
+		migrationFn = sqlite.Migrations
 	case "postgresql":
-		db, migrationFn, err = postgres.NewDB(dbURL, dbSettings.Vacuum, logger)
+		db, err = postgres.NewDB(dbURL, dbSettings.Vacuum, logger)
+		migrationFn = postgres.Migrations
 	default:
 		err = errors.New("unsupported database engine")
 	}

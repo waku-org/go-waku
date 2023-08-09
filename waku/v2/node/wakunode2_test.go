@@ -230,9 +230,9 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	subs.Unsubscribe()
 
 	// NODE2: Filter Client/Store
-	db, migration, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migration))
+	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)
 
 	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")

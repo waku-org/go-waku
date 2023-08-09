@@ -121,9 +121,11 @@ func WithRetentionPolicy(maxMessages int, maxDuration time.Duration) DBOption {
 	}
 }
 
+type MigrationFn func(db *sql.DB) error
+
 // WithMigrations is a DBOption used to determine if migrations should
 // be executed, and what driver to use
-func WithMigrations(migrationFn func(db *sql.DB) error) DBOption {
+func WithMigrations(migrationFn MigrationFn) DBOption {
 	return func(d *DBStore) error {
 		d.enableMigrations = true
 		d.migrationFn = migrationFn

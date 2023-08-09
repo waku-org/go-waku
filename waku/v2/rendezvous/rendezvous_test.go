@@ -3,7 +3,6 @@ package rendezvous
 import (
 	"context"
 	"crypto/rand"
-	"database/sql"
 	"fmt"
 	"sync"
 	"testing"
@@ -46,11 +45,10 @@ func TestRendezvous(t *testing.T) {
 	host1, err := tests.MakeHost(ctx, port1, rand.Reader)
 	require.NoError(t, err)
 
-	var db *sql.DB
-	db, migration, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
 
-	err = migration(db)
+	err = sqlite.Migrations(db)
 	require.NoError(t, err)
 
 	rdb := NewDB(ctx, db, utils.Logger())

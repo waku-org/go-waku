@@ -30,32 +30,6 @@ func addSqliteURLDefaults(dburl string) string {
 	return dburl
 }
 
-// WithDB is a DBOption that lets you use a sqlite3 DBStore and run migrations
-func WithDB(dburl string, migrate bool) persistence.DBOption {
-	return func(d *persistence.DBStore) error {
-		driverOption := persistence.WithDriver("sqlite3", addSqliteURLDefaults(dburl), persistence.ConnectionPoolOptions{
-			// Disable concurrent access as not supported by the driver
-			MaxOpenConnections: 1,
-		})
-		err := driverOption(d)
-		if err != nil {
-			return err
-		}
-
-		if !migrate {
-			return nil
-		}
-
-		migrationOpt := persistence.WithMigrations(Migrate)
-		err = migrationOpt(d)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
-
 func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 	logger.Info("starting sqlite database vacuuming")
 	_, err := db.Exec("VACUUM")
@@ -67,10 +41,10 @@ func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 }
 
 // NewDB creates a sqlite3 DB in the specified path
-func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
+func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", addSqliteURLDefaults(dburl))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Disable concurrent access as not supported by the driver
@@ -79,11 +53,11 @@ func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*
 	if shouldVacuum {
 		err := executeVacuum(db, logger)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	return db, Migrate, nil
+	return db, nil
 }
 
 func migrationDriver(db *sql.DB) (database.Driver, error) {
@@ -92,8 +66,8 @@ func migrationDriver(db *sql.DB) (database.Driver, error) {
 	})
 }
 
-// Migrate is the function used for DB migration with sqlite driver
-func Migrate(db *sql.DB) error {
+// Migrations is the function used for DB migration with sqlite driver
+func Migrations(db *sql.DB) error {
 	migrationDriver, err := migrationDriver(db)
 	if err != nil {
 		return err

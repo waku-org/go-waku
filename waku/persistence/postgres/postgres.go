@@ -13,29 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// WithDB is a DBOption that lets you use a postgresql DBStore and run migrations
-func WithDB(dburl string, migrate bool, shouldVacuum bool) persistence.DBOption {
-	return func(d *persistence.DBStore) error {
-		driverOption := persistence.WithDriver("pgx", dburl)
-		err := driverOption(d)
-		if err != nil {
-			return err
-		}
-
-		if !migrate {
-			return nil
-		}
-
-		migrationOpt := persistence.WithMigrations(Migrate)
-		err = migrationOpt(d)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
-
 func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 	logger.Info("starting PostgreSQL database vacuuming")
 	_, err := db.Exec("VACUUM FULL")
@@ -47,20 +24,20 @@ func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 }
 
 // NewDB connects to postgres DB in the specified path
-func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
+func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, error) {
 	db, err := sql.Open("pgx", dburl)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if shouldVacuum {
 		err := executeVacuum(db, logger)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	return db, Migrate, nil
+	return db, nil
 }
 
 func migrationDriver(db *sql.DB) (database.Driver, error) {
@@ -69,8 +46,8 @@ func migrationDriver(db *sql.DB) (database.Driver, error) {
 	})
 }
 
-// Migrate is the function used for DB migration with postgres driver
-func Migrate(db *sql.DB) error {
+// Migrations is the function used for DB migration with postgres driver
+func Migrations(db *sql.DB) error {
 	migrationDriver, err := migrationDriver(db)
 	if err != nil {
 		return err
