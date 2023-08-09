@@ -115,16 +115,6 @@ var (
 		Destination: &options.KeyPasswd,
 		EnvVars:     []string{"WAKUNODE2_KEY_PASSWORD"},
 	})
-	GenerateKey = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "generate-key",
-		Usage:       "Generate private key file at path specified in --key-file with the password defined by --key-password",
-		Destination: &options.GenerateKey,
-	})
-	Overwrite = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "overwrite",
-		Usage:       "When generating a keyfile, overwrite the nodekey file if it already exists",
-		Destination: &options.Overwrite,
-	})
 	StaticNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "staticnode",
 		Usage: "Multiaddr of peer to directly connect with. Option may be repeated",
