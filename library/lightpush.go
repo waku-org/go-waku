@@ -50,23 +50,3 @@ func LightpushPublish(messageJSON string, topic string, peerID string, ms int) (
 
 	return lightpushPublish(msg, getTopic(topic), peerID, ms)
 }
-
-// LightpushPublishEncodeAsymmetric is used to publish a WakuMessage in a pubsub topic using Lightpush protocol, and encrypting the message with some public key
-func LightpushPublishEncodeAsymmetric(messageJSON string, topic string, peerID string, publicKey string, optionalSigningKey string, ms int) (string, error) {
-	msg, err := wakuMessageAsymmetricEncoding(messageJSON, publicKey, optionalSigningKey)
-	if err != nil {
-		return "", err
-	}
-
-	return lightpushPublish(msg, getTopic(topic), peerID, ms)
-}
-
-// LightpushPublishEncodeSymmetric is used to publish a WakuMessage in a pubsub topic using Lightpush protocol, and encrypting the message with a symmetric key
-func LightpushPublishEncodeSymmetric(messageJSON string, topic string, peerID string, symmetricKey string, optionalSigningKey string, ms int) (string, error) {
-	msg, err := wakuMessageSymmetricEncoding(messageJSON, symmetricKey, optionalSigningKey)
-	if err != nil {
-		return "", err
-	}
-
-	return lightpushPublish(msg, getTopic(topic), peerID, ms)
-}
