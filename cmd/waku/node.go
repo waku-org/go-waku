@@ -64,7 +64,7 @@ func failOnErr(err error, msg string) {
 	}
 }
 
-func requiresDB(options Options) bool {
+func requiresDB(options NodeOptions) bool {
 	return options.Store.Enable || options.Rendezvous.Enable
 }
 
@@ -83,14 +83,7 @@ func scalePerc(value float64) float64 {
 const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
-func Execute(options Options) {
-	if options.GenerateKey {
-		if err := writePrivateKeyToFile(options.KeyFile, []byte(options.KeyPasswd), options.Overwrite); err != nil {
-			failOnErr(err, "nodekey error")
-		}
-		return
-	}
-
+func Execute(options NodeOptions) {
 	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
 	failOnErr(err, "invalid host address")
 
@@ -528,53 +521,7 @@ func loadPrivateKeyFromFile(path string, passwd string) (*ecdsa.PrivateKey, erro
 	return crypto.ToECDSA(pKey)
 }
 
-func checkForFileExistence(path string, overwrite bool) error {
-	_, err := os.Stat(path)
-
-	if err == nil && !overwrite {
-		return fmt.Errorf("%s already exists. Use --overwrite to overwrite the file", path)
-	}
-
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	return nil
-}
-
-func generatePrivateKey() ([]byte, error) {
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return key.D.Bytes(), nil
-}
-
-func writePrivateKeyToFile(path string, passwd []byte, overwrite bool) error {
-	if err := checkForFileExistence(path, overwrite); err != nil {
-		return err
-	}
-
-	key, err := generatePrivateKey()
-	if err != nil {
-		return err
-	}
-
-	encryptedK, err := keystore.EncryptDataV3(key, passwd, keystore.StandardScryptN, keystore.StandardScryptP)
-	if err != nil {
-		return err
-	}
-
-	output, err := json.Marshal(encryptedK)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, output, 0600)
-}
-
-func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
+func getPrivKey(options NodeOptions) (*ecdsa.PrivateKey, error) {
 	var prvKey *ecdsa.PrivateKey
 	// get private key from nodeKey or keyFile
 	if options.NodeKey != nil {
@@ -597,7 +544,7 @@ func getPrivKey(options Options) (*ecdsa.PrivateKey, error) {
 	return prvKey, nil
 }
 
-func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption, options Options) {
+func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption, options NodeOptions) {
 	params := new(node.WakuNodeParameters)
 	for _, opt := range nodeOpts {
 		err := opt(params)

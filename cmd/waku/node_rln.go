@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func checkForRLN(logger *zap.Logger, options Options, nodeOpts *[]node.WakuNodeOption) {
+func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuNodeOption) {
 	if options.RLNRelay.Enable {
 		if !options.Relay.Enable {
 			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")

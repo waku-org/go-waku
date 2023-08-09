@@ -5,10 +5,11 @@ import (
 
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
+	"github.com/waku-org/go-waku/cmd/waku/keygen"
 	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
-var options Options
+var options NodeOptions
 
 func main() {
 	// Defaults
@@ -31,8 +32,6 @@ func main() {
 		NodeKey,
 		KeyFile,
 		KeyPassword,
-		GenerateKey,
-		Overwrite,
 		StaticNode,
 		KeepAlive,
 		PersistPeers,
@@ -110,6 +109,9 @@ func main() {
 		Action: func(c *cli.Context) error {
 			Execute(options)
 			return nil
+		},
+		Commands: []*cli.Command{
+			&keygen.Command,
 		},
 	}
 

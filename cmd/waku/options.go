@@ -142,17 +142,15 @@ type RendezvousOptions struct {
 	Nodes  []multiaddr.Multiaddr
 }
 
-// Options contains all the available features and settings that can be
+// NodeOptions contains all the available features and settings that can be
 // configured via flags when executing go-waku as a service.
-type Options struct {
+type NodeOptions struct {
 	Port                         int
 	Address                      string
 	DNS4DomainName               string
 	NodeKey                      *ecdsa.PrivateKey
 	KeyFile                      string
 	KeyPasswd                    string
-	GenerateKey                  bool
-	Overwrite                    bool
 	StaticNodes                  []multiaddr.Multiaddr
 	KeepAlive                    time.Duration
 	AdvertiseAddresses           []multiaddr.Multiaddr
