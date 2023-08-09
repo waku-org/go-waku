@@ -16,18 +16,6 @@ func RelayPublish(messageJSON string, topic string, ms int) string {
 	return prepareJSONResponse(hash, err)
 }
 
-// RelayPublishEncodeAsymmetric publish a message encrypted with a secp256k1 public key using waku relay and returns the message ID
-func RelayPublishEncodeAsymmetric(messageJSON string, topic string, publicKey string, optionalSigningKey string, ms int) string {
-	hash, err := library.RelayPublishEncodeAsymmetric(messageJSON, topic, publicKey, optionalSigningKey, ms)
-	return prepareJSONResponse(hash, err)
-}
-
-// RelayPublishEncodeSymmetric publishes a message encrypted with a 32 bytes symmetric key using waku relay and returns the message ID
-func RelayPublishEncodeSymmetric(messageJSON string, topic string, symmetricKey string, optionalSigningKey string, ms int) string {
-	hash, err := library.RelayPublishEncodeSymmetric(messageJSON, topic, symmetricKey, optionalSigningKey, ms)
-	return prepareJSONResponse(hash, err)
-}
-
 // RelaySubscribe subscribes to a WakuRelay topic.
 func RelaySubscribe(topic string) string {
 	err := library.RelaySubscribe(topic)

@@ -92,15 +92,3 @@ func Peers() string {
 	peers, err := library.Peers()
 	return prepareJSONResponse(peers, err)
 }
-
-// DecodeSymmetric decodes a waku message using a 32 bytes symmetric key. The key must be a hex encoded string with "0x" prefix
-func DecodeSymmetric(messageJSON string, symmetricKey string) string {
-	response, err := library.DecodeSymmetric(messageJSON, symmetricKey)
-	return prepareJSONResponse(response, err)
-}
-
-// DecodeAsymmetric decodes a waku message using a secp256k1 private key. The key must be a hex encoded string with "0x" prefix
-func DecodeAsymmetric(messageJSON string, privateKey string) string {
-	response, err := library.DecodeAsymmetric(messageJSON, privateKey)
-	return prepareJSONResponse(response, err)
-}

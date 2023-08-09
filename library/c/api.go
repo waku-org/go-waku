@@ -235,21 +235,3 @@ func waku_peers(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
 		return library.Peers()
 	}, onOkCb, onErrCb)
 }
-
-// Decode a waku message using a 32 bytes symmetric key. The key must be a hex encoded string with "0x" prefix
-//
-//export waku_decode_symmetric
-func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.DecodeSymmetric(C.GoString(messageJSON), C.GoString(symmetricKey))
-	}, onOkCb, onErrCb)
-}
-
-// Decode a waku message using a secp256k1 private key. The key must be a hex encoded string with "0x" prefix
-//
-//export waku_decode_asymmetric
-func waku_decode_asymmetric(messageJSON *C.char, privateKey *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.DecodeAsymmetric(C.GoString(messageJSON), C.GoString(privateKey))
-	}, onOkCb, onErrCb)
-}

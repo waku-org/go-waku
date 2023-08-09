@@ -135,7 +135,11 @@ int main(int argc, char *argv[])
     sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%"PRIu64"}", msgPayload, contentTopic, nowInNanosecs());
     free(msgPayload);
 
-    WAKU_CALL(waku_relay_publish_enc_asymmetric(wakuMsg, NULL, bobPubKey, alicePrivKey, 0, handle_ok, handle_error)); // Broadcast via waku relay a message encrypting it with Bob's PubK, and signing it with Alice PrivK
+
+    WAKU_CALL(waku_encode_asymmetric(wakuMsg, bobPubKey, alicePrivKey, handle_ok, handle_error));
+    char *encodedMessage = strdup(result);
+
+    WAKU_CALL(waku_relay_publish(encodedMessage, NULL, 0, handle_ok, handle_error)); // Broadcast via waku relay
     printf("C\n");
 
     char *messageID = strdup(result);
