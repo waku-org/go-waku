@@ -55,6 +55,7 @@ func FilterPeersByProto(host host.Host, specificPeers peer.IDSlice, proto ...pro
 	return peers, nil
 }
 
+// SelectRandomPeer selects randomly a peer from the list of peers passed.
 func SelectRandomPeer(peers peer.IDSlice, log *zap.Logger) (peer.ID, error) {
 	if len(peers) >= 1 {
 		peerID := peers[rand.Intn(len(peers))]

@@ -677,34 +677,9 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 	return nil
 }
 
-func (w *WakuNode) addPeer(info *peer.AddrInfo, origin peerstore1.Origin, protocols ...protocol.ID) error {
-	w.log.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
-	err := w.host.Peerstore().(peerstore1.WakuPeerstore).SetOrigin(info.ID, origin)
-	if err != nil {
-		return err
-	}
-
-	w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.AddressTTL)
-	err = w.host.Peerstore().AddProtocols(info.ID, protocols...)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
 func (w *WakuNode) AddPeer(address ma.Multiaddr, origin peerstore1.Origin, protocols ...protocol.ID) (peer.ID, error) {
-	info, err := peer.AddrInfoFromP2pAddr(address)
-	if err != nil {
-		return "", err
-	}
-	//Add Service peers to serviceSlots.
-	for _, service := range protocols {
-		if service != relay.WakuRelayID_v200 {
-			w.peermanager.AddServicePeer(service, info.ID)
-		}
-	}
-	return info.ID, w.addPeer(info, origin, protocols...)
+	return w.peermanager.AddPeer(address, origin, protocols...)
 }
 
 // DialPeerWithMultiAddress is used to connect to a peer using a multiaddress

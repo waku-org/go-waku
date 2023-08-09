@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/multiformats/go-multiaddr"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 
@@ -109,12 +110,32 @@ func (pm *PeerManager) pruneInRelayConns() {
 	}
 }
 
-// AddPeer adds peer to the peerStore
-func (pm *PeerManager) AddPeer(peerID peer.ID, addrs []multiaddr.Multiaddr, enr *enode.Node, origin wps.Origin) {
-	// TODO: Move all peer addition logic to peermanager.
-	//TODO: Add peer to peerStore
-	//Set origin, ENR and Direction and any other required items in Waku Peer Store.
+// AddPeer adds peer to the peerStore and also to service slots
+func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
+	info, err := peer.AddrInfoFromP2pAddr(address)
+	if err != nil {
+		return "", err
+	}
 
+	//Add Service peers to serviceSlots.
+	for _, service := range protocols {
+		if service != WakuRelayIDv200 {
+			pm.AddPeerToServiceSlot(service, info.ID)
+		}
+	}
+	//Set origin, ENR and Direction and any other required items in Waku Peer Store.
+	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
+	err = pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(info.ID, origin)
+	if err != nil {
+		return "", err
+	}
+
+	pm.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.AddressTTL)
+	err = pm.host.Peerstore().AddProtocols(info.ID, protocols...)
+	if err != nil {
+		return "", err
+	}
+	return info.ID, nil
 }
 
 // RemovePeer deletes peer from the peerStore after disconnecting it.
@@ -124,17 +145,17 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 
 }
 
-// AddServicePeer adds a peerID to serviceSlot of peerManager.
-// Adding to peerStore is already done by caller.
+// AddServicePeer adds a peerID to serviceSlot.
+// Adding to peerStore is expected to be already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
-// For relay peers use AddPeer.
-func (pm *PeerManager) AddServicePeer(proto protocol.ID, peerID peer.ID) {
+func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	if proto == WakuRelayIDv200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
 	}
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
 	//TODO: Ideally we should maintain multiple peers per service and return best peer based on peer score or RTT etc.
+	//Should we override service slot if peer is identified dynamically?
 	pm.logger.Info("Adding peer to service slots", zap.String("peerId", peerID.Pretty()), zap.String("service", string(proto)))
 	pm.serviceSlots[proto] = peerID
 }

@@ -225,6 +225,7 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case p := <-c.peerCh:
+					//TODO: Modify to use peermanager AddPeer
 					c.host.Peerstore().AddAddrs(p.AddrInfo.ID, p.AddrInfo.Addrs, peerstore.AddressTTL)
 					err := c.host.Peerstore().(wps.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
 					if err != nil {
