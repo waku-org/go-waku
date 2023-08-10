@@ -154,7 +154,7 @@ func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
 	//TODO: Ideally we should maintain multiple peers per service and return best peer based on peer score or RTT etc.
 	//Should we override service slot if peer is identified dynamically?
-	pm.logger.Info("Adding peer to service slots", logging.HostID("peerID", peerID), zap.String("service", string(proto)))
+	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID), zap.String("service", string(proto)))
 	pm.serviceSlots[proto] = peerID
 }
 
@@ -174,17 +174,13 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 		return "", err
 	}
 	if proto == WakuRelayIDv200 {
-		if filteredPeers.Len() > 0 {
-			pm.logger.Info("Got peer from peerstore", logging.HostID("peerID", filteredPeers[0]))
-			return filteredPeers[0], nil
-		}
-		return "", utils.ErrNoPeersAvailable
+		return utils.SelectRandomPeer(filteredPeers, pm.logger)
 	}
 
 	//Try to fetch from serviceSlot
 	peerID, ok := pm.serviceSlots[proto]
 	if ok {
-		pm.logger.Info("Got peer from service slots", logging.hostID("peerID", peerID))
+		pm.logger.Info("Got peer from service slots", logging.HostID("peer", peerID))
 		return peerID, nil
 	}
 
