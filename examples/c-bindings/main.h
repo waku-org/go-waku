@@ -7,6 +7,14 @@
 /// Convert seconds to nanoseconds
 #define SEC_TO_NS(sec) ((sec)*1000000000)
 
+#define WAKU_CALL(call)                                                        \
+do {                                                                           \
+  int ret = call;                                                              \
+  if (ret != 0) {                                                              \
+    printf("Failed the call to: %s. Returned code: %d\n", #call, ret);         \
+    exit(1);                                                                   \
+  }                                                                            \
+} while (0)
 
 uint64_t nowInNanosecs(){
   uint64_t nanoseconds;
@@ -48,9 +56,8 @@ bool isError(char *input)
 }
 
 
-char *utils_extract_wakumessage_from_signal(const nx_json *signal)
+char *utils_extract_wakumessage_from_signal(const nx_json *wakuMsgJson)
 {
-    const nx_json *wakuMsgJson = nx_json_get(nx_json_get(signal, "event"), "wakuMessage");
     const char *payload = nx_json_get(wakuMsgJson, "payload")->text_value;
     const char *contentTopic = nx_json_get(wakuMsgJson, "contentTopic")->text_value;
     int version = nx_json_get(wakuMsgJson, "version")->int_value;
@@ -62,38 +69,5 @@ char *utils_extract_wakumessage_from_signal(const nx_json *signal)
     return response;
 }
 
-long long utils_get_int(char *input)
-{
-    char *jsonStr = malloc(strlen(input) + 1);
-    strcpy(jsonStr, input);
-    const nx_json *json = nx_json_parse(jsonStr, 0);
-    long long result = -1;
-    if (json)
-    {
-        result = nx_json_get(json, "result")->int_value;
-    }
-    nx_json_free(json);
-    free(jsonStr);
-
-    return result;
-}
-
-char *utils_get_str(char *input)
-{
-    char *jsonStr = malloc(strlen(input) + 1);
-    strcpy(jsonStr, input);
-    const nx_json *json = nx_json_parse(jsonStr, 0);
-    char *result = "";
-    if (json)
-    {
-        const char *text_value = nx_json_get(json, "result")->text_value;
-        result = strdup(text_value);
-    }
-
-    nx_json_free(json);
-    free(jsonStr);
-
-    return result;
-}
 
 #endif /* MAIN_H */

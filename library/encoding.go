@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"encoding/json"

@@ -1,10 +1,10 @@
 package main
 
-import (
-	"C"
-
-	mobile "github.com/waku-org/go-waku/mobile"
-)
+/*
+#include <cgo_utils.h>
+*/
+import "C"
+import "github.com/waku-org/go-waku/library"
 
 // Creates a subscription to a filter full node matching a content filter.
 // filterJSON must contain a JSON with this format:
@@ -20,9 +20,10 @@ import (
 // It returns a json object containing the peerID to which we are subscribed to and the details of the subscription
 //
 //export waku_filter_subscribe
-func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char {
-	response := mobile.FilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return singleFnExec(func() (string, error) {
+		return library.FilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
+	}, onOkCb, onErrCb)
 }
 
 // Used to know if a service node has an active subscription for this client
@@ -31,9 +32,9 @@ func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_ping
-func waku_filter_ping(peerID *C.char, ms C.int) *C.char {
-	response := mobile.FilterPing(C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_filter_ping(peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+	err := library.FilterPing(C.GoString(peerID), int(ms))
+	return execErrCB(onErrCb, err)
 }
 
 // Sends a requests to a service node to stop pushing messages matching this filter to this client.
@@ -50,9 +51,9 @@ func waku_filter_ping(peerID *C.char, ms C.int) *C.char {
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_unsubscribe
-func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char {
-	response := mobile.FilterUnsubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+	err := library.FilterUnsubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
+	return execErrCB(onErrCb, err)
 }
 
 // Sends a requests to a service node (or all service nodes) to stop pushing messages
@@ -62,7 +63,8 @@ func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.ch
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_unsubscribe_all
-func waku_filter_unsubscribe_all(peerID *C.char, ms C.int) *C.char {
-	response := mobile.FilterUnsubscribeAll(C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_filter_unsubscribe_all(peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return singleFnExec(func() (string, error) {
+		return library.FilterUnsubscribeAll(C.GoString(peerID), int(ms))
+	}, onOkCb, onErrCb)
 }

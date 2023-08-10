@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"context"
@@ -10,13 +10,14 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 )
 
-type DnsDiscoveryItem struct {
+type dnsDiscoveryItem struct {
 	PeerID    string   `json:"peerID"`
 	Addresses []string `json:"multiaddrs"`
 	ENR       string   `json:"enr,omitempty"`
 }
 
-func DnsDiscovery(url string, nameserver string, ms int) string {
+// DNSDiscovery executes dns discovery on an url and returns a list of nodes
+func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -34,12 +35,12 @@ func DnsDiscovery(url string, nameserver string, ms int) string {
 
 	nodes, err := dnsdisc.RetrieveNodes(ctx, url, dnsDiscOpt...)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	var response []DnsDiscoveryItem
+	var response []dnsDiscoveryItem
 	for _, n := range nodes {
-		item := DnsDiscoveryItem{
+		item := dnsDiscoveryItem{
 			PeerID: n.PeerID.String(),
 		}
 		for _, addr := range n.PeerInfo.Addrs {
@@ -53,53 +54,51 @@ func DnsDiscovery(url string, nameserver string, ms int) string {
 		response = append(response, item)
 	}
 
-	return PrepareJSONResponse(response, nil)
+	return marshalJSON(response)
 }
 
-func StartDiscoveryV5() string {
+// StartDiscoveryV5 starts discv5 discovery
+func StartDiscoveryV5() error {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 	if wakuState.node.DiscV5() == nil {
-		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
+		return errors.New("DiscV5 is not mounted")
 	}
-	err := wakuState.node.DiscV5().Start(context.Background())
-	if err != nil {
-		return MakeJSONResponse(err)
-	}
-
-	return MakeJSONResponse(nil)
+	return wakuState.node.DiscV5().Start(context.Background())
 }
 
-func StopDiscoveryV5() string {
+// StopDiscoveryV5 stops discv5 discovery
+func StopDiscoveryV5() error {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 	if wakuState.node.DiscV5() == nil {
-		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
+		return errors.New("DiscV5 is not mounted")
 	}
 	wakuState.node.DiscV5().Stop()
-	return MakeJSONResponse(nil)
+	return nil
 }
 
-func SetBootnodes(bootnodes string) string {
+// SetBootnodes is used to update the bootnodes receiving a JSON array of ENRs
+func SetBootnodes(bootnodes string) error {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 	if wakuState.node.DiscV5() == nil {
-		return MakeJSONResponse(errors.New("DiscV5 is not mounted"))
+		return errors.New("DiscV5 is not mounted")
 	}
 
 	var tmp []json.RawMessage
 	if err := json.Unmarshal([]byte(bootnodes), &tmp); err != nil {
-		return MakeJSONResponse(err)
+		return err
 	}
 
 	var enrList []string
 	for _, el := range tmp {
 		var enr string
 		if err := json.Unmarshal(el, &enr); err != nil {
-			return MakeJSONResponse(err)
+			return err
 		}
 		enrList = append(enrList, enr)
 	}
@@ -108,11 +107,10 @@ func SetBootnodes(bootnodes string) string {
 	for _, addr := range enrList {
 		node, err := enode.Parse(enode.ValidSchemes, addr)
 		if err != nil {
-			return MakeJSONResponse(err)
+			return err
 		}
 		nodes = append(nodes, node)
 	}
 
-	err := wakuState.node.DiscV5().SetBootnodes(nodes)
-	return MakeJSONResponse(err)
+	return wakuState.node.DiscV5().SetBootnodes(nodes)
 }

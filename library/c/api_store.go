@@ -1,10 +1,10 @@
 package main
 
-import (
-	"C"
-
-	mobile "github.com/waku-org/go-waku/mobile"
-)
+/*
+#include <cgo_utils.h>
+*/
+import "C"
+import "github.com/waku-org/go-waku/library"
 
 // Query historic messages using waku store protocol.
 // queryJSON must contain a valid json string with the following format:
@@ -36,9 +36,10 @@ import (
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_store_query
-func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int) *C.char {
-	response := mobile.StoreQuery(C.GoString(queryJSON), C.GoString(peerID), int(ms))
-	return C.CString(response)
+func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return singleFnExec(func() (string, error) {
+		return library.StoreQuery(C.GoString(queryJSON), C.GoString(peerID), int(ms))
+	}, onOkCb, onErrCb)
 }
 
 // Query historic messages stored in the localDB using waku store protocol.
@@ -69,7 +70,8 @@ func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int) *C.char {
 // Requires the `store` option to be passed when setting up the initial configuration
 //
 //export waku_store_local_query
-func waku_store_local_query(queryJSON *C.char) *C.char {
-	response := mobile.StoreLocalQuery(C.GoString(queryJSON))
-	return C.CString(response)
+func waku_store_local_query(queryJSON *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
+	return singleFnExec(func() (string, error) {
+		return library.StoreLocalQuery(C.GoString(queryJSON))
+	}, onOkCb, onErrCb)
 }

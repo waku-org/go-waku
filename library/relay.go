@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"context"
@@ -15,9 +15,10 @@ import (
 var relaySubscriptions map[string]*relay.Subscription = make(map[string]*relay.Subscription)
 var relaySubsMutex sync.Mutex
 
-func RelayEnoughPeers(topic string) string {
+// RelayEnoughPeers determines if there are enough peers to publish a message on a topic
+func RelayEnoughPeers(topic string) (bool, error) {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return false, errWakuNodeNotReady
 	}
 
 	topicToCheck := protocol.DefaultPubsubTopic().String()
@@ -25,7 +26,7 @@ func RelayEnoughPeers(topic string) string {
 		topicToCheck = topic
 	}
 
-	return PrepareJSONResponse(wakuState.node.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil)
+	return wakuState.node.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil
 }
 
 func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
@@ -47,36 +48,34 @@ func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, erro
 	return hexutil.Encode(hash), err
 }
 
-func RelayPublish(messageJSON string, topic string, ms int) string {
+// RelayPublish publishes a message using waku relay and returns the message ID
+func RelayPublish(messageJSON string, topic string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	hash, err := relayPublish(msg, getTopic(topic), int(ms))
-	return PrepareJSONResponse(hash, err)
+	return relayPublish(msg, getTopic(topic), int(ms))
 }
 
-func RelayPublishEncodeAsymmetric(messageJSON string, topic string, publicKey string, optionalSigningKey string, ms int) string {
+// RelayPublishEncodeAsymmetric publish a message encrypted with a secp256k1 public key using waku relay and returns the message ID
+func RelayPublishEncodeAsymmetric(messageJSON string, topic string, publicKey string, optionalSigningKey string, ms int) (string, error) {
 	msg, err := wakuMessageAsymmetricEncoding(messageJSON, publicKey, optionalSigningKey)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	hash, err := relayPublish(msg, getTopic(topic), int(ms))
-
-	return PrepareJSONResponse(hash, err)
+	return relayPublish(msg, getTopic(topic), int(ms))
 }
 
-func RelayPublishEncodeSymmetric(messageJSON string, topic string, symmetricKey string, optionalSigningKey string, ms int) string {
+// RelayPublishEncodeSymmetric publishes a message encrypted with a 32 bytes symmetric key using waku relay and returns the message ID
+func RelayPublishEncodeSymmetric(messageJSON string, topic string, symmetricKey string, optionalSigningKey string, ms int) (string, error) {
 	msg, err := wakuMessageSymmetricEncoding(messageJSON, symmetricKey, optionalSigningKey)
 	if err != nil {
-		return MakeJSONResponse(err)
+		return "", err
 	}
 
-	hash, err := relayPublish(msg, getTopic(topic), int(ms))
-
-	return PrepareJSONResponse(hash, err)
+	return relayPublish(msg, getTopic(topic), int(ms))
 }
 
 func relaySubscribe(topic string) error {
@@ -106,25 +105,28 @@ func relaySubscribe(topic string) error {
 	return nil
 }
 
-func RelaySubscribe(topic string) string {
+// RelaySubscribe subscribes to a WakuRelay topic.
+func RelaySubscribe(topic string) error {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 
-	return MakeJSONResponse(relaySubscribe(topic))
+	return relaySubscribe(topic)
 }
 
-func RelayTopics() string {
+// RelayTopics returns a list of pubsub topics the node is subscribed to in WakuRelay
+func RelayTopics() (string, error) {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return "", errWakuNodeNotReady
 	}
 
-	return PrepareJSONResponse(wakuState.node.Relay().Topics(), nil)
+	return marshalJSON(wakuState.node.Relay().Topics())
 }
 
-func RelayUnsubscribe(topic string) string {
+// RelayUnsubscribe closes the pubsub subscription to a pubsub topic
+func RelayUnsubscribe(topic string) error {
 	if wakuState.node == nil {
-		return MakeJSONResponse(errWakuNodeNotReady)
+		return errWakuNodeNotReady
 	}
 
 	topicToUnsubscribe := getTopic(topic)
@@ -134,17 +136,12 @@ func RelayUnsubscribe(topic string) string {
 
 	subscription, ok := relaySubscriptions[topicToUnsubscribe]
 	if ok {
-		return MakeJSONResponse(nil)
+		return nil
 	}
 
 	subscription.Unsubscribe()
 
 	delete(relaySubscriptions, topicToUnsubscribe)
 
-	err := wakuState.node.Relay().Unsubscribe(context.Background(), topicToUnsubscribe)
-	if err != nil {
-		return MakeJSONResponse(err)
-	}
-
-	return MakeJSONResponse(nil)
+	return wakuState.node.Relay().Unsubscribe(context.Background(), topicToUnsubscribe)
 }

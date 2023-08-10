@@ -1,13 +1,13 @@
 //go:build darwin && cgo
 // +build darwin,cgo
 
-package gowaku
+package library
 
 /*
 #cgo CFLAGS: -x objective-c
 #cgo LDFLAGS: -framework Foundation
 #include <stddef.h>
 #include <stdbool.h>
-extern bool StatusServiceSignalEvent( const char *jsonEvent );
+extern bool ServiceSignalEvent( const char *jsonEvent );
 */
 import "C"

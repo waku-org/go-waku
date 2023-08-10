@@ -1,4 +1,4 @@
-package gowaku
+package library
 
 import (
 	"encoding/json"
@@ -308,7 +308,7 @@ func getSeenTTL(cfg WakuConfig) time.Duration {
 	return time.Duration(*cfg.GossipSubParams.SeenMessagesTTLSeconds)
 }
 
-func GetGossipSubParams(cfg *GossipSubParams) pubsub.GossipSubParams {
+func getGossipSubParams(cfg *GossipSubParams) pubsub.GossipSubParams {
 	params := pubsub.DefaultGossipSubParams()
 
 	if cfg.D != nil {

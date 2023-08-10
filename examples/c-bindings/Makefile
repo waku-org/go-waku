@@ -31,7 +31,7 @@ build:
 	+ mkdir -p build
 	$(CC) \
 		-I../../build/lib/ \
-		main.c \
+		main.c base64.c \
 		../../build/lib/libgowaku.a \
 		-lm \
 		-pthread \
