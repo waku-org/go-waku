@@ -10,7 +10,7 @@
 typedef void (*callback)(const char *jsonEvent, size_t len_0);
 callback gCallback = 0;
 
-bool StatusServiceSignalEvent(const char *jsonEvent, size_t len_0) {
+bool ServiceSignalEvent(const char *jsonEvent, size_t len_0) {
 	if (gCallback) {
 		gCallback(jsonEvent, len_0);
 	}

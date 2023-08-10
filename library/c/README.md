@@ -6,7 +6,7 @@ This specification describes the API for consuming go-waku when built as a dynam
 
 # Introduction
 
-Native applications that wish to integrate Waku may not be able to use nwaku and its JSON RPC API due to constraints
+Native applications that wish to integrate Waku may not be able to use go-waku/nwaku and its JSON RPC API due to constraints
 on packaging, performance or executables.
 
 An alternative is to link existing Waku implementation as a static or dynamic library in their application.
