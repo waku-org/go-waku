@@ -38,7 +38,7 @@ func WithDB(dburl string, migrate bool, shouldVacuum bool) persistence.DBOption 
 
 func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 	logger.Info("starting PostgreSQL database vacuuming")
-	_, err := db.Exec("VACUUM")
+	_, err := db.Exec("VACUUM FULL")
 	if err != nil {
 		return err
 	}
