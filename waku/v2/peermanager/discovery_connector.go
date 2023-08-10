@@ -12,7 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
@@ -36,6 +35,7 @@ type PeerConnectionStrategy struct {
 
 	cache  *lru.TwoQueueCache
 	host   host.Host
+	pm     *PeerManager
 	cancel context.CancelFunc
 
 	paused       bool
@@ -112,6 +112,10 @@ func (c *PeerConnectionStrategy) consumeSubscription(ctx context.Context, ch <-c
 // Sets the host to be able to mount or consume a protocol
 func (c *PeerConnectionStrategy) SetHost(h host.Host) {
 	c.host = h
+}
+
+func (c *PeerConnectionStrategy) SetPeerManager(pm *PeerManager) {
+	c.pm = pm
 }
 
 // Start attempts to connect to the peers passed in by peerCh. Will not connect to peers if they are within the backoff period.
@@ -225,20 +229,7 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case p := <-c.peerCh:
-					//TODO: Modify to use peermanager AddPeer
-					c.host.Peerstore().AddAddrs(p.AddrInfo.ID, p.AddrInfo.Addrs, peerstore.AddressTTL)
-					err := c.host.Peerstore().(wps.WakuPeerstore).SetOrigin(p.AddrInfo.ID, p.Origin)
-					if err != nil {
-						c.logger.Error("could not set origin", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID))
-					}
-
-					if p.ENR != nil {
-						err = c.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
-						if err != nil {
-							c.logger.Error("could not store enr", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
-						}
-					}
-
+					c.pm.AddDiscoveredPeer(p)
 					c.publishWork(ctx, p.AddrInfo)
 				case <-time.After(1 * time.Second):
 					// This timeout is to not lock the goroutine

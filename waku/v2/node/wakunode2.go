@@ -33,7 +33,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	peerstore1 "github.com/waku-org/go-waku/waku/v2/peerstore"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
@@ -195,14 +195,14 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	// Setup peerstore wrapper
 	if params.peerstore != nil {
-		w.peerstore = peerstore1.NewWakuPeerstore(params.peerstore)
+		w.peerstore = wps.NewWakuPeerstore(params.peerstore)
 		params.libP2POpts = append(params.libP2POpts, libp2p.Peerstore(w.peerstore))
 	} else {
 		ps, err := pstoremem.NewPeerstore()
 		if err != nil {
 			return nil, err
 		}
-		w.peerstore = peerstore1.NewWakuPeerstore(ps)
+		w.peerstore = wps.NewWakuPeerstore(ps)
 		params.libP2POpts = append(params.libP2POpts, libp2p.Peerstore(w.peerstore))
 	}
 
@@ -382,6 +382,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	w.peerConnector.SetHost(host)
+	w.peerConnector.SetPeerManager(w.peermanager)
 	err = w.peerConnector.Start(ctx)
 	if err != nil {
 		return err
@@ -678,8 +679,20 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, origin peerstore1.Origin, protocols ...protocol.ID) (peer.ID, error) {
+func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
 	return w.peermanager.AddPeer(address, origin, protocols...)
+}
+
+// AddDiscoveredPeer to add a discovered peer to the node peerStore
+func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin) {
+	p := peermanager.PeerData{
+		Origin: origin,
+		AddrInfo: peer.AddrInfo{
+			ID:    ID,
+			Addrs: addrs,
+		},
+	}
+	w.peermanager.AddDiscoveredPeer(p)
 }
 
 // DialPeerWithMultiAddress is used to connect to a peer using a multiaddress
@@ -715,11 +728,11 @@ func (w *WakuNode) DialPeerWithInfo(ctx context.Context, peerInfo peer.AddrInfo)
 func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	err := w.host.Connect(ctx, info)
 	if err != nil {
-		w.host.Peerstore().(peerstore1.WakuPeerstore).AddConnFailure(info)
+		w.host.Peerstore().(wps.WakuPeerstore).AddConnFailure(info)
 		return err
 	}
 
-	w.host.Peerstore().(peerstore1.WakuPeerstore).ResetConnFailures(info)
+	w.host.Peerstore().(wps.WakuPeerstore).ResetConnFailures(info)
 	stats.Record(ctx, metrics.Dials.M(1))
 	return nil
 }

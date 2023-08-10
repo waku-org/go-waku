@@ -27,7 +27,7 @@ type PeerManager struct {
 	InRelayPeersTarget  uint
 	OutRelayPeersTarget uint
 	host                host.Host
-	serviceSlots        map[protocol.ID]peer.ID
+	serviceSlots        map[protocol.ID][]peer.ID
 }
 
 const maxRelayPeersShare = 5
@@ -47,7 +47,7 @@ func NewPeerManager(maxConnections uint, logger *zap.Logger) *PeerManager {
 		maxRelayPeers:       maxRelayPeersValue,
 		InRelayPeersTarget:  maxRelayPeersValue - outRelayPeersTargetValue,
 		OutRelayPeersTarget: outRelayPeersTargetValue,
-		serviceSlots:        make(map[protocol.ID]peer.ID),
+		serviceSlots:        make(map[protocol.ID][]peer.ID),
 	}
 	logger.Info("PeerManager init values", zap.Uint("maxConnections", maxConnections),
 		zap.Uint("maxRelayPeersValue", maxRelayPeersValue), zap.Uint("outRelayPeersTargetValue", outRelayPeersTargetValue),
@@ -110,29 +110,60 @@ func (pm *PeerManager) pruneInRelayConns() {
 	}
 }
 
+// AddDiscoveredPeer to add dynamically discovered peers.
+// Note that these peers will not be set in service-slots.
+// TODO: It maybe good to set in service-slots based on services supported in the ENR
+func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
+
+	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin)
+
+	if p.ENR != nil {
+		err := pm.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
+		if err != nil {
+			pm.logger.Error("could not store enr", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
+		}
+	}
+}
+
+// addPeer adds peer to only the peerStore.
+// It also sets additional metadata such as origin, ENR and supported protocols
+func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) error {
+	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
+	pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
+	err := pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(ID, origin)
+	if err != nil {
+		pm.logger.Error("could not set origin", zap.Error(err), logging.HostID("peer", ID))
+		return err
+	}
+
+	if len(protocols) > 0 {
+		err = pm.host.Peerstore().AddProtocols(ID, protocols...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AddPeer adds peer to the peerStore and also to service slots
 func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
+	//Assuming all addresses have peerId
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
 		return "", err
 	}
 
 	//Add Service peers to serviceSlots.
-	for _, service := range protocols {
-		pm.AddPeerToServiceSlot(service, info.ID)
+	for _, proto := range protocols {
+		pm.AddPeerToServiceSlot(proto, info.ID, origin)
 	}
-	//Set origin, ENR and Direction and any other required items in Waku Peer Store.
-	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", info.ID))
-	err = pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(info.ID, origin)
+
+	//Add to the peer-store
+	err = pm.addPeer(info.ID, info.Addrs, origin)
 	if err != nil {
 		return "", err
 	}
 
-	pm.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.AddressTTL)
-	err = pm.host.Peerstore().AddProtocols(info.ID, protocols...)
-	if err != nil {
-		return "", err
-	}
 	return info.ID, nil
 }
 
@@ -142,26 +173,28 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 	pm.host.Peerstore().RemovePeer(peerID)
 	//Search if this peer is in serviceSlot and if so, remove it from there
 	// TODO:Add another peer which is statically configured to the serviceSlot.
-	for proto, peer := range pm.serviceSlots {
-		if peer == peerID {
-			pm.serviceSlots[proto] = ""
+	for proto, peers := range pm.serviceSlots {
+		for i, peer := range peers {
+			if peer == peerID {
+				pm.serviceSlots[proto][i] = ""
+			}
 		}
 	}
 }
 
-// AddServicePeer adds a peerID to serviceSlot.
+// AddPeerToServiceSlot adds a peerID to serviceSlot.
 // Adding to peerStore is expected to be already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
-func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
+func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID, origin wps.Origin) {
 	if proto == WakuRelayIDv200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
 	}
+
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
-	//TODO: Ideally we should maintain multiple peers per service and return best peer based on peer score or RTT etc.
-	//Should we override service slot if peer is identified dynamically?
+	//TODO: Ideally we should sort the peers per service and return best peer based on peer score or RTT etc.
 	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID), zap.String("service", string(proto)))
-	pm.serviceSlots[proto] = peerID
+	pm.serviceSlots[proto] = append(pm.serviceSlots[proto], peerID)
 }
 
 // SelectPeer is used to return a random peer that supports a given protocol.
@@ -184,10 +217,10 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 	}
 
 	//Try to fetch from serviceSlot
-	peerID, ok := pm.serviceSlots[proto]
-	if ok || peerID != "" {
-		pm.logger.Info("Got peer from service slots", logging.HostID("peer", peerID))
-		return peerID, nil
+	peerIDs, ok := pm.serviceSlots[proto]
+	if ok || len(peerIDs) > 0 {
+		pm.logger.Info("Got peer from service slots", logging.HostID("peer", peerIDs[0]))
+		return peerIDs[0], nil
 	}
 
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
