@@ -11,7 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -77,6 +77,7 @@ func execute(options Options) {
 				options.RLNRelay.CredentialsPath,
 				options.RLNRelay.CredentialsPassword,
 				options.RLNRelay.CredentialsIndex,
+				"", // Will use default tree path
 				options.RLNRelay.MembershipContractAddress,
 				uint(options.RLNRelay.MembershipIndex),
 				spamHandler,
@@ -152,6 +153,6 @@ func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, protocols ...pr
 	if addr == nil {
 		return nil
 	}
-	_, err := wakuNode.AddPeer(*addr, peers.Static, protocols...)
+	_, err := wakuNode.AddPeer(*addr, peerstore.Static, protocols...)
 	return err
 }

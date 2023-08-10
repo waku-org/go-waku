@@ -21,7 +21,7 @@ import (
 )
 
 var RLNAppInfo = keystore.AppInfo{
-	Application:   "go-waku-rln-relay",
+	Application:   "nwaku-rln-relay",
 	AppIdentifier: "01234567890abcdef",
 	Version:       "0.1",
 }
@@ -160,12 +160,6 @@ func NewDynamicGroupManager(
 }
 
 func (gm *DynamicGroupManager) getMembershipFee(ctx context.Context) (*big.Int, error) {
-	auth, err := bind.NewKeyedTransactorWithChainID(gm.ethAccountPrivateKey, gm.chainId)
-	if err != nil {
-		return nil, err
-	}
-	auth.Context = ctx
-
 	return gm.rlnContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
 }
 
@@ -211,7 +205,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 			RLNAppInfo,
 			nil,
 			[]keystore.MembershipContract{{
-				ChainId: gm.chainId.String(),
+				ChainId: fmt.Sprintf("0x%X", gm.chainId),
 				Address: gm.membershipContractAddress.Hex(),
 			}})
 		if err != nil {
@@ -286,7 +280,7 @@ func (gm *DynamicGroupManager) persistCredentials() error {
 		MembershipGroups: []keystore.MembershipGroup{{
 			TreeIndex: *gm.membershipIndex,
 			MembershipContract: keystore.MembershipContract{
-				ChainId: gm.chainId.String(),
+				ChainId: fmt.Sprintf("0x%X", gm.chainId),
 				Address: gm.membershipContractAddress.String(),
 			},
 		}},
