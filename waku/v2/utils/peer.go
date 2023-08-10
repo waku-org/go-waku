@@ -60,7 +60,7 @@ func SelectRandomPeer(peers peer.IDSlice, log *zap.Logger) (peer.ID, error) {
 	if len(peers) >= 1 {
 		peerID := peers[rand.Intn(len(peers))]
 		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-		log.Info("Got random peer from peerstore", zap.String("peerId", peerID.Pretty()))
+		log.Info("Got random peer from peerstore", logging.HostID("peerID", peerID))
 		return peerID, nil // nolint: gosec
 	}
 
