@@ -137,10 +137,16 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocol
 }
 
 // RemovePeer deletes peer from the peerStore after disconnecting it.
+// It also removes the peer from serviceSlot.
 func (pm *PeerManager) RemovePeer(peerID peer.ID) {
-	// TODO: Need to handle removePeer also via peermanager
-	// Need to updated serviceSlot accordingly.
-
+	pm.host.Peerstore().RemovePeer(peerID)
+	//Search if this peer is in serviceSlot and if so, remove it from there
+	// TODO:Add another peer which is statically configured to the serviceSlot.
+	for proto, peer := range pm.serviceSlots {
+		if peer == peerID {
+			pm.serviceSlots[proto] = ""
+		}
+	}
 }
 
 // AddServicePeer adds a peerID to serviceSlot.
@@ -179,7 +185,7 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 
 	//Try to fetch from serviceSlot
 	peerID, ok := pm.serviceSlots[proto]
-	if ok {
+	if ok || peerID != "" {
 		pm.logger.Info("Got peer from service slots", logging.HostID("peer", peerID))
 		return peerID, nil
 	}
