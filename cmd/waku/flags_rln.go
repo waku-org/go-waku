@@ -74,7 +74,7 @@ func rlnFlags() []cli.Flag {
 		},
 		&cli.GenericFlag{
 			Name:  "rln-relay-eth-contract-address",
-			Usage: "Address of membership contract ",
+			Usage: "Address of membership contract",
 			Value: &wcli.AddressValue{
 				Value: &options.RLNRelay.MembershipContractAddress,
 			},

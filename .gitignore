@@ -1,6 +1,5 @@
 nodekey
-rlnCredentials.txt
-rlnCredentials.json
+rlnKeystore.json
 test_onchain.json
 *.bkp
 *.log
