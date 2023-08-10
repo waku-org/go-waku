@@ -106,6 +106,6 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerId, h6.ID())
 
 	pm.RemovePeer(peerId)
-	peerId, err = pm.SelectPeer(protocol2, nil, utils.Logger())
+	_, err = pm.SelectPeer(protocol2, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 }
