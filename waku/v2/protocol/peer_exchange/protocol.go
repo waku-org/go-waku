@@ -39,8 +39,8 @@ type PeerConnector interface {
 type WakuPeerExchange struct {
 	h    host.Host
 	disc *discv5.DiscoveryV5
-
-	log *zap.Logger
+	pm   *peermanager.PeerManager
+	log  *zap.Logger
 
 	cancel context.CancelFunc
 
@@ -50,7 +50,9 @@ type WakuPeerExchange struct {
 }
 
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
-func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, log *zap.Logger) (*WakuPeerExchange, error) {
+// Takes an optional peermanager if WakuPeerExchange is being created along with WakuNode.
+// If using libp2p host, then pass peermanager as nil
+func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, pm *peermanager.PeerManager, log *zap.Logger) (*WakuPeerExchange, error) {
 	newEnrCache, err := newEnrCache(MaxCacheSize)
 	if err != nil {
 		return nil, err
@@ -60,6 +62,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.log = log.Named("wakupx")
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
+	wakuPX.pm = pm
 
 	return wakuPX, nil
 }

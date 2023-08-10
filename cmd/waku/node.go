@@ -34,7 +34,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
@@ -304,7 +303,7 @@ func Execute(options Options) {
 	}
 
 	for _, d := range discoveredNodes {
-		wakuNode.Host().Peerstore().AddAddrs(d.PeerID, d.PeerInfo.Addrs, peerstore.PermanentAddrTTL)
+		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DnsDiscovery)
 	}
 
 	addStaticPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)

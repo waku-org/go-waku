@@ -142,12 +142,12 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 
 	// mount peer exchange
 	pxPeerConn1 := tests.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
 	pxPeerConn3 := tests.NewTestPeerDiscoverer()
-	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, utils.Logger())
+	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, nil, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
 

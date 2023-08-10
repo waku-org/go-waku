@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -32,16 +33,19 @@ type WakuLightPush struct {
 	h      host.Host
 	relay  *relay.WakuRelay
 	cancel context.CancelFunc
+	pm     *peermanager.PeerManager
 
 	log *zap.Logger
 }
 
 // NewWakuLightPush returns a new instance of Waku Lightpush struct
-func NewWakuLightPush(relay *relay.WakuRelay, log *zap.Logger) *WakuLightPush {
+// Takes an optional peermanager if WakuLightPush is being created along with WakuNode.
+// If using libp2p host, then pass peermanager as nil
+func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, log *zap.Logger) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay
 	wakuLP.log = log.Named("lightpush")
-
+	wakuLP.pm = pm
 	return wakuLP
 }
 
@@ -142,6 +146,7 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, o
 	params := new(lightPushParameters)
 	params.host = wakuLP.h
 	params.log = wakuLP.log
+	params.pm = wakuLP.pm
 
 	optList := append(DefaultOptions(wakuLP.h), opts...)
 	for _, opt := range optList {

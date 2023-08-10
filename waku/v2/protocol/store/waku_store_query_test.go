@@ -21,7 +21,7 @@ func TestStoreQuery(t *testing.T) {
 	msg1 := tests.CreateWakuMessage(defaultContentTopic, utils.GetUnixEpoch())
 	msg2 := tests.CreateWakuMessage("2", utils.GetUnixEpoch())
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), defaultPubSubTopic))
 	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), defaultPubSubTopic))
 
@@ -47,7 +47,7 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 
 	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), defaultPubSubTopic))
 	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), defaultPubSubTopic))
@@ -80,7 +80,7 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1))
 	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic2))
 	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic2))
@@ -112,7 +112,7 @@ func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic2))
 	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic2))
 	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic2))
@@ -134,7 +134,7 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	msg2 := tests.CreateWakuMessage(topic2, utils.GetUnixEpoch())
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1))
 	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1))
 	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1))
@@ -153,7 +153,7 @@ func TestStoreQueryForwardPagination(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 	for i := 0; i < 10; i++ {
 		msg := tests.CreateWakuMessage(topic1, utils.GetUnixEpoch())
 		msg.Payload = []byte{byte(i)}
@@ -177,7 +177,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 	for i := 0; i < 10; i++ {
 		msg := &wpb.WakuMessage{
 			Payload:      []byte{byte(i)},
@@ -203,7 +203,7 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 }
 
 func TestTemporalHistoryQueries(t *testing.T) {
-	s := NewWakuStore(MemoryDB(t), timesource.NewDefaultClock(), utils.Logger())
+	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
 
 	var messages []*wpb.WakuMessage
 	now := utils.GetUnixEpoch()

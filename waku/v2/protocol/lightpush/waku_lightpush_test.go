@@ -61,7 +61,7 @@ func TestWakuLightPush(t *testing.T) {
 	defer sub2.Unsubscribe()
 
 	ctx := context.Background()
-	lightPushNode2 := NewWakuLightPush(node2, utils.Logger())
+	lightPushNode2 := NewWakuLightPush(node2, nil, utils.Logger())
 	lightPushNode2.SetHost(host2)
 	err := lightPushNode2.Start(ctx)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestWakuLightPush(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(nil, utils.Logger())
+	client := NewWakuLightPush(nil, nil, utils.Logger())
 	client.SetHost(clientHost)
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
@@ -129,7 +129,7 @@ func TestWakuLightPushStartWithoutRelay(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(nil, utils.Logger())
+	client := NewWakuLightPush(nil, nil, utils.Logger())
 	client.SetHost(clientHost)
 	err = client.Start(ctx)
 
@@ -144,7 +144,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), 0, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(nil, utils.Logger())
+	client := NewWakuLightPush(nil, nil, utils.Logger())
 	client.SetHost(clientHost)
 	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), testTopic)
 	require.Errorf(t, err, "no suitable remote peers")

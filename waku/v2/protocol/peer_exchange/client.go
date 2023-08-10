@@ -22,6 +22,7 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	params := new(PeerExchangeParameters)
 	params.host = wakuPX.h
 	params.log = wakuPX.log
+	params.pm = wakuPX.pm
 
 	optList := DefaultOptions(wakuPX.h)
 	optList = append(optList, opts...)

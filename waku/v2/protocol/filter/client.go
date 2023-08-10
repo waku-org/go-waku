@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/metrics"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -42,6 +43,7 @@ type WakuFilterLightnode struct {
 	wg            *sync.WaitGroup
 	log           *zap.Logger
 	subscriptions *SubscriptionsMap
+	pm            *peermanager.PeerManager
 }
 
 type ContentFilter struct {
@@ -54,13 +56,17 @@ type WakuFilterPushResult struct {
 	PeerID peer.ID
 }
 
-// NewWakuRelay returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterLightnode(broadcaster relay.Broadcaster, timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
+// NewWakuFilterLightnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
+// Takes an optional peermanager if WakuFilterLightnode is being created along with WakuNode.
+// If using libp2p host, then pass peermanager as nil
+func NewWakuFilterLightnode(broadcaster relay.Broadcaster, pm *peermanager.PeerManager,
+	timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightnode {
 	wf := new(WakuFilterLightnode)
 	wf.log = log.Named("filterv2-lightnode")
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
 	wf.wg = &sync.WaitGroup{}
+	wf.pm = pm
 
 	return wf
 }
@@ -220,6 +226,7 @@ func (wf *WakuFilterLightnode) Subscribe(ctx context.Context, contentFilter Cont
 	params := new(FilterSubscribeParameters)
 	params.log = wf.log
 	params.host = wf.h
+	params.pm = wf.pm
 
 	optList := DefaultSubscriptionOptions()
 	optList = append(optList, opts...)

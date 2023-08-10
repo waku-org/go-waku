@@ -7,6 +7,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
@@ -58,15 +59,19 @@ type WakuStore struct {
 
 	msgProvider MessageProvider
 	h           host.Host
+	pm          *peermanager.PeerManager
 }
 
 // NewWakuStore creates a WakuStore using an specific MessageProvider for storing the messages
-func NewWakuStore(p MessageProvider, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
+// Takes an optional peermanager if WakuStore is being created along with WakuNode.
+// If using libp2p host, then pass peermanager as nil
+func NewWakuStore(p MessageProvider, pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
 	wakuStore := new(WakuStore)
 	wakuStore.msgProvider = p
 	wakuStore.wg = &sync.WaitGroup{}
 	wakuStore.log = log.Named("store")
 	wakuStore.timesource = timesource
+	wakuStore.pm = pm
 
 	return wakuStore
 }
