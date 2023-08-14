@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -22,12 +23,15 @@ const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
-	maxRelayPeers       uint
+	peerConnector       *PeerConnectionStrategy
+	maxConnections      int
+	maxRelayPeers       int
 	logger              *zap.Logger
-	InRelayPeersTarget  uint
-	OutRelayPeersTarget uint
+	InRelayPeersTarget  int
+	OutRelayPeersTarget int
 	host                host.Host
 	serviceSlots        map[protocol.ID][]peer.ID
+	ctx                 context.Context
 }
 
 const maxRelayPeersShare = 5
@@ -35,23 +39,33 @@ const maxRelayPeersShare = 5
 // const defaultMaxOutRelayPeersTarget = 10
 const outRelayPeersShare = 3
 const peerConnectivityLoopSecs = 15
+const minOutRelayConns = 10
 
 // NewPeerManager creates a new peerManager instance.
-func NewPeerManager(maxConnections uint, logger *zap.Logger) *PeerManager {
+func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 
 	maxRelayPeersValue := maxConnections - (maxConnections / maxRelayPeersShare)
-	outRelayPeersTargetValue := uint(maxRelayPeersValue / outRelayPeersShare)
+	outRelayPeersTargetValue := int(maxRelayPeersValue / outRelayPeersShare)
+	if outRelayPeersTargetValue < minOutRelayConns {
+		outRelayPeersTargetValue = minOutRelayConns
+	}
+	inRelayPeersTargetValue := maxRelayPeersValue - outRelayPeersTargetValue
+	if inRelayPeersTargetValue < 0 {
+		inRelayPeersTargetValue = 0
+	}
 
 	pm := &PeerManager{
+		maxConnections:      maxConnections,
 		logger:              logger.Named("peer-manager"),
 		maxRelayPeers:       maxRelayPeersValue,
-		InRelayPeersTarget:  maxRelayPeersValue - outRelayPeersTargetValue,
+		InRelayPeersTarget:  inRelayPeersTargetValue,
 		OutRelayPeersTarget: outRelayPeersTargetValue,
 		serviceSlots:        make(map[protocol.ID][]peer.ID),
 	}
-	logger.Info("PeerManager init values", zap.Uint("maxConnections", maxConnections),
-		zap.Uint("maxRelayPeersValue", maxRelayPeersValue), zap.Uint("outRelayPeersTargetValue", outRelayPeersTargetValue),
-		zap.Uint("inRelayPeersTarget", pm.InRelayPeersTarget))
+	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
+		zap.Int("maxRelayPeersValue", maxRelayPeersValue),
+		zap.Int("outRelayPeersTargetValue", outRelayPeersTargetValue),
+		zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
 
 	return pm
 }
@@ -60,8 +74,13 @@ func (pm *PeerManager) SetHost(host host.Host) {
 	pm.host = host
 }
 
+func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
+	pm.peerConnector = pc
+}
+
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
+	pm.ctx = ctx
 	go pm.connectivityLoop(ctx)
 }
 
@@ -73,40 +92,112 @@ func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			pm.pruneInRelayConns()
+			pm.connectToRelayPeers()
 		}
 	}
 }
 
-func (pm *PeerManager) pruneInRelayConns() {
+// GroupPeersByDirection returns all the connected peers in peer store grouped by Inbound or outBound direction
+func (pm *PeerManager) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
 
-	var inRelayPeers peer.IDSlice
+	for _, p := range pm.host.Network().Peers() {
+		direction, err := pm.host.Peerstore().(wps.WakuPeerstore).Direction(p)
+		if err == nil {
+			if direction == network.DirInbound {
+				inPeers = append(inPeers, p)
+			} else if direction == network.DirOutbound {
+				outPeers = append(outPeers, p)
+			}
+		}
+	}
+	return inPeers, outPeers, nil
+}
+
+func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
 	//Group peers by their connected direction inbound or outbound.
-	inPeers, outPeers, err := pm.host.Peerstore().(wps.WakuPeerstore).GroupPeersByDirection()
+	inPeers, outPeers, err := pm.GroupPeersByDirection()
 	if err != nil {
 		return
 	}
-	pm.logger.Info("Number of peers connected", zap.Int("inPeers", inPeers.Len()), zap.Int("outPeers", outPeers.Len()))
+	pm.logger.Info("Number of peers connected", zap.Int("inPeers", inPeers.Len()),
+		zap.Int("outPeers", outPeers.Len()))
 
 	//Need to filter peers to check if they support relay
 	inRelayPeers, _ = utils.FilterPeersByProto(pm.host, inPeers, WakuRelayIDv200)
-	outRelayPeers, _ := utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
-	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("outRelayPeers", outRelayPeers.Len()))
+	outRelayPeers, _ = utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
+	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()),
+		zap.Int("outRelayPeers", outRelayPeers.Len()))
+	return
+}
 
-	if inRelayPeers.Len() > int(pm.InRelayPeersTarget) {
-		//Start disconnecting peers, based on what?
-		//For now, just disconnect most recently connected peers
-		//TODO: Need to have more intelligent way of doing this, maybe peer scores.
-		pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning", zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Uint("inRelayPeersTarget", pm.InRelayPeersTarget))
-		for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < uint(inRelayPeers.Len()); pruningStartIndex++ {
-			p := inRelayPeers[pruningStartIndex]
-			err := pm.host.Network().ClosePeer(p)
-			if err != nil {
-				pm.logger.Warn("Failed to disconnect connection towards peer", zap.String("peerID", p.String()))
-			}
-			pm.host.Peerstore().RemovePeer(p) //TODO: Should we remove the peer immediately?
-			pm.logger.Info("Successfully disconnected connection towards peer", zap.String("peerID", p.String()))
+func (pm *PeerManager) connectToRelayPeers() {
+
+	//Check for out peer connections and connect to more peers.
+	inRelayPeers, outRelayPeers := pm.getRelayPeers()
+	if inRelayPeers.Len() > 0 &&
+		inRelayPeers.Len() > pm.InRelayPeersTarget {
+		pm.pruneInRelayConns(inRelayPeers, outRelayPeers)
+	}
+
+	if outRelayPeers.Len() > pm.OutRelayPeersTarget {
+		return
+	}
+	totalRelayPeers := inRelayPeers.Len() + outRelayPeers.Len()
+	// Establish additional connections if there are peers.
+	//What if the not connected peers in peerstore are not relay peers???
+	if totalRelayPeers < pm.host.Peerstore().Peers().Len() {
+		//Find not connected peers.
+		notConnectedPeers := pm.getNotConnectedPers()
+		//Figure out outside backoff peers.
+
+		//Connect to eligible peers.
+		numPeersToConnect := pm.maxRelayPeers - totalRelayPeers
+
+		//numPeersToConnect = min(min(pm.maxConnections - totalRelayPeers, outsideBackoffPeers.len), MaxParalelDials)
+
+		if numPeersToConnect > notConnectedPeers.Len() {
+			numPeersToConnect = notConnectedPeers.Len() - 1
 		}
+
+		pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
+	} //Else: Should we raise some sort of unhealthy event??
+}
+
+func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
+	for _, peerID := range peers {
+		peerInfo := peer.AddrInfo{
+			ID:    peerID,
+			Addrs: pm.host.Peerstore().Addrs(peerID),
+		}
+		pm.peerConnector.publishWork(pm.ctx, peerInfo)
+	}
+}
+
+func (pm *PeerManager) getNotConnectedPers() (notConnectedPeers peer.IDSlice) {
+	for _, peerID := range pm.host.Peerstore().Peers() {
+		if pm.host.Network().Connectedness(peerID) != network.Connected {
+			notConnectedPeers = append(notConnectedPeers, peerID)
+		}
+	}
+	return
+}
+
+func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
+
+	//Start disconnecting peers, based on what?
+	//For now, just disconnect most recently connected peers
+	//TODO: Need to have more intelligent way of doing this, maybe peer scores.
+	pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning",
+		zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
+	for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < inRelayPeers.Len(); pruningStartIndex++ {
+		p := inRelayPeers[pruningStartIndex]
+		err := pm.host.Network().ClosePeer(p)
+		if err != nil {
+			pm.logger.Warn("Failed to disconnect connection towards peer",
+				zap.String("peerID", p.String()))
+		}
+		pm.logger.Info("Successfully disconnected connection towards peer",
+			zap.String("peerID", p.String()))
 	}
 }
 
@@ -120,7 +211,8 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 	if p.ENR != nil {
 		err := pm.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
 		if err != nil {
-			pm.logger.Error("could not store enr", zap.Error(err), logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
+			pm.logger.Error("could not store enr", zap.Error(err),
+				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 		}
 	}
 }
@@ -193,7 +285,8 @@ func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID, o
 
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
 	//TODO: Ideally we should sort the peers per service and return best peer based on peer score or RTT etc.
-	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID), zap.String("service", string(proto)))
+	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID),
+		zap.String("service", string(proto)))
 	pm.serviceSlots[proto] = append(pm.serviceSlots[proto], peerID)
 }
 
@@ -219,8 +312,7 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 	//Try to fetch from serviceSlot
 	peerIDs, ok := pm.serviceSlots[proto]
 	if ok || len(peerIDs) > 0 {
-		pm.logger.Info("Got peer from service slots", logging.HostID("peer", peerIDs[0]))
-		return peerIDs[0], nil
+		filteredPeers = peerIDs
 	}
 
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)

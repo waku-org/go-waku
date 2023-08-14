@@ -176,7 +176,7 @@ func (c *PeerConnectionStrategy) shouldDialPeers(ctx context.Context) {
 			return
 		case <-ticker.C:
 			isPaused := c.isPaused()
-			_, outRelayPeers, err := c.host.Peerstore().(wps.WakuPeerstore).GroupPeersByDirection()
+			_, outRelayPeers, err := c.pm.GroupPeersByDirection()
 			if err != nil {
 				c.logger.Info("Failed to get outRelayPeers from peerstore", zap.Error(err))
 				continue
