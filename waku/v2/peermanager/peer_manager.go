@@ -70,10 +70,12 @@ func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 	return pm
 }
 
+// SetHost sets the host to be used in order to access the peerStore.
 func (pm *PeerManager) SetHost(host host.Host) {
 	pm.host = host
 }
 
+// SetPeerConnector sets the peer connector to be used for establishing relay connections.
 func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 	pm.peerConnector = pc
 }
