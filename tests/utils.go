@@ -122,8 +122,14 @@ func MakeHost(ctx context.Context, port int, randomness io.Reader) (host.Host, e
 }
 
 // CreateWakuMessage creates a WakuMessage protobuffer with default values and a custom contenttopic and timestamp
-func CreateWakuMessage(contentTopic string, timestamp int64) *pb.WakuMessage {
-	return &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
+func CreateWakuMessage(contentTopic string, timestamp int64, optionalPayload ...string) *pb.WakuMessage {
+	var payload []byte
+	if len(optionalPayload) > 0 {
+		payload = []byte(optionalPayload[0])
+	} else {
+		payload = []byte{1, 2, 3}
+	}
+	return &pb.WakuMessage{Payload: payload, ContentTopic: contentTopic, Version: 0, Timestamp: timestamp}
 }
 
 // RandomHex returns a random hex string of n bytes

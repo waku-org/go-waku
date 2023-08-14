@@ -9,270 +9,326 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"go.uber.org/zap"
 )
 
-func makeWakuRelay(t *testing.T, topic string, broadcaster relay.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
-	port, err := tests.FindFreePort(t, "", 5)
-	require.NoError(t, err)
+func TestFilterSuite(t *testing.T) {
+	suite.Run(t, new(FilterTestSuite))
+}
+
+type FilterTestSuite struct {
+	suite.Suite
+
+	testTopic        string
+	testContentTopic string
+	ctx              context.Context
+	ctxCancel        context.CancelFunc
+	lightNode        *WakuFilterLightNode
+	lightNodeHost    host.Host
+	relayNode        *relay.WakuRelay
+	relaySub         *relay.Subscription
+	fullNode         *WakuFilterFullNode
+	fullNodeHost     host.Host
+	wg               *sync.WaitGroup
+	contentFilter    ContentFilter
+	subDetails       *SubscriptionDetails
+	log              *zap.Logger
+}
+
+func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.Subscription, host.Host, relay.Broadcaster) {
+
+	broadcaster := relay.NewBroadcaster(10)
+	s.Require().NoError(broadcaster.Start(context.Background()))
+
+	port, err := tests.FindFreePort(s.T(), "", 5)
+	s.Require().NoError(err)
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), s.log)
 	relay.SetHost(host)
+	s.fullNodeHost = host
 	err = relay.Start(context.Background())
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	sub, err := relay.SubscribeToTopic(context.Background(), topic)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	return relay, sub, host
+	return relay, sub, host, broadcaster
 }
 
-func makeWakuFilterLightNode(t *testing.T) (*WakuFilterLightnode, host.Host) {
-	port, err := tests.FindFreePort(t, "", 5)
-	require.NoError(t, err)
+func (s *FilterTestSuite) makeWakuFilterLightNode() *WakuFilterLightNode {
+	port, err := tests.FindFreePort(s.T(), "", 5)
+	s.Require().NoError(err)
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
 	b := relay.NewBroadcaster(10)
-	require.NoError(t, b.Start(context.Background()))
-	filterPush := NewWakuFilterLightnode(b, nil, timesource.NewDefaultClock(), utils.Logger())
+	s.Require().NoError(b.Start(context.Background()))
+	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), s.log)
 	filterPush.SetHost(host)
+	s.lightNodeHost = host
 	err = filterPush.Start(context.Background())
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	return filterPush, host
+	return filterPush
 }
 
-// Node1: Filter subscribed to content topic A
-// Node2: Relay + Filter
-//
-// # Node1 and Node2 are peers
-//
-// Node2 send a successful message with topic A
-// Node1 receive the message
-//
-// Node2 send a successful message with topic B
-// Node1 doesn't receive the message
-func TestWakuFilter(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
-	defer cancel()
+func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay, *WakuFilterFullNode) {
+	node, relaySub, host, broadcaster := s.makeWakuRelay(topic)
+	s.relaySub = relaySub
 
-	testTopic := "/waku/2/go/filter/test"
-	testContentTopic := "TopicA"
+	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), s.log)
+	node2Filter.SetHost(host)
+	sub := broadcaster.Register(topic)
+	err := node2Filter.Start(s.ctx, sub)
+	s.Require().NoError(err)
 
-	node1, host1 := makeWakuFilterLightNode(t)
-	defer node1.Stop()
+	return node, node2Filter
+}
 
-	broadcaster := relay.NewBroadcaster(10)
-	require.NoError(t, broadcaster.Start(context.Background()))
-	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
-	defer node2.Stop()
-	defer sub2.Unsubscribe()
+func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		select {
+		case env := <-ch:
+			s.Require().Equal(s.contentFilter.ContentTopics[0], env.Message().GetContentTopic())
+		case <-time.After(5 * time.Second):
+			s.Require().Fail("Message timeout")
+		case <-s.ctx.Done():
+			s.Require().Fail("test exceeded allocated time")
+		}
+	}()
 
-	node2Filter := NewWakuFilterFullnode(timesource.NewDefaultClock(), utils.Logger())
-	node2Filter.SetHost(host2)
-	sub := broadcaster.Register(testTopic)
-	err := node2Filter.Start(ctx, sub)
-	require.NoError(t, err)
+	fn()
 
-	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err = host1.Peerstore().AddProtocols(host2.ID(), FilterSubscribeID_v20beta1)
-	require.NoError(t, err)
+	s.wg.Wait()
+}
 
-	contentFilter := ContentFilter{
-		Topic:         string(testTopic),
-		ContentTopics: []string{testContentTopic},
+func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		select {
+		case <-ch:
+			s.Require().Fail("should not receive another message")
+		case <-time.After(1 * time.Second):
+			// Timeout elapsed, all good
+		case <-s.ctx.Done():
+			s.Require().Fail("test exceeded allocated time")
+		}
+	}()
+
+	fn()
+
+	s.wg.Wait()
+}
+
+func (s *FilterTestSuite) subscribe(topic string, contentTopic string, peer peer.ID) *SubscriptionDetails {
+	s.contentFilter = ContentFilter{
+		Topic:         string(topic),
+		ContentTopics: []string{contentTopic},
 	}
 
-	subscriptionChannel, err := node1.Subscribe(ctx, contentFilter, WithPeer(node2Filter.h.ID()))
-	require.NoError(t, err)
+	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
+	s.Require().NoError(err)
 
 	// Sleep to make sure the filter is subscribed
 	time.Sleep(2 * time.Second)
 
-	var wg sync.WaitGroup
+	return subDetails
+}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		env := <-subscriptionChannel.C
-		require.Equal(t, contentFilter.ContentTopics[0], env.Message().GetContentTopic())
-	}()
+func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload ...string) {
+	var payload string
+	if len(optionalPayload) > 0 {
+		payload = optionalPayload[0]
+	} else {
+		payload = "123"
+	}
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
-	require.NoError(t, err)
+	_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch(), payload), topic)
+	s.Require().NoError(err)
+}
 
-	wg.Wait()
+func (s *FilterTestSuite) SetupTest() {
+	log := utils.Logger() //.Named("filterv2-test")
+	s.log = log
+	// Use a pointer to WaitGroup so that to avoid copying
+	// https://pkg.go.dev/sync#WaitGroup
+	s.wg = &sync.WaitGroup{}
 
-	wg.Add(1)
-	go func() {
-		select {
-		case <-subscriptionChannel.C:
-			require.Fail(t, "should not receive another message")
-		case <-time.After(1 * time.Second):
-			defer wg.Done()
-		case <-ctx.Done():
-			require.Fail(t, "test exceeded allocated time")
-		}
-	}()
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage("TopicB", utils.GetUnixEpoch()), testTopic)
-	require.NoError(t, err)
+	s.testTopic = "/waku/2/go/filter/test"
+	s.testContentTopic = "TopicA"
 
-	wg.Wait()
+	s.lightNode = s.makeWakuFilterLightNode()
 
-	wg.Add(1)
-	go func() {
-		select {
-		case <-subscriptionChannel.C:
-			require.Fail(t, "should not receive another message")
-		case <-time.After(1 * time.Second):
-			defer wg.Done()
-		case <-ctx.Done():
-			require.Fail(t, "test exceeded allocated time")
-		}
-	}()
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
 
-	_, err = node1.Unsubscribe(ctx, contentFilter, Peer(node2Filter.h.ID()))
-	require.NoError(t, err)
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TearDownTest() {
+	s.fullNode.Stop()
+	s.relayNode.Stop()
+	s.relaySub.Unsubscribe()
+	s.lightNode.Stop()
+	s.ctxCancel()
+}
+
+func (s *FilterTestSuite) TestWakuFilter() {
+
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// Should be received
+	s.waitForMsg(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "first")
+	}, s.subDetails.C)
+
+	// Wrong content topic
+	s.waitForTimeout(func() {
+		s.publishMsg(s.testTopic, "TopicB", "second")
+	}, s.subDetails.C)
+
+	_, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, Peer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
-	require.NoError(t, err)
-	wg.Wait()
+	// Should not receive after unsubscribe
+	s.waitForTimeout(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "third")
+	}, s.subDetails.C)
 }
 
-func TestSubscriptionPing(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
-	defer cancel()
+func (s *FilterTestSuite) TestSubscriptionPing() {
 
-	testTopic := "/waku/2/go/filter/test"
-
-	node1, host1 := makeWakuFilterLightNode(t)
-	defer node1.Stop()
-
-	broadcaster := relay.NewBroadcaster(10)
-	require.NoError(t, broadcaster.Start(context.Background()))
-	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
-	defer node2.Stop()
-	defer sub2.Unsubscribe()
-
-	node2Filter := NewWakuFilterFullnode(timesource.NewDefaultClock(), utils.Logger())
-	node2Filter.SetHost(host2)
-	err := node2Filter.Start(ctx, relay.NoopSubscription())
-	require.NoError(t, err)
-
-	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err = host1.Peerstore().AddProtocols(host2.ID(), FilterSubscribeID_v20beta1)
-	require.NoError(t, err)
-
-	err = node1.Ping(context.Background(), host2.ID())
-	require.Error(t, err)
+	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	s.Require().Error(err)
 	filterErr, ok := err.(*FilterError)
-	require.True(t, ok)
-	require.Equal(t, filterErr.Code, http.StatusNotFound)
+	s.Require().True(ok)
+	s.Require().Equal(filterErr.Code, http.StatusNotFound)
 
-	contentFilter := ContentFilter{
-		Topic:         string(testTopic),
-		ContentTopics: []string{"abc"},
-	}
-	_, err = node1.Subscribe(ctx, contentFilter, WithPeer(node2Filter.h.ID()))
-	require.NoError(t, err)
+	contentTopic := "abc"
+	s.subDetails = s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
 
-	err = node1.Ping(context.Background(), host2.ID())
-	require.NoError(t, err)
+	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	s.Require().NoError(err)
 }
 
-func TestWakuFilterPeerFailure(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
-	defer cancel()
-
-	testTopic := "/waku/2/go/filter/test"
-	testContentTopic := "TopicA"
-
-	node1, host1 := makeWakuFilterLightNode(t)
-
-	broadcaster := relay.NewBroadcaster(10)
-	require.NoError(t, broadcaster.Start(context.Background()))
-	node2, sub2, host2 := makeWakuRelay(t, testTopic, broadcaster)
-	defer node2.Stop()
-	defer sub2.Unsubscribe()
+func (s *FilterTestSuite) TestPeerFailure() {
 
 	broadcaster2 := relay.NewBroadcaster(10)
-	require.NoError(t, broadcaster2.Start(context.Background()))
-	node2Filter := NewWakuFilterFullnode(timesource.NewDefaultClock(), utils.Logger(), WithTimeout(5*time.Second))
-	node2Filter.SetHost(host2)
-	sub := broadcaster.Register(testTopic)
-	err := node2Filter.Start(ctx, sub)
-	require.NoError(t, err)
+	s.Require().NoError(broadcaster2.Start(context.Background()))
 
-	host1.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
-	err = host1.Peerstore().AddProtocols(host2.ID(), FilterPushID_v20beta1)
-	require.NoError(t, err)
-
-	contentFilter := &ContentFilter{
-		Topic:         string(testTopic),
-		ContentTopics: []string{testContentTopic},
-	}
-
-	f, err := node1.Subscribe(ctx, *contentFilter, WithPeer(node2Filter.h.ID()))
-	require.NoError(t, err)
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Simulate there's been a failure before
-	node2Filter.subscriptions.FlagAsFailure(host1.ID())
+	s.fullNode.subscriptions.FlagAsFailure(s.lightNodeHost.ID())
 
 	// Sleep to make sure the filter is subscribed
 	time.Sleep(2 * time.Second)
 
-	require.True(t, node2Filter.subscriptions.IsFailedPeer(host1.ID()))
+	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
 
-	var wg sync.WaitGroup
+	s.waitForMsg(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic)
+	}, s.subDetails.C)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		env := <-f.C
-		require.Equal(t, contentFilter.ContentTopics[0], env.Message().GetContentTopic())
-
-		// Failure is removed
-		require.False(t, node2Filter.subscriptions.IsFailedPeer(host1.ID()))
-
-	}()
-
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
-	require.NoError(t, err)
-
-	wg.Wait()
+	// Failure is removed
+	s.Require().False(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
 
 	// Kill the subscriber
-	host1.Close()
+	s.lightNodeHost.Close()
 
 	time.Sleep(1 * time.Second)
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
-	require.NoError(t, err)
+	s.publishMsg(s.testTopic, s.testContentTopic)
 
 	// TODO: find out how to eliminate this sleep
 	time.Sleep(1 * time.Second)
-	require.True(t, node2Filter.subscriptions.IsFailedPeer(host1.ID()))
+	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
 
 	time.Sleep(2 * time.Second)
 
-	_, err = node2.PublishToTopic(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch()), testTopic)
-	require.NoError(t, err)
+	s.publishMsg(s.testTopic, s.testContentTopic)
 
 	time.Sleep(2 * time.Second)
 
-	require.True(t, node2Filter.subscriptions.IsFailedPeer(host1.ID())) // Failed peer has been removed
-	require.False(t, node2Filter.subscriptions.Has(host1.ID()))         // Failed peer has been removed
+	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID())) // Failed peer has been removed
+	s.Require().False(s.fullNode.subscriptions.Has(s.lightNodeHost.ID()))         // Failed peer has been removed
+}
+
+func (s *FilterTestSuite) TestCreateSubscription() {
+
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails.C)
+}
+
+func (s *FilterTestSuite) TestModifySubscription() {
+
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails.C)
+
+	// Subscribe to another content_topic
+	newContentTopic := "Topic_modified"
+	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
+
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails.C)
+}
+
+func (s *FilterTestSuite) TestMultipleMessages() {
+
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "first"), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails.C)
+
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails.C)
 }

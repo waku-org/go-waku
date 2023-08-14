@@ -68,7 +68,7 @@ type WakuNodeParameters struct {
 
 	enableRelay            bool
 	enableLegacyFilter     bool
-	isLegacyFilterFullnode bool
+	isLegacyFilterFullNode bool
 	enableFilterLightNode  bool
 	enableFilterFullNode   bool
 	legacyFilterOpts       []legacy_filter.Option
@@ -363,7 +363,7 @@ func WithPeerExchange() WakuNodeOption {
 func WithLegacyWakuFilter(fullnode bool, filterOpts ...legacy_filter.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableLegacyFilter = true
-		params.isLegacyFilterFullnode = fullnode
+		params.isLegacyFilterFullNode = fullnode
 		params.legacyFilterOpts = filterOpts
 		return nil
 	}
