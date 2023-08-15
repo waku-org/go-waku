@@ -49,6 +49,12 @@ func TestServiceSlots(t *testing.T) {
 
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
 	require.NoError(t, err)
+	if peerId == h2.ID() || peerId == h1.ID() {
+		//Test success
+		t.Log("Random peer selection per protocol successful")
+	} else {
+		t.FailNow()
+	}
 	require.Equal(t, peerId, h2.ID())
 
 	h1.Peerstore().AddAddrs(h3.ID(), h3.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
@@ -64,7 +70,12 @@ func TestServiceSlots(t *testing.T) {
 	//Test peer selection from first added peer to serviceSlot
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
 	require.NoError(t, err)
-	require.Equal(t, peerId, h2.ID())
+	if peerId == h2.ID() || peerId == h3.ID() {
+		//Test success
+		t.Log("Random peer selection per protocol successful")
+	} else {
+		t.FailNow()
+	}
 
 	//Test peer selection for specific protocol
 	peerId, err = pm.SelectPeer(protocol1, nil, utils.Logger())

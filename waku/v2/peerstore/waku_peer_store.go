@@ -51,7 +51,6 @@ type WakuPeerstore interface {
 
 	SetDirection(p peer.ID, direction network.Direction) error
 	Direction(p peer.ID) (network.Direction, error)
-	GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error)
 }
 
 // NewWakuPeerstore creates a new WakuPeerStore object
@@ -139,20 +138,4 @@ func (ps *WakuPeerstoreImpl) Direction(p peer.ID) (network.Direction, error) {
 	}
 
 	return result.(network.Direction), nil
-}
-
-// GroupPeersByDirection returns all the peers in peer store grouped by Inbound or outBound direction
-func (ps *WakuPeerstoreImpl) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
-
-	for _, p := range ps.Peers() {
-		direction, err := ps.Direction(p)
-		if err == nil {
-			if direction == network.DirInbound {
-				inPeers = append(inPeers, p)
-			} else if direction == network.DirOutbound {
-				outPeers = append(outPeers, p)
-			}
-		}
-	}
-	return inPeers, outPeers, nil
 }

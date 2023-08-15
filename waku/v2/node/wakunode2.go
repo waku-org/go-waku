@@ -243,8 +243,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	if err != nil {
 		w.log.Error("creating localnode", zap.Error(err))
 	}
+
 	//Initialize peer manager.
-	w.peermanager = peermanager.NewPeerManager(uint(w.opts.maxPeerConnections), w.log)
+	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.log)
 	maxOutPeers := int(w.peermanager.OutRelayPeersTarget)
 
 	// Setup peer connection strategy
@@ -257,6 +258,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	if err != nil {
 		w.log.Error("creating peer connection strategy", zap.Error(err))
 	}
+	w.peermanager.SetPeerConnector(w.peerConnector)
 
 	if w.opts.enableDiscV5 {
 		err := w.mountDiscV5()
