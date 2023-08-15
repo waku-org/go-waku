@@ -89,6 +89,7 @@ func (pm *PeerManager) Start(ctx context.Context) {
 // This is a connectivity loop, which currently checks and prunes inbound connections.
 func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 	t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
+	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -110,6 +111,9 @@ func (pm *PeerManager) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers p
 			} else if direction == network.DirOutbound {
 				outPeers = append(outPeers, p)
 			}
+		} else {
+			pm.logger.Error("Failed to retrieve peer direction",
+				logging.HostID("peerID", p), zap.Error(err))
 		}
 	}
 	return inPeers, outPeers, nil
@@ -155,7 +159,6 @@ func (pm *PeerManager) connectToRelayPeers() {
 		//Connect to eligible peers.
 		numPeersToConnect := pm.maxRelayPeers - totalRelayPeers
 
-
 		if numPeersToConnect > notConnectedPeers.Len() {
 			numPeersToConnect = notConnectedPeers.Len() - 1
 		}
@@ -197,7 +200,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice, outRelayPeer
 			pm.logger.Warn("Failed to disconnect connection towards peer",
 				logging.HostID("peerID", p))
 		}
-		pm.logger.Info("Successfully disconnected connection towards peer",
+		pm.logger.Debug("Successfully disconnected connection towards peer",
 			logging.HostID("peerID", p))
 	}
 }

@@ -298,7 +298,7 @@ func (c *PeerConnectionStrategy) dialPeers(ctx context.Context) {
 				continue
 			}
 
-			if c.canDailPeer(pi) {
+			if c.canDialPeer(pi) {
 				sem <- struct{}{}
 				c.wg.Add(1)
 				go c.dialPeer(pi, sem)
