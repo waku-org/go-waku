@@ -155,7 +155,6 @@ func (pm *PeerManager) connectToRelayPeers() {
 		//Connect to eligible peers.
 		numPeersToConnect := pm.maxRelayPeers - totalRelayPeers
 
-		//numPeersToConnect = min(min(pm.maxConnections - totalRelayPeers, outsideBackoffPeers.len), MaxParalelDials)
 
 		if numPeersToConnect > notConnectedPeers.Len() {
 			numPeersToConnect = notConnectedPeers.Len() - 1
@@ -196,10 +195,10 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice, outRelayPeer
 		err := pm.host.Network().ClosePeer(p)
 		if err != nil {
 			pm.logger.Warn("Failed to disconnect connection towards peer",
-				zap.String("peerID", p.String()))
+				logging.HostID("peerID", p))
 		}
 		pm.logger.Info("Successfully disconnected connection towards peer",
-			zap.String("peerID", p.String()))
+			logging.HostID("peerID", p))
 	}
 }
 

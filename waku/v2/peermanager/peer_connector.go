@@ -187,7 +187,7 @@ func (c *PeerConnectionStrategy) shouldDialPeers(ctx context.Context) {
 			isPaused := c.isPaused()
 			_, outRelayPeers, err := c.pm.GroupPeersByDirection()
 			if err != nil {
-				c.logger.Info("Failed to get outRelayPeers from peerstore", zap.Error(err))
+				c.logger.Warn("failed to get outRelayPeers from peerstore", zap.Error(err))
 				continue
 			}
 			numPeers := outRelayPeers.Len()
@@ -254,7 +254,7 @@ func (c *PeerConnectionStrategy) workPublisher(ctx context.Context) {
 
 const maxActiveDials = 5
 
-func (c *PeerConnectionStrategy) canDailPeer(pi peer.AddrInfo) bool {
+func (c *PeerConnectionStrategy) canDialPeer(pi peer.AddrInfo) bool {
 	c.mux.Lock()
 	val, ok := c.cache.Get(pi.ID)
 	var cachedPeer *connCacheData
@@ -320,7 +320,7 @@ func (c *PeerConnectionStrategy) dialPeer(pi peer.AddrInfo, sem chan struct{}) {
 	err := c.host.Connect(ctx, pi)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		c.host.Peerstore().(wps.WakuPeerstore).AddConnFailure(pi)
-		c.logger.Info("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
+		c.logger.Warn("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
 	}
 	<-sem
 }
