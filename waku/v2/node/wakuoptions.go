@@ -27,6 +27,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -53,6 +54,7 @@ type WakuNodeParameters struct {
 	privKey        *ecdsa.PrivateKey
 	libP2POpts     []libp2p.Option
 	peerstore      peerstore.Peerstore
+	prometheusReg  prometheus.Registerer
 
 	enableNTP bool
 	ntpURLs   []string
@@ -73,7 +75,7 @@ type WakuNodeParameters struct {
 	enableFilterFullNode   bool
 	legacyFilterOpts       []legacy_filter.Option
 	filterOpts             []filter.Option
-	wOpts                  []pubsub.Option
+	pubsubOpts             []pubsub.Option
 
 	minRelayPeersToPublish int
 
@@ -121,6 +123,7 @@ type WakuNodeOption func(*WakuNodeParameters) error
 
 // Default options used in the libp2p node
 var DefaultWakuNodeOptions = []WakuNodeOption{
+	WithPrometheusRegisterer(prometheus.NewRegistry()),
 	WithMaxPeerConnections(50),
 }
 
@@ -158,6 +161,18 @@ func WithLogLevel(lvl zapcore.Level) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.logLevel = logging.LogLevel(lvl)
 		logging.SetAllLoggers(params.logLevel)
+		return nil
+	}
+}
+
+// WithPrometheusRegisterer configures go-waku to use reg as the Registerer for all metrics subsystems
+func WithPrometheusRegisterer(reg prometheus.Registerer) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		if reg == nil {
+			return errors.New("registerer cannot be nil")
+		}
+
+		params.prometheusReg = reg
 		return nil
 	}
 }
@@ -327,7 +342,7 @@ func WithWakuRelay(opts ...pubsub.Option) WakuNodeOption {
 func WithWakuRelayAndMinPeers(minRelayPeersToPublish int, opts ...pubsub.Option) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRelay = true
-		params.wOpts = opts
+		params.pubsubOpts = opts
 		params.minRelayPeersToPublish = minRelayPeersToPublish
 		return nil
 	}

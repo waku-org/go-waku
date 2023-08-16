@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -54,7 +55,7 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), s.log)
+	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	relay.SetHost(host)
 	s.fullNodeHost = host
 	err = relay.Start(context.Background())
@@ -75,7 +76,7 @@ func (s *FilterTestSuite) makeWakuFilterLightNode() *WakuFilterLightNode {
 
 	b := relay.NewBroadcaster(10)
 	s.Require().NoError(b.Start(context.Background()))
-	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), s.log)
+	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	filterPush.SetHost(host)
 	s.lightNodeHost = host
 	err = filterPush.Start(context.Background())
@@ -88,7 +89,7 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay
 	node, relaySub, host, broadcaster := s.makeWakuRelay(topic)
 	s.relaySub = relaySub
 
-	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), s.log)
+	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	node2Filter.SetHost(host)
 	sub := broadcaster.Register(topic)
 	err := node2Filter.Start(s.ctx, sub)

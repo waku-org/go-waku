@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -28,7 +29,7 @@ func TestWakuOptions(t *testing.T) {
 	require.NoError(t, err)
 
 	storeFactory := func(w *WakuNode) store.Store {
-		return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, w.log)
+		return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, prometheus.DefaultRegisterer, w.log)
 	}
 
 	options := []WakuNodeOption{

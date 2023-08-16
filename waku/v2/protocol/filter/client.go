@@ -14,15 +14,14 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
-	"go.opencensus.io/tag"
 	"go.uber.org/zap"
 )
 
@@ -40,6 +39,7 @@ type WakuFilterLightNode struct {
 	h             host.Host
 	broadcaster   relay.Broadcaster
 	timesource    timesource.Timesource
+	metrics       Metrics
 	wg            *sync.WaitGroup
 	log           *zap.Logger
 	subscriptions *SubscriptionsMap
@@ -60,13 +60,14 @@ type WakuFilterPushResult struct {
 // Takes an optional peermanager if WakuFilterLightnode is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil
 func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerManager,
-	timesource timesource.Timesource, log *zap.Logger) *WakuFilterLightNode {
+	timesource timesource.Timesource, reg prometheus.Registerer, log *zap.Logger) *WakuFilterLightNode {
 	wf := new(WakuFilterLightNode)
 	wf.log = log.Named("filterv2-lightnode")
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
 	wf.wg = &sync.WaitGroup{}
 	wf.pm = pm
+	wf.metrics = newMetrics(reg)
 
 	return wf
 }
@@ -78,12 +79,6 @@ func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 
 func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
 	wf.wg.Wait() // Wait for any goroutines to stop
-
-	ctx, err := tag.New(ctx, tag.Insert(metrics.KeyType, "filter"))
-	if err != nil {
-		wf.log.Error("creating tag map", zap.Error(err))
-		return errors.New("could not start waku filter")
-	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	wf.cancel = cancel
@@ -121,7 +116,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 
 		if !wf.subscriptions.IsSubscribedTo(s.Conn().RemotePeer()) {
 			logger.Warn("received message push from unknown peer", logging.HostID("peerID", s.Conn().RemotePeer()))
-			metrics.RecordFilterError(ctx, "unknown_peer_messagepush")
+			wf.metrics.RecordError(unknownPeerMessagePush)
 			return
 		}
 
@@ -131,17 +126,17 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 		err := reader.ReadMsg(messagePush)
 		if err != nil {
 			logger.Error("reading message push", zap.Error(err))
-			metrics.RecordFilterError(ctx, "decode_rpc_failure")
+			wf.metrics.RecordError(decodeRPCFailure)
 			return
 		}
 
 		if !wf.subscriptions.Has(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
 			logger.Warn("received messagepush with invalid subscription parameters", logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", messagePush.PubsubTopic), zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
-			metrics.RecordFilterError(ctx, "invalid_subscription_message")
+			wf.metrics.RecordError(invalidSubscriptionMessage)
 			return
 		}
 
-		metrics.RecordFilterMessage(ctx, "PushMessage", 1)
+		wf.metrics.RecordMessage()
 
 		wf.notify(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage)
 
@@ -162,7 +157,7 @@ func (wf *WakuFilterLightNode) notify(remotePeerID peer.ID, pubsubTopic string, 
 func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscribeParameters, reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter ContentFilter) error {
 	conn, err := wf.h.NewStream(ctx, params.selectedPeer, FilterSubscribeID_v20beta1)
 	if err != nil {
-		metrics.RecordFilterError(ctx, "dial_failure")
+		wf.metrics.RecordError(dialFailure)
 		return err
 	}
 	defer conn.Close()
@@ -180,7 +175,7 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	wf.log.Debug("sending FilterSubscribeRequest", zap.Stringer("request", request))
 	err = writer.WriteMsg(request)
 	if err != nil {
-		metrics.RecordFilterError(ctx, "write_request_failure")
+		wf.metrics.RecordError(writeRequestFailure)
 		wf.log.Error("sending FilterSubscribeRequest", zap.Error(err))
 		return err
 	}
@@ -189,19 +184,19 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	err = reader.ReadMsg(filterSubscribeResponse)
 	if err != nil {
 		wf.log.Error("receiving FilterSubscribeResponse", zap.Error(err))
-		metrics.RecordFilterError(ctx, "decode_rpc_failure")
+		wf.metrics.RecordError(decodeRPCFailure)
 		return err
 	}
 
 	if filterSubscribeResponse.RequestId != request.RequestId {
 		wf.log.Error("requestID mismatch", zap.String("expected", request.RequestId), zap.String("received", filterSubscribeResponse.RequestId))
-		metrics.RecordFilterError(ctx, "request_id_mismatch")
+		wf.metrics.RecordError(requestIDMismatch)
 		err := NewFilterError(300, "request_id_mismatch")
 		return &err
 	}
 
 	if filterSubscribeResponse.StatusCode != http.StatusOK {
-		metrics.RecordFilterError(ctx, "error_response")
+		wf.metrics.RecordError(errorResponse)
 		err := NewFilterError(int(filterSubscribeResponse.StatusCode), filterSubscribeResponse.StatusDesc)
 		return &err
 	}
@@ -235,7 +230,7 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 	}
 
 	if params.selectedPeer == "" {
-		metrics.RecordFilterError(ctx, "peer_not_found_failure")
+		wf.metrics.RecordError(peerNotFoundFailure)
 		return nil, ErrNoPeersAvailable
 	}
 

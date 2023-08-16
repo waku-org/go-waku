@@ -20,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/waku/persistence"
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -132,7 +133,7 @@ func NewNode(configJSON string) error {
 			return err
 		}
 		opts = append(opts, node.WithWakuStore())
-		dbStore, err := persistence.NewDBStore(utils.Logger(),
+		dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(),
 			persistence.WithDB(db),
 			persistence.WithMigrations(migrationFn),
 			persistence.WithRetentionPolicy(*config.RetentionMaxMessages, time.Duration(*config.RetentionTimeSeconds)*time.Second),
@@ -163,6 +164,7 @@ func NewNode(configJSON string) error {
 	}
 
 	opts = append(opts, node.WithLogLevel(lvl))
+	opts = append(opts, node.WithPrometheusRegisterer(prometheus.DefaultRegisterer))
 
 	w, err := node.New(opts...)
 	if err != nil {

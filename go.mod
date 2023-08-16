@@ -5,7 +5,6 @@ go 1.19
 replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
 
 require (
-	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.10.26
@@ -95,8 +94,6 @@ require (
 	github.com/elastic/gosigar v0.14.2 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
-	github.com/go-kit/log v0.2.1 // indirect
-	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
@@ -149,11 +146,10 @@ require (
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.14.0 // indirect
+	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/prometheus/statsd_exporter v0.22.7 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
@@ -172,7 +168,6 @@ require (
 	golang.org/x/tools v0.9.1 // indirect
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )

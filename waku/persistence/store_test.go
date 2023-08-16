@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence/migrate"
@@ -39,7 +40,7 @@ func NewMock() *sql.DB {
 
 func TestDbStore(t *testing.T) {
 	db := NewMock()
-	store, err := NewDBStore(utils.Logger(), WithDB(db), WithMigrations(Migrate))
+	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate))
 	require.NoError(t, err)
 
 	err = store.Start(context.Background(), timesource.NewDefaultClock())
@@ -59,7 +60,7 @@ func TestDbStore(t *testing.T) {
 
 func TestStoreRetention(t *testing.T) {
 	db := NewMock()
-	store, err := NewDBStore(utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
+	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
 	err = store.Start(context.Background(), timesource.NewDefaultClock())
@@ -82,7 +83,7 @@ func TestStoreRetention(t *testing.T) {
 
 	// This step simulates starting go-waku again from scratch
 
-	store, err = NewDBStore(utils.Logger(), WithDB(db), WithRetentionPolicy(5, 40*time.Second))
+	store, err = NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithRetentionPolicy(5, 40*time.Second))
 	require.NoError(t, err)
 
 	err = store.Start(context.Background(), timesource.NewDefaultClock())

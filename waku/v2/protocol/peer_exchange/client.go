@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio/pbio"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -31,7 +30,7 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	}
 
 	if params.selectedPeer == "" {
-		metrics.RecordPeerExchangeError(ctx, "dialError")
+		wakuPX.metrics.RecordError(dialFailure)
 		return ErrNoPeersAvailable
 	}
 

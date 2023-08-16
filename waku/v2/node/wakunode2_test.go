@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -232,7 +233,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	// NODE2: Filter Client/Store
 	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
+	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)
 
 	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")

@@ -10,6 +10,7 @@ import (
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -25,7 +26,7 @@ func TestWakuRelay(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func createRelayNode(t *testing.T) (host.Host, *WakuRelay) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	return host, relay
 }

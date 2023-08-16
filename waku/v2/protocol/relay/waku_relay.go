@@ -12,8 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	proto "google.golang.org/protobuf/proto"
 
@@ -21,7 +20,6 @@ import (
 	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/hash"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -43,6 +41,7 @@ type WakuRelay struct {
 	peerScoreThresholds *pubsub.PeerScoreThresholds
 	topicParams         *pubsub.TopicScoreParams
 	timesource          timesource.Timesource
+	metrics             Metrics
 
 	log *zap.Logger
 
@@ -81,7 +80,7 @@ func msgIdFn(pmsg *pubsub_pb.Message) string {
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
-func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesource.Timesource, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
+func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesource.Timesource, reg prometheus.Registerer, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
 	w := new(WakuRelay)
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
@@ -91,6 +90,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.wg = sync.WaitGroup{}
 	w.log = log.Named("relay")
 	w.events = eventbus.NewBus()
+	w.metrics = newMetrics(reg, w.log)
 
 	cfg := pubsub.DefaultGossipSubParams()
 	cfg.PruneBackoff = time.Minute
@@ -455,16 +455,10 @@ func (w *WakuRelay) nextMessage(ctx context.Context, sub *pubsub.Subscription) <
 func (w *WakuRelay) subscribeToTopic(pubsubTopic string, sub *pubsub.Subscription) {
 	defer w.wg.Done()
 
-	ctx, err := tag.New(w.ctx, tag.Insert(metrics.KeyType, "relay"))
-	if err != nil {
-		w.log.Error("creating tag map", zap.Error(err))
-		return
-	}
-
 	subChannel := w.nextMessage(w.ctx, sub)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-w.ctx.Done():
 			return
 			// TODO: if there are no more relay subscriptions, close the pubsub subscription
 		case msg, ok := <-subChannel:
@@ -477,12 +471,9 @@ func (w *WakuRelay) subscribeToTopic(pubsubTopic string, sub *pubsub.Subscriptio
 				return
 			}
 
-			payloadSizeInBytes := len(wakuMessage.Payload)
-			payloadSizeInKb := payloadSizeInBytes / 1000
-			stats.Record(ctx, metrics.Messages.M(1), metrics.MessageSize.M(int64(payloadSizeInKb)))
-
 			envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
-			w.log.Debug("waku.relay received", zap.String("pubsubTopic", pubsubTopic), logging.HexString("hash", envelope.Hash()), zap.Int64("receivedTime", envelope.Index().ReceiverTime), zap.Int("payloadSizeBytes", payloadSizeInBytes))
+
+			w.metrics.RecordMessage(envelope)
 
 			if w.bcaster != nil {
 				w.bcaster.Submit(envelope)

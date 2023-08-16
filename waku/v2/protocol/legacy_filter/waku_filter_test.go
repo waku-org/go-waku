@@ -9,6 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -23,7 +24,7 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster relay.Broadcaster) (*
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
@@ -43,7 +44,7 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 
 	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
-	filter := NewWakuFilter(b, false, timesource.NewDefaultClock(), utils.Logger())
+	filter := NewWakuFilter(b, false, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	filter.SetHost(host)
 	err = filter.Start(context.Background(), relay.NoopSubscription())
 	require.NoError(t, err)
@@ -77,7 +78,7 @@ func TestWakuFilter(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	node2Filter := NewWakuFilter(broadcaster, true, timesource.NewDefaultClock(), utils.Logger())
+	node2Filter := NewWakuFilter(broadcaster, true, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	node2Filter.SetHost(host2)
 	sub := broadcaster.Register(testTopic)
 	err := node2Filter.Start(ctx, sub)
@@ -168,7 +169,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 
 	broadcaster2 := relay.NewBroadcaster(10)
 	require.NoError(t, broadcaster2.Start(context.Background()))
-	node2Filter := NewWakuFilter(broadcaster2, true, timesource.NewDefaultClock(), utils.Logger(), WithTimeout(3*time.Second))
+	node2Filter := NewWakuFilter(broadcaster2, true, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger(), WithTimeout(3*time.Second))
 	node2Filter.SetHost(host2)
 	sub := broadcaster.Register(testTopic)
 	err := node2Filter.Start(ctx, sub)

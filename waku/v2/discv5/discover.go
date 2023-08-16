@@ -13,9 +13,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -40,6 +40,7 @@ type DiscoveryV5 struct {
 	udpAddr   *net.UDPAddr
 	listener  *discover.UDPv5
 	localnode *enode.LocalNode
+	metrics   Metrics
 
 	peerConnector PeerConnector
 	peerCh        chan peermanager.PeerData
@@ -112,7 +113,8 @@ func DefaultOptions() []DiscoveryV5Option {
 	}
 }
 
-func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
+// NewDiscoveryV5 returns a new instance of a DiscoveryV5 struct
+func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, reg prometheus.Registerer, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
 	params := new(discV5Parameters)
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
@@ -133,6 +135,7 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 		NAT:           NAT,
 		wg:            &sync.WaitGroup{},
 		localnode:     localnode,
+		metrics:       newMetrics(reg),
 		config: discover.Config{
 			PrivateKey: priv,
 			Bootnodes:  params.bootnodes,
@@ -267,25 +270,27 @@ func isWakuNode(node *enode.Node) bool {
 }
 */
 
-func evaluateNode(node *enode.Node) bool {
-	if node == nil {
-		return false
+func (d *DiscoveryV5) evaluateNode() func(node *enode.Node) bool {
+	return func(node *enode.Node) bool {
+		if node == nil {
+			return false
+		}
+
+		//  TODO: consider node filtering based on ENR; we do not filter based on ENR in the first waku discv5 beta stage
+		/*if !isWakuNode(node) {
+			return false
+		}*/
+
+		_, err := wenr.EnodeToPeerInfo(node)
+
+		if err != nil {
+			d.metrics.RecordError(peerInfoFailure)
+			utils.Logger().Named("discv5").Error("obtaining peer info from enode", logging.ENode("enr", node), zap.Error(err))
+			return false
+		}
+
+		return true
 	}
-
-	//  TODO: consider node filtering based on ENR; we do not filter based on ENR in the first waku discv5 beta stage
-	/*if !isWakuNode(node) {
-		return false
-	}*/
-
-	_, err := wenr.EnodeToPeerInfo(node)
-
-	if err != nil {
-		metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
-		utils.Logger().Named("discv5").Error("obtaining peer info from enode", logging.ENode("enr", node), zap.Error(err))
-		return false
-	}
-
-	return true
 }
 
 // Predicate is a function that is applied to an iterator to filter the nodes to be retrieved according to some logic
@@ -299,7 +304,7 @@ func (d *DiscoveryV5) PeerIterator(predicate ...Predicate) (enode.Iterator, erro
 		return nil, ErrNoDiscV5Listener
 	}
 
-	iterator := enode.Filter(d.listener.RandomNodes(), evaluateNode)
+	iterator := enode.Filter(d.listener.RandomNodes(), d.evaluateNode())
 	if d.params.loopPredicate != nil {
 		iterator = enode.Filter(iterator, d.params.loopPredicate)
 	}
@@ -335,14 +340,14 @@ func (d *DiscoveryV5) Iterate(ctx context.Context, iterator enode.Iterator, onNo
 
 		_, addresses, err := wenr.Multiaddress(iterator.Node())
 		if err != nil {
-			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
+			d.metrics.RecordError(peerInfoFailure)
 			d.log.Error("extracting multiaddrs from enr", zap.Error(err))
 			continue
 		}
 
 		peerAddrs, err := peer.AddrInfosFromP2pAddrs(addresses...)
 		if err != nil {
-			metrics.RecordDiscV5Error(context.Background(), "peer_info_failure")
+			d.metrics.RecordError(peerInfoFailure)
 			d.log.Error("converting multiaddrs to addrinfos", zap.Error(err))
 			continue
 		}
@@ -415,7 +420,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 		return false
 	}))
 	if err != nil {
-		metrics.RecordDiscV5Error(context.Background(), "iterator_failure")
+		d.metrics.RecordError(iteratorFailure)
 		return fmt.Errorf("obtaining iterator: %w", err)
 	}
 

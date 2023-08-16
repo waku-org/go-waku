@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
@@ -15,7 +16,7 @@ func MemoryDB(t *testing.T) *persistence.DBStore {
 	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
 
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
+	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)
 
 	return dbStore
