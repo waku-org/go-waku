@@ -27,11 +27,9 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/proto"
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	ma "github.com/multiformats/go-multiaddr"
-	"go.opencensus.io/stats"
 
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -80,6 +78,7 @@ type WakuNode struct {
 	opts       *WakuNodeParameters
 	log        *zap.Logger
 	timesource timesource.Timesource
+	metrics    Metrics
 
 	peerstore     peerstore.Peerstore
 	peerConnector *peermanager.PeerConnectionStrategy
@@ -124,7 +123,7 @@ type WakuNode struct {
 }
 
 func defaultStoreFactory(w *WakuNode) store.Store {
-	return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, w.log)
+	return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
 }
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
@@ -192,6 +191,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.keepAliveFails = make(map[peer.ID]int)
 	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
 	w.circuitRelayNodes = make(chan peer.AddrInfo)
+	w.metrics = newMetrics(params.prometheusReg)
+
+	w.metrics.RecordVersion(Version, GitCommit)
 
 	// Setup peerstore wrapper
 	if params.peerstore != nil {
@@ -267,17 +269,17 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
-	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.DiscV5(), w.peerConnector, w.peermanager, w.log)
+	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.DiscV5(), w.peerConnector, w.peermanager, w.opts.prometheusReg, w.log)
 	if err != nil {
 		return nil, err
 	}
 
 	w.rendezvous = rendezvous.NewRendezvous(w.opts.rendezvousDB, w.peerConnector, w.log)
-	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.log, w.opts.wOpts...)
-	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullNode, w.timesource, w.log, w.opts.legacyFilterOpts...)
-	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.log, w.opts.filterOpts...)
-	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.log)
-	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.log)
+	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log, w.opts.pubsubOpts...)
+	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullNode, w.timesource, w.opts.prometheusReg, w.log, w.opts.legacyFilterOpts...)
+	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.opts.prometheusReg, w.log, w.opts.filterOpts...)
+	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
+	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.opts.prometheusReg, w.log)
 
 	if params.storeFactory != nil {
 		w.storeFactory = params.storeFactory
@@ -362,7 +364,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		return err
 	}
 
-	w.connectionNotif = NewConnectionNotifier(ctx, w.host, w.opts.connNotifCh, w.log)
+	w.connectionNotif = NewConnectionNotifier(ctx, w.host, w.opts.connNotifCh, w.metrics, w.log)
 	w.host.Network().Notify(w.connectionNotif)
 
 	w.enrChangeCh = make(chan struct{}, 10)
@@ -665,7 +667,7 @@ func (w *WakuNode) mountDiscV5() error {
 	}
 
 	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.opts.privKey, w.localNode, w.peerConnector, w.log, discV5Options...)
+	w.discoveryV5, err = discv5.NewDiscoveryV5(w.opts.privKey, w.localNode, w.peerConnector, w.opts.prometheusReg, w.log, discV5Options...)
 
 	return err
 }
@@ -735,7 +737,9 @@ func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	}
 
 	w.host.Peerstore().(wps.WakuPeerstore).ResetConnFailures(info)
-	stats.Record(ctx, metrics.Dials.M(1))
+
+	w.metrics.RecordDial()
+
 	return nil
 }
 

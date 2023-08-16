@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-zerokit-rln/rln"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -128,7 +129,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.TODO())
 	defer relay.Stop()
@@ -225,7 +226,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.TODO())
 	defer relay.Stop()
@@ -271,7 +272,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	host1, err := tests.MakeHost(context.Background(), port1, rand.Reader)
 	s.Require().NoError(err)
 
-	relay1 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay1 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay1.SetHost(host1)
 	err = relay1.Start(context.TODO())
 	defer relay1.Stop()
@@ -297,7 +298,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	host2, err := tests.MakeHost(context.Background(), port2, rand.Reader)
 	s.Require().NoError(err)
 
-	relay2 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay2 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay2.SetHost(host2)
 	err = relay2.Start(context.TODO())
 	defer relay2.Stop()

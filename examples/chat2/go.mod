@@ -131,7 +131,6 @@ require (
 	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230807124913-ea636e5b4005 // indirect
 	github.com/wk8/go-ordered-map v1.0.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/fx v1.19.2 // indirect

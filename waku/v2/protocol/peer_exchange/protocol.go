@@ -12,9 +12,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -37,10 +37,11 @@ type PeerConnector interface {
 }
 
 type WakuPeerExchange struct {
-	h    host.Host
-	disc *discv5.DiscoveryV5
-	pm   *peermanager.PeerManager
-	log  *zap.Logger
+	h       host.Host
+	disc    *discv5.DiscoveryV5
+	pm      *peermanager.PeerManager
+	metrics Metrics
+	log     *zap.Logger
 
 	cancel context.CancelFunc
 
@@ -52,13 +53,14 @@ type WakuPeerExchange struct {
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
 // Takes an optional peermanager if WakuPeerExchange is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil
-func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, pm *peermanager.PeerManager, log *zap.Logger) (*WakuPeerExchange, error) {
+func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, pm *peermanager.PeerManager, reg prometheus.Registerer, log *zap.Logger) (*WakuPeerExchange, error) {
 	newEnrCache, err := newEnrCache(MaxCacheSize)
 	if err != nil {
 		return nil, err
 	}
 	wakuPX := new(WakuPeerExchange)
 	wakuPX.disc = disc
+	wakuPX.metrics = newMetrics(reg)
 	wakuPX.log = log.Named("wakupx")
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
@@ -100,7 +102,7 @@ func (wakuPX *WakuPeerExchange) onRequest(ctx context.Context) func(s network.St
 		err := reader.ReadMsg(requestRPC)
 		if err != nil {
 			logger.Error("reading request", zap.Error(err))
-			metrics.RecordPeerExchangeError(ctx, "decodeRpcFailure")
+			wakuPX.metrics.RecordError(decodeRPCFailure)
 			return
 		}
 
@@ -110,7 +112,7 @@ func (wakuPX *WakuPeerExchange) onRequest(ctx context.Context) func(s network.St
 			records, err := wakuPX.enrCache.getENRs(int(requestRPC.Query.NumPeers))
 			if err != nil {
 				logger.Error("obtaining enrs from cache", zap.Error(err))
-				metrics.RecordPeerExchangeError(ctx, "pxFailure")
+				wakuPX.metrics.RecordError(pxFailure)
 				return
 			}
 
@@ -122,7 +124,7 @@ func (wakuPX *WakuPeerExchange) onRequest(ctx context.Context) func(s network.St
 			err = writer.WriteMsg(responseRPC)
 			if err != nil {
 				logger.Error("writing response", zap.Error(err))
-				metrics.RecordPeerExchangeError(ctx, "pxFailure")
+				wakuPX.metrics.RecordError(pxFailure)
 				return
 			}
 		}

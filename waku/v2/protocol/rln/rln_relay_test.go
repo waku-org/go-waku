@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -35,7 +36,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	s.Require().NoError(err)

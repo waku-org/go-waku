@@ -13,6 +13,7 @@ import (
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/prometheus/client_golang/prometheus"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 
 	"github.com/multiformats/go-multiaddr"
@@ -108,7 +109,7 @@ func TestDiscV5(t *testing.T) {
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, wenr.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn1 := tests.NewTestPeerDiscoverer()
-	d1, err := NewDiscoveryV5(prvKey1, l1, peerconn1, utils.Logger(), WithUDPPort(uint(udpPort1)))
+	d1, err := NewDiscoveryV5(prvKey1, l1, peerconn1, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
 	d1.SetHost(host1)
 
@@ -120,7 +121,7 @@ func TestDiscV5(t *testing.T) {
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, wenr.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn2 := tests.NewTestPeerDiscoverer()
-	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
 	require.NoError(t, err)
 	d2.SetHost(host2)
 
@@ -132,7 +133,7 @@ func TestDiscV5(t *testing.T) {
 	l3, err := newLocalnode(prvKey3, ip3, udpPort3, wenr.NewWakuEnrBitfield(true, true, true, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn3 := tests.NewTestPeerDiscoverer()
-	d3, err := NewDiscoveryV5(prvKey3, l3, peerconn3, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	d3, err := NewDiscoveryV5(prvKey3, l3, peerconn3, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 	d3.SetHost(host3)
 

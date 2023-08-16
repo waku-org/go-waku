@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
@@ -71,7 +72,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 
 	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
 	require.NoError(t, err)
-	dbStore, err := persistence.NewDBStore(utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
+	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)
 
 	// Node3: Relay + Store

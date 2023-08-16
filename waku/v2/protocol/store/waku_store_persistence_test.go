@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -14,7 +15,7 @@ import (
 func TestStorePersistence(t *testing.T) {
 	db := MemoryDB(t)
 
-	s1 := NewWakuStore(db, nil, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(db, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 
 	defaultPubSubTopic := "test"
 	defaultContentTopic := "1"

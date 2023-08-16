@@ -16,10 +16,10 @@ import (
 
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"github.com/pbnjay/memory"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
-	wmetrics "github.com/waku-org/go-waku/waku/v2/metrics"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
@@ -110,7 +110,6 @@ func Execute(options NodeOptions) {
 	if options.Metrics.Enable {
 		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
 		go metricsServer.Start()
-		wmetrics.RecordVersion(ctx, node.Version, node.GitCommit)
 	}
 
 	lvl, err := zapcore.ParseLevel(options.LogLevel)
@@ -125,6 +124,7 @@ func Execute(options NodeOptions) {
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(options.KeepAlive),
 		node.WithMaxPeerConnections(options.MaxPeerConnections),
+		node.WithPrometheusRegisterer(prometheus.DefaultRegisterer),
 	}
 	if len(options.AdvertiseAddresses) != 0 {
 		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))
@@ -143,6 +143,8 @@ func Execute(options NodeOptions) {
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
+
+	libp2pOpts = append(libp2pOpts, libp2p.PrometheusRegisterer(prometheus.DefaultRegisterer))
 
 	memPerc := scalePerc(options.ResourceScalingMemoryPercent)
 	fdPerc := scalePerc(options.ResourceScalingFDPercent)
@@ -223,7 +225,7 @@ func Execute(options NodeOptions) {
 			dbOptions = append(dbOptions, persistence.WithMigrations(migrationFn)) // TODO: refactor migrations out of DBStore, or merge DBStore with rendezvous DB
 		}
 
-		dbStore, err = persistence.NewDBStore(logger, dbOptions...)
+		dbStore, err = persistence.NewDBStore(prometheus.DefaultRegisterer, logger, dbOptions...)
 		failOnErr(err, "DBStore")
 		nodeOpts = append(nodeOpts, node.WithMessageProvider(dbStore))
 	}

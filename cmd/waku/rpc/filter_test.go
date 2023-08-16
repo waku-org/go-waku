@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/multiformats/go-multiaddr"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -56,7 +57,7 @@ func TestFilterSubscription(t *testing.T) {
 
 	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
-	node := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), utils.Logger())
+	node := relay.NewWakuRelay(b, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	node.SetHost(host)
 	err = node.Start(context.Background())
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func TestFilterSubscription(t *testing.T) {
 
 	b2 := relay.NewBroadcaster(10)
 	require.NoError(t, b2.Start(context.Background()))
-	f := legacy_filter.NewWakuFilter(b2, false, timesource.NewDefaultClock(), utils.Logger())
+	f := legacy_filter.NewWakuFilter(b2, false, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	f.SetHost(host)
 	err = f.Start(context.Background(), relay.NoopSubscription())
 	require.NoError(t, err)

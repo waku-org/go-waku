@@ -7,6 +7,7 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -23,7 +24,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s1.SetHost(host1)
 
 	topic1 := "1"
@@ -42,7 +43,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	require.NoError(t, err)
 	defer s1.Stop()
 
-	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 	s2.SetHost(host2)
@@ -73,7 +74,7 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s1.SetHost(host1)
 
 	topic1 := "1"
@@ -113,7 +114,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	require.NoError(t, err)
 
 	db := MemoryDB(t)
-	s1 := NewWakuStore(db, nil, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(db, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s1.SetHost(host1)
 
 	topic1 := "1"
@@ -143,7 +144,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
 	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
@@ -188,7 +189,7 @@ func TestWakuStoreResult(t *testing.T) {
 	require.NoError(t, err)
 
 	db := MemoryDB(t)
-	s1 := NewWakuStore(db, nil, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(db, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s1.SetHost(host1)
 
 	topic1 := "1"
@@ -218,7 +219,7 @@ func TestWakuStoreResult(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
 	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)
@@ -278,7 +279,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	host1, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 
-	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s1.SetHost(host1)
 
 	topic1 := "1"
@@ -317,7 +318,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	err = host2.Peerstore().AddProtocols(host1.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
-	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), utils.Logger())
+	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
 	err = s2.Start(ctx, relay.NoopSubscription())
 	require.NoError(t, err)

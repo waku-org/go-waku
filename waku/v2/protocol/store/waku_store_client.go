@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/metrics"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
@@ -189,7 +188,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta4)
 	if err != nil {
 		logger.Error("creating stream to peer", zap.Error(err))
-		metrics.RecordStoreError(store.ctx, "dial_failure")
+		store.metrics.RecordError(dialFailure)
 		return nil, err
 	}
 
@@ -206,7 +205,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	err = writer.WriteMsg(historyRequest)
 	if err != nil {
 		logger.Error("writing request", zap.Error(err))
-		metrics.RecordStoreError(store.ctx, "write_request_failure")
+		store.metrics.RecordError(writeRequestFailure)
 		return nil, err
 	}
 
@@ -214,7 +213,7 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	err = reader.ReadMsg(historyResponseRPC)
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
-		metrics.RecordStoreError(store.ctx, "decode_rpc_failure")
+		store.metrics.RecordError(decodeRPCFailure)
 		return nil, err
 	}
 
@@ -278,7 +277,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	}
 
 	if !params.localQuery && params.selectedPeer == "" {
-		metrics.RecordStoreError(ctx, "peer_not_found_failure")
+		store.metrics.RecordError(peerNotFoundFailure)
 		return nil, ErrNoPeersAvailable
 	}
 

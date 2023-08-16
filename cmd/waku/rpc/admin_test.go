@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/multiformats/go-multiaddr"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
@@ -34,7 +35,7 @@ func TestV1Peers(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), utils.Logger())
+	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
