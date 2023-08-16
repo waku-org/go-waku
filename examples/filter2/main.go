@@ -15,7 +15,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
-	"github.com/waku-org/go-waku/waku/v2/peers"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -90,7 +90,7 @@ func main() {
 	// Setup filter
 	//
 
-	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], peers.Static, filter.FilterSubscribeID_v20beta1)
+	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], wps.Static, filter.FilterSubscribeID_v20beta1)
 	if err != nil {
 		log.Info("Error adding filter peer on light node ", err)
 	}
