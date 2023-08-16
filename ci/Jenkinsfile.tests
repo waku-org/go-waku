@@ -39,8 +39,14 @@ pipeline {
     }
 
     stage('Test') {
-      steps { script { dir(env.REPO) {
-        if (env.JOB_BASE_NAME == "race") {
+      steps {
+        echo "JOB_NAME is $env.JOB_NAME"
+
+        script { dir(env.REPO) {
+        JOBNAME="${JOB_NAME.substring(JOB_NAME.indexOf('/',1) + 1, JOB_NAME.lastIndexOf('/'))}"
+        echo "JOBNAME is $JOBNAME"
+
+        if ($JOBNAME == "race") {
           nix.develop('make test-with-race', pure: false)
         }else {
           nix.develop('make test-ci', pure: false)
