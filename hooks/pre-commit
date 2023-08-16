@@ -19,8 +19,26 @@ else
     done
 fi
 
-if go mod tidy -v 2>&1 | grep -q 'updates to go.mod needed'; then
-    exit 1
+# Run go mod tidy in all folders that have go.mod
+go-modules() {
+       find . \( -name '[._].*' \) -prune -o -name go.mod -print | sed 's:/go.mod$::'
+}
+
+fail=false
+
+for m in $(go-modules);
+do
+	cd $m > /dev/null
+	if go build . 2>&1 | grep -q 'updates to go.mod needed'; then
+		go mod tidy -v
+		echo "updates to go.mod needed in $m"
+		fail=true
+	fi
+	cd - > /dev/null
+done
+
+if [ $fail = "true" ]; then
+	exit 1
 fi
 
 git diff --exit-code go.* &> /dev/null
