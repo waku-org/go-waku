@@ -227,7 +227,7 @@ var (
 	})
 	Topics = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
 		Name:        "topic",
-		Usage:       "Default topic to subscribe to. Argument may be repeated",
+		Usage:       "Pubsub topic to subscribe to. Argument may be repeated",
 		Destination: &options.Relay.Topics,
 		EnvVars:     []string{"WAKUNODE2_TOPICS"},
 	})

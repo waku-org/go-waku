@@ -303,7 +303,7 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 			if oldestIndexInBlock == nil {
 				oldestIndexInBlock = evt.Index
 			}
-			idCommitments = append(idCommitments, rln.Bytes32(evt.Pubkey.Bytes()))
+			idCommitments = append(idCommitments, rln.BigIntToBytes32(evt.Pubkey))
 		}
 
 		if len(idCommitments) == 0 {
@@ -361,6 +361,7 @@ func (gm *DynamicGroupManager) MembershipIndex() (rln.MembershipIndex, error) {
 	return *gm.membershipIndex, nil
 }
 
+// Stop stops all go-routines, eth client and closes the rln database
 func (gm *DynamicGroupManager) Stop() error {
 	if gm.cancel == nil {
 		return nil

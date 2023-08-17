@@ -6,6 +6,7 @@ package main
 import (
 	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 func rlnFlags() []cli.Flag {
@@ -30,7 +31,7 @@ func rlnFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-content-topic",
-			Value:       "/toy-chat/2/luzhou/proto",
+			Value:       protocol.NewContentTopic("toy-chat", 3, "mingde", "proto").String(),
 			Usage:       "the content topic for which rln-relay gets enabled",
 			Destination: &options.RLNRelay.ContentTopic,
 		},

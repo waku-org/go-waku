@@ -93,6 +93,7 @@ func (gm *StaticGroupManager) MembershipIndex() (rln.MembershipIndex, error) {
 	return *gm.membershipIndex, nil
 }
 
+// Stop is a function created just to comply with the GroupManager interface (it does nothing)
 func (gm *StaticGroupManager) Stop() error {
 	// Do nothing
 	return nil

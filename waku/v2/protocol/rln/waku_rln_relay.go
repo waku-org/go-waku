@@ -49,8 +49,7 @@ type WakuRLNRelay struct {
 	log *zap.Logger
 }
 
-const rlnDefaultDepth = 20
-const rlnDefaultTreePath = "rln_tree.db"
+const rlnDefaultTreePath = "./rln_tree.db"
 
 func New(
 	relay *relay.WakuRelay,
@@ -66,16 +65,12 @@ func New(
 		treePath = rlnDefaultTreePath
 	}
 
-	// TODO: add a constant in go-zerokit-rln with 20 instead of having the constant in go-waku
-	rlnInstance, err := rln.NewWithConfig(rlnDefaultDepth, &rln.Config{
-		ResourcesFolder: "tree_height_20",
-		TreeConfig: &rln.TreeConfig{
-			CacheCapacity: 15000,
-			Mode:          "high_throughput", // TODO: find out in zerokit the possible values
-			Compression:   false,
-			FlushInterval: 12000,
-			Path:          treePath,
-		},
+	rlnInstance, err := rln.NewWithConfig(rln.DefaultTreeDepth, &rln.TreeConfig{
+		CacheCapacity: 15000,
+		Mode:          rln.HighThroughput,
+		Compression:   false,
+		FlushInterval: 500,
+		Path:          treePath,
 	})
 	if err != nil {
 		return nil, err
@@ -122,6 +117,7 @@ func (rlnRelay *WakuRLNRelay) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop will stop any operation or goroutine started while using WakuRLNRelay
 func (rlnRelay *WakuRLNRelay) Stop() error {
 	return rlnRelay.groupManager.Stop()
 }

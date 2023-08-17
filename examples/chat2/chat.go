@@ -57,6 +57,11 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
 
+	topics := options.Relay.Topics.Value()
+	if len(topics) == 0 {
+		topics = append(topics, relay.DefaultWakuTopic)
+	}
+
 	if options.Filter.Enable {
 		cf := filter.ContentFilter{
 			Topic:         relay.DefaultWakuTopic,
@@ -77,16 +82,19 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 			chat.C = theFilter.C
 		}
 	} else {
-		sub, err := node.Relay().Subscribe(ctx)
-		if err != nil {
-			chat.ui.ErrorMessage(err)
-		} else {
-			chat.C = make(chan *protocol.Envelope)
-			go func() {
-				for e := range sub.Ch {
-					chat.C <- e
-				}
-			}()
+
+		for _, topic := range topics {
+			sub, err := node.Relay().SubscribeToTopic(ctx, topic)
+			if err != nil {
+				chat.ui.ErrorMessage(err)
+			} else {
+				chat.C = make(chan *protocol.Envelope)
+				go func() {
+					for e := range sub.Ch {
+						chat.C <- e
+					}
+				}()
+			}
 		}
 	}
 
