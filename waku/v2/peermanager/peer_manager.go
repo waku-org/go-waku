@@ -102,8 +102,9 @@ func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 
 // GroupPeersByDirection returns all the connected peers in peer store grouped by Inbound or outBound direction
 func (pm *PeerManager) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
+	peers := pm.host.Network().Peers()
 
-	for _, p := range pm.host.Network().Peers() {
+	for _, p := range peers {
 		direction, err := pm.host.Peerstore().(wps.WakuPeerstore).Direction(p)
 		if err == nil {
 			if direction == network.DirInbound {
@@ -129,8 +130,12 @@ func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers
 		zap.Int("outPeers", outPeers.Len()))
 
 	//Need to filter peers to check if they support relay
-	inRelayPeers, _ = utils.FilterPeersByProto(pm.host, inPeers, WakuRelayIDv200)
-	outRelayPeers, _ = utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
+	if inPeers.Len() != 0 {
+		inRelayPeers, _ = utils.FilterPeersByProto(pm.host, inPeers, WakuRelayIDv200)
+	}
+	if outPeers.Len() != 0 {
+		outRelayPeers, _ = utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
+	}
 	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()),
 		zap.Int("outRelayPeers", outRelayPeers.Len()))
 	return
