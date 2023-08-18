@@ -41,6 +41,8 @@ type DynamicGroupManager struct {
 	ethClientAddress          string
 	ethClient                 *ethclient.Client
 
+	lastBlockProcessed uint64
+
 	// ethAccountPrivateKey is required for signing transactions
 	// TODO may need to erase this ethAccountPrivateKey when is not used
 	// TODO may need to make ethAccountPrivateKey mandatory
@@ -64,6 +66,8 @@ type DynamicGroupManager struct {
 func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) error {
 	toRemoveTable := om.New()
 	toInsertTable := om.New()
+
+	lastBlockProcessed := gm.lastBlockProcessed
 	for _, event := range events {
 		if event.Raw.Removed {
 			var indexes []uint
@@ -81,6 +85,10 @@ func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) e
 			}
 			eventsPerBlock = append(eventsPerBlock, event)
 			toInsertTable.Set(event.Raw.BlockNumber, eventsPerBlock)
+
+			if event.Raw.BlockNumber > lastBlockProcessed {
+				lastBlockProcessed = event.Raw.BlockNumber
+			}
 		}
 	}
 
@@ -92,6 +100,17 @@ func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) e
 	err = gm.InsertMembers(toInsertTable)
 	if err != nil {
 		return err
+	}
+
+	gm.lastBlockProcessed = lastBlockProcessed
+	err = gm.SetMetadata(RLNMetadata{
+		LastProcessedBlock: gm.lastBlockProcessed,
+	})
+	if err != nil {
+		// this is not a fatal error, hence we don't raise an exception
+		gm.log.Warn("failed to persist rln metadata", zap.Error(err))
+	} else {
+		gm.log.Debug("rln metadata persisted", zap.Uint64("lastProcessedBlock", gm.lastBlockProcessed))
 	}
 
 	return nil
@@ -284,7 +303,7 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 			if oldestIndexInBlock == nil {
 				oldestIndexInBlock = evt.Index
 			}
-			idCommitments = append(idCommitments, rln.Bytes32(evt.Pubkey.Bytes()))
+			idCommitments = append(idCommitments, rln.BigIntToBytes32(evt.Pubkey))
 		}
 
 		if len(idCommitments) == 0 {
@@ -342,11 +361,21 @@ func (gm *DynamicGroupManager) MembershipIndex() (rln.MembershipIndex, error) {
 	return *gm.membershipIndex, nil
 }
 
-func (gm *DynamicGroupManager) Stop() {
+// Stop stops all go-routines, eth client and closes the rln database
+func (gm *DynamicGroupManager) Stop() error {
 	if gm.cancel == nil {
-		return
+		return nil
 	}
 
 	gm.cancel()
+
+	err := gm.rln.Flush()
+	if err != nil {
+		return err
+	}
+	gm.ethClient.Close()
+
 	gm.wg.Wait()
+
+	return nil
 }

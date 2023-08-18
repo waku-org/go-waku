@@ -6,6 +6,7 @@ package main
 import (
 	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 func rlnFlags() []cli.Flag {
@@ -30,7 +31,7 @@ func rlnFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-content-topic",
-			Value:       "/toy-chat/2/luzhou/proto",
+			Value:       protocol.NewContentTopic("toy-chat", 3, "mingde", "proto").String(),
 			Usage:       "the content topic for which rln-relay gets enabled",
 			Destination: &options.RLNRelay.ContentTopic,
 		},
@@ -50,6 +51,12 @@ func rlnFlags() []cli.Flag {
 			Value:       "",
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
+		},
+		&cli.StringFlag{
+			Name:        "rln-relay-tree-path",
+			Value:       "",
+			Usage:       "Path to the RLN merkle tree sled db (https://github.com/spacejam/sled)",
+			Destination: &options.RLNRelay.TreePath,
 		},
 		&cli.UintFlag{
 			Name:        "rln-relay-membership-index",

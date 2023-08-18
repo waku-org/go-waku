@@ -6,6 +6,7 @@ import (
 	"github.com/waku-org/go-waku/waku/cliutils"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 
 	"github.com/urfave/cli/v2"
 )
@@ -33,6 +34,8 @@ func (v *FleetValue) String() string {
 func getFlags() []cli.Flag {
 	// Defaults
 	options.Fleet = fleetProd
+
+	testnetContentTopic := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto").String()
 
 	return []cli.Flag{
 		&cli.GenericFlag{
@@ -74,7 +77,7 @@ func getFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:        "content-topic",
 			Usage:       "content topic to use for the chat",
-			Value:       protocol.NewContentTopic("toy-chat", 2, "luzhou", "proto").String(),
+			Value:       testnetContentTopic,
 			Destination: &options.ContentTopic,
 		},
 		&cli.GenericFlag{
@@ -105,8 +108,8 @@ func getFlags() []cli.Flag {
 			Destination: &options.Relay.Enable,
 		},
 		&cli.StringSliceFlag{
-			Name:        "topics",
-			Usage:       "List of topics to listen",
+			Name:        "topic",
+			Usage:       "Pubsub topics to subscribe to. Option can be repeated",
 			Destination: &options.Relay.Topics,
 		},
 		&cli.BoolFlag{
@@ -197,13 +200,13 @@ func getFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-pubsub-topic",
-			Value:       "/waku/2/default-waku/proto",
+			Value:       relay.DefaultWakuTopic,
 			Usage:       "the pubsub topic for which rln-relay gets enabled",
 			Destination: &options.RLNRelay.PubsubTopic,
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-content-topic",
-			Value:       "/toy-chat/2/luzhou/proto",
+			Value:       testnetContentTopic,
 			Usage:       "the content topic for which rln-relay gets enabled",
 			Destination: &options.RLNRelay.ContentTopic,
 		},

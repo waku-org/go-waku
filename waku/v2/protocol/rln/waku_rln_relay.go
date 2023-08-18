@@ -25,7 +25,7 @@ type GroupManager interface {
 	Start(ctx context.Context, rln *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error
 	IdentityCredentials() (rln.IdentityCredential, error)
 	MembershipIndex() (rln.MembershipIndex, error)
-	Stop()
+	Stop() error
 }
 
 type WakuRLNRelay struct {
@@ -49,15 +49,29 @@ type WakuRLNRelay struct {
 	log *zap.Logger
 }
 
+const rlnDefaultTreePath = "./rln_tree.db"
+
 func New(
 	relay *relay.WakuRelay,
 	groupManager GroupManager,
+	treePath string,
 	pubsubTopic string,
 	contentTopic string,
 	spamHandler SpamHandler,
 	timesource timesource.Timesource,
 	log *zap.Logger) (*WakuRLNRelay, error) {
-	rlnInstance, err := rln.NewRLN()
+
+	if treePath == "" {
+		treePath = rlnDefaultTreePath
+	}
+
+	rlnInstance, err := rln.NewWithConfig(rln.DefaultTreeDepth, &rln.TreeConfig{
+		CacheCapacity: 15000,
+		Mode:          rln.HighThroughput,
+		Compression:   false,
+		FlushInterval: 500,
+		Path:          treePath,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +117,9 @@ func (rlnRelay *WakuRLNRelay) Start(ctx context.Context) error {
 	return nil
 }
 
-func (rlnRelay *WakuRLNRelay) Stop() {
-	rlnRelay.groupManager.Stop()
+// Stop will stop any operation or goroutine started while using WakuRLNRelay
+func (rlnRelay *WakuRLNRelay) Stop() error {
+	return rlnRelay.groupManager.Stop()
 }
 
 func (rlnRelay *WakuRLNRelay) HasDuplicate(proofMD rln.ProofMetadata) (bool, error) {

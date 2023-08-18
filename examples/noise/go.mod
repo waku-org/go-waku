@@ -109,10 +109,10 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98 // indirect
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230628220917-7b4e5ae4c0e7 // indirect
-	github.com/waku-org/go-zerokit-rln v0.1.13 // indirect
-	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230803113401-9a7ef94d120e // indirect
-	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230801152407-8101ff87ee0a // indirect
-	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230801140722-0a4e68d0b8f5 // indirect
+	github.com/waku-org/go-zerokit-rln v0.1.14-0.20230817221953-1ccba817b585 // indirect
+	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230807124901-05ef8aca570d // indirect
+	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230807124929-ea702b1b4305 // indirect
+	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230807124913-ea636e5b4005 // indirect
 	github.com/wk8/go-ordered-map v1.0.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect

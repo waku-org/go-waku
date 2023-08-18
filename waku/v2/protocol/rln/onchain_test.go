@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/waku-org/go-zerokit-rln/rln"
-	r "github.com/waku-org/go-zerokit-rln/rln"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -120,7 +119,7 @@ func (s *WakuRLNRelayDynamicSuite) register(privKey *ecdsa.PrivateKey, commitmen
 
 func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	// Create a RLN instance
-	rlnInstance, err := r.NewRLN()
+	rlnInstance, err := rln.NewRLN()
 	s.Require().NoError(err)
 
 	port, err := tests.FindFreePort(s.T(), "", 5)
@@ -148,7 +147,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 		relay:        relay,
 		RLN:          rlnInstance,
 		log:          utils.Logger(),
-		nullifierLog: make(map[r.MerkleNode][]r.ProofMetadata),
+		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),
 	}
 
 	// generate another membership key pair
@@ -162,7 +161,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	gm.Register(context.TODO())
 
 	handler := func(evt *contracts.RLNMemberRegistered) error {
-		pubkey := rln.Bytes32(evt.Pubkey.Bytes())
+		pubkey := rln.BigIntToBytes32(evt.Pubkey)
 		if !bytes.Equal(pubkey[:], keyPair2.IDCommitment[:]) {
 			return errors.New("not found")
 		}
@@ -171,7 +170,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	}
 
 	// register member with contract
-	s.register(s.u2PrivKey, dynamic.ToBigInt(keyPair2.IDCommitment[:]), handler)
+	s.register(s.u2PrivKey, rln.Bytes32ToBigInt(keyPair2.IDCommitment), handler)
 
 	time.Sleep(2 * time.Second)
 }
@@ -196,7 +195,7 @@ func (s *WakuRLNRelayDynamicSuite) TestInsertKeyMembershipContract() {
 
 func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	// Create a RLN instance
-	rlnInstance, err := r.NewRLN()
+	rlnInstance, err := rln.NewRLN()
 	s.Require().NoError(err)
 
 	keyPair1, err := rlnInstance.MembershipKeyGen()
@@ -216,8 +215,8 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	s.Require().NoError(err)
 
 	// register the members to the contract
-	s.register(s.u1PrivKey, dynamic.ToBigInt(keyPair1.IDCommitment[:]), nil)
-	s.register(s.u1PrivKey, dynamic.ToBigInt(keyPair2.IDCommitment[:]), nil)
+	s.register(s.u1PrivKey, rln.Bytes32ToBigInt(keyPair1.IDCommitment), nil)
+	s.register(s.u1PrivKey, rln.Bytes32ToBigInt(keyPair2.IDCommitment), nil)
 
 	// Creating relay
 	port, err := tests.FindFreePort(s.T(), "", 5)
@@ -242,7 +241,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay, err := New(relay, gm, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay, err := New(relay, gm, "test-merkle-tree.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	// PreRegistering the keypair
@@ -286,7 +285,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u1PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay1, err := New(relay1, gm1, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay1, err := New(relay1, gm1, "test-correct-registration-1.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay1.Start(context.TODO())
 	s.Require().NoError(err)
@@ -312,7 +311,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.u2PrivKey, s.rlnAddr, 0, "./test_onchain.json", "", 0, false, nil, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay2, err := New(relay2, gm2, RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay2, err := New(relay2, gm2, "test-correct-registration-2.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay2.Start(context.TODO())
 	s.Require().NoError(err)
@@ -326,6 +325,6 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	idx2, err := rlnRelay2.groupManager.MembershipIndex()
 	s.Require().NoError(err)
 
-	s.Require().Equal(r.MembershipIndex(0), idx1)
-	s.Require().Equal(r.MembershipIndex(1), idx2)
+	s.Require().Equal(rln.MembershipIndex(0), idx1)
+	s.Require().Equal(rln.MembershipIndex(1), idx2)
 }
