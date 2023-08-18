@@ -215,7 +215,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		if len(credentials) != 0 {
 			if int(gm.keystoreIndex) <= len(credentials)-1 {
 				credential := credentials[gm.keystoreIndex]
-				gm.identityCredential = &credential.IdentityCredential
+				gm.identityCredential = credential.IdentityCredential
 				if int(gm.membershipGroupIndex) <= len(credential.MembershipGroups)-1 {
 					gm.membershipIndex = &credential.MembershipGroups[gm.membershipGroupIndex].TreeIndex
 				} else {
@@ -275,18 +275,15 @@ func (gm *DynamicGroupManager) persistCredentials() error {
 		return errors.New("no credentials to persist")
 	}
 
-	keystoreCred := keystore.MembershipCredentials{
-		IdentityCredential: *gm.identityCredential,
-		MembershipGroups: []keystore.MembershipGroup{{
-			TreeIndex: *gm.membershipIndex,
-			MembershipContract: keystore.MembershipContract{
-				ChainId: fmt.Sprintf("0x%X", gm.chainId),
-				Address: gm.membershipContractAddress.String(),
-			},
-		}},
+	membershipGroup := keystore.MembershipGroup{
+		TreeIndex: *gm.membershipIndex,
+		MembershipContract: keystore.MembershipContract{
+			ChainId: fmt.Sprintf("0x%X", gm.chainId),
+			Address: gm.membershipContractAddress.String(),
+		},
 	}
 
-	err := keystore.AddMembershipCredentials(gm.keystorePath, []keystore.MembershipCredentials{keystoreCred}, gm.keystorePassword, RLNAppInfo, keystore.DefaultSeparator)
+	_, _, err := keystore.AddMembershipCredentials(gm.keystorePath, gm.identityCredential, membershipGroup, gm.keystorePassword, RLNAppInfo, keystore.DefaultSeparator)
 	if err != nil {
 		return fmt.Errorf("failed to persist credentials: %w", err)
 	}

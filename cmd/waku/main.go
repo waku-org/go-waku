@@ -6,6 +6,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"github.com/waku-org/go-waku/cmd/waku/keygen"
+	"github.com/waku-org/go-waku/cmd/waku/rlngenerate"
 	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
@@ -114,6 +115,7 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			&keygen.Command,
+			&rlngenerate.Command,
 		},
 	}
 
