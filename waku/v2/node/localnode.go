@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/libp2p/go-libp2p/core/event"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -342,5 +343,30 @@ func (w *WakuNode) watchTopicShards(ctx context.Context) error {
 		}
 	}()
 
+	return nil
+}
+
+func (w *WakuNode) RegisterAndMonitorReachability(ctx context.Context) error {
+	var myEventSub event.Subscription
+	var err error
+	if myEventSub, err = w.host.EventBus().Subscribe(new(event.EvtLocalReachabilityChanged)); err != nil {
+		return err
+	}
+	w.wg.Add(1)
+	go func() {
+		defer myEventSub.Close()
+		defer w.wg.Done()
+
+		for {
+			select {
+			case evt := <-myEventSub.Out():
+				reachability := evt.(event.EvtLocalReachabilityChanged).Reachability
+				w.log.Info("Node Reachabilitiy Changed to",
+					zap.String("NewReachabilitiy", reachability.String()))
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 	return nil
 }
