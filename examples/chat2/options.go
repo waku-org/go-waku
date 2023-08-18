@@ -37,7 +37,6 @@ type RLNRelayOptions struct {
 	PubsubTopic               string
 	ContentTopic              string
 	Dynamic                   bool
-	ETHPrivateKey             *ecdsa.PrivateKey
 	ETHClientAddress          string
 	MembershipContractAddress common.Address
 }

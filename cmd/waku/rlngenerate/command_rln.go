@@ -130,12 +130,13 @@ func persistCredentials(identityCredential *rln.IdentityCredential, membershipIn
 		},
 	}
 
-	keystoreIndex, membershipGroupIndex, err := keystore.AddMembershipCredentials(options.CredentialsPath, identityCredential, membershipGroup, options.CredentialsPassword, dynamic.RLNAppInfo, keystore.DefaultSeparator)
+	membershipGroupIndex, err := keystore.AddMembershipCredentials(options.CredentialsPath, identityCredential, membershipGroup, options.CredentialsPassword, dynamic.RLNAppInfo, keystore.DefaultSeparator)
 	if err != nil {
 		return fmt.Errorf("failed to persist credentials: %w", err)
 	}
 
-	logger.Info("persisted credentials succesfully", zap.Int("keystoreIndex", keystoreIndex), zap.Int("membershipGroupIndex", membershipGroupIndex))
+	// TODO: obtain keystore index?
+	logger.Info("persisted credentials succesfully", zap.Uint("membershipGroupIndex", membershipGroupIndex))
 
 	return nil
 }
