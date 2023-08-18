@@ -83,6 +83,10 @@ const dialTimeout = 7 * time.Second
 
 // Execute starts a go-waku node with settings determined by the Options parameter
 func Execute(options NodeOptions) {
+	// Set encoding for logs (console, json, ...)
+	// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
+	utils.InitLogger(options.LogEncoding, options.LogOutput)
+
 	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
 	failOnErr(err, "invalid host address")
 
