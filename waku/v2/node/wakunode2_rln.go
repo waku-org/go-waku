@@ -48,14 +48,12 @@ func (w *WakuNode) mountRlnRelay(ctx context.Context) error {
 
 		groupManager, err = dynamic.NewDynamicGroupManager(
 			w.opts.rlnETHClientAddress,
-			w.opts.rlnETHPrivateKey,
 			w.opts.rlnMembershipContractAddress,
 			w.opts.rlnRelayMemIndex,
 			w.opts.keystorePath,
 			w.opts.keystorePassword,
 			w.opts.keystoreIndex,
 			true,
-			w.opts.rlnRegistrationHandler,
 			w.log,
 		)
 		if err != nil {

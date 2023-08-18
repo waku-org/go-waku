@@ -2,7 +2,6 @@ package dynamic
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -43,17 +42,10 @@ type DynamicGroupManager struct {
 
 	lastBlockProcessed uint64
 
-	// ethAccountPrivateKey is required for signing transactions
-	// TODO may need to erase this ethAccountPrivateKey when is not used
-	// TODO may need to make ethAccountPrivateKey mandatory
-	ethAccountPrivateKey *ecdsa.PrivateKey
-
 	eventHandler RegistrationEventHandler
 
-	registrationHandler RegistrationHandler
-	chainId             *big.Int
-	rlnContract         *contracts.RLN
-	membershipFee       *big.Int
+	chainId     *big.Int
+	rlnContract *contracts.RLN
 
 	saveKeystore     bool
 	keystorePath     string
@@ -120,14 +112,12 @@ type RegistrationHandler = func(tx *types.Transaction)
 
 func NewDynamicGroupManager(
 	ethClientAddr string,
-	ethAccountPrivateKey *ecdsa.PrivateKey,
 	memContractAddr common.Address,
 	membershipGroupIndex uint,
 	keystorePath string,
 	keystorePassword string,
 	keystoreIndex uint,
 	saveKeystore bool,
-	registrationHandler RegistrationHandler,
 	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
 	log = log.Named("rln-dynamic")
@@ -148,8 +138,6 @@ func NewDynamicGroupManager(
 		membershipGroupIndex:      membershipGroupIndex,
 		membershipContractAddress: memContractAddr,
 		ethClientAddress:          ethClientAddr,
-		ethAccountPrivateKey:      ethAccountPrivateKey,
-		registrationHandler:       registrationHandler,
 		eventHandler:              handler,
 		saveKeystore:              saveKeystore,
 		keystorePath:              path,
@@ -193,7 +181,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 	}
 
 	// check if the contract exists by calling a static function
-	gm.membershipFee, err = gm.getMembershipFee(ctx)
+	_, err = gm.getMembershipFee(ctx)
 	if err != nil {
 		return err
 	}
@@ -227,65 +215,12 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		}
 	}
 
-	if gm.identityCredential == nil && gm.ethAccountPrivateKey == nil {
-		return errors.New("either a credentials path or a private key must be specified")
-	}
-
-	// prepare rln membership key pair
-	if gm.identityCredential == nil && gm.ethAccountPrivateKey != nil {
-		gm.log.Info("no rln-relay key is provided, generating one")
-		identityCredential, err := rlnInstance.MembershipKeyGen()
-		if err != nil {
-			return err
-		}
-
-		gm.identityCredential = identityCredential
-
-		// register the rln-relay peer to the membership contract
-		gm.membershipIndex, err = gm.Register(ctx)
-		if err != nil {
-			return err
-		}
-
-		err = gm.persistCredentials()
-		if err != nil {
-			return err
-		}
-
-		gm.log.Info("registered peer into the membership contract")
-	}
-
 	if gm.identityCredential == nil || gm.membershipIndex == nil {
 		return errors.New("no credentials available")
 	}
 
 	if err = gm.HandleGroupUpdates(ctx, gm.eventHandler); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (gm *DynamicGroupManager) persistCredentials() error {
-	if !gm.saveKeystore {
-		return nil
-	}
-
-	if gm.identityCredential == nil || gm.membershipIndex == nil {
-		return errors.New("no credentials to persist")
-	}
-
-	membershipGroup := keystore.MembershipGroup{
-		TreeIndex: *gm.membershipIndex,
-		MembershipContract: keystore.MembershipContract{
-			ChainId: fmt.Sprintf("0x%X", gm.chainId),
-			Address: gm.membershipContractAddress.String(),
-		},
-	}
-
-	_, _, err := keystore.AddMembershipCredentials(gm.keystorePath, gm.identityCredential, membershipGroup, gm.keystorePassword, RLNAppInfo, keystore.DefaultSeparator)
-	if err != nil {
-		return fmt.Errorf("failed to persist credentials: %w", err)
 	}
 
 	return nil
@@ -343,11 +278,6 @@ func (gm *DynamicGroupManager) IdentityCredentials() (rln.IdentityCredential, er
 	}
 
 	return *gm.identityCredential, nil
-}
-
-func (gm *DynamicGroupManager) SetCredentials(identityCredential *rln.IdentityCredential, index *rln.MembershipIndex) {
-	gm.identityCredential = identityCredential
-	gm.membershipIndex = index
 }
 
 func (gm *DynamicGroupManager) MembershipIndex() (rln.MembershipIndex, error) {

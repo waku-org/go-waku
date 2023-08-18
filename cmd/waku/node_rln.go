@@ -4,7 +4,6 @@
 package main
 
 import (
-	"crypto/ecdsa"
 	"errors"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -20,12 +19,6 @@ func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuN
 		if !options.RLNRelay.Dynamic {
 			*nodeOpts = append(*nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex), nil))
 		} else {
-
-			var ethPrivKey *ecdsa.PrivateKey
-			if options.RLNRelay.ETHPrivateKey != nil {
-				ethPrivKey = options.RLNRelay.ETHPrivateKey
-			}
-
 			// TODO: too many parameters in this function
 			// consider passing a config struct instead
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
@@ -39,8 +32,6 @@ func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuN
 				rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex),
 				nil,
 				options.RLNRelay.ETHClientAddress,
-				ethPrivKey,
-				nil,
 			))
 		}
 	}

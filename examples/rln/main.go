@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
@@ -27,10 +26,11 @@ var log = utils.Logger().Named("rln")
 // Update these values
 // ============================================================================
 const ethClientAddress = "wss://sepolia.infura.io/ws/v3/API_KEY_GOES_HERE"
-const ethPrivateKey = "PRIVATE_KEY_GOES_HERE"
 const contractAddress = "0x9C09146844C1326c2dBC41c451766C7138F88155"
-const credentialsPath = ""     // Empty to store in current folder
-const credentialsPassword = "" // Empty to use default
+const keystorePath = ""     // Empty to store in current folder
+const keystorePassword = "" // Empty to use default
+const keystoreIndex = 0
+const membershipGroupIndex = 0
 
 var contentTopic = protocol.NewContentTopic("rln", 1, "test", "proto").String()
 var pubsubTopic = protocol.DefaultPubsubTopic()
@@ -57,34 +57,6 @@ func main() {
 		return nil
 	}
 
-	registrationHandler := func(tx *types.Transaction) {
-		chainID := tx.ChainId().Int64()
-		url := ""
-		switch chainID {
-		case 1:
-			url = "https://etherscan.io"
-		case 5:
-			url = "https://goerli.etherscan.io"
-		case 11155111:
-			url = "https://sepolia.etherscan.io"
-
-		}
-
-		if url != "" {
-			fmt.Println(fmt.Sprintf("You are registered to the rln membership contract, find details of your registration transaction in %s/tx/%s", url, tx.Hash()))
-		} else {
-			fmt.Println(fmt.Sprintf("You are registered to the rln membership contract. Transaction hash: %s", url, tx.Hash()))
-		}
-	}
-
-	// TODO: set configuration values in constants
-
-	ethPrivKey, err := crypto.HexToECDSA(ethPrivateKey)
-	if err != nil {
-		log.Error("Could not convert hex into ecdsa key", zap.Error(err))
-		return
-	}
-
 	wakuNode, err := node.New(
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
@@ -93,13 +65,14 @@ func main() {
 		node.WithDynamicRLNRelay(
 			pubsubTopic.String(),
 			contentTopic,
-			credentialsPath,
-			credentialsPassword,
+			keystorePath,
+			keystorePassword,
+			keystoreIndex,
+			"", // Will use default tree path
 			common.HexToAddress(contractAddress),
+			membershipGroupIndex,
 			spamHandler,
 			ethClientAddress,
-			ethPrivKey,
-			registrationHandler,
 		),
 	)
 	if err != nil {

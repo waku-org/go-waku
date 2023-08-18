@@ -220,10 +220,10 @@ func GetMembershipCredentials(logger *zap.Logger, credentialsPath string, passwo
 }
 
 // Adds a membership credential to the keystore matching the application, appIdentifier and version filters.
-func AddMembershipCredentials(path string, newIdentityCredential *rln.IdentityCredential, newMembershipGroup MembershipGroup, password string, appInfo AppInfo, separator string) (keystoreIndex int, membershipGroupIndex int, err error) {
+func AddMembershipCredentials(path string, newIdentityCredential *rln.IdentityCredential, newMembershipGroup MembershipGroup, password string, appInfo AppInfo, separator string) (membershipGroupIndex uint, err error) {
 	k, err := LoadAppKeystore(path, appInfo, DefaultSeparator)
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
 	// A flag to tell us if the keystore contains a credential associated to the input identity credential, i.e. membershipCredential
@@ -266,12 +266,12 @@ func AddMembershipCredentials(path string, newIdentityCredential *rln.IdentityCr
 			// we re-encrypt creating a new keyfile
 			b, err := json.Marshal(updatedCredential)
 			if err != nil {
-				return 0, 0, err
+				return 0, err
 			}
 
 			encryptedCredentials, err := keystore.EncryptDataV3(b, []byte(password), keystore.StandardScryptN, keystore.StandardScryptP)
 			if err != nil {
-				return 0, 0, err
+				return 0, err
 			}
 
 			// we update the original credential field in keystoreCredentials
@@ -280,11 +280,10 @@ func AddMembershipCredentials(path string, newIdentityCredential *rln.IdentityCr
 			found = true
 
 			// We setup the return values
-			membershipGroupIndex = len(allMemberships)
-			keystoreIndex = i
+			membershipGroupIndex = uint(len(allMemberships))
 			for mIdx, mg := range updatedCredential.MembershipGroups {
 				if mg.MembershipContract.Equals(newMembershipGroup.MembershipContract) {
-					membershipGroupIndex = mIdx
+					membershipGroupIndex = uint(mIdx)
 					break
 				}
 			}
@@ -302,21 +301,20 @@ func AddMembershipCredentials(path string, newIdentityCredential *rln.IdentityCr
 
 		b, err := json.Marshal(newCredential)
 		if err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 
 		encryptedCredentials, err := keystore.EncryptDataV3(b, []byte(password), keystore.StandardScryptN, keystore.StandardScryptP)
 		if err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 
 		k.Credentials = append(k.Credentials, AppKeystoreCredential{Crypto: encryptedCredentials})
 
-		keystoreIndex = len(k.Credentials) - 1
-		membershipGroupIndex = len(newCredential.MembershipGroups) - 1
+		membershipGroupIndex = uint(len(newCredential.MembershipGroups) - 1)
 	}
 
-	return keystoreIndex, membershipGroupIndex, save(k, path, separator)
+	return membershipGroupIndex, save(k, path, separator)
 }
 
 // Safely saves a Keystore's JsonNode to disk.

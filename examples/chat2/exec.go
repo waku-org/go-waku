@@ -6,7 +6,6 @@ import (
 	"net"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
@@ -48,26 +47,6 @@ func execute(options Options) {
 			return nil
 		}
 
-		registrationHandler := func(tx *types.Transaction) {
-			chainID := tx.ChainId().Int64()
-			url := ""
-			switch chainID {
-			case 1:
-				url = "https://etherscan.io"
-			case 5:
-				url = "https://goerli.etherscan.io"
-			case 11155111:
-				url = "https://sepolia.etherscan.io"
-
-			}
-
-			if url != "" {
-				fmt.Println(fmt.Sprintf("You are registered to the rln membership contract, find details of your registration transaction in %s/tx/%s", url, tx.Hash()))
-			} else {
-				fmt.Println(fmt.Sprintf("You are registered to the rln membership contract. Transaction hash: %s", url, tx.Hash()))
-			}
-		}
-
 		if options.RLNRelay.Dynamic {
 			fmt.Println("Setting up dynamic rln...")
 			opts = append(opts, node.WithDynamicRLNRelay(
@@ -81,8 +60,6 @@ func execute(options Options) {
 				uint(options.RLNRelay.MembershipIndex),
 				spamHandler,
 				options.RLNRelay.ETHClientAddress,
-				options.RLNRelay.ETHPrivateKey,
-				registrationHandler,
 			))
 		} else {
 			opts = append(opts, node.WithStaticRLNRelay(

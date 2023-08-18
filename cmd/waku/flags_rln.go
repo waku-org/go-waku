@@ -64,15 +64,6 @@ func rlnFlags() []cli.Flag {
 			Usage:       "the index of credentials to use",
 			Destination: &options.RLNRelay.CredentialsIndex,
 		},
-		// TODO: this is a good candidate option for subcommands
-		// TODO: consider accepting a private key file and passwd
-		&cli.GenericFlag{
-			Name:  "rln-relay-eth-account-private-key",
-			Usage: "Ethereum  account private key used for registering in member contract",
-			Value: &wcli.PrivateKeyValue{
-				Value: &options.RLNRelay.ETHPrivateKey,
-			},
-		},
 		&cli.StringFlag{
 			Name:        "rln-relay-eth-client-address",
 			Usage:       "Ethereum testnet client address",

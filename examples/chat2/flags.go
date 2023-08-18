@@ -227,15 +227,6 @@ func getFlags() []cli.Flag {
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
 		},
-		// TODO: this is a good candidate option for subcommands
-		// TODO: consider accepting a private key file and passwd
-		&cli.GenericFlag{
-			Name:  "rln-relay-eth-account-private-key",
-			Usage: "Ethereum Goerli testnet account private key used for registering in member contract",
-			Value: &wcli.PrivateKeyValue{
-				Value: &options.RLNRelay.ETHPrivateKey,
-			},
-		},
 		&cli.StringFlag{
 			Name:        "rln-relay-eth-client-address",
 			Usage:       "Ethereum testnet client address",
