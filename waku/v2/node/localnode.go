@@ -346,11 +346,12 @@ func (w *WakuNode) watchTopicShards(ctx context.Context) error {
 	return nil
 }
 
-func (w *WakuNode) RegisterAndMonitorReachability(ctx context.Context) error {
+func (w *WakuNode) registerAndMonitorReachability(ctx context.Context) {
 	var myEventSub event.Subscription
 	var err error
 	if myEventSub, err = w.host.EventBus().Subscribe(new(event.EvtLocalReachabilityChanged)); err != nil {
-		return err
+		w.log.Error("Failed to register with libp2p for reachability status")
+		return
 	}
 	w.wg.Add(1)
 	go func() {
@@ -368,5 +369,4 @@ func (w *WakuNode) RegisterAndMonitorReachability(ctx context.Context) error {
 			}
 		}
 	}()
-	return nil
 }
