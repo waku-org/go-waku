@@ -350,7 +350,7 @@ func (w *WakuNode) registerAndMonitorReachability(ctx context.Context) {
 	var myEventSub event.Subscription
 	var err error
 	if myEventSub, err = w.host.EventBus().Subscribe(new(event.EvtLocalReachabilityChanged)); err != nil {
-		w.log.Error("Failed to register with libp2p for reachability status")
+		w.log.Error("failed to register with libp2p for reachability status", zap.Error(err))
 		return
 	}
 	w.wg.Add(1)
@@ -362,8 +362,7 @@ func (w *WakuNode) registerAndMonitorReachability(ctx context.Context) {
 			select {
 			case evt := <-myEventSub.Out():
 				reachability := evt.(event.EvtLocalReachabilityChanged).Reachability
-				w.log.Info("Node Reachabilitiy Changed to",
-					zap.String("NewReachabilitiy", reachability.String()))
+				w.log.Info("Node reachability changed", zap.Stringer("newReachability", reachability))
 			case <-ctx.Done():
 				return
 			}
