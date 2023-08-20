@@ -408,6 +408,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 			return err
 		}
 		w.peermanager.Start(ctx)
+		w.registerAndMonitorReachability(ctx)
 	}
 
 	w.store = w.storeFactory(w)
