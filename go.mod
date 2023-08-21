@@ -23,13 +23,13 @@ require (
 	github.com/urfave/cli/v2 v2.24.4
 	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 )
 
 require (
 	github.com/gorilla/mux v1.8.0
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
-	golang.org/x/text v0.9.0
+	golang.org/x/text v0.12.0
 )
 
 require (
@@ -75,6 +75,7 @@ require (
 	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230807124913-ea636e5b4005 // indirect
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/fx v1.19.2 // indirect
+	golang.org/x/mobile v0.0.0-20230818142238-7088062f872d // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 )
 
@@ -159,13 +160,13 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
-	golang.org/x/sys v0.8.0
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/sys v0.11.0
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.12.1-0.20230818130535-1517d1a3ba60 // indirect
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
