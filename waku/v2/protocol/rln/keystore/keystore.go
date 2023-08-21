@@ -219,7 +219,7 @@ func GetMembershipCredentials(logger *zap.Logger, credentialsPath string, passwo
 	return result, nil
 }
 
-// Adds a membership credential to the keystore matching the application, appIdentifier and version filters.
+// AddMembershipCredentials inserts a membership credential to the keystore matching the application, appIdentifier and version filters.
 func AddMembershipCredentials(path string, newIdentityCredential *rln.IdentityCredential, newMembershipGroup MembershipGroup, password string, appInfo AppInfo, separator string) (membershipGroupIndex uint, err error) {
 	k, err := LoadAppKeystore(path, appInfo, DefaultSeparator)
 	if err != nil {

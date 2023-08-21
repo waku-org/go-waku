@@ -23,17 +23,12 @@ func getMembershipFee(ctx context.Context, rlnContract *contracts.RLN) (*big.Int
 	return rlnContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
 }
 
-func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *contracts.RLN, idComm rln.IDCommitment, chainID *big.Int) (rln.MembershipIndex, error) {
-	// check if the contract exists by calling a static function
-	membershipFee, err := getMembershipFee(ctx, rlnContract)
-	if err != nil {
-		return 0, err
-	}
-
+func buildTransactor(ctx context.Context, membershipFee *big.Int, chainID *big.Int) (*bind.TransactOpts, error) {
 	auth, err := bind.NewKeyedTransactorWithChainID(options.ETHPrivateKey, chainID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
+
 	auth.Value = membershipFee
 	auth.Context = ctx
 	auth.GasLimit = options.ETHGasLimit
@@ -44,7 +39,7 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 		nonce := &big.Int{}
 		auth.Nonce, ok = nonce.SetString(options.ETHNonce, 10)
 		if !ok {
-			return 0, errors.New("invalid nonce value")
+			return nil, errors.New("invalid nonce value")
 		}
 	}
 
@@ -52,7 +47,7 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 		gasFeeCap := &big.Int{}
 		auth.GasFeeCap, ok = gasFeeCap.SetString(options.ETHGasFeeCap, 10)
 		if !ok {
-			return 0, errors.New("invalid gas fee cap value")
+			return nil, errors.New("invalid gas fee cap value")
 		}
 	}
 
@@ -60,7 +55,7 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 		gasTipCap := &big.Int{}
 		auth.GasTipCap, ok = gasTipCap.SetString(options.ETHGasTipCap, 10)
 		if !ok {
-			return 0, errors.New("invalid gas tip cap value")
+			return nil, errors.New("invalid gas tip cap value")
 		}
 	}
 
@@ -68,8 +63,23 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 		gasPrice := &big.Int{}
 		auth.GasPrice, ok = gasPrice.SetString(options.ETHGasPrice, 10)
 		if !ok {
-			return 0, errors.New("invalid gas price value")
+			return nil, errors.New("invalid gas price value")
 		}
+	}
+
+	return auth, nil
+}
+
+func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *contracts.RLN, idComm rln.IDCommitment, chainID *big.Int) (rln.MembershipIndex, error) {
+	// check if the contract exists by calling a static function
+	membershipFee, err := getMembershipFee(ctx, rlnContract)
+	if err != nil {
+		return 0, err
+	}
+
+	auth, err := buildTransactor(ctx, membershipFee, chainID)
+	if err != nil {
+		return 0, err
 	}
 
 	log.Debug("registering an id commitment", zap.Binary("idComm", idComm[:]))
@@ -80,18 +90,18 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 		return 0, fmt.Errorf("transaction error: %w", err)
 	}
 
-	url := ""
+	explorerURL := ""
 	switch chainID.Int64() {
 	case 1:
-		url = "https://etherscan.io"
+		explorerURL = "https://etherscan.io"
 	case 5:
-		url = "https://goerli.etherscan.io"
+		explorerURL = "https://goerli.etherscan.io"
 	case 11155111:
-		url = "https://sepolia.etherscan.io"
+		explorerURL = "https://sepolia.etherscan.io"
 	}
 
-	if url != "" {
-		logger.Info(fmt.Sprintf("transaction broadcasted, find details of your registration transaction in %s/tx/%s", url, tx.Hash()))
+	if explorerURL != "" {
+		logger.Info(fmt.Sprintf("transaction broadcasted, find details of your registration transaction in %s/tx/%s", explorerURL, tx.Hash()))
 	} else {
 		logger.Info("transaction broadcasted.", zap.String("transactionHash", tx.Hash().String()))
 	}
@@ -113,7 +123,7 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 		return 0, err
 	}
 
-	var eventIDComm rln.IDCommitment = rln.BigIntToBytes32(evt.Pubkey)
+	var eventIDComm rln.IDCommitment = rln.BigIntToBytes32(evt.IdCommitment)
 
 	log.Debug("information extracted from tx log", zap.Uint64("blockNumber", evt.Raw.BlockNumber), logging.HexString("idCommitment", eventIDComm[:]), zap.Uint64("index", evt.Index.Uint64()))
 
