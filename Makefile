@@ -46,7 +46,7 @@ ifeq ($(RLN), true)
 BUILD_TAGS := gowaku_rln
 endif
 
-all: build
+all: build static-library dynamic-library mobile-android mobile-ios test-ci docker-image
 
 deps: lint-install
 
@@ -130,7 +130,11 @@ static-library:
 		-o ./build/lib/libgowaku.a \
 		./library/c/
 	@echo "Static library built:"
+ifeq ($(detected_OS),Darwin)
+	sed -i '' -e "s/#include <cgo_utils.h>//gi" ./build/lib/libgowaku.h
+else
 	sed -i "s/#include <cgo_utils.h>//gi" ./build/lib/libgowaku.h
+endif
 	@ls -la ./build/lib/libgowaku.*
 
 dynamic-library:
@@ -141,7 +145,11 @@ dynamic-library:
 		-tags="${BUILD_TAGS}" \
 		-o ./build/lib/libgowaku.$(GOBIN_SHARED_LIB_EXT) \
 		./library/c/
+ifeq ($(detected_OS),Darwin)
+	sed -i '' -e "s/#include <cgo_utils.h>//gi" ./build/lib/libgowaku.h
+else
 	sed -i "s/#include <cgo_utils.h>//gi" ./build/lib/libgowaku.h
+endif
 ifeq ($(detected_OS),Linux)
 	cd ./build/lib && \
 	mv ./libgowaku.$(GOBIN_SHARED_LIB_EXT) ./libgowaku.$(GOBIN_SHARED_LIB_EXT).0 && \
