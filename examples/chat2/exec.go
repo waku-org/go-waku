@@ -50,8 +50,6 @@ func execute(options Options) {
 		if options.RLNRelay.Dynamic {
 			fmt.Println("Setting up dynamic rln...")
 			opts = append(opts, node.WithDynamicRLNRelay(
-				options.RLNRelay.PubsubTopic,
-				options.RLNRelay.ContentTopic,
 				options.RLNRelay.CredentialsPath,
 				options.RLNRelay.CredentialsPassword,
 				options.RLNRelay.CredentialsIndex,
@@ -63,8 +61,6 @@ func execute(options Options) {
 			))
 		} else {
 			opts = append(opts, node.WithStaticRLNRelay(
-				options.RLNRelay.PubsubTopic,
-				options.RLNRelay.ContentTopic,
 				uint(options.RLNRelay.MembershipIndex),
 				spamHandler))
 		}

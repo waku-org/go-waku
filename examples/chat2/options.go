@@ -34,8 +34,6 @@ type RLNRelayOptions struct {
 	CredentialsIndex          uint
 	MembershipGroupIndex      uint
 	MembershipIndex           uint
-	PubsubTopic               string
-	ContentTopic              string
 	Dynamic                   bool
 	ETHClientAddress          string
 	MembershipContractAddress common.Address
