@@ -17,13 +17,11 @@ func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuN
 			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")
 		}
 		if !options.RLNRelay.Dynamic {
-			*nodeOpts = append(*nodeOpts, node.WithStaticRLNRelay(options.RLNRelay.PubsubTopic, options.RLNRelay.ContentTopic, rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex), nil))
+			*nodeOpts = append(*nodeOpts, node.WithStaticRLNRelay(rln.MembershipIndex(options.RLNRelay.MembershipGroupIndex), nil))
 		} else {
 			// TODO: too many parameters in this function
 			// consider passing a config struct instead
 			*nodeOpts = append(*nodeOpts, node.WithDynamicRLNRelay(
-				options.RLNRelay.PubsubTopic,
-				options.RLNRelay.ContentTopic,
 				options.RLNRelay.CredentialsPath,
 				options.RLNRelay.CredentialsPassword,
 				options.RLNRelay.CredentialsIndex,

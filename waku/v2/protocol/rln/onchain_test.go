@@ -6,14 +6,12 @@ package rln
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/rand"
 	"fmt"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 
@@ -23,8 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/suite"
-	"github.com/waku-org/go-waku/tests"
-	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
@@ -145,18 +141,6 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	rlnInstance, err := rln.NewRLN()
 	s.Require().NoError(err)
 
-	port, err := tests.FindFreePort(s.T(), "", 5)
-	s.Require().NoError(err)
-
-	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
-	s.Require().NoError(err)
-
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	relay.SetHost(host)
-	err = relay.Start(context.TODO())
-	defer relay.Stop()
-	s.Require().NoError(err)
-
 	rt, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
 	s.Require().NoError(err)
 
@@ -172,7 +156,6 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	rlnRelay := &WakuRLNRelay{
 		rootTracker:  rt,
 		groupManager: gm,
-		relay:        relay,
 		RLN:          rlnInstance,
 		log:          utils.Logger(),
 		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),
@@ -243,25 +226,6 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	_, membershipGroupIndex := s.register(credentials1, s.u1PrivKey, "./test_onchain.json")
 	_, membershipGroupIndex = s.register(credentials2, s.u1PrivKey, "./test_onchain.json")
 
-	// Creating relay
-	port, err := tests.FindFreePort(s.T(), "", 5)
-	s.Require().NoError(err)
-
-	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
-	s.Require().NoError(err)
-
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	relay.SetHost(host)
-	err = relay.Start(context.TODO())
-	defer relay.Stop()
-	s.Require().NoError(err)
-
-	// Subscribing to topic
-
-	sub, err := relay.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
-	s.Require().NoError(err)
-	defer sub.Unsubscribe()
-
 	// mount the rln relay protocol in the on-chain/dynamic mode
 	// TODO: This assumes the keystoreIndex is 0, but there are two possible credentials in this keystore due to using the same contract address
 	// when credentials1 and credentials2 were registered. We should remove this hardcoded value and obtain the correct value when the credentials are persisted
@@ -269,7 +233,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, "./test_onchain.json", keystorePassword, keystoreIndex, false, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay, err := New(relay, gm, "test-merkle-tree.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay, err := New(gm, "test-merkle-tree.db", timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 
 	err = rlnRelay.Start(context.TODO())
@@ -292,21 +256,6 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	s.Require().NoError(err)
 
 	// Node 1 ============================================================
-	port1, err := tests.FindFreePort(s.T(), "", 5)
-	s.Require().NoError(err)
-
-	host1, err := tests.MakeHost(context.Background(), port1, rand.Reader)
-	s.Require().NoError(err)
-
-	relay1 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	relay1.SetHost(host1)
-	err = relay1.Start(context.TODO())
-	defer relay1.Stop()
-	s.Require().NoError(err)
-
-	sub1, err := relay1.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
-	s.Require().NoError(err)
-	defer sub1.Unsubscribe()
 
 	// Register credentials1 in contract and keystore1
 	credentials1 := s.generateCredentials(rlnInstance)
@@ -318,27 +267,12 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay1, err := New(relay1, gm1, "test-correct-registration-1.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay1, err := New(gm1, "test-correct-registration-1.db", timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay1.Start(context.TODO())
 	s.Require().NoError(err)
 
 	// Node 2 ============================================================
-	port2, err := tests.FindFreePort(s.T(), "", 5)
-	s.Require().NoError(err)
-
-	host2, err := tests.MakeHost(context.Background(), port2, rand.Reader)
-	s.Require().NoError(err)
-
-	relay2 := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	relay2.SetHost(host2)
-	err = relay2.Start(context.TODO())
-	defer relay2.Stop()
-	s.Require().NoError(err)
-
-	sub2, err := relay2.SubscribeToTopic(context.TODO(), RLNRELAY_PUBSUB_TOPIC)
-	s.Require().NoError(err)
-	defer sub2.Unsubscribe()
 
 	// Register credentials2 in contract and keystore2
 	credentials2 := s.generateCredentials(rlnInstance)
@@ -350,7 +284,7 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath2, keystorePassword, 0, false, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay2, err := New(relay2, gm2, "test-correct-registration-2.db", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay2, err := New(gm2, "test-correct-registration-2.db", timesource.NewDefaultClock(), utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay2.Start(context.TODO())
 	s.Require().NoError(err)
