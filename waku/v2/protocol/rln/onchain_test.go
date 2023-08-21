@@ -83,8 +83,6 @@ func (s *WakuRLNRelayDynamicSuite) SetupTest() {
 	auth, err := bind.NewKeyedTransactorWithChainID(s.u1PrivKey, chainID)
 	s.Require().NoError(err)
 
-	// TODO: update rln contract
-
 	poseidonHasherAddr, _, _, err := contracts.DeployPoseidonHasher(auth, backend)
 	s.Require().NoError(err)
 

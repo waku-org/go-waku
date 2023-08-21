@@ -14,14 +14,14 @@ import (
 	"github.com/waku-org/go-zerokit-rln/rln"
 )
 
-func eventBuilder(blockNumber uint64, removed bool, pubkey int64, index int64) *contracts.RLNMemberRegistered {
+func eventBuilder(blockNumber uint64, removed bool, idCommitment int64, index int64) *contracts.RLNMemberRegistered {
 	return &contracts.RLNMemberRegistered{
 		Raw: types.Log{
 			BlockNumber: blockNumber,
 			Removed:     removed,
 		},
-		Index:  big.NewInt(index),
-		Pubkey: big.NewInt(pubkey),
+		Index:        big.NewInt(index),
+		IdCommitment: big.NewInt(idCommitment),
 	}
 }
 

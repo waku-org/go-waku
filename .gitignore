@@ -64,6 +64,12 @@ Icon
 # Nix
 result
 
+# Solidity files
+waku/v2/protocol/rln/contracts/*.abi
+waku/v2/protocol/rln/contracts/*.sol
+waku/v2/protocol/rln/contracts/*.bin
+
+
 # Thumbnails
 ._*
 

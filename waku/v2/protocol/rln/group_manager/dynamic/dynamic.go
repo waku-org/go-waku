@@ -235,7 +235,7 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 			if oldestIndexInBlock == nil {
 				oldestIndexInBlock = evt.Index
 			}
-			idCommitments = append(idCommitments, rln.BigIntToBytes32(evt.Pubkey))
+			idCommitments = append(idCommitments, rln.BigIntToBytes32(evt.IdCommitment))
 		}
 
 		if len(idCommitments) == 0 {
