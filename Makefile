@@ -46,7 +46,7 @@ ifeq ($(RLN), true)
 BUILD_TAGS := gowaku_rln
 endif
 
-all: build static-library dynamic-library mobile-android mobile-ios test-ci docker-image
+all: build
 
 deps: lint-install
 
