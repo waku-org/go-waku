@@ -147,7 +147,7 @@ func (pm *PeerManager) connectToRelayPeers() {
 	inRelayPeers, outRelayPeers := pm.getRelayPeers()
 	if inRelayPeers.Len() > 0 &&
 		inRelayPeers.Len() > pm.InRelayPeersTarget {
-		pm.pruneInRelayConns(inRelayPeers, outRelayPeers)
+		pm.pruneInRelayConns(inRelayPeers)
 	}
 
 	if outRelayPeers.Len() > pm.OutRelayPeersTarget {
@@ -191,7 +191,7 @@ func (pm *PeerManager) getNotConnectedPers() (notConnectedPeers peer.IDSlice) {
 	return
 }
 
-func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
+func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 
 	//Start disconnecting peers, based on what?
 	//For now, just disconnect most recently connected peers
@@ -256,7 +256,7 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocol
 
 	//Add Service peers to serviceSlots.
 	for _, proto := range protocols {
-		pm.AddPeerToServiceSlot(proto, info.ID, origin)
+		pm.AddPeerToServiceSlot(proto, info.ID)
 	}
 
 	//Add to the peer-store
@@ -286,7 +286,7 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 // AddPeerToServiceSlot adds a peerID to serviceSlot.
 // Adding to peerStore is expected to be already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
-func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID, origin wps.Origin) {
+func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	if proto == WakuRelayIDv200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
