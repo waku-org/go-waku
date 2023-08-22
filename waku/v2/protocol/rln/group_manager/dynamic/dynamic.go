@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
@@ -27,8 +29,9 @@ var RLNAppInfo = keystore.AppInfo{
 }
 
 type DynamicGroupManager struct {
-	rln *rln.RLN
-	log *zap.Logger
+	rln     *rln.RLN
+	log     *zap.Logger
+	metrics Metrics
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -95,6 +98,8 @@ func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) e
 		return err
 	}
 
+	gm.metrics.RecordRegisteredMembership(toInsertTable.Len() - toRemoveTable.Len())
+
 	gm.lastBlockProcessed = lastBlockProcessed
 	err = gm.SetMetadata(RLNMetadata{
 		LastProcessedBlock: gm.lastBlockProcessed,
@@ -121,6 +126,7 @@ func NewDynamicGroupManager(
 	keystorePassword string,
 	keystoreIndex uint,
 	saveKeystore bool,
+	reg prometheus.Registerer,
 	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
 	log = log.Named("rln-dynamic")
@@ -147,6 +153,7 @@ func NewDynamicGroupManager(
 		keystorePassword:          password,
 		keystoreIndex:             keystoreIndex,
 		log:                       log,
+		metrics:                   newMetrics(reg),
 	}, nil
 }
 
@@ -190,6 +197,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 	}
 
 	if gm.identityCredential == nil && gm.keystorePassword != "" && gm.keystorePath != "" {
+		start := time.Now()
 		credentials, err := keystore.GetMembershipCredentials(gm.log,
 			gm.keystorePath,
 			gm.keystorePassword,
@@ -202,6 +210,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		if err != nil {
 			return err
 		}
+		gm.metrics.RecordMembershipCredentialsImportDuration(time.Since(start))
 
 		if len(credentials) != 0 {
 			if int(gm.keystoreIndex) <= len(credentials)-1 {
@@ -247,11 +256,13 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 
 		// TODO: should we track indexes to identify missing?
 		startIndex := rln.MembershipIndex(uint(oldestIndexInBlock.Int64()))
+		start := time.Now()
 		err := gm.rln.InsertMembers(startIndex, idCommitments)
 		if err != nil {
 			gm.log.Error("inserting members into merkletree", zap.Error(err))
 			return err
 		}
+		gm.metrics.RecordMembershipInsertionDuration(time.Since(start))
 
 		_, err = gm.rootTracker.UpdateLatestRoot(pair.Key.(uint64))
 		if err != nil {

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 
@@ -149,7 +150,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	_, membershipGroupIndex := s.register(u1Credentials, s.u1PrivKey, keystorePath1)
 	defer s.removeCredentials(keystorePath1)
 
-	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
 	// initialize the WakuRLNRelay
@@ -230,10 +231,10 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	// TODO: This assumes the keystoreIndex is 0, but there are two possible credentials in this keystore due to using the same contract address
 	// when credentials1 and credentials2 were registered. We should remove this hardcoded value and obtain the correct value when the credentials are persisted
 	keystoreIndex := uint(0)
-	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, "./test_onchain.json", keystorePassword, keystoreIndex, false, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, "./test_onchain.json", keystorePassword, keystoreIndex, false, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay, err := New(gm, "test-merkle-tree.db", timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay, err := New(gm, "test-merkle-tree.db", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
 	err = rlnRelay.Start(context.TODO())
@@ -264,10 +265,10 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer s.removeCredentials(keystorePath1)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, utils.Logger())
+	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay1, err := New(gm1, "test-correct-registration-1.db", timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay1, err := New(gm1, "test-correct-registration-1.db", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay1.Start(context.TODO())
 	s.Require().NoError(err)
@@ -281,10 +282,10 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	defer s.removeCredentials(keystorePath2)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath2, keystorePassword, 0, false, utils.Logger())
+	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath2, keystorePassword, 0, false, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay2, err := New(gm2, "test-correct-registration-2.db", timesource.NewDefaultClock(), utils.Logger())
+	rlnRelay2, err := New(gm2, "test-correct-registration-2.db", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 	err = rlnRelay2.Start(context.TODO())
 	s.Require().NoError(err)

@@ -12,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -29,6 +31,7 @@ type GroupManager interface {
 
 type WakuRLNRelay struct {
 	timesource timesource.Timesource
+	metrics    Metrics
 
 	groupManager GroupManager
 	rootTracker  *group_manager.MerkleRootTracker
@@ -48,12 +51,16 @@ func New(
 	groupManager GroupManager,
 	treePath string,
 	timesource timesource.Timesource,
+	reg prometheus.Registerer,
 	log *zap.Logger) (*WakuRLNRelay, error) {
 
 	if treePath == "" {
 		treePath = rlnDefaultTreePath
 	}
 
+	metrics := newMetrics(reg)
+
+	start := time.Now()
 	rlnInstance, err := rln.NewWithConfig(rln.DefaultTreeDepth, &rln.TreeConfig{
 		CacheCapacity: 15000,
 		Mode:          rln.HighThroughput,
@@ -64,6 +71,7 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+	metrics.RecordInstanceCreation(time.Since(start))
 
 	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
 	if err != nil {
@@ -75,6 +83,7 @@ func New(
 		RLN:          rlnInstance,
 		groupManager: groupManager,
 		rootTracker:  rootTracker,
+		metrics:      metrics,
 		log:          log,
 		timesource:   timesource,
 		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),
@@ -183,12 +192,14 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	if msgProof == nil {
 		// message does not contain a proof
 		rlnRelay.log.Debug("invalid message: message does not contain a proof")
+		rlnRelay.metrics.RecordInvalidMessage(invalidNoProof)
 		return invalidMessage, nil
 	}
 
 	proofMD, err := rlnRelay.RLN.ExtractMetadata(*msgProof)
 	if err != nil {
 		rlnRelay.log.Debug("could not extract metadata", zap.Error(err))
+		rlnRelay.metrics.RecordError(proofMetadataExtractionErr)
 		return invalidMessage, nil
 	}
 
@@ -198,18 +209,30 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		// message's epoch is too old or too ahead
 		// accept messages whose epoch is within +-MAX_EPOCH_GAP from the current epoch
 		rlnRelay.log.Debug("invalid message: epoch gap exceeds a threshold", zap.Int64("gap", gap))
+		rlnRelay.metrics.RecordInvalidMessage(invalidEpoch)
+
 		return invalidMessage, nil
 	}
 
+	if !(rlnRelay.rootTracker.ContainsRoot(msgProof.MerkleRoot)) {
+		rlnRelay.log.Debug("invalid message: unexpected root", logging.HexBytes("msgRoot", msg.RateLimitProof.MerkleRoot))
+		rlnRelay.metrics.RecordInvalidMessage(invalidRoot)
+		return invalidMessage, nil
+	}
+
+	start := time.Now()
 	valid, err := rlnRelay.verifyProof(msg, msgProof)
 	if err != nil {
 		rlnRelay.log.Debug("could not verify proof", zap.Error(err))
+		rlnRelay.metrics.RecordError(proofVerificationErr)
 		return invalidMessage, nil
 	}
+	rlnRelay.metrics.RecordProofVerification(time.Since(start))
 
 	if !valid {
 		// invalid proof
 		rlnRelay.log.Debug("Invalid proof")
+		rlnRelay.metrics.RecordInvalidMessage(invalidProof)
 		return invalidMessage, nil
 	}
 
@@ -217,6 +240,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	hasDup, err := rlnRelay.HasDuplicate(proofMD)
 	if err != nil {
 		rlnRelay.log.Debug("validation error", zap.Error(err))
+		rlnRelay.metrics.RecordError(duplicateCheckErr)
 		return validationError, err
 	}
 
@@ -230,10 +254,16 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	// it will never error out
 	_, err = rlnRelay.updateLog(proofMD)
 	if err != nil {
+		rlnRelay.log.Debug("could not insert proof into log")
+		rlnRelay.metrics.RecordError(logInsertionErr)
 		return validationError, err
 	}
 
 	rlnRelay.log.Debug("message is valid")
+
+	rootIndex := rlnRelay.rootTracker.IndexOf(msgProof.MerkleRoot)
+	rlnRelay.metrics.RecordValidMessages(rootIndex)
+
 	return validMessage, nil
 }
 
@@ -254,10 +284,12 @@ func (rlnRelay *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTim
 
 	input := toRLNSignal(msg)
 
+	start := time.Now()
 	proof, err := rlnRelay.generateProof(input, rln.CalcEpoch(senderEpochTime))
 	if err != nil {
 		return err
 	}
+	rlnRelay.metrics.RecordProofGeneration(time.Since(start))
 
 	msg.RateLimitProof = proof
 
@@ -270,6 +302,8 @@ func (rlnRelay *WakuRLNRelay) Validator(
 	spamHandler SpamHandler) func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
 		rlnRelay.log.Debug("rln-relay topic validator called")
+
+		rlnRelay.metrics.RecordMessage()
 
 		wakuMessage := &pb.WakuMessage{}
 		if err := proto.Unmarshal(message.Data, wakuMessage); err != nil {
@@ -299,6 +333,8 @@ func (rlnRelay *WakuRLNRelay) Validator(
 			rlnRelay.log.Debug("spam message found",
 				zap.String("id", hex.EncodeToString([]byte(message.ID))),
 			)
+
+			rlnRelay.metrics.RecordSpam(wakuMessage.ContentTopic)
 
 			if spamHandler != nil {
 				if err := spamHandler(wakuMessage); err != nil {
