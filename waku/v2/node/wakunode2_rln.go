@@ -52,6 +52,7 @@ func (w *WakuNode) setupRLNRelay() error {
 			w.opts.keystorePassword,
 			w.opts.keystoreIndex,
 			true,
+			w.opts.prometheusReg,
 			w.log,
 		)
 		if err != nil {
@@ -59,7 +60,7 @@ func (w *WakuNode) setupRLNRelay() error {
 		}
 	}
 
-	rlnRelay, err := rln.New(groupManager, w.opts.rlnTreePath, w.timesource, w.log)
+	rlnRelay, err := rln.New(groupManager, w.opts.rlnTreePath, w.timesource, w.opts.prometheusReg, w.log)
 	if err != nil {
 		return err
 	}
