@@ -25,6 +25,10 @@ pkg/*
 
 # output binaries
 go-waku
+examples/basic2/basic2
+examples/filter2/filter2
+examples/noise/build/
+examples/noise/noise
 
 # Test binary, built with `go test -c`
 *.test
