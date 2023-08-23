@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
@@ -97,12 +98,14 @@ func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) e
 	gm.lastBlockProcessed = lastBlockProcessed
 	err = gm.SetMetadata(RLNMetadata{
 		LastProcessedBlock: gm.lastBlockProcessed,
+		ChainID:            gm.chainId,
+		ContractAddress:    gm.membershipContractAddress,
 	})
 	if err != nil {
 		// this is not a fatal error, hence we don't raise an exception
 		gm.log.Warn("failed to persist rln metadata", zap.Error(err))
 	} else {
-		gm.log.Debug("rln metadata persisted", zap.Uint64("lastProcessedBlock", gm.lastBlockProcessed))
+		gm.log.Debug("rln metadata persisted", zap.Uint64("lastProcessedBlock", gm.lastBlockProcessed), zap.Uint64("chainID", gm.chainId.Uint64()), logging.HexBytes("contractAddress", gm.membershipContractAddress[:]))
 	}
 
 	return nil

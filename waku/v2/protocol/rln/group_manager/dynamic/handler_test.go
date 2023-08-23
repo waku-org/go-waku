@@ -43,6 +43,7 @@ func TestHandler(t *testing.T) {
 		log:         utils.Logger(),
 		cancel:      cancel,
 		wg:          sync.WaitGroup{},
+		chainId:     big.NewInt(1),
 		rootTracker: rootTracker,
 	}
 
