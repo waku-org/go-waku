@@ -69,7 +69,7 @@ func New(
 		CacheCapacity: 15000,
 		Mode:          rln.HighThroughput,
 		Compression:   false,
-		FlushInterval: 500,
+		FlushInterval: 500 * time.Millisecond,
 		Path:          treePath,
 	})
 	if err != nil {
