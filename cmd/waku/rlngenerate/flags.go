@@ -13,12 +13,12 @@ var flags = []cli.Flag{
 	&cli.PathFlag{
 		Name:        "cred-path",
 		Usage:       "RLN relay membership credentials file",
-		Value:       keystore.RLN_CREDENTIALS_FILENAME,
+		Value:       keystore.DefaultCredentialsFilename,
 		Destination: &options.CredentialsPath,
 	},
 	&cli.StringFlag{
 		Name:        "cred-password",
-		Value:       keystore.RLN_CREDENTIALS_PASSWORD,
+		Value:       keystore.DefaultCredentialsPassword,
 		Usage:       "Password for encrypting RLN credentials",
 		Destination: &options.CredentialsPassword,
 	},

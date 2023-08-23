@@ -51,8 +51,7 @@ type DynamicGroupManager struct {
 	chainId     *big.Int
 	rlnContract *contracts.RLN
 
-	saveKeystore     bool
-	keystorePath     string
+	appKeystore      *keystore.AppKeystore
 	keystorePassword string
 	keystoreIndex    uint
 
@@ -122,35 +121,21 @@ func NewDynamicGroupManager(
 	ethClientAddr string,
 	memContractAddr common.Address,
 	membershipGroupIndex uint,
-	keystorePath string,
+	appKeystore *keystore.AppKeystore,
 	keystorePassword string,
 	keystoreIndex uint,
-	saveKeystore bool,
 	reg prometheus.Registerer,
 	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
 	log = log.Named("rln-dynamic")
-
-	path := keystorePath
-	if path == "" {
-		log.Warn("keystore: no credentials path set, using default path", zap.String("path", keystore.RLN_CREDENTIALS_FILENAME))
-		path = keystore.RLN_CREDENTIALS_FILENAME
-	}
-
-	password := keystorePassword
-	if password == "" {
-		log.Warn("keystore: no credentials password set, using default password", zap.String("password", keystore.RLN_CREDENTIALS_PASSWORD))
-		password = keystore.RLN_CREDENTIALS_PASSWORD
-	}
 
 	return &DynamicGroupManager{
 		membershipGroupIndex:      membershipGroupIndex,
 		membershipContractAddress: memContractAddr,
 		ethClientAddress:          ethClientAddr,
 		eventHandler:              handler,
-		saveKeystore:              saveKeystore,
-		keystorePath:              path,
-		keystorePassword:          password,
+		appKeystore:               appKeystore,
+		keystorePassword:          keystorePassword,
 		keystoreIndex:             keystoreIndex,
 		log:                       log,
 		metrics:                   newMetrics(reg),
@@ -196,44 +181,47 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return err
 	}
 
-	if gm.identityCredential == nil && gm.keystorePassword != "" && gm.keystorePath != "" {
-		start := time.Now()
-		credentials, err := keystore.GetMembershipCredentials(gm.log,
-			gm.keystorePath,
-			gm.keystorePassword,
-			RLNAppInfo,
-			nil,
-			[]keystore.MembershipContract{{
-				ChainId: fmt.Sprintf("0x%X", gm.chainId),
-				Address: gm.membershipContractAddress.Hex(),
-			}})
-		if err != nil {
-			return err
-		}
-		gm.metrics.RecordMembershipCredentialsImportDuration(time.Since(start))
-
-		if len(credentials) != 0 {
-			if int(gm.keystoreIndex) <= len(credentials)-1 {
-				credential := credentials[gm.keystoreIndex]
-				gm.identityCredential = credential.IdentityCredential
-				if int(gm.membershipGroupIndex) <= len(credential.MembershipGroups)-1 {
-					gm.membershipIndex = &credential.MembershipGroups[gm.membershipGroupIndex].TreeIndex
-				} else {
-					return errors.New("invalid membership group index")
-				}
-			} else {
-				return errors.New("invalid keystore index")
-			}
-		}
-	}
-
-	if gm.identityCredential == nil || gm.membershipIndex == nil {
-		return errors.New("no credentials available")
+	err = gm.loadCredential()
+	if err != nil {
+		return err
 	}
 
 	if err = gm.HandleGroupUpdates(ctx, gm.eventHandler); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (gm *DynamicGroupManager) loadCredential() error {
+	start := time.Now()
+
+	credentials, err := gm.appKeystore.GetMembershipCredentials(
+		gm.keystorePassword,
+		nil,
+		[]keystore.MembershipContract{{
+			ChainID: fmt.Sprintf("0x%X", gm.chainId),
+			Address: gm.membershipContractAddress.Hex(),
+		}})
+	if err != nil {
+		return err
+	}
+	gm.metrics.RecordMembershipCredentialsImportDuration(time.Since(start))
+
+	if len(credentials) == 0 {
+		return errors.New("no credentials available")
+	}
+
+	if int(gm.keystoreIndex) > len(credentials)-1 {
+		return errors.New("invalid keystore index")
+	}
+
+	if int(gm.membershipGroupIndex) > len(credentials[gm.keystoreIndex].MembershipGroups)-1 {
+		return errors.New("invalid membership group index")
+	}
+
+	gm.identityCredential = credentials[gm.keystoreIndex].IdentityCredential
+	gm.membershipIndex = &credentials[gm.keystoreIndex].MembershipGroups[gm.membershipGroupIndex].TreeIndex
 
 	return nil
 }
