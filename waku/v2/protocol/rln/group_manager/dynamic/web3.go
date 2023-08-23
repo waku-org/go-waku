@@ -1,6 +1,7 @@
 package dynamic
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -93,7 +94,24 @@ type RegistrationEventHandler = func(*DynamicGroupManager, []*contracts.RLNMembe
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
 func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
-	err := gm.loadOldEvents(ctx, gm.rlnContract, handler)
+	fromBlock := uint64(0)
+	metadata, err := gm.GetMetadata()
+	if err != nil {
+		gm.log.Warn("could not load last processed block from metadata. Starting onchain sync from scratch", zap.Error(err))
+	} else {
+		if gm.chainId.Uint64() != metadata.ChainID.Uint64() {
+			return errors.New("persisted data: chain id mismatch")
+		}
+
+		if !bytes.Equal(gm.membershipContractAddress[:], metadata.ContractAddress[:]) {
+			return errors.New("persisted data: contract address mismatch")
+		}
+
+		fromBlock = metadata.LastProcessedBlock
+		gm.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
+	}
+
+	err = gm.loadOldEvents(ctx, gm.rlnContract, fromBlock, handler)
 	if err != nil {
 		return err
 	}
@@ -105,16 +123,7 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 	return <-errCh
 }
 
-func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, handler RegistrationEventHandler) error {
-	fromBlock := uint64(0)
-	metadata, err := gm.GetMetadata()
-	if err == nil {
-		fromBlock = metadata.LastProcessedBlock
-		gm.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
-	} else {
-		gm.log.Warn("could not load last processed block from metadata. Starting onchain sync from scratch", zap.Error(err))
-	}
-
+func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, fromBlock uint64, handler RegistrationEventHandler) error {
 	events, err := gm.getEvents(ctx, fromBlock, nil)
 	if err != nil {
 		return err
