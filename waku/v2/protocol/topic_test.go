@@ -6,11 +6,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestContentTopic(t *testing.T) {
-	ct := NewContentTopic("waku", 2, "test", "proto")
+func TestContentTopicAndSharding(t *testing.T) {
+	ct, err := NewContentTopic("waku", 2, "test", "proto")
+	require.NoError(t, err)
 	require.Equal(t, ct.String(), "/waku/2/test/proto")
 
-	_, err := StringToContentTopic("/waku/-1/a/b")
+	_, err = StringToContentTopic("/waku/-1/a/b")
 	require.Error(t, ErrInvalidFormat, err)
 
 	_, err = StringToContentTopic("waku/1/a/b")
@@ -27,8 +28,27 @@ func TestContentTopic(t *testing.T) {
 	require.Equal(t, ct.String(), ct2.String())
 	require.True(t, ct.Equal(ct2))
 
-	ct3 := NewContentTopic("waku", 2, "test2", "proto")
+	ct3, err := NewContentTopic("waku", 2, "test2", "proto")
 	require.False(t, ct.Equal(ct3))
+
+	ct4, err := StringToContentTopic("/0/toychat/2/huilong/proto")
+	require.NoError(t, err)
+	require.Equal(t, ct4.Generation, 0)
+
+	ct6, err := StringToContentTopic("/toychat/2/huilong/proto")
+
+	nsPubSubT1 := GetShardFromContentTopic(ct6, GenerationZeroShardsCount)
+	require.Equal(t, NewStaticShardingPubsubTopic(ClusterIndex, 3), nsPubSubT1)
+
+	_, err = StringToContentTopic("/abc/toychat/2/huilong/proto")
+	require.Error(t, ErrInvalidGeneration)
+
+	_, err = StringToContentTopic("/1/toychat/2/huilong/proto")
+	require.Error(t, ErrInvalidGeneration)
+
+	ct5, err := NewContentTopic("waku", 2, "test2", "proto", WithGeneration(0))
+	require.NoError(t, err)
+	require.Equal(t, ct5.Generation, 0)
 }
 
 func TestNsPubsubTopic(t *testing.T) {

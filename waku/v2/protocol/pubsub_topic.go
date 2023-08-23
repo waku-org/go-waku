@@ -10,7 +10,6 @@ import (
 const Waku2PubsubTopicPrefix = "/waku/2"
 const StaticShardingPubsubTopicPrefix = Waku2PubsubTopicPrefix + "/rs"
 
-var ErrInvalidFormat = errors.New("invalid format")
 var ErrInvalidStructure = errors.New("invalid topic structure")
 var ErrInvalidTopicPrefix = errors.New("must start with " + Waku2PubsubTopicPrefix)
 var ErrMissingTopicName = errors.New("missing topic-name")
@@ -18,51 +17,6 @@ var ErrInvalidShardedTopicPrefix = errors.New("must start with " + StaticShardin
 var ErrMissingClusterIndex = errors.New("missing shard_cluster_index")
 var ErrMissingShardNumber = errors.New("missing shard_number")
 var ErrInvalidNumberFormat = errors.New("only 2^16 numbers are allowed")
-
-type ContentTopic struct {
-	ApplicationName    string
-	ApplicationVersion uint
-	ContentTopicName   string
-	Encoding           string
-}
-
-func (ct ContentTopic) String() string {
-	return fmt.Sprintf("/%s/%d/%s/%s", ct.ApplicationName, ct.ApplicationVersion, ct.ContentTopicName, ct.Encoding)
-}
-
-func NewContentTopic(applicationName string, applicationVersion uint, contentTopicName string, encoding string) ContentTopic {
-	return ContentTopic{
-		ApplicationName:    applicationName,
-		ApplicationVersion: applicationVersion,
-		ContentTopicName:   contentTopicName,
-		Encoding:           encoding,
-	}
-}
-
-func (ct ContentTopic) Equal(ct2 ContentTopic) bool {
-	return ct.ApplicationName == ct2.ApplicationName && ct.ApplicationVersion == ct2.ApplicationVersion &&
-		ct.ContentTopicName == ct2.ContentTopicName && ct.Encoding == ct2.Encoding
-}
-
-func StringToContentTopic(s string) (ContentTopic, error) {
-	p := strings.Split(s, "/")
-
-	if len(p) != 5 || p[0] != "" || p[1] == "" || p[2] == "" || p[3] == "" || p[4] == "" {
-		return ContentTopic{}, ErrInvalidFormat
-	}
-
-	vNum, err := strconv.ParseUint(p[2], 10, 32)
-	if err != nil {
-		return ContentTopic{}, ErrInvalidFormat
-	}
-
-	return ContentTopic{
-		ApplicationName:    p[1],
-		ApplicationVersion: uint(vNum),
-		ContentTopicName:   p[3],
-		Encoding:           p[4],
-	}, nil
-}
 
 type NamespacedPubsubTopicKind int
 
