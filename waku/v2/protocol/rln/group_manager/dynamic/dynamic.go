@@ -21,7 +21,7 @@ import (
 )
 
 var RLNAppInfo = keystore.AppInfo{
-	Application:   "nwaku-rln-relay",
+	Application:   "waku-rln-relay",
 	AppIdentifier: "01234567890abcdef",
 	Version:       "0.1",
 }
