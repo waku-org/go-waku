@@ -28,13 +28,13 @@ var Command = cli.Command{
 	Name:  "generate-rln-credentials",
 	Usage: "Generate credentials for usage with RLN",
 	Action: func(cCtx *cli.Context) error {
-		err := verifyFlags()
-		if err != nil {
+		if options.ETHPrivateKey == nil {
+			err := errors.New("a private key must be specified")
 			logger.Error("validating option flags", zap.Error(err))
 			return cli.Exit(err, 1)
 		}
 
-		err = execute(context.Background())
+		err := execute(context.Background())
 		if err != nil {
 			logger.Error("registering RLN credentials", zap.Error(err))
 			return cli.Exit(err, 1)
@@ -43,24 +43,6 @@ var Command = cli.Command{
 		return nil
 	},
 	Flags: flags,
-}
-
-func verifyFlags() error {
-	if options.CredentialsPath == "" {
-		logger.Warn("keystore: no credentials path set, using default path", zap.String("path", keystore.RLN_CREDENTIALS_FILENAME))
-		options.CredentialsPath = keystore.RLN_CREDENTIALS_FILENAME
-	}
-
-	if options.CredentialsPassword == "" {
-		logger.Warn("keystore: no credentials password set, using default password", zap.String("password", keystore.RLN_CREDENTIALS_PASSWORD))
-		options.CredentialsPassword = keystore.RLN_CREDENTIALS_PASSWORD
-	}
-
-	if options.ETHPrivateKey == nil {
-		return errors.New("a private key must be specified")
-	}
-
-	return nil
 }
 
 func execute(ctx context.Context) error {
@@ -122,15 +104,20 @@ func execute(ctx context.Context) error {
 }
 
 func persistCredentials(identityCredential *rln.IdentityCredential, membershipIndex rln.MembershipIndex, chainID *big.Int) error {
+	appKeystore, err := keystore.New(options.CredentialsPath, dynamic.RLNAppInfo, logger)
+	if err != nil {
+		return err
+	}
+
 	membershipGroup := keystore.MembershipGroup{
 		TreeIndex: membershipIndex,
 		MembershipContract: keystore.MembershipContract{
-			ChainId: fmt.Sprintf("0x%X", chainID.Int64()),
+			ChainID: fmt.Sprintf("0x%X", chainID.Int64()),
 			Address: options.MembershipContractAddress.String(),
 		},
 	}
 
-	membershipGroupIndex, err := keystore.AddMembershipCredentials(options.CredentialsPath, identityCredential, membershipGroup, options.CredentialsPassword, dynamic.RLNAppInfo, keystore.DefaultSeparator)
+	membershipGroupIndex, err := appKeystore.AddMembershipCredentials(identityCredential, membershipGroup, options.CredentialsPassword)
 	if err != nil {
 		return fmt.Errorf("failed to persist credentials: %w", err)
 	}
