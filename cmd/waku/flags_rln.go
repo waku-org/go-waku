@@ -10,7 +10,7 @@ import (
 )
 
 func rlnFlags() []cli.Flag {
-	contentTopic, err := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto")
+	contentTopic, _ := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto")
 	return []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "rln-relay",
