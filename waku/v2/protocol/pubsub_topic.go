@@ -18,6 +18,7 @@ var ErrMissingClusterIndex = errors.New("missing shard_cluster_index")
 var ErrMissingShardNumber = errors.New("missing shard_number")
 var ErrInvalidNumberFormat = errors.New("only 2^16 numbers are allowed")
 
+// NamespacedPubsubTopicKind used to represent kind of NamespacedPubsubTopicKind
 type NamespacedPubsubTopicKind int
 
 const (
@@ -25,18 +26,21 @@ const (
 	NamedSharding
 )
 
+// NamespacedPubsubTopic is an interface for namespace based pubSub topic
 type NamespacedPubsubTopic interface {
 	String() string
 	Kind() NamespacedPubsubTopicKind
 	Equal(NamespacedPubsubTopic) bool
 }
 
+// NamedShardingPubsubTopic is object for a NamedSharding type pubSub topic
 type NamedShardingPubsubTopic struct {
 	NamespacedPubsubTopic
 	kind NamespacedPubsubTopicKind
 	name string
 }
 
+// NewNamedShardingPubsubTopic creates a new NamedShardingPubSubTopic
 func NewNamedShardingPubsubTopic(name string) NamespacedPubsubTopic {
 	return NamedShardingPubsubTopic{
 		kind: NamedSharding,
@@ -44,22 +48,27 @@ func NewNamedShardingPubsubTopic(name string) NamespacedPubsubTopic {
 	}
 }
 
+// Kind returns the type of PubsubTopic whether it is StaticShared or NamedSharded
 func (n NamedShardingPubsubTopic) Kind() NamespacedPubsubTopicKind {
 	return n.kind
 }
 
+// Name is the name of the NamedSharded pubsub topic.
 func (n NamedShardingPubsubTopic) Name() string {
 	return n.name
 }
 
+// Equal compares NamedShardingPubsubTopic
 func (s NamedShardingPubsubTopic) Equal(t2 NamespacedPubsubTopic) bool {
 	return s.String() == t2.String()
 }
 
+// String formats NamedShardingPubsubTopic to RFC 23 specific string format for pubsub topic.
 func (n NamedShardingPubsubTopic) String() string {
 	return fmt.Sprintf("%s/%s", Waku2PubsubTopicPrefix, n.name)
 }
 
+// Parse parses a topic string into a NamedShardingPubsubTopic
 func (s *NamedShardingPubsubTopic) Parse(topic string) error {
 	if !strings.HasPrefix(topic, Waku2PubsubTopicPrefix) {
 		return ErrInvalidTopicPrefix
@@ -76,6 +85,7 @@ func (s *NamedShardingPubsubTopic) Parse(topic string) error {
 	return nil
 }
 
+// StaticShardingPubsubTopic describes a pubSub topic as per StaticSharding
 type StaticShardingPubsubTopic struct {
 	NamespacedPubsubTopic
 	kind    NamespacedPubsubTopicKind
@@ -83,6 +93,7 @@ type StaticShardingPubsubTopic struct {
 	shard   uint16
 }
 
+// NewStaticShardingPubsubTopic creates a new pubSub topic
 func NewStaticShardingPubsubTopic(cluster uint16, shard uint16) NamespacedPubsubTopic {
 	return StaticShardingPubsubTopic{
 		kind:    StaticSharding,
@@ -91,26 +102,32 @@ func NewStaticShardingPubsubTopic(cluster uint16, shard uint16) NamespacedPubsub
 	}
 }
 
+// Cluster returns the sharded cluster index
 func (n StaticShardingPubsubTopic) Cluster() uint16 {
 	return n.cluster
 }
 
+// Cluster returns the shard number
 func (n StaticShardingPubsubTopic) Shard() uint16 {
 	return n.shard
 }
 
+// Kind returns the type of PubsubTopic whether it is StaticShared or NamedSharded
 func (n StaticShardingPubsubTopic) Kind() NamespacedPubsubTopicKind {
 	return n.kind
 }
 
+// Equal compares StaticShardingPubsubTopic
 func (s StaticShardingPubsubTopic) Equal(t2 NamespacedPubsubTopic) bool {
 	return s.String() == t2.String()
 }
 
+// String formats StaticShardingPubsubTopic to RFC 23 specific string format for pubsub topic.
 func (n StaticShardingPubsubTopic) String() string {
 	return fmt.Sprintf("%s/%d/%d", StaticShardingPubsubTopicPrefix, n.cluster, n.shard)
 }
 
+// Parse parses a topic string into a StaticShardingPubsubTopic
 func (s *StaticShardingPubsubTopic) Parse(topic string) error {
 	if !strings.HasPrefix(topic, StaticShardingPubsubTopicPrefix) {
 		return ErrInvalidShardedTopicPrefix
@@ -148,6 +165,7 @@ func (s *StaticShardingPubsubTopic) Parse(topic string) error {
 	return nil
 }
 
+// ToShardedPubsubTopic takes a pubSub topic string and creates a NamespacedPubsubTopic object.
 func ToShardedPubsubTopic(topic string) (NamespacedPubsubTopic, error) {
 	if strings.HasPrefix(topic, StaticShardingPubsubTopicPrefix) {
 		s := StaticShardingPubsubTopic{}
@@ -166,6 +184,7 @@ func ToShardedPubsubTopic(topic string) (NamespacedPubsubTopic, error) {
 	}
 }
 
+// DefaultPubsubTopic is the default pubSub topic used in waku
 func DefaultPubsubTopic() NamespacedPubsubTopic {
 	return NewNamedShardingPubsubTopic("default-waku/proto")
 }
