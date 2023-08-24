@@ -29,6 +29,7 @@ func TestContentTopicAndSharding(t *testing.T) {
 	require.True(t, ct.Equal(ct2))
 
 	ct3, err := NewContentTopic("waku", 2, "test2", "proto")
+	require.NoError(t, err)
 	require.False(t, ct.Equal(ct3))
 
 	ct4, err := StringToContentTopic("/0/toychat/2/huilong/proto")
@@ -36,15 +37,16 @@ func TestContentTopicAndSharding(t *testing.T) {
 	require.Equal(t, ct4.Generation, 0)
 
 	ct6, err := StringToContentTopic("/toychat/2/huilong/proto")
+	require.NoError(t, err)
 
 	nsPubSubT1 := GetShardFromContentTopic(ct6, GenerationZeroShardsCount)
 	require.Equal(t, NewStaticShardingPubsubTopic(ClusterIndex, 3), nsPubSubT1)
 
 	_, err = StringToContentTopic("/abc/toychat/2/huilong/proto")
-	require.Error(t, ErrInvalidGeneration)
+	require.Error(t, ErrInvalidGeneration, err)
 
 	_, err = StringToContentTopic("/1/toychat/2/huilong/proto")
-	require.Error(t, ErrInvalidGeneration)
+	require.Error(t, ErrInvalidGeneration, err)
 
 	ct5, err := NewContentTopic("waku", 2, "test2", "proto", WithGeneration(0))
 	require.NoError(t, err)
