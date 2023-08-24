@@ -12,8 +12,11 @@ import (
 
 const MaxShardIndex = uint16(1023)
 
+// ClusterIndex is the clusterID used in sharding space.
 // For indices allocation and other magic numbers refer to RFC 51
 const ClusterIndex = 1
+
+// GenerationZeroShardsCount is number of shards supported in generation-0
 const GenerationZeroShardsCount = 8
 
 type RelayShards struct {

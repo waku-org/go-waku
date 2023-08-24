@@ -59,8 +59,8 @@ func (n NamedShardingPubsubTopic) Name() string {
 }
 
 // Equal compares NamedShardingPubsubTopic
-func (s NamedShardingPubsubTopic) Equal(t2 NamespacedPubsubTopic) bool {
-	return s.String() == t2.String()
+func (n NamedShardingPubsubTopic) Equal(t2 NamespacedPubsubTopic) bool {
+	return n.String() == t2.String()
 }
 
 // String formats NamedShardingPubsubTopic to RFC 23 specific string format for pubsub topic.
@@ -69,7 +69,7 @@ func (n NamedShardingPubsubTopic) String() string {
 }
 
 // Parse parses a topic string into a NamedShardingPubsubTopic
-func (s *NamedShardingPubsubTopic) Parse(topic string) error {
+func (n *NamedShardingPubsubTopic) Parse(topic string) error {
 	if !strings.HasPrefix(topic, Waku2PubsubTopicPrefix) {
 		return ErrInvalidTopicPrefix
 	}
@@ -79,8 +79,8 @@ func (s *NamedShardingPubsubTopic) Parse(topic string) error {
 		return ErrMissingTopicName
 	}
 
-	s.kind = NamedSharding
-	s.name = topicName
+	n.kind = NamedSharding
+	n.name = topicName
 
 	return nil
 }
@@ -103,18 +103,18 @@ func NewStaticShardingPubsubTopic(cluster uint16, shard uint16) NamespacedPubsub
 }
 
 // Cluster returns the sharded cluster index
-func (n StaticShardingPubsubTopic) Cluster() uint16 {
-	return n.cluster
+func (s StaticShardingPubsubTopic) Cluster() uint16 {
+	return s.cluster
 }
 
 // Cluster returns the shard number
-func (n StaticShardingPubsubTopic) Shard() uint16 {
-	return n.shard
+func (s StaticShardingPubsubTopic) Shard() uint16 {
+	return s.shard
 }
 
 // Kind returns the type of PubsubTopic whether it is StaticShared or NamedSharded
-func (n StaticShardingPubsubTopic) Kind() NamespacedPubsubTopicKind {
-	return n.kind
+func (s StaticShardingPubsubTopic) Kind() NamespacedPubsubTopicKind {
+	return s.kind
 }
 
 // Equal compares StaticShardingPubsubTopic
@@ -123,8 +123,8 @@ func (s StaticShardingPubsubTopic) Equal(t2 NamespacedPubsubTopic) bool {
 }
 
 // String formats StaticShardingPubsubTopic to RFC 23 specific string format for pubsub topic.
-func (n StaticShardingPubsubTopic) String() string {
-	return fmt.Sprintf("%s/%d/%d", StaticShardingPubsubTopicPrefix, n.cluster, n.shard)
+func (s StaticShardingPubsubTopic) String() string {
+	return fmt.Sprintf("%s/%d/%d", StaticShardingPubsubTopicPrefix, s.cluster, s.shard)
 }
 
 // Parse parses a topic string into a StaticShardingPubsubTopic
