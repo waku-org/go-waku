@@ -56,7 +56,6 @@ func (w *WakuNode) setupRLNRelay() error {
 			w.opts.rlnRelayMemIndex,
 			appKeystore,
 			w.opts.keystorePassword,
-			w.opts.keystoreIndex,
 			w.opts.prometheusReg,
 			w.log,
 		)

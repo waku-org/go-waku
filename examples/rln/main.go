@@ -29,8 +29,7 @@ const ethClientAddress = "wss://sepolia.infura.io/ws/v3/API_KEY_GOES_HERE"
 const contractAddress = "0x9C09146844C1326c2dBC41c451766C7138F88155"
 const keystorePath = ""     // Empty to store in current folder
 const keystorePassword = "" // Empty to use default
-const keystoreIndex = 0
-const membershipGroupIndex = 0
+const membershipIndex = 0
 
 var contentTopic = protocol.NewContentTopic("rln", 1, "test", "proto").String()
 var pubsubTopic = protocol.DefaultPubsubTopic()
@@ -63,14 +62,11 @@ func main() {
 		node.WithNTP(),
 		node.WithWakuRelay(),
 		node.WithDynamicRLNRelay(
-			pubsubTopic.String(),
-			contentTopic,
 			keystorePath,
 			keystorePassword,
-			keystoreIndex,
 			"", // Will use default tree path
 			common.HexToAddress(contractAddress),
-			membershipGroupIndex,
+			membershipIndex,
 			spamHandler,
 			ethClientAddress,
 		),
