@@ -14,7 +14,7 @@ var ErrMissingGeneration = errors.New("missing part: generation")
 var ErrInvalidGeneration = errors.New("generation should be a number")
 
 type ContentTopic struct {
-	*ContentTopicParams
+	ContentTopicParams
 	ApplicationName    string
 	ApplicationVersion uint32
 	ContentTopicName   string
@@ -23,6 +23,10 @@ type ContentTopic struct {
 
 type ContentTopicParams struct {
 	Generation int
+}
+
+func (ctp ContentTopicParams) Equal(ctp2 ContentTopicParams) bool {
+	return ctp.Generation == ctp2.Generation
 }
 
 type ContentTopicOption func(*ContentTopicParams)
@@ -44,7 +48,7 @@ func NewContentTopic(applicationName string, applicationVersion uint32,
 		return ContentTopic{}, ErrInvalidGeneration
 	}
 	return ContentTopic{
-		ContentTopicParams: params,
+		ContentTopicParams: *params,
 		ApplicationName:    applicationName,
 		ApplicationVersion: applicationVersion,
 		ContentTopicName:   contentTopicName,
@@ -66,7 +70,8 @@ func DefaultOptions() []ContentTopicOption {
 
 func (ct ContentTopic) Equal(ct2 ContentTopic) bool {
 	return ct.ApplicationName == ct2.ApplicationName && ct.ApplicationVersion == ct2.ApplicationVersion &&
-		ct.ContentTopicName == ct2.ContentTopicName && ct.Encoding == ct2.Encoding
+		ct.ContentTopicName == ct2.ContentTopicName && ct.Encoding == ct2.Encoding &&
+		ct.ContentTopicParams.Equal(ct2.ContentTopicParams)
 }
 
 func StringToContentTopic(s string) (ContentTopic, error) {
@@ -98,7 +103,7 @@ func StringToContentTopic(s string) (ContentTopic, error) {
 		}
 
 		return ContentTopic{
-			ContentTopicParams: &ContentTopicParams{Generation: generation},
+			ContentTopicParams: ContentTopicParams{Generation: generation},
 			ApplicationName:    p[2],
 			ApplicationVersion: uint32(vNum),
 			ContentTopicName:   p[4],
