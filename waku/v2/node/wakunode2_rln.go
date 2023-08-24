@@ -24,6 +24,10 @@ func (w *WakuNode) setupRLNRelay() error {
 	var err error
 	var groupManager rln.GroupManager
 
+	if !w.opts.enableRLN {
+		return nil
+	}
+
 	if !w.opts.rlnRelayDynamic {
 		w.log.Info("setting up waku-rln-relay in off-chain mode")
 

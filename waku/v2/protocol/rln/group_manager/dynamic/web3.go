@@ -107,7 +107,7 @@ func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, rlnContract *
 	}
 }
 
-const maxBatchSize = uint64(5000000) // TODO: tune this
+const maxBatchSize = uint64(5000)
 const additiveFactorMultiplier = 0.10
 const multiplicativeDecreaseDivisor = 2
 

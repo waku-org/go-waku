@@ -413,6 +413,13 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		}
 	}
 
+	if w.opts.enableRLN {
+		err = w.startRlnRelay(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	w.relay.SetHost(host)
 
 	if w.opts.enableRelay {
@@ -487,13 +494,6 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	w.rendezvous.SetHost(host)
 	if w.opts.enableRendezvousPoint {
 		err := w.rendezvous.Start(ctx)
-		if err != nil {
-			return err
-		}
-	}
-
-	if w.opts.enableRLN {
-		err = w.startRlnRelay(ctx)
 		if err != nil {
 			return err
 		}
