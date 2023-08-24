@@ -103,27 +103,24 @@ func execute(ctx context.Context) error {
 	return nil
 }
 
-func persistCredentials(identityCredential *rln.IdentityCredential, membershipIndex rln.MembershipIndex, chainID *big.Int) error {
+func persistCredentials(identityCredential *rln.IdentityCredential, treeIndex rln.MembershipIndex, chainID *big.Int) error {
 	appKeystore, err := keystore.New(options.CredentialsPath, dynamic.RLNAppInfo, logger)
 	if err != nil {
 		return err
 	}
 
-	membershipGroup := keystore.MembershipGroup{
-		TreeIndex: membershipIndex,
-		MembershipContract: keystore.MembershipContract{
-			ChainID: fmt.Sprintf("0x%X", chainID.Int64()),
-			Address: options.MembershipContractAddress.String(),
-		},
+	membershipCredential := keystore.MembershipCredentials{
+		IdentityCredential:     identityCredential,
+		TreeIndex:              treeIndex,
+		MembershipContractInfo: keystore.NewMembershipContractInfo(chainID, options.MembershipContractAddress),
 	}
 
-	membershipGroupIndex, err := appKeystore.AddMembershipCredentials(identityCredential, membershipGroup, options.CredentialsPassword)
+	err = appKeystore.AddMembershipCredentials(membershipCredential, options.CredentialsPassword)
 	if err != nil {
 		return fmt.Errorf("failed to persist credentials: %w", err)
 	}
 
-	// TODO: obtain keystore index?
-	logger.Info("persisted credentials succesfully", zap.Uint("membershipGroupIndex", membershipGroupIndex))
+	logger.Info("persisted credentials succesfully")
 
 	return nil
 }

@@ -70,7 +70,7 @@ type SpamHandler = func(message *pb.WakuMessage) error
 
 type RLNRelay interface {
 	IdentityCredential() (IdentityCredential, error)
-	MembershipIndex() (uint, error)
+	MembershipIndex() uint
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
 	Validator(spamHandler SpamHandler) func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
 	Start(ctx context.Context) error

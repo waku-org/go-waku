@@ -52,7 +52,6 @@ func execute(options Options) {
 			opts = append(opts, node.WithDynamicRLNRelay(
 				options.RLNRelay.CredentialsPath,
 				options.RLNRelay.CredentialsPassword,
-				options.RLNRelay.CredentialsIndex,
 				"", // Will use default tree path
 				options.RLNRelay.MembershipContractAddress,
 				uint(options.RLNRelay.MembershipIndex),

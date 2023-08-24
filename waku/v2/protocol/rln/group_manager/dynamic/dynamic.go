@@ -3,7 +3,6 @@ package dynamic
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -25,7 +24,7 @@ import (
 var RLNAppInfo = keystore.AppInfo{
 	Application:   "waku-rln-relay",
 	AppIdentifier: "01234567890abcdef",
-	Version:       "0.1",
+	Version:       "0.2",
 }
 
 type DynamicGroupManager struct {
@@ -37,10 +36,9 @@ type DynamicGroupManager struct {
 	wg     sync.WaitGroup
 
 	identityCredential *rln.IdentityCredential
-	membershipIndex    *rln.MembershipIndex
+	membershipIndex    rln.MembershipIndex
 
 	membershipContractAddress common.Address
-	membershipGroupIndex      uint
 	ethClientAddress          string
 	ethClient                 *ethclient.Client
 
@@ -53,7 +51,6 @@ type DynamicGroupManager struct {
 
 	appKeystore      *keystore.AppKeystore
 	keystorePassword string
-	keystoreIndex    uint
 
 	rootTracker *group_manager.MerkleRootTracker
 }
@@ -120,23 +117,21 @@ type RegistrationHandler = func(tx *types.Transaction)
 func NewDynamicGroupManager(
 	ethClientAddr string,
 	memContractAddr common.Address,
-	membershipGroupIndex uint,
+	membershipIndex uint,
 	appKeystore *keystore.AppKeystore,
 	keystorePassword string,
-	keystoreIndex uint,
 	reg prometheus.Registerer,
 	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
 	log = log.Named("rln-dynamic")
 
 	return &DynamicGroupManager{
-		membershipGroupIndex:      membershipGroupIndex,
+		membershipIndex:           membershipIndex,
 		membershipContractAddress: memContractAddr,
 		ethClientAddress:          ethClientAddr,
 		eventHandler:              handler,
 		appKeystore:               appKeystore,
 		keystorePassword:          keystorePassword,
-		keystoreIndex:             keystoreIndex,
 		log:                       log,
 		metrics:                   newMetrics(reg),
 	}, nil
@@ -198,30 +193,18 @@ func (gm *DynamicGroupManager) loadCredential() error {
 
 	credentials, err := gm.appKeystore.GetMembershipCredentials(
 		gm.keystorePassword,
-		nil,
-		[]keystore.MembershipContract{{
-			ChainID: fmt.Sprintf("0x%X", gm.chainId),
-			Address: gm.membershipContractAddress.Hex(),
-		}})
+		gm.membershipIndex,
+		keystore.NewMembershipContractInfo(gm.chainId, gm.membershipContractAddress))
 	if err != nil {
 		return err
 	}
 	gm.metrics.RecordMembershipCredentialsImportDuration(time.Since(start))
 
-	if len(credentials) == 0 {
+	if credentials == nil {
 		return errors.New("no credentials available")
 	}
 
-	if int(gm.keystoreIndex) > len(credentials)-1 {
-		return errors.New("invalid keystore index")
-	}
-
-	if int(gm.membershipGroupIndex) > len(credentials[gm.keystoreIndex].MembershipGroups)-1 {
-		return errors.New("invalid membership group index")
-	}
-
-	gm.identityCredential = credentials[gm.keystoreIndex].IdentityCredential
-	gm.membershipIndex = &credentials[gm.keystoreIndex].MembershipGroups[gm.membershipGroupIndex].TreeIndex
+	gm.identityCredential = credentials.IdentityCredential
 
 	return nil
 }
@@ -282,12 +265,8 @@ func (gm *DynamicGroupManager) IdentityCredentials() (rln.IdentityCredential, er
 	return *gm.identityCredential, nil
 }
 
-func (gm *DynamicGroupManager) MembershipIndex() (rln.MembershipIndex, error) {
-	if gm.membershipIndex == nil {
-		return 0, errors.New("membership index has not been setup")
-	}
-
-	return *gm.membershipIndex, nil
+func (gm *DynamicGroupManager) MembershipIndex() rln.MembershipIndex {
+	return gm.membershipIndex
 }
 
 // Stop stops all go-routines, eth client and closes the rln database
