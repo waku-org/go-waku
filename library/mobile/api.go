@@ -74,7 +74,8 @@ func PeerCnt() string {
 
 // ContentTopic creates a content topic string according to RFC 23
 func ContentTopic(applicationName string, applicationVersion int, contentTopicName string, encoding string) string {
-	return protocol.NewContentTopic(applicationName, uint(applicationVersion), contentTopicName, encoding).String()
+	contentTopic, _ := protocol.NewContentTopic(applicationName, uint32(applicationVersion), contentTopicName, encoding)
+	return contentTopic.String()
 }
 
 // PubsubTopic creates a pubsub topic string according to RFC 23

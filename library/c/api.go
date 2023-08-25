@@ -199,8 +199,8 @@ func waku_peer_cnt(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
 //
 //export waku_content_topic
 func waku_content_topic(applicationName *C.char, applicationVersion C.uint, contentTopicName *C.char, encoding *C.char, onOkCb C.WakuCallBack) C.int {
-	contentTopic := protocol.NewContentTopic(C.GoString(applicationName), uint(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding)).String()
-	return execOkCB(onOkCb, contentTopic)
+	contentTopic, _ := protocol.NewContentTopic(C.GoString(applicationName), uint32(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding))
+	return execOkCB(onOkCb, contentTopic.String())
 }
 
 // Create a pubsub topic string according to RFC 23
