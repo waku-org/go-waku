@@ -258,7 +258,7 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocol
 
 	//Add Service peers to serviceSlots.
 	for _, proto := range protocols {
-		pm.AddPeerToServiceSlot(proto, info.ID)
+		pm.addPeerToServiceSlot(proto, info.ID)
 	}
 
 	//Add to the peer-store
@@ -279,10 +279,10 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 	pm.serviceSlots.removePeer(peerID)
 }
 
-// AddPeerToServiceSlot adds a peerID to serviceSlot.
+// addPeerToServiceSlot adds a peerID to serviceSlot.
 // Adding to peerStore is expected to be already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
-func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
+func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	if proto == WakuRelayIDv200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return

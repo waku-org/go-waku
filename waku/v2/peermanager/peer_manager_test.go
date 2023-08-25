@@ -1,4 +1,4 @@
-package test
+package peermanager
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -31,7 +30,7 @@ func TestServiceSlots(t *testing.T) {
 	protocol := libp2pProtocol.ID("test/protocol")
 	protocol1 := libp2pProtocol.ID("test/protocol1")
 
-	pm := peermanager.NewPeerManager(10, utils.Logger())
+	pm := NewPeerManager(10, utils.Logger())
 	pm.SetHost(h1)
 
 	h1.Peerstore().AddAddrs(h2.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
@@ -44,7 +43,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerId, h2.ID())
 
 	//Test addition and selection from service-slot
-	pm.AddPeerToServiceSlot(protocol, h2.ID())
+	pm.addPeerToServiceSlot(protocol, h2.ID())
 
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
 	require.NoError(t, err)
@@ -57,14 +56,14 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerId, h2.ID())
 
 	h1.Peerstore().AddAddrs(h3.ID(), h3.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddPeerToServiceSlot(protocol, h3.ID())
+	pm.addPeerToServiceSlot(protocol, h3.ID())
 
 	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h4.Close()
 
 	h1.Peerstore().AddAddrs(h4.ID(), h4.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddPeerToServiceSlot(protocol1, h4.ID())
+	pm.addPeerToServiceSlot(protocol1, h4.ID())
 
 	//Test peer selection from first added peer to serviceSlot
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
@@ -86,19 +85,19 @@ func TestServiceSlots(t *testing.T) {
 	defer h5.Close()
 
 	//Test empty peer selection for relay protocol
-	_, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
+	_, err = pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 	//Test peer selection for relay protocol from peer store
 	h1.Peerstore().AddAddrs(h5.ID(), h5.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddPeerToServiceSlot(peermanager.WakuRelayIDv200, h5.ID())
+	pm.addPeerToServiceSlot(WakuRelayIDv200, h5.ID())
 
-	_, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
+	_, err = pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
-	err = h1.Peerstore().AddProtocols(h5.ID(), peermanager.WakuRelayIDv200)
+	err = h1.Peerstore().AddProtocols(h5.ID(), WakuRelayIDv200)
 	require.NoError(t, err)
 
-	peerId, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
+	peerId, err = pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
 	require.NoError(t, err)
 	require.Equal(t, peerId, h5.ID())
 
