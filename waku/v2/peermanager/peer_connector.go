@@ -100,6 +100,13 @@ func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerDa
 
 func (c *PeerConnectionStrategy) consumeSubscription(ctx context.Context, ch <-chan PeerData) {
 	for {
+		// for returning from the loop when peerConnector is paused.
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		//
 		if !c.isPaused() {
 			select {
 			case <-ctx.Done():
