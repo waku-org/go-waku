@@ -3,22 +3,43 @@ package peermanager
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/libp2p/go-libp2p/core/host"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-func TestServiceSlots(t *testing.T) {
+func getAddr(h host.Host) multiaddr.Multiaddr {
+	id, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
+	return h.Network().ListenAddresses()[0].Encapsulate(id)
+}
+
+func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	// hosts
 	h1, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h1.Close()
+	// host 1 is used by peer manager
+	pm := NewPeerManager(10, utils.Logger())
+	pm.SetHost(h1)
+	return ctx, pm, func() {
+		cancel()
+		h1.Close()
+	}
+}
+
+func TestServiceSlots(t *testing.T) {
+	ctx, pm, deferFn := initTest(t)
+	defer deferFn()
 
 	h2, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
@@ -27,45 +48,29 @@ func TestServiceSlots(t *testing.T) {
 	h3, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h3.Close()
+	// protocols
 	protocol := libp2pProtocol.ID("test/protocol")
 	protocol1 := libp2pProtocol.ID("test/protocol1")
 
-	pm := NewPeerManager(10, utils.Logger())
-	pm.SetHost(h1)
-
-	h1.Peerstore().AddAddrs(h2.ID(), h2.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	err = h1.Peerstore().AddProtocols(h2.ID(), libp2pProtocol.ID(protocol))
+	// add h2 peer to peer manager
+	t.Log(h2.ID())
+	_, err = pm.AddPeer(getAddr(h2), wps.Static, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
-	//Test selection from peerStore.
+	///////////////
+	// getting peer for protocol
+	///////////////
+
+	// select peer from pm, currently only h2 is set in pm
 	peerId, err := pm.SelectPeer(protocol, nil, utils.Logger())
 	require.NoError(t, err)
 	require.Equal(t, peerId, h2.ID())
 
-	//Test addition and selection from service-slot
-	pm.addPeerToServiceSlot(protocol, h2.ID())
-
-	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
+	// add h3 peer to peer manager
+	_, err = pm.AddPeer(getAddr(h3), wps.Static, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
-	if peerId == h2.ID() || peerId == h1.ID() {
-		//Test success
-		t.Log("Random peer selection per protocol successful")
-	} else {
-		t.FailNow()
-	}
-	require.Equal(t, peerId, h2.ID())
 
-	h1.Peerstore().AddAddrs(h3.ID(), h3.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.addPeerToServiceSlot(protocol, h3.ID())
-
-	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
-	require.NoError(t, err)
-	defer h4.Close()
-
-	h1.Peerstore().AddAddrs(h4.ID(), h4.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.addPeerToServiceSlot(protocol1, h4.ID())
-
-	//Test peer selection from first added peer to serviceSlot
+	// check that returned peer is h2 or h3 peer
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
 	require.NoError(t, err)
 	if peerId == h2.ID() || peerId == h3.ID() {
@@ -75,43 +80,70 @@ func TestServiceSlots(t *testing.T) {
 		t.FailNow()
 	}
 
-	//Test peer selection for specific protocol
+	///////////////
+	// getting peer for protocol1
+	///////////////
+	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
+	require.NoError(t, err)
+	defer h4.Close()
+
+	_, err = pm.SelectPeer(protocol1, nil, utils.Logger())
+	require.Error(t, err, utils.ErrNoPeersAvailable)
+
+	// add h4 peer for protocol1
+	_, err = pm.AddPeer(getAddr(h4), wps.Static, libp2pProtocol.ID(protocol1))
+	require.NoError(t, err)
+
+	//Test peer selection for protocol1
 	peerId, err = pm.SelectPeer(protocol1, nil, utils.Logger())
 	require.NoError(t, err)
 	require.Equal(t, peerId, h4.ID())
 
+}
+
+func TestDefaultProtocol(t *testing.T) {
+	ctx, pm, deferFn := initTest(t)
+	defer deferFn()
+	///////////////
+	// check peer for default protocol
+	///////////////
+	//Test empty peer selection for relay protocol
+	_, err := pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
+	require.Error(t, err, utils.ErrNoPeersAvailable)
+
+	///////////////
+	// getting peer for default protocol
+	///////////////
 	h5, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h5.Close()
 
-	//Test empty peer selection for relay protocol
-	_, err = pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
-	require.Error(t, err, utils.ErrNoPeersAvailable)
 	//Test peer selection for relay protocol from peer store
-	h1.Peerstore().AddAddrs(h5.ID(), h5.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.addPeerToServiceSlot(WakuRelayIDv200, h5.ID())
-
-	_, err = pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
-	require.Error(t, err, utils.ErrNoPeersAvailable)
-
-	err = h1.Peerstore().AddProtocols(h5.ID(), WakuRelayIDv200)
+	_, err = pm.AddPeer(getAddr(h5), wps.Static, WakuRelayIDv200)
 	require.NoError(t, err)
 
-	peerId, err = pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
+	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
+	peerId, err := pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
 	require.NoError(t, err)
 	require.Equal(t, peerId, h5.ID())
+}
 
+func TestAdditionAndRemovalOfPeer(t *testing.T) {
+	ctx, pm, deferFn := initTest(t)
+	defer deferFn()
+	///////////////
+	// set h6 peer for protocol2 and remove that peer and check again
+	///////////////
 	//Test random peer selection
 	protocol2 := libp2pProtocol.ID("test/protocol2")
 	h6, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h6.Close()
 
-	h1.Peerstore().AddAddrs(h6.ID(), h6.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	err = h1.Peerstore().AddProtocols(h6.ID(), libp2pProtocol.ID(protocol2))
+	_, err = pm.AddPeer(getAddr(h6), wps.Static, protocol2)
 	require.NoError(t, err)
 
-	peerId, err = pm.SelectPeer(protocol2, nil, utils.Logger())
+	peerId, err := pm.SelectPeer(protocol2, nil, utils.Logger())
 	require.NoError(t, err)
 	require.Equal(t, peerId, h6.ID())
 
