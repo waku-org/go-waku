@@ -100,27 +100,24 @@ func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerDa
 
 func (c *PeerConnectionStrategy) consumeSubscription(ctx context.Context, ch <-chan PeerData) {
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			if !c.isPaused() {
-				select {
-				case <-ctx.Done():
+		if !c.isPaused() {
+			select {
+			case <-ctx.Done():
+				return
+			case p, ok := <-ch:
+				if !ok {
 					return
-				case p, ok := <-ch:
-					if !ok {
-						return
-					}
-					c.pm.AddDiscoveredPeer(p)
-					c.publishWork(ctx, p.AddrInfo)
 				}
-			} else {
-				time.Sleep(1 * time.Second) // sleep while the peerConnector is paused.
+				c.pm.AddDiscoveredPeer(p)
+				c.publishWork(ctx, p.AddrInfo)
+			case <-time.After(1 * time.Second):
+				// This timeout is to not lock the goroutine
+				break
 			}
+		} else {
+			time.Sleep(1 * time.Second) // sleep while the peerConnector is paused.
 		}
 	}
-
 }
 
 // SetHost sets the host to be able to mount or consume a protocol
