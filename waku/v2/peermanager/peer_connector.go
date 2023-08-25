@@ -172,13 +172,8 @@ func (c *PeerConnectionStrategy) shouldDialPeers(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_, outRelayPeers, err := c.pm.GroupPeersByDirection()
-			if err != nil {
-				c.logger.Warn("failed to get outRelayPeers from peerstore", zap.Error(err))
-				continue
-			}
-			numPeers := outRelayPeers.Len()
-			c.paused.Store(numPeers >= c.pm.OutRelayPeersTarget) // pause if no of OutPeers more than or eq to target
+			_, outRelayPeers := c.pm.getRelayPeers()
+			c.paused.Store(outRelayPeers.Len() >= c.pm.OutRelayPeersTarget) // pause if no of OutPeers more than or eq to target
 		}
 	}
 }
