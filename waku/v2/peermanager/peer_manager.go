@@ -307,7 +307,7 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 	//  - latency?
 
 	//Try to fetch from serviceSlot
-	if peerId, err := pm.serviceSlots.GetPeers(proto).GetRandom(); err != nil {
+	if peerId, err := pm.serviceSlots.GetPeers(proto).GetRandom(); err == nil {
 		return peerId, nil
 	}
 
