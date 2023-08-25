@@ -6,11 +6,9 @@ package main
 import (
 	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 func rlnFlags() []cli.Flag {
-	contentTopic, _ := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto")
 	return []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "rln-relay",
@@ -23,18 +21,6 @@ func rlnFlags() []cli.Flag {
 			Value:       0,
 			Usage:       "the index of credentials to use, within a specific rln membership set",
 			Destination: &options.RLNRelay.MembershipGroupIndex,
-		},
-		&cli.StringFlag{
-			Name:        "rln-relay-pubsub-topic",
-			Value:       "/waku/2/default-waku/proto",
-			Usage:       "the pubsub topic for which rln-relay gets enabled",
-			Destination: &options.RLNRelay.PubsubTopic,
-		},
-		&cli.StringFlag{
-			Name:        "rln-relay-content-topic",
-			Value:       contentTopic.String(),
-			Usage:       "the content topic for which rln-relay gets enabled",
-			Destination: &options.RLNRelay.ContentTopic,
 		},
 		&cli.BoolFlag{
 			Name:        "rln-relay-dynamic",
@@ -64,15 +50,6 @@ func rlnFlags() []cli.Flag {
 			Value:       0,
 			Usage:       "the index of credentials to use",
 			Destination: &options.RLNRelay.CredentialsIndex,
-		},
-		// TODO: this is a good candidate option for subcommands
-		// TODO: consider accepting a private key file and passwd
-		&cli.GenericFlag{
-			Name:  "rln-relay-eth-account-private-key",
-			Usage: "Ethereum  account private key used for registering in member contract",
-			Value: &wcli.PrivateKeyValue{
-				Value: &options.RLNRelay.ETHPrivateKey,
-			},
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-eth-client-address",

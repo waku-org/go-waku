@@ -1,33 +1,28 @@
 # Spam-protected chat2 application with on-chain group management
 
 This document is a tutorial on how to run the chat2 application in the spam-protected mode using the Waku-RLN-Relay protocol and with dynamic/on-chain group management.
-In the on-chain/dynamic group management, the state of the group members i.e., their identity commitment keys is moderated via a membership smart contract deployed on the Goerli network which is one of the Ethereum testnets.
+In the on-chain/dynamic group management, the state of the group members i.e., their identity commitment keys is moderated via a membership smart contract deployed on the Sepolia network which is one of the Ethereum testnets.
 Members can be dynamically added to the group and the group size can grow up to 2^20 members.
 This differs from the prior test scenarios in which the RLN group was static and the set of members' keys was hardcoded and fixed.
 
 
 ## Prerequisites 
-To complete this tutorial, you will need 1) an account with at least `0.001` ethers on the Goerli testnet and 2) a hosted node on the Goerli testnet. 
-In case you are not familiar with either of these two steps, you may follow the following tutorial to fulfill the [prerequisites of running on-chain spam-protected chat2](./pre-requisites-of-running-on-chain-spam-protected-chat2.md).
-Note that the required `0.001` ethers correspond to the registration fee, 
-however, you still need to have more funds in your account to cover the cost of the transaction gas fee.
-
-
+To complete this tutorial, you will need 
+1. An rln keystore file with credentials to the rln membership smart contract you wish to use. You may obtain this by registering to the smart contract and generating a keystore. It is possible to use go-waku to register into the smart contract:
+```
+make
+./build/waku generate-rln-credentials --eth-account-private-key=<private-key> --eth-contract-address=<0x000...> --eth-client-address=<eth-client-rpc-or-wss-endpoint> --cred-path=rlnKeystore.json
+```
 
 ## Overview
 Figure 1 provides an overview of the interaction of the chat2 clients with the test fleets and the membership contract. 
-At a high level, when a chat2 client is run with Waku-RLN-Relay mounted in on-chain mode, it creates an RLN credential (i.e., an identity key and an identity commitment key) and 
-sends a transaction to the membership contract to register the corresponding membership identity commitment key.
-This transaction will also transfer `0.001` Ethers to the contract as a membership fee.
-This amount plus the transaction fee will be deducted from the supplied Goerli account. 
-Once the transaction is mined and the registration is successful, the registered credential will get displayed on the console of your chat2 client.
+At a high level, when a chat2 client is run with Waku-RLN-Relay mounted in on-chain mode, the passed in credential will get displayed on the console of your chat2 client.
 You may copy the displayed RLN credential and reuse them for the future execution of the chat2 application.
 Proper instructions in this regard is provided in the following [section](#how-to-persist-and-reuse-rln-credential).
-If you choose not to reuse the same credential, then for each execution, a new registration will take place and more funds will get deducted from your Goerli account.
 Under the hood, the chat2 client constantly listens to the membership contract and keeps itself updated with the latest state of the group.
 
 In the following test setting, the chat2 clients are to be connected to the Waku test fleets as their first hop. 
-The test fleets will act as routers and are also set to run Waku-RLN-Relay over the same pubsub topic and content topic as chat2 clients i.e., the default pubsub topic of `/waku/2/default-waku/proto` and the content topic of `/toy-chat/2/luzhou/proto`. 
+The test fleets will act as routers and are also set to run Waku-RLN-Relay over the same pubsub topic and content topic as chat2 clients i.e., the default pubsub topic of `/waku/2/default-waku/proto` and the content topic of `/toy-chat/3/mingde/proto`. 
 Spam messages published on the said combination of topics will be caught by the test fleet nodes and will not be routed.
 Note that spam protection does not rely on the presence of the test fleets.
 In fact, all the chat2 clients are also capable of catching and dropping spam messages if they receive any.
@@ -48,7 +43,7 @@ git clone https://github.com/waku-org/go-waku
 cd go-waku
 ```
 ## Build chat2
-```
+```bash
 make chat2
 ```
 
@@ -56,34 +51,40 @@ make chat2
 
 Run the following command to set up your chat2 client. 
 
-```
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --rln-relay-eth-client-address=xxxx  
+```bash
+./build/chat2 --fleet=test \
+--content-topic=/toy-chat/3/mingde/proto \
+--rln-relay=true \
+--rln-relay-dynamic=true \
+--rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 \
+--rln-relay-cred-path=xxx/xx/rlnKeystore.json \
+--rln-relay-cred-password=xxxx \
+--rln-relay-eth-client-address=xxxx
 ```
 
 In this command
 - the `--fleet=test` indicates that the chat2 app gets connected to the test fleets.
-- the `toy-chat/2/luzhou/proto` passed to the `--content-topic` option indicates the content topic on which the chat2 application is going to run.
+- the `toy-chat/3/mingde/proto` passed to the `--content-topic` option indicates the content topic on which the chat2 application is going to run.
 - the `--rln-relay` flag is set to `true` to enable the Waku-RLN-Relay protocol for spam protection.
 - the `--rln-relay-dynamic` flag is set to `true` to enable the on-chain mode of Waku-RLN-Relay protocol with dynamic group management.
 - the `--rln-relay-eth-contract-address` option gets the address of the membership contract.
- The current address of the contract is `0x4252105670fe33d2947e8ead304969849e64f2a6`.
- You may check the state of the contract on the [Goerli testnet](https://goerli.etherscan.io/address/0x4252105670fe33d2947e8ead304969849e64f2a6).
-- the `--rln-relay-eth-account-private-key` option is for your account private key on the Goerli testnet. 
- It is made up of 64 hex characters (not sensitive to the `0x` prefix).
-- the `--rln-relay-eth-client-address` is the WebSocket address of the hosted node on the Goerli testnet. 
+ The current address of the contract is `0x9C09146844C1326c2dBC41c451766C7138F88155`.
+ You may check the state of the contract on the [Sepolia testnet](https://sepolia.etherscan.io/address/0x9C09146844C1326c2dBC41c451766C7138F88155).
+- the `--rln-relay-cred-path` option denotes the path to the keystore file described above
+- the `--rln-relay-cred-password` option denotes the password to the keystore
+- the `rln-relay-eth-client-address` is the WebSocket address of the hosted node on the Sepolia testnet. 
  You need to replace the `xxxx` with the actual node's address.
 
-For the last three config options i.e., `rln-relay-eth-account-address`, `rln-relay-eth-account-private-key`, and `rln-relay-eth-client-address`, if you do not know how to obtain those, you may use the following tutorial on the [prerequisites of running on-chain spam-protected chat2](./pre-requisites-of-running-on-chain-spam-protected-chat2.md).
+For `--rln-relay-eth-client-address`, if you do not know how to obtain it, you may use the following tutorial on the [prerequisites of running on-chain spam-protected chat2](./pre-requisites-of-running-on-chain-spam-protected-chat2.md).
 
 You may set up more than one chat client,
-using the `--rln-relay-cred-path` flag, specifying in each client a different path to store the credentials, and using a different `--tcp-port`.
+using the `--rln-relay-cred-path` flag, specifying in each client a different path to store the credentials.
 
 Once you run the command, you will see the following message:
 ```
 Setting up dynamic rln...
 ```
-At this phase, your RLN credential are getting created and a transaction is being sent to the membership smart contract.
-It will take some time for the transaction to be finalized. Afterwards, messages related to setting up the connections of your chat app will be shown,
+At this phase, RLN is being setup by obtaining the membership information from the smart contract. Afterwards, messages related to setting up the connections of your chat app will be shown,
 the content may differ on your screen though:
 ```
 INFO: Welcome, Anonymous!
@@ -145,9 +146,13 @@ The reason is that under the hood a zero-knowledge proof is being generated and 
 
 Try to spam the network by violating the message rate limit i.e.,
 sending more than one message per epoch. 
-Your messages will be routed via test fleets that are running in spam-protected mode over the same content topic i.e., `/toy-chat/2/luzhou/proto` as your chat client.
+Your messages will be routed via test fleets that are running in spam-protected mode over the same content topic i.e., `/toy-chat/3/mingde/proto` as your chat client.
 Your spam activity will be detected by them and your message will not reach the rest of the chat clients.
 You can check this by running a second chat user and verifying that spam messages are not displayed as they are filtered by the test fleets.
+Furthermore, the chat client will prompt you with the following warning message indicating that the message rate is being violated:
+```
+ERROR: message rate violation!                                     
+```
 A sample test scenario is illustrated in the [Sample test output section](#sample-test-output).
 
 Once you are done with the test, make sure you close all the chat2 clients by typing the `/exit` command.
@@ -156,28 +161,32 @@ Once you are done with the test, make sure you close all the chat2 clients by ty
 Bye!
 ```
 
-## How to persist and reuse RLN credential
+## How to reuse RLN credential
 
-You may pass the `--rln-relay-cred-path` config option to specify a path for 1) persisting RLN credentials and 2) retrieving persisted RLN credentials.  
-RLN credential is persisted in the `rlnCredentials.txt` file under the specified path.
-If this file does not already exist under the supplied path, then a new credential is generated and persisted in the `rlnCredentials.txt` file.
-Otherwise, the chat client does not generate a new credential and will use, instead, the persisted RLN credential.
+You may pass the `--rln-relay-cred-path` config option to specify a path to a file for retrieving persisted RLN credentials. 
+If the keystore exists in the path provided, it is used, and will default to the 0th element in the credential array.
+If the keystore does not exist in the path provided, a new keystore will be created and added to the directory it was supposed to be in.
 
-```bash
-./build/chat2  --fleet:test --content-topic:/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6  --rln-relay-eth-account-private-key=your_eth_private_key  --rln-relay-eth-client-address==your_goerli_node --rln-relay-cred-path:./
-```
+You may provide an index to the credential you wish to use by passing the `--rln-relay-cred-index` config option.
 
-Note: If you are reusing credentials, you can omit the `--rln-relay-eth-account-private-key` flags
-
-Therefore, the command to start chat2 would be -
+You may provide an index to the membership you wish to use (within the same membership set) by passing the `--rln-relay-membership-group-index` config option.
 
 ```bash
-./build/chat2  --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-client-address=your_goerli_node --rln-relay-cred-path=./
+./build/chat2  --fleet=test \
+--content-topic=/toy-chat/3/mingde/proto \
+--rln-relay=true \
+--rln-relay-dynamic=true \
+--rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 \
+--rln-relay-eth-client-address=your_sepolia_node \
+--rln-relay-cred-path=./rlnKeystore.json \
+--rln-relay-cred-password=your_password \
+--rln-relay-membership-index=0 \
+--rln-relay-membership-group-index=0
 ```
 
 # Sample test output
 In this section, a sample test of running two chat clients is provided.
-Note that the values used for `--rln-relay-eth-account-private-key`, and `--rln-relay-eth-client-address` in the following code snippets are junk and not valid.
+Note that the value used for `--rln-relay-eth-client-address` in the following code snippets is junk and not valid.
 
 The two chat clients namely `Alice` and `Bob` are connected to the test fleets.
 `Alice` sends 4 messages i.e., `message1`, `message2`, `message3`, and `message4`.
@@ -187,9 +196,11 @@ The test fleets do not relay `message3` further, hence `Bob` never receives it.
 You can check this fact by looking at `Bob`'s console, where `message3` is missing. 
 
 **Alice**
-``` 
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=your_eth_private_key --rln-relay-eth-client-address=your_goerli_node --rln-relay-cred-path=./path/to/alice/folder --nickname=Alice
+```bash
+./build/chat2 --fleet=test --content-topic=/toy-chat/3/mingde/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 --rln-relay-cred-path=rlnKeystore.json --rln-relay-cred-password=password --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/12345678901234567890123456789012 --nickname=Alice
+```
 
+```
 Seting up dynamic rln
 INFO: Welcome, Alice!
 INFO: type /help to see available commands
@@ -235,9 +246,11 @@ INFO RLN Epoch: 165886593
 ```
 
 **Bob**
-``` 
-./build/chat2 --fleet=test --content-topic=/toy-chat/2/luzhou/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x4252105670fe33d2947e8ead304969849e64f2a6 --rln-relay-eth-account-private-key=your_eth_private_key --rln-relay-eth-client-address=your_goerli_node --rln-relay-cred-path=./path/to/bob/folder --nickname=Bob
+```bash
+./build/chat2 --fleet=test --content-topic=/toy-chat/3/mingde/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 --rln-relay-cred-path=rlnKeystore.json --rln-relay-cred-index=1 --rln-relay-cred-password=password --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/12345678901234567890123456789012 --nickname=Bob
+```
 
+```
 Seting up dynamic rln
 INFO: Welcome, Bob!
 INFO: type /help to see available commands

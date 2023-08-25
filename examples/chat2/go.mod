@@ -17,7 +17,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.10.1
 	github.com/urfave/cli/v2 v2.24.4
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
-	github.com/waku-org/go-zerokit-rln v0.1.14-0.20230821163754-8167006b94e3
+	github.com/waku-org/go-zerokit-rln v0.1.14-0.20230823150836-a706089284fe
 	golang.org/x/crypto v0.12.0
 	golang.org/x/term v0.11.0
 	google.golang.org/protobuf v1.31.0

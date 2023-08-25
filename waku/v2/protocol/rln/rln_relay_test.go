@@ -59,7 +59,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
 	s.Require().NoError(err)
 
-	wakuRLNRelay, err := New(relay, groupManager, "", RLNRELAY_PUBSUB_TOPIC, RLNRELAY_CONTENT_TOPIC, nil, timesource.NewDefaultClock(), utils.Logger())
+	wakuRLNRelay, err := New(groupManager, "", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
 	err = wakuRLNRelay.Start(context.TODO())
@@ -180,6 +180,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 		RLN:          rlnInstance,
 		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
 		log:          utils.Logger(),
+		metrics:      newMetrics(prometheus.DefaultRegisterer),
 	}
 
 	//get the current epoch time

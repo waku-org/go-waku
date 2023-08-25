@@ -6,7 +6,6 @@ import (
 	"github.com/waku-org/go-waku/waku/cliutils"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 
 	"github.com/urfave/cli/v2"
 )
@@ -198,18 +197,6 @@ func getFlags() []cli.Flag {
 			Usage:       "the index of credentials to use",
 			Destination: &options.RLNRelay.CredentialsIndex,
 		},
-		&cli.StringFlag{
-			Name:        "rln-relay-pubsub-topic",
-			Value:       relay.DefaultWakuTopic,
-			Usage:       "the pubsub topic for which rln-relay gets enabled",
-			Destination: &options.RLNRelay.PubsubTopic,
-		},
-		&cli.StringFlag{
-			Name:        "rln-relay-content-topic",
-			Value:       testnetContentTopic,
-			Usage:       "the content topic for which rln-relay gets enabled",
-			Destination: &options.RLNRelay.ContentTopic,
-		},
 		&cli.BoolFlag{
 			Name:        "rln-relay-dynamic",
 			Usage:       "Enable waku-rln-relay with on-chain dynamic group management",
@@ -226,15 +213,6 @@ func getFlags() []cli.Flag {
 			Value:       "",
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
-		},
-		// TODO: this is a good candidate option for subcommands
-		// TODO: consider accepting a private key file and passwd
-		&cli.GenericFlag{
-			Name:  "rln-relay-eth-account-private-key",
-			Usage: "Ethereum Goerli testnet account private key used for registering in member contract",
-			Value: &wcli.PrivateKeyValue{
-				Value: &options.RLNRelay.ETHPrivateKey,
-			},
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-eth-client-address",

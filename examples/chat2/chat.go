@@ -141,7 +141,7 @@ func (c *Chat) receiveMessages() {
 		case value := <-c.C:
 
 			msgContentTopic := value.Message().ContentTopic
-			if msgContentTopic != c.options.ContentTopic || (c.options.RLNRelay.Enable && msgContentTopic != c.options.RLNRelay.ContentTopic) {
+			if msgContentTopic != c.options.ContentTopic {
 				continue // Discard messages from other topics
 			}
 
