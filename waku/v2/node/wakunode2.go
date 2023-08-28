@@ -22,7 +22,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/libp2p/go-libp2p/p2p/host/autorelay"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/proto"
@@ -254,13 +253,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	//Initialize peer manager.
 	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.log)
 
-	// Setup peer connection strategy
-	cacheSize := 600
-	rngSrc := rand.NewSource(rand.Int63())
-	minBackoff, maxBackoff := time.Minute, time.Hour
-	bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))
-
-	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(cacheSize, w.peermanager, discoveryConnectTimeout, bkf, w.log)
+	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(w.peermanager, discoveryConnectTimeout, w.log)
 	if err != nil {
 		w.log.Error("creating peer connection strategy", zap.Error(err))
 	}

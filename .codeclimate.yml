@@ -1,0 +1,11 @@
+plugins:
+  golint:
+    enabled: true
+  gofmt:
+    enabled: true
+  govet:
+    enabled: true
+    #  golangci-lint:
+    #enabled: true
+exclude_patterns:
+  - "."

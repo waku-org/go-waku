@@ -17,8 +17,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: Move all the protocol IDs to a common location.
 // WakuRelayIDv200 is protocol ID for Waku v2 relay protocol
+// TODO: Move all the protocol IDs to a common location.
 const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // PeerManager applies various controls and manage connections towards peers.
