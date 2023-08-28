@@ -341,17 +341,33 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 		return nil, err
 	}
 
-	localWg := sync.WaitGroup{}
 	resultChan := make(chan WakuFilterPushResult, len(wf.subscriptions.items))
-	var peersUnsubscribed []peer.ID
 	for peerID := range wf.subscriptions.items {
 		if params.selectedPeer != "" && peerID != params.selectedPeer {
 			continue
 		}
-		peersUnsubscribed = append(peersUnsubscribed, peerID)
-		localWg.Add(1)
+
+		subscriptions, ok := wf.subscriptions.items[peerID]
+		if !ok || subscriptions == nil {
+			continue
+		}
+
+		wf.cleanupSubscriptions(peerID, contentFilter)
+		if len(subscriptions.subscriptionsPerTopic) == 0 {
+			delete(wf.subscriptions.items, peerID)
+		}
+
+		if params.wg != nil {
+			params.wg.Add(1)
+		}
+
 		go func(peerID peer.ID) {
-			defer localWg.Done()
+			defer func() {
+				if params.wg != nil {
+					params.wg.Done()
+				}
+			}()
+
 			err := wf.request(
 				ctx,
 				&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
@@ -367,22 +383,19 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 				}
 			}
 
-			wf.cleanupSubscriptions(peerID, contentFilter)
-
-			resultChan <- WakuFilterPushResult{
-				Err:    err,
-				PeerID: peerID,
+			if params.wg != nil {
+				resultChan <- WakuFilterPushResult{
+					Err:    err,
+					PeerID: peerID,
+				}
 			}
 		}(peerID)
 	}
 
-	localWg.Wait()
-	close(resultChan)
-	for _, peerID := range peersUnsubscribed {
-		if wf.subscriptions != nil && wf.subscriptions.items != nil && wf.subscriptions.items[peerID] != nil && len(wf.subscriptions.items[peerID].subscriptionsPerTopic) == 0 {
-			delete(wf.subscriptions.items, peerID)
-		}
+	if params.wg != nil {
+		params.wg.Wait()
 	}
+
 	return resultChan, nil
 }
 
@@ -408,19 +421,26 @@ func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...Filte
 	wf.subscriptions.Lock()
 	defer wf.subscriptions.Unlock()
 
-	localWg := sync.WaitGroup{}
 	resultChan := make(chan WakuFilterPushResult, len(wf.subscriptions.items))
-	var peersUnsubscribed []peer.ID
 
 	for peerID := range wf.subscriptions.items {
 		if params.selectedPeer != "" && peerID != params.selectedPeer {
 			continue
 		}
-		peersUnsubscribed = append(peersUnsubscribed, peerID)
 
-		localWg.Add(1)
+		delete(wf.subscriptions.items, peerID)
+
+		if params.wg != nil {
+			params.wg.Add(1)
+		}
+
 		go func(peerID peer.ID) {
-			defer localWg.Done()
+			defer func() {
+				if params.wg != nil {
+					params.wg.Done()
+				}
+			}()
+
 			err := wf.request(
 				ctx,
 				&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
@@ -429,17 +449,20 @@ func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...Filte
 			if err != nil {
 				wf.log.Error("could not unsubscribe from peer", logging.HostID("peerID", peerID), zap.Error(err))
 			}
-			resultChan <- WakuFilterPushResult{
-				Err:    err,
-				PeerID: peerID,
+			if params.wg != nil {
+				resultChan <- WakuFilterPushResult{
+					Err:    err,
+					PeerID: peerID,
+				}
 			}
 		}(peerID)
 	}
 
-	localWg.Wait()
-	close(resultChan)
-	for _, peerID := range peersUnsubscribed {
-		delete(wf.subscriptions.items, peerID)
+	if params.wg != nil {
+		params.wg.Wait()
 	}
+
+	close(resultChan)
+
 	return resultChan, nil
 }
