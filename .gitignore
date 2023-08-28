@@ -1,3 +1,4 @@
+.codeclimate.yml
 nodekey
 rlnKeystore.json
 test_onchain.json

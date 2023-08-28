@@ -17,16 +17,16 @@ func TestServiceSlot(t *testing.T) {
 	peerId := peer.ID("peerId")
 
 	//
-	slots.GetPeers(protocol).Add(peerId)
+	slots.getPeers(protocol).add(peerId)
 	//
-	fetchedPeer, err := slots.GetPeers(protocol).GetRandom()
+	fetchedPeer, err := slots.getPeers(protocol).getRandom()
 	require.NoError(t, err)
 	require.Equal(t, peerId, fetchedPeer)
 
 	//
-	slots.GetPeers(protocol).Remove(peerId)
+	slots.getPeers(protocol).remove(peerId)
 	//
-	_, err = slots.GetPeers(protocol).GetRandom()
+	_, err = slots.getPeers(protocol).getRandom()
 	require.Equal(t, err, utils.ErrNoPeersAvailable)
 }
 
@@ -39,18 +39,18 @@ func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	peerId := peer.ID("peerId")
 
 	//
-	slots.GetPeers(protocol).Add(peerId)
-	slots.GetPeers(protocol1).Add(peerId)
+	slots.getPeers(protocol).add(peerId)
+	slots.getPeers(protocol1).add(peerId)
 	//
-	fetchedPeer, err := slots.GetPeers(protocol1).GetRandom()
+	fetchedPeer, err := slots.getPeers(protocol1).getRandom()
 	require.NoError(t, err)
 	require.Equal(t, peerId, fetchedPeer)
 
 	//
 	slots.RemovePeer(peerId)
 	//
-	_, err = slots.GetPeers(protocol).GetRandom()
+	_, err = slots.getPeers(protocol).getRandom()
 	require.Equal(t, err, utils.ErrNoPeersAvailable)
-	_, err = slots.GetPeers(protocol1).GetRandom()
+	_, err = slots.getPeers(protocol1).getRandom()
 	require.Equal(t, err, utils.ErrNoPeersAvailable)
 }
