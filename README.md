@@ -106,7 +106,7 @@ Thank you for considering to help out with the source code! We welcome contribut
 If you'd like to contribute to go-waku, please fork, fix, commit and send a pull request. If you wish to submit more complex changes though, please check up with the core devs first to ensure those changes are in line with the general philosophy of the project and/or get some early feedback which can make both your efforts much lighter as well as our review and merge procedures quick and simple.
 
 To build and test this repository, you need:
-  - [Go](https://golang.org/) (version 1.17 or later)
+  - [Go](https://golang.org/) (version 1.19 or 1.20)
   - [protoc](https://grpc.io/docs/protoc-installation/) 
   - [protoc-gen-go](https://protobuf.dev/getting-started/gotutorial/#compiling-protocol-buffers)
 
