@@ -333,3 +333,46 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 
 	}, s.subDetails.C)
 }
+
+func (s *FilterTestSuite) TestRunningGuard() {
+	s.lightNode.Stop()
+
+	contentFilter := ContentFilter{
+		Topic:         "test",
+		ContentTopics: []string{"test"},
+	}
+
+	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+
+	s.Require().ErrorIs(err, errNotStarted)
+
+	err = s.lightNode.Start(s.ctx)
+	s.Require().NoError(err)
+
+	_, err = s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+
+	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
+	contentFilter := ContentFilter{
+		Topic:         "test",
+		ContentTopics: []string{"test"},
+	}
+
+	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	ch, err := s.lightNode.Unsubscribe(s.ctx, contentFilter, Async())
+	_, open := <-ch
+	s.Require().NoError(err)
+	s.Require().False(open)
+
+	_, err = s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	wg := sync.WaitGroup{}
+	_, err = s.lightNode.Unsubscribe(s.ctx, contentFilter, WithWaitGroup(&wg))
+	wg.Wait()
+	s.Require().NoError(err)
+}
