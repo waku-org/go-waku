@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -45,7 +44,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerId, h2.ID())
 
 	//Test addition and selection from service-slot
-	pm.AddPeerToServiceSlot(protocol, h2.ID(), wps.Static)
+	pm.AddPeerToServiceSlot(protocol, h2.ID())
 
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
 	require.NoError(t, err)
@@ -58,14 +57,14 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerId, h2.ID())
 
 	h1.Peerstore().AddAddrs(h3.ID(), h3.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddPeerToServiceSlot(protocol, h3.ID(), wps.Static)
+	pm.AddPeerToServiceSlot(protocol, h3.ID())
 
 	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h4.Close()
 
 	h1.Peerstore().AddAddrs(h4.ID(), h4.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddPeerToServiceSlot(protocol1, h4.ID(), wps.Static)
+	pm.AddPeerToServiceSlot(protocol1, h4.ID())
 
 	//Test peer selection from first added peer to serviceSlot
 	peerId, err = pm.SelectPeer(protocol, nil, utils.Logger())
@@ -91,7 +90,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 	//Test peer selection for relay protocol from peer store
 	h1.Peerstore().AddAddrs(h5.ID(), h5.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
-	pm.AddPeerToServiceSlot(peermanager.WakuRelayIDv200, h5.ID(), wps.Static)
+	pm.AddPeerToServiceSlot(peermanager.WakuRelayIDv200, h5.ID())
 
 	_, err = pm.SelectPeer(peermanager.WakuRelayIDv200, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
