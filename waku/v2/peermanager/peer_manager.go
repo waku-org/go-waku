@@ -126,7 +126,7 @@ func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers
 	if err != nil {
 		return
 	}
-	pm.logger.Info("Number of peers connected", zap.Int("inPeers", inPeers.Len()),
+	pm.logger.Debug("Number of peers connected", zap.Int("inPeers", inPeers.Len()),
 		zap.Int("outPeers", outPeers.Len()))
 
 	//Need to filter peers to check if they support relay
@@ -136,8 +136,6 @@ func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers
 	if outPeers.Len() != 0 {
 		outRelayPeers, _ = utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
 	}
-	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()),
-		zap.Int("outRelayPeers", outRelayPeers.Len()))
 	return
 }
 
@@ -145,6 +143,8 @@ func (pm *PeerManager) connectToRelayPeers() {
 
 	//Check for out peer connections and connect to more peers.
 	inRelayPeers, outRelayPeers := pm.getRelayPeers()
+	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()),
+		zap.Int("outRelayPeers", outRelayPeers.Len()))
 	if inRelayPeers.Len() > 0 &&
 		inRelayPeers.Len() > pm.InRelayPeersTarget {
 		pm.pruneInRelayConns(inRelayPeers)
