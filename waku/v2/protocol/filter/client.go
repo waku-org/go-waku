@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"sync"
-	"sync/atomic"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -35,6 +34,9 @@ var (
 )
 
 type WakuFilterLightNode struct {
+	sync.RWMutex
+	started bool
+
 	cancel        context.CancelFunc
 	ctx           context.Context
 	h             host.Host
@@ -45,7 +47,6 @@ type WakuFilterLightNode struct {
 	log           *zap.Logger
 	subscriptions *SubscriptionsMap
 	pm            *peermanager.PeerManager
-	started       atomic.Bool
 }
 
 type ContentFilter struct {
@@ -58,7 +59,8 @@ type WakuFilterPushResult struct {
 	PeerID peer.ID
 }
 
-var errNotStarted = errors.New("filter is not started")
+var errNotStarted = errors.New("not started")
+var errAlreadyStarted = errors.New("already started")
 
 // NewWakuFilterLightnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
 // Takes an optional peermanager if WakuFilterLightnode is being created along with WakuNode.
@@ -82,8 +84,11 @@ func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
-	if !wf.started.CompareAndSwap(false, true) {
-		return nil // Already started
+	wf.Lock()
+	defer wf.Unlock()
+
+	if wf.started {
+		return errAlreadyStarted
 	}
 
 	wf.wg.Wait() // Wait for any goroutines to stop
@@ -92,6 +97,7 @@ func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
 	wf.cancel = cancel
 	wf.ctx = ctx
 	wf.subscriptions = NewSubscriptionMap(wf.log)
+	wf.started = true
 
 	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(ctx))
 
@@ -102,7 +108,10 @@ func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilterLightNode) Stop() {
-	if !wf.started.CompareAndSwap(true, false) {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return
 	}
 
@@ -110,9 +119,22 @@ func (wf *WakuFilterLightNode) Stop() {
 
 	wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
 
-	_, _ = wf.UnsubscribeAll(wf.ctx)
+	res, err := wf.unsubscribeAll(wf.ctx)
+	if err != nil {
+		wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
+	}
+
+	for r := range res {
+		if r.Err != nil {
+			wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+		}
+
+	}
 
 	wf.subscriptions.Clear()
+
+	wf.started = false
+	wf.cancel = nil
 
 	wf.wg.Wait()
 }
@@ -214,7 +236,10 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 
 // Subscribe setups a subscription to receive messages that match a specific content filter
 func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) (*SubscriptionDetails, error) {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return nil, errNotStarted
 	}
 
@@ -256,7 +281,10 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 
 // FilterSubscription is used to obtain an object from which you could receive messages received via filter protocol
 func (wf *WakuFilterLightNode) FilterSubscription(peerID peer.ID, contentFilter ContentFilter) (*SubscriptionDetails, error) {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return nil, errNotStarted
 	}
 
@@ -279,7 +307,10 @@ func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterUnsubscrib
 }
 
 func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID) error {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return errNotStarted
 	}
 
@@ -291,7 +322,10 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID) error {
 }
 
 func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscription *SubscriptionDetails) error {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return errNotStarted
 	}
 
@@ -299,7 +333,10 @@ func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscrip
 }
 
 func (wf *WakuFilterLightNode) Subscriptions() []*SubscriptionDetails {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return nil
 	}
 
@@ -352,7 +389,10 @@ func (wf *WakuFilterLightNode) cleanupSubscriptions(peerID peer.ID, contentFilte
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
 func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return nil, errNotStarted
 	}
 
@@ -435,7 +475,10 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
 func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
-	if !wf.isStarted() {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
 		return nil, errNotStarted
 	}
 
@@ -449,12 +492,7 @@ func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, 
 	return wf.Unsubscribe(ctx, ContentFilter{Topic: sub.PubsubTopic, ContentTopics: contentTopics}, opts...)
 }
 
-// UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions
-func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
-	if !wf.isStarted() {
-		return nil, errNotStarted
-	}
-
+func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
 		return nil, err
@@ -509,6 +547,14 @@ func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...Filte
 	return resultChan, nil
 }
 
-func (wf *WakuFilterLightNode) isStarted() bool {
-	return wf.started.Load()
+// UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions
+func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+	wf.Lock()
+	defer wf.Unlock()
+
+	if !wf.started {
+		return nil, errNotStarted
+	}
+
+	return wf.unsubscribeAll(ctx, opts...)
 }

@@ -145,9 +145,9 @@ func WithWaitGroup(wg *sync.WaitGroup) FilterUnsubscribeOption {
 	}
 }
 
-// Async is used to fire and forget an unsubscription, and don't
+// DontWait is used to fire and forget an unsubscription, and don't
 // care about the results of it
-func Async() FilterUnsubscribeOption {
+func DontWait() FilterUnsubscribeOption {
 	return func(params *FilterUnsubscribeParameters) {
 		params.wg = nil
 	}

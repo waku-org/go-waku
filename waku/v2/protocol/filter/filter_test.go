@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"net/http"
 	"sync"
 	"testing"
@@ -67,7 +68,7 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 	return relay, sub, host, broadcaster
 }
 
-func (s *FilterTestSuite) makeWakuFilterLightNode() *WakuFilterLightNode {
+func (s *FilterTestSuite) makeWakuFilterLightNode(start bool) *WakuFilterLightNode {
 	port, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
@@ -79,8 +80,10 @@ func (s *FilterTestSuite) makeWakuFilterLightNode() *WakuFilterLightNode {
 	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	filterPush.SetHost(host)
 	s.lightNodeHost = host
-	err = filterPush.Start(context.Background())
-	s.Require().NoError(err)
+	if start {
+		err = filterPush.Start(context.Background())
+		s.Require().NoError(err)
+	}
 
 	return filterPush
 }
@@ -178,7 +181,7 @@ func (s *FilterTestSuite) SetupTest() {
 	s.testTopic = "/waku/2/go/filter/test"
 	s.testContentTopic = "TopicA"
 
-	s.lightNode = s.makeWakuFilterLightNode()
+	s.lightNode = s.makeWakuFilterLightNode(true)
 
 	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
 
@@ -363,7 +366,7 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
 
-	ch, err := s.lightNode.Unsubscribe(s.ctx, contentFilter, Async())
+	ch, err := s.lightNode.Unsubscribe(s.ctx, contentFilter, DontWait())
 	_, open := <-ch
 	s.Require().NoError(err)
 	s.Require().False(open)
@@ -375,4 +378,33 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 	_, err = s.lightNode.Unsubscribe(s.ctx, contentFilter, WithWaitGroup(&wg))
 	wg.Wait()
 	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) TestStartStop() {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	s.lightNode = s.makeWakuFilterLightNode(false)
+
+	stopNode := func() {
+		for i := 0; i < 100000; i++ {
+			s.lightNode.Stop()
+		}
+		wg.Done()
+	}
+
+	startNode := func() {
+		for i := 0; i < 100; i++ {
+			err := s.lightNode.Start(context.Background())
+			if errors.Is(err, errAlreadyStarted) {
+				continue
+			}
+			s.Require().NoError(err)
+		}
+		wg.Done()
+	}
+
+	go startNode()
+	go stopNode()
+
+	wg.Wait()
 }
