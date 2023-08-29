@@ -82,14 +82,19 @@ func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
+	wf.log.Info("starting again")
 	if !wf.started.CompareAndSwap(false, true) {
 		return nil // Already started
 	}
+	wf.log.Info("starting")
 
 	wf.wg.Wait() // Wait for any goroutines to stop
+	wf.log.Info("setting cancel")
 
 	ctx, cancel := context.WithCancel(ctx)
+	wf.log.Info("built cancel")
 	wf.cancel = cancel
+	wf.log.Info("made cancel")
 	wf.ctx = ctx
 	wf.subscriptions = NewSubscriptionMap(wf.log)
 
@@ -105,6 +110,7 @@ func (wf *WakuFilterLightNode) Stop() {
 	if !wf.started.CompareAndSwap(true, false) {
 		return
 	}
+	wf.log.Info("stopping node")
 
 	wf.cancel()
 
