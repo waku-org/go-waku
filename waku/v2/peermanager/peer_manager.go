@@ -29,7 +29,7 @@ type PeerManager struct {
 	InRelayPeersTarget  int
 	OutRelayPeersTarget int
 	host                host.Host
-	serviceSlots        *ServiceSlot
+	serviceSlots        *ServiceSlots
 	ctx                 context.Context
 }
 
@@ -37,7 +37,7 @@ const peerConnectivityLoopSecs = 15
 
 // 80% relay peers 20% service peers
 func relayAndServicePeers(maxConnections int) (int, int) {
-	return maxConnections / 5, maxConnections - maxConnections/5
+	return maxConnections - maxConnections/5, maxConnections / 5
 }
 
 // 66% inRelayPeers 33% outRelayPeers
@@ -54,7 +54,7 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 // NewPeerManager creates a new peerManager instance.
 func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 
-	_, maxRelayPeers := relayAndServicePeers(maxConnections)
+	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
 	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
 
 	pm := &PeerManager{
@@ -276,7 +276,7 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 	pm.host.Peerstore().RemovePeer(peerID)
 	//Search if this peer is in serviceSlot and if so, remove it from there
 	// TODO:Add another peer which is statically configured to the serviceSlot.
-	pm.serviceSlots.RemovePeer(peerID)
+	pm.serviceSlots.removePeer(peerID)
 }
 
 // AddPeerToServiceSlot adds a peerID to serviceSlot.

@@ -41,22 +41,22 @@ func (pm *peerMap) add(pID peer.ID) {
 	pm.m[pID] = struct{}{}
 }
 
-// ServiceSlot is for storing service slots for a given protocol topic
-type ServiceSlot struct {
+// ServiceSlots is for storing service slots for a given protocol topic
+type ServiceSlots struct {
 	mu sync.Mutex
 	m  map[protocol.ID]*peerMap
 }
 
 // NewServiceSlot is a constructor for ServiceSlot
-func NewServiceSlot() *ServiceSlot {
-	return &ServiceSlot{
+func NewServiceSlot() *ServiceSlots {
+	return &ServiceSlots{
 		m: map[protocol.ID]*peerMap{},
 	}
 }
 
 // getPeers for getting all the peers for a given protocol
 // since peerMap is only used in peerManager that's why it is unexported
-func (slots *ServiceSlot) getPeers(proto protocol.ID) *peerMap {
+func (slots *ServiceSlots) getPeers(proto protocol.ID) *peerMap {
 	slots.mu.Lock()
 	defer slots.mu.Unlock()
 	if slots.m[proto] == nil {
@@ -66,7 +66,7 @@ func (slots *ServiceSlot) getPeers(proto protocol.ID) *peerMap {
 }
 
 // RemovePeer for removing peer ID for a given protocol
-func (slots *ServiceSlot) RemovePeer(peerID peer.ID) {
+func (slots *ServiceSlots) removePeer(peerID peer.ID) {
 	slots.mu.Lock()
 	defer slots.mu.Unlock()
 	for _, m := range slots.m {

@@ -47,7 +47,7 @@ func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	require.Equal(t, peerId, fetchedPeer)
 
 	//
-	slots.RemovePeer(peerId)
+	slots.removePeer(peerId)
 	//
 	_, err = slots.getPeers(protocol).getRandom()
 	require.Equal(t, err, utils.ErrNoPeersAvailable)
