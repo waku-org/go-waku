@@ -503,8 +503,8 @@ func processTopics(options NodeOptions) map[string]struct{} {
 	}
 
 	//Get pubSub topics from contentTopics if they are as per autosharding
-	if len(options.Relay.PubSubTopics.Value()) > 0 {
-		for _, cTopic := range options.Relay.PubSubTopics.Value() {
+	if len(options.Relay.ContentTopics.Value()) > 0 {
+		for _, cTopic := range options.Relay.ContentTopics.Value() {
 			contentTopic, err := wprotocol.StringToContentTopic(cTopic)
 			if err != nil {
 				failOnErr(err, "failed to parse content topic")
