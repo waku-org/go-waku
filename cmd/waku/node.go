@@ -484,7 +484,7 @@ func Execute(options NodeOptions) {
 func processTopics(options NodeOptions) map[string]struct{} {
 	//Using a map to avoid duplicate pub-sub topics that can result from autosharding
 	// or same-topic being passed twice.
-	var pubSubTopicMap map[string]struct{}
+	pubSubTopicMap := make(map[string]struct{})
 
 	if len(options.Relay.Topics.Value()) == 0 {
 		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)

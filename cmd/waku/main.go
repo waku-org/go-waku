@@ -49,6 +49,8 @@ func main() {
 		AgentString,
 		Relay,
 		Topics,
+		ContentTopics,
+		PubSubTopics,
 		ProtectedTopics,
 		RelayPeerExchange,
 		MinRelayPeersToPublish,
