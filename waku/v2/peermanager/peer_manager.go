@@ -292,6 +292,7 @@ func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID, o
 	//TODO: Ideally we should sort the peers per service and return best peer based on peer score or RTT etc.
 	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID),
 		zap.String("service", string(proto)))
+	// getPeers returns nil for WakuRelayIDv200 protocol, but we don't run this ServiceSlot code for WakuRelayIDv200 protocol
 	pm.serviceSlots.getPeers(proto).add(peerID)
 }
 
@@ -307,8 +308,10 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 	//  - latency?
 
 	//Try to fetch from serviceSlot
-	if peerID, err := pm.serviceSlots.getPeers(proto).getRandom(); err == nil {
-		return peerID, nil
+	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
+		if peerID, err := slot.getRandom(); err == nil {
+			return peerID, nil
+		}
 	}
 
 	// if not found in serviceSlots or proto == WakuRelayIDv200

@@ -57,6 +57,9 @@ func NewServiceSlot() *ServiceSlots {
 // getPeers for getting all the peers for a given protocol
 // since peerMap is only used in peerManager that's why it is unexported
 func (slots *ServiceSlots) getPeers(proto protocol.ID) *peerMap {
+	if proto == WakuRelayIDv200 {
+		return nil
+	}
 	slots.mu.Lock()
 	defer slots.mu.Unlock()
 	if slots.m[proto] == nil {
