@@ -26,6 +26,8 @@ type RelayOptions struct {
 	Enable                 bool
 	Topics                 cli.StringSlice
 	ProtectedTopics        []cliutils.ProtectedTopic
+	PubSubTopics           cli.StringSlice
+	ContentTopics          cli.StringSlice
 	PeerExchange           bool
 	MinRelayPeersToPublish int
 }

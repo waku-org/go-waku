@@ -48,6 +48,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -305,6 +306,9 @@ func Execute(options NodeOptions) {
 		addStaticPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
 	}
 
+	//Process pubSub and contentTopics specified and arrive at all corresponding pubSubTopics
+	pubSubTopicMap := processTopics(options)
+
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
@@ -318,14 +322,10 @@ func Execute(options NodeOptions) {
 	addStaticPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
 	addStaticPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
 
-	if len(options.Relay.Topics.Value()) == 0 {
-		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)
-	}
-
 	var wg sync.WaitGroup
 
 	if options.Relay.Enable {
-		for _, nodeTopic := range options.Relay.Topics.Value() {
+		for nodeTopic := range pubSubTopicMap {
 			nodeTopic := nodeTopic
 			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
@@ -448,7 +448,7 @@ func Execute(options NodeOptions) {
 			peerIDs = append(peerIDs, pID)
 		}
 
-		for _, t := range options.Relay.Topics.Value() {
+		for t := range pubSubTopicMap {
 			wg.Add(1)
 			go func(topic string) {
 				defer wg.Done()
@@ -505,6 +505,41 @@ func Execute(options NodeOptions) {
 		err = db.Close()
 		failOnErr(err, "DBClose")
 	}
+}
+
+func processTopics(options NodeOptions) map[string]struct{} {
+	//Using a map to avoid duplicate pub-sub topics that can result from autosharding
+	// or same-topic being passed twice.
+	var pubSubTopicMap map[string]struct{}
+
+	if len(options.Relay.Topics.Value()) == 0 {
+		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)
+		pubSubTopicMap[relay.DefaultWakuTopic] = struct{}{}
+	} else {
+		for _, topic := range options.Relay.Topics.Value() {
+			pubSubTopicMap[topic] = struct{}{}
+		}
+	}
+
+	// Include pubSub topics specified in config.
+	if len(options.Relay.PubSubTopics.Value()) > 0 {
+		for _, topic := range options.Relay.PubSubTopics.Value() {
+			pubSubTopicMap[topic] = struct{}{}
+		}
+	}
+
+	//Get pubSub topics from contentTopics if they are as per autosharding
+	if len(options.Relay.PubSubTopics.Value()) > 0 {
+		for _, cTopic := range options.Relay.PubSubTopics.Value() {
+			contentTopic, err := wprotocol.StringToContentTopic(cTopic)
+			if err != nil {
+				failOnErr(err, "failed to parse content topic")
+			}
+			pTopic := wprotocol.GetShardFromContentTopic(contentTopic, wprotocol.GenerationZeroShardsCount)
+			pubSubTopicMap[pTopic.String()] = struct{}{}
+		}
+	}
+	return pubSubTopicMap
 }
 
 func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {

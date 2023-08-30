@@ -227,9 +227,21 @@ var (
 	})
 	Topics = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
 		Name:        "topic",
-		Usage:       "Pubsub topic to subscribe to. Argument may be repeated",
+		Usage:       "Default topic to subscribe to. Argument may be repeated. Deprecated! Please use pubsub-topic and/or content-topic instead.",
 		Destination: &options.Relay.Topics,
 		EnvVars:     []string{"WAKUNODE2_TOPICS"},
+	})
+	PubSubTopics = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
+		Name:        "pubsub-topic",
+		Usage:       "Default pubsub topic to subscribe to. Argument may be repeated.",
+		Destination: &options.Relay.PubSubTopics,
+		EnvVars:     []string{"WAKUNODE2_PUBSUB_TOPICS"},
+	})
+	ContentTopics = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
+		Name:        "content-topic",
+		Usage:       "Default content topic to subscribe to. Argument may be repeated.",
+		Destination: &options.Relay.ContentTopics,
+		EnvVars:     []string{"WAKUNODE2_CONTENT_TOPICS"},
 	})
 	ProtectedTopics = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:    "protected-topic",
