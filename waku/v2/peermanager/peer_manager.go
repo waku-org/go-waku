@@ -24,47 +24,49 @@ const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
 	peerConnector       *PeerConnectionStrategy
-	maxConnections      int
 	maxRelayPeers       int
 	logger              *zap.Logger
 	InRelayPeersTarget  int
 	OutRelayPeersTarget int
 	host                host.Host
-	serviceSlots        map[protocol.ID][]peer.ID
+	serviceSlots        *ServiceSlots
 	ctx                 context.Context
 }
 
-const maxRelayPeersShare = 5
-
-// const defaultMaxOutRelayPeersTarget = 10
-const outRelayPeersShare = 3
 const peerConnectivityLoopSecs = 15
-const minOutRelayConns = 10
+
+// 80% relay peers 20% service peers
+func relayAndServicePeers(maxConnections int) (int, int) {
+	return maxConnections - maxConnections/5, maxConnections / 5
+}
+
+// 66% inRelayPeers 33% outRelayPeers
+func inAndOutRelayPeers(relayPeers int) (int, int) {
+	outRelayPeers := relayPeers / 3
+	//
+	const minOutRelayConns = 10
+	if outRelayPeers < minOutRelayConns {
+		outRelayPeers = minOutRelayConns
+	}
+	return relayPeers - outRelayPeers, outRelayPeers
+}
 
 // NewPeerManager creates a new peerManager instance.
 func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 
-	maxRelayPeersValue := maxConnections - (maxConnections / maxRelayPeersShare)
-	outRelayPeersTargetValue := int(maxRelayPeersValue / outRelayPeersShare)
-	if outRelayPeersTargetValue < minOutRelayConns {
-		outRelayPeersTargetValue = minOutRelayConns
-	}
-	inRelayPeersTargetValue := maxRelayPeersValue - outRelayPeersTargetValue
-	if inRelayPeersTargetValue < 0 {
-		inRelayPeersTargetValue = 0
-	}
+	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
+	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
 
 	pm := &PeerManager{
-		maxConnections:      maxConnections,
 		logger:              logger.Named("peer-manager"),
-		maxRelayPeers:       maxRelayPeersValue,
-		InRelayPeersTarget:  inRelayPeersTargetValue,
-		OutRelayPeersTarget: outRelayPeersTargetValue,
-		serviceSlots:        make(map[protocol.ID][]peer.ID),
+		maxRelayPeers:       maxRelayPeers,
+		InRelayPeersTarget:  inRelayPeersTarget,
+		OutRelayPeersTarget: outRelayPeersTarget,
+		serviceSlots:        NewServiceSlot(),
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
-		zap.Int("maxRelayPeersValue", maxRelayPeersValue),
-		zap.Int("outRelayPeersTargetValue", outRelayPeersTargetValue),
+		zap.Int("maxRelayPeers", maxRelayPeers),
+		zap.Int("outRelayPeersTarget", outRelayPeersTarget),
 		zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
 
 	return pm
@@ -274,13 +276,7 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 	pm.host.Peerstore().RemovePeer(peerID)
 	//Search if this peer is in serviceSlot and if so, remove it from there
 	// TODO:Add another peer which is statically configured to the serviceSlot.
-	for proto, peers := range pm.serviceSlots {
-		for i, peer := range peers {
-			if peer == peerID {
-				pm.serviceSlots[proto][i] = ""
-			}
-		}
-	}
+	pm.serviceSlots.removePeer(peerID)
 }
 
 // AddPeerToServiceSlot adds a peerID to serviceSlot.
@@ -296,7 +292,8 @@ func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	//TODO: Ideally we should sort the peers per service and return best peer based on peer score or RTT etc.
 	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID),
 		zap.String("service", string(proto)))
-	pm.serviceSlots[proto] = append(pm.serviceSlots[proto], peerID)
+	// getPeers returns nil for WakuRelayIDv200 protocol, but we don't run this ServiceSlot code for WakuRelayIDv200 protocol
+	pm.serviceSlots.getPeers(proto).add(peerID)
 }
 
 // SelectPeer is used to return a random peer that supports a given protocol.
@@ -310,19 +307,17 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 	//  - which topics they track
 	//  - latency?
 
+	//Try to fetch from serviceSlot
+	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
+		if peerID, err := slot.getRandom(); err == nil {
+			return peerID, nil
+		}
+	}
+
+	// if not found in serviceSlots or proto == WakuRelayIDv200
 	filteredPeers, err := utils.FilterPeersByProto(pm.host, specificPeers, proto)
 	if err != nil {
 		return "", err
 	}
-	if proto == WakuRelayIDv200 {
-		return utils.SelectRandomPeer(filteredPeers, pm.logger)
-	}
-
-	//Try to fetch from serviceSlot
-	peerIDs, ok := pm.serviceSlots[proto]
-	if ok || len(peerIDs) > 0 {
-		filteredPeers = peerIDs
-	}
-
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
 }
