@@ -254,6 +254,7 @@ func (wf *WakuFilterLightNode) FilterSubscription(peerID peer.ID, contentFilter 
 func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterUnsubscribeOption) (*FilterUnsubscribeParameters, error) {
 	params := new(FilterUnsubscribeParameters)
 	params.log = wf.log
+	opts = append(DefaultUnsubscribeOptions(), opts...)
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -353,7 +354,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 			defer localWg.Done()
 			err := wf.request(
 				ctx,
-				&FilterSubscribeParameters{selectedPeer: peerID},
+				&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
 				pb.FilterSubscribeRequest_UNSUBSCRIBE,
 				contentFilter)
 			if err != nil {
@@ -378,7 +379,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 	localWg.Wait()
 	close(resultChan)
 	for _, peerID := range peersUnsubscribed {
-		if len(wf.subscriptions.items[peerID].subscriptionsPerTopic) == 0 {
+		if wf.subscriptions != nil && wf.subscriptions.items != nil && wf.subscriptions.items[peerID] != nil && len(wf.subscriptions.items[peerID].subscriptionsPerTopic) == 0 {
 			delete(wf.subscriptions.items, peerID)
 		}
 	}
@@ -422,7 +423,7 @@ func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...Filte
 			defer localWg.Done()
 			err := wf.request(
 				ctx,
-				&FilterSubscribeParameters{selectedPeer: peerID},
+				&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
 				pb.FilterSubscribeRequest_UNSUBSCRIBE_ALL,
 				ContentFilter{})
 			if err != nil {

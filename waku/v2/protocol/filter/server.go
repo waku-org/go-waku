@@ -118,7 +118,7 @@ func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(s network.Stre
 
 		wf.metrics.RecordRequest(subscribeRequest.FilterSubscribeType.String(), time.Since(start))
 
-		logger.Info("received request")
+		logger.Info("received request", zap.String("requestType", subscribeRequest.FilterSubscribeType.String()))
 	}
 }
 
@@ -267,7 +267,12 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 }
 
 func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, env *protocol.Envelope) error {
-	logger := wf.log.With(logging.HostID("peer", peerID))
+	logger := wf.log.With(
+		logging.HostID("peer", peerID),
+		logging.HexBytes("envelopeHash", env.Hash()),
+		zap.String("pubsubTopic", env.PubsubTopic()),
+		zap.String("contentTopic", env.Message().ContentTopic),
+	)
 
 	messagePush := &pb.MessagePushV2{
 		PubsubTopic: env.PubsubTopic(),
@@ -304,6 +309,9 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 	}
 
 	wf.subscriptions.FlagAsSuccess(peerID)
+
+	logger.Info("message pushed succesfully") // TODO: remove or change to debug once dogfooding of filter is complete
+
 	return nil
 }
 
