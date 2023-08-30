@@ -1,7 +1,9 @@
 package protocol
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -51,6 +53,63 @@ func TestContentTopicAndSharding(t *testing.T) {
 	ct5, err := NewContentTopic("waku", 2, "test2", "proto", WithGeneration(0))
 	require.NoError(t, err)
 	require.Equal(t, ct5.Generation, 0)
+}
+
+func randomContentTopic() (ContentTopic, error) {
+	var app = ""
+	const WordLength = 5
+	rand.New(rand.NewSource(time.Now().Unix()))
+
+	//Generate a random character between lowercase a to z
+	for i := 0; i < WordLength; i++ {
+		randomChar := 'a' + rune(rand.Intn(26))
+		app = app + string(randomChar)
+	}
+	version := uint32(1)
+
+	var name = ""
+
+	for i := 0; i < WordLength; i++ {
+		randomChar := 'a' + rune(rand.Intn(26))
+		name = name + string(randomChar)
+	}
+	var enc = "proto"
+
+	return NewContentTopic(app, version, name, enc)
+}
+
+func TestShardChoiceSimulation(t *testing.T) {
+	//Given
+	var topics []ContentTopic
+	for i := 0; i < 100000; i++ {
+		ct, err := randomContentTopic()
+		require.NoError(t, err)
+		topics = append(topics, ct)
+	}
+
+	var counts [GenerationZeroShardsCount]int
+
+	// When
+	for _, topic := range topics {
+		pubsub := GetShardFromContentTopic(topic, GenerationZeroShardsCount)
+		counts[pubsub.Shard()] += 1
+	}
+
+	for i := 0; i < GenerationZeroShardsCount; i++ {
+		t.Logf("Counts at index %d is %d", i, counts[i])
+	}
+
+	// Then
+	for i := 1; i < GenerationZeroShardsCount; i++ {
+		if float64(counts[i-1]) <= (float64(counts[i])*1.05) &&
+			float64(counts[i]) <= (float64(counts[i-1])*1.05) &&
+			float64(counts[i-1]) >= (float64(counts[i])*0.95) &&
+			float64(counts[i]) >= (float64(counts[i-1])*0.95) {
+			t.Logf("Shard choice simulation successful")
+		} else {
+			t.FailNow()
+		}
+	}
 }
 
 func TestNsPubsubTopic(t *testing.T) {

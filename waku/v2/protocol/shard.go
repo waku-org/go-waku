@@ -217,7 +217,7 @@ func FromBitVector(buf []byte) (RelayShards, error) {
 
 // GetShardFromContentTopic runs Autosharding logic and returns a pubSubTopic
 // This is based on Autosharding algorithm defined in RFC 51
-func GetShardFromContentTopic(topic ContentTopic, shardCount int) NamespacedPubsubTopic {
+func GetShardFromContentTopic(topic ContentTopic, shardCount int) StaticShardingPubsubTopic {
 	bytes := []byte(topic.ApplicationName)
 	bytes = append(bytes, []byte(fmt.Sprintf("%d", topic.ApplicationVersion))...)
 
