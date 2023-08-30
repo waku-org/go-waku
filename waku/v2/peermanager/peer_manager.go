@@ -17,8 +17,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: Move all the protocol IDs to a common location.
 // WakuRelayIDv200 is protocol ID for Waku v2 relay protocol
+// TODO: Move all the protocol IDs to a common location.
 const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // PeerManager applies various controls and manage connections towards peers.
@@ -258,7 +258,7 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocol
 
 	//Add Service peers to serviceSlots.
 	for _, proto := range protocols {
-		pm.AddPeerToServiceSlot(proto, info.ID)
+		pm.addPeerToServiceSlot(proto, info.ID)
 	}
 
 	//Add to the peer-store
@@ -279,10 +279,10 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 	pm.serviceSlots.removePeer(peerID)
 }
 
-// AddPeerToServiceSlot adds a peerID to serviceSlot.
+// addPeerToServiceSlot adds a peerID to serviceSlot.
 // Adding to peerStore is expected to be already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
-func (pm *PeerManager) AddPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
+func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	if proto == WakuRelayIDv200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
