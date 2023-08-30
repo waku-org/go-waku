@@ -59,7 +59,6 @@ func main() {
 		StoreMessageRetentionCapacity,
 		StoreMessageDBVacuum,
 		StoreMessageDBMigration,
-		StoreResumePeer,
 		FilterFlag,
 		FilterNode,
 		FilterTimeout,

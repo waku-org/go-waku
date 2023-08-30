@@ -313,14 +313,6 @@ var (
 		Value:       true,
 		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_MIGRATION"},
 	})
-	StoreResumePeer = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
-		Name:  "store-resume-peer",
-		Usage: "Peer multiaddress to resume the message store at boot. Option may be repeated",
-		Value: &cliutils.MultiaddrSlice{
-			Values: &options.Store.ResumeNodes,
-		},
-		EnvVars: []string{"WAKUNODE2_STORE_RESUME_PEER"},
-	})
 	FilterFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "filter",
 		Usage:       "Enable filter protocol",

@@ -435,32 +435,6 @@ func Execute(options NodeOptions) {
 		}
 	}
 
-	if options.Store.Enable && len(options.Store.ResumeNodes) != 0 {
-		// TODO: extract this to a function and run it when you go offline
-		// TODO: determine if a store is listening to a topic
-
-		var peerIDs []peer.ID
-		for _, n := range options.Store.ResumeNodes {
-			pID, err := wakuNode.AddPeer(n, wakupeerstore.Static, store.StoreID_v20beta4)
-			if err != nil {
-				logger.Warn("adding peer to peerstore", logging.MultiAddrs("peer", n), zap.Error(err))
-			}
-			peerIDs = append(peerIDs, pID)
-		}
-
-		for t := range pubSubTopicMap {
-			wg.Add(1)
-			go func(topic string) {
-				defer wg.Done()
-				ctxWithTimeout, ctxCancel := context.WithTimeout(ctx, 20*time.Second)
-				defer ctxCancel()
-				if _, err := wakuNode.Store().Resume(ctxWithTimeout, topic, peerIDs); err != nil {
-					logger.Error("Could not resume history", zap.Error(err))
-				}
-			}(t)
-		}
-	}
-
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
 		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
@@ -568,6 +542,37 @@ func loadPrivateKeyFromFile(path string, passwd string) (*ecdsa.PrivateKey, erro
 
 	return crypto.ToECDSA(pKey)
 }
+
+/*
+Commenting this until redesign of FT store
+func processStoreResume(ctx context.Context, pubSubTopicMap map[string]struct{},
+	wakuNode *node.WakuNode, wg *sync.WaitGroup, logger *zap.Logger) {
+	if options.Store.Enable && len(options.Store.ResumeNodes) != 0 {
+		// TODO: extract this to a function and run it when you go offline
+		// TODO: determine if a store is listening to a topic
+
+		var peerIDs []peer.ID
+		for _, n := range options.Store.ResumeNodes {
+			pID, err := wakuNode.AddPeer(n, wakupeerstore.Static, store.StoreID_v20beta4)
+			if err != nil {
+				logger.Warn("adding peer to peerstore", logging.MultiAddrs("peer", n), zap.Error(err))
+			}
+			peerIDs = append(peerIDs, pID)
+		}
+
+		for t := range pubSubTopicMap {
+			wg.Add(1)
+			go func(topic string) {
+				defer wg.Done()
+				ctxWithTimeout, ctxCancel := context.WithTimeout(ctx, 20*time.Second)
+				defer ctxCancel()
+				if _, err := wakuNode.Store().Resume(ctxWithTimeout, topic, peerIDs); err != nil {
+					logger.Error("Could not resume history", zap.Error(err))
+				}
+			}(t)
+		}
+	}
+} */
 
 func getPrivKey(options NodeOptions) (*ecdsa.PrivateKey, error) {
 	var prvKey *ecdsa.PrivateKey
