@@ -12,3 +12,5 @@ exclude_patterns:
   - "**/*.pb.go"
   - "**/rln/contracts/*.go"
   - "**/bindata.go"
+  - "./examples/waku-csharp"
+  - "./examples/swift-waku"
