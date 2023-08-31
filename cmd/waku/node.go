@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
-	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -486,33 +485,28 @@ func processTopics(options NodeOptions) map[string]struct{} {
 	// or same-topic being passed twice.
 	pubSubTopicMap := make(map[string]struct{})
 
-	if len(options.Relay.Topics.Value()) == 0 {
-		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)
-		pubSubTopicMap[relay.DefaultWakuTopic] = struct{}{}
-	} else {
-		for _, topic := range options.Relay.Topics.Value() {
-			pubSubTopicMap[topic] = struct{}{}
-		}
+	for _, topic := range options.Relay.Topics.Value() {
+		pubSubTopicMap[topic] = struct{}{}
 	}
 
-	// Include pubSub topics specified in config.
-	if len(options.Relay.PubSubTopics.Value()) > 0 {
-		for _, topic := range options.Relay.PubSubTopics.Value() {
-			pubSubTopicMap[topic] = struct{}{}
-		}
+	for _, topic := range options.Relay.PubSubTopics.Value() {
+		pubSubTopicMap[topic] = struct{}{}
 	}
 
 	//Get pubSub topics from contentTopics if they are as per autosharding
-	if len(options.Relay.ContentTopics.Value()) > 0 {
-		for _, cTopic := range options.Relay.ContentTopics.Value() {
-			contentTopic, err := wprotocol.StringToContentTopic(cTopic)
-			if err != nil {
-				failOnErr(err, "failed to parse content topic")
-			}
-			pTopic := wprotocol.GetShardFromContentTopic(contentTopic, wprotocol.GenerationZeroShardsCount)
-			pubSubTopicMap[pTopic.String()] = struct{}{}
+	for _, cTopic := range options.Relay.ContentTopics.Value() {
+		contentTopic, err := wprotocol.StringToContentTopic(cTopic)
+		if err != nil {
+			failOnErr(err, "failed to parse content topic")
 		}
+		pTopic := wprotocol.GetShardFromContentTopic(contentTopic, wprotocol.GenerationZeroShardsCount)
+		pubSubTopicMap[pTopic.String()] = struct{}{}
 	}
+	//If no topics are passed, then use default waku topic.
+	if len(pubSubTopicMap) == 0 {
+		pubSubTopicMap[relay.DefaultWakuTopic] = struct{}{}
+	}
+
 	return pubSubTopicMap
 }
 
