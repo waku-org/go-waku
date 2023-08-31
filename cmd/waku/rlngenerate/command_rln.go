@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/ethclient"
 	cli "github.com/urfave/cli/v2"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/web3"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
@@ -46,22 +45,12 @@ var Command = cli.Command{
 }
 
 func execute(ctx context.Context) error {
-	ethClient, err := ethclient.Dial(options.ETHClientAddress)
-	if err != nil {
-		return err
-	}
-
 	rlnInstance, err := rln.NewRLN()
 	if err != nil {
 		return err
 	}
 
-	chainID, err := ethClient.ChainID(ctx)
-	if err != nil {
-		return err
-	}
-
-	rlnContract, err := contracts.NewRLN(options.MembershipContractAddress, ethClient)
+	web3Config, err := web3.BuildConfig(ctx, options.ETHClientAddress, options.MembershipContractAddress)
 	if err != nil {
 		return err
 	}
@@ -74,14 +63,14 @@ func execute(ctx context.Context) error {
 	}
 
 	// register the rln-relay peer to the membership contract
-	membershipIndex, err := register(ctx, ethClient, rlnContract, identityCredential.IDCommitment, chainID)
+	membershipIndex, err := register(ctx, web3Config, identityCredential.IDCommitment)
 	if err != nil {
 		return err
 	}
 
 	// TODO: clean private key from memory
 
-	err = persistCredentials(identityCredential, membershipIndex, chainID)
+	err = persistCredentials(identityCredential, membershipIndex, web3Config.ChainID)
 	if err != nil {
 		return err
 	}
@@ -98,7 +87,7 @@ func execute(ctx context.Context) error {
 		logger.Info("registered credentials into the membership contract", logging.HexString("idCommitment", identityCredential.IDCommitment[:]), zap.Uint("index", membershipIndex))
 	}
 
-	ethClient.Close()
+	web3Config.ETHClient.Close()
 
 	return nil
 }
