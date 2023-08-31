@@ -21,10 +21,10 @@ type RegistrationEventHandler = func(*DynamicGroupManager, []*contracts.RLNMembe
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
 func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
-	fromBlock := uint64(0)
+	fromBlock := gm.web3Config.RLNContract.DeployedBlockNumber
 	metadata, err := gm.GetMetadata()
 	if err != nil {
-		gm.log.Warn("could not load last processed block from metadata. Starting onchain sync from scratch", zap.Error(err))
+		gm.log.Warn("could not load last processed block from metadata. Starting onchain sync from deployment block", zap.Error(err), zap.Uint64("deploymentBlock", gm.web3Config.RLNContract.DeployedBlockNumber))
 	} else {
 		if gm.web3Config.ChainID.Cmp(metadata.ChainID) != 0 {
 			return errors.New("persisted data: chain id mismatch")
@@ -148,6 +148,8 @@ func (gm *DynamicGroupManager) getEvents(ctx context.Context, from uint64, to *u
 			end = *toBlock
 		}
 
+		gm.log.Info("loading events...", zap.Uint64("fromBlock", start), zap.Uint64("toBlock", end))
+
 		evts, err := gm.fetchEvents(ctx, start, &end)
 		if err != nil {
 			if tooMuchDataRequestedError(err) {
@@ -157,6 +159,9 @@ func (gm *DynamicGroupManager) getEvents(ctx context.Context, from uint64, to *u
 
 				// multiplicative decrease
 				batchSize = batchSize / multiplicativeDecreaseDivisor
+
+				gm.log.Warn("too many logs requested!, retrying with a smaller chunk size", zap.Uint64("batchSize", batchSize))
+
 				continue
 			}
 			return nil, err
