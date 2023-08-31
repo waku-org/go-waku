@@ -92,15 +92,17 @@ func TestShardChoiceSimulation(t *testing.T) {
 	// When
 	for _, topic := range topics {
 		pubsub := GetShardFromContentTopic(topic, GenerationZeroShardsCount)
-		counts[pubsub.Shard()] += 1
+		counts[pubsub.Shard()]++
 	}
 
+	t.Logf("Total number of topics simulated %d", len(topics))
 	for i := 0; i < GenerationZeroShardsCount; i++ {
-		t.Logf("Counts at index %d is %d", i, counts[i])
+		t.Logf("Topics assigned to shard %d is %d", i, counts[i])
 	}
 
 	// Then
 	for i := 1; i < GenerationZeroShardsCount; i++ {
+		//t.Logf("float64(counts[%d]) %f float64(counts[%d]) %f", i-1, float64(counts[i-1]), i, float64(counts[i]))
 		if float64(counts[i-1]) <= (float64(counts[i])*1.05) &&
 			float64(counts[i]) <= (float64(counts[i-1])*1.05) &&
 			float64(counts[i-1]) >= (float64(counts[i])*0.95) &&
