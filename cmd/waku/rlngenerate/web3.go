@@ -11,15 +11,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/web3"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 
-func getMembershipFee(ctx context.Context, rlnContract *contracts.RLN) (*big.Int, error) {
+func getMembershipFee(ctx context.Context, rlnContract web3.RLNContract) (*big.Int, error) {
 	return rlnContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
 }
 
@@ -70,14 +69,14 @@ func buildTransactor(ctx context.Context, membershipFee *big.Int, chainID *big.I
 	return auth, nil
 }
 
-func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *contracts.RLN, idComm rln.IDCommitment, chainID *big.Int) (rln.MembershipIndex, error) {
+func register(ctx context.Context, web3Config *web3.Config, idComm rln.IDCommitment) (rln.MembershipIndex, error) {
 	// check if the contract exists by calling a static function
-	membershipFee, err := getMembershipFee(ctx, rlnContract)
+	membershipFee, err := getMembershipFee(ctx, web3Config.RLNContract)
 	if err != nil {
 		return 0, err
 	}
 
-	auth, err := buildTransactor(ctx, membershipFee, chainID)
+	auth, err := buildTransactor(ctx, membershipFee, web3Config.ChainID)
 	if err != nil {
 		return 0, err
 	}
@@ -85,13 +84,13 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 	log.Debug("registering an id commitment", zap.Binary("idComm", idComm[:]))
 
 	// registers the idComm  into the membership contract whose address is in rlnPeer.membershipContractAddress
-	tx, err := rlnContract.Register(auth, rln.Bytes32ToBigInt(idComm))
+	tx, err := web3Config.RegistryContract.Register(auth, web3Config.RLNContract.StorageIndex, rln.Bytes32ToBigInt(idComm))
 	if err != nil {
 		return 0, fmt.Errorf("transaction error: %w", err)
 	}
 
 	explorerURL := ""
-	switch chainID.Int64() {
+	switch web3Config.ChainID.Int64() {
 	case 1:
 		explorerURL = "https://etherscan.io"
 	case 5:
@@ -108,7 +107,7 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 
 	logger.Warn("waiting for transaction to be mined...")
 
-	txReceipt, err := bind.WaitMined(ctx, ethClient, tx)
+	txReceipt, err := bind.WaitMined(ctx, web3Config.ETHClient, tx)
 	if err != nil {
 		return 0, fmt.Errorf("transaction error: %w", err)
 	}
@@ -118,7 +117,7 @@ func register(ctx context.Context, ethClient *ethclient.Client, rlnContract *con
 	}
 
 	// the receipt topic holds the hash of signature of the raised events
-	evt, err := rlnContract.ParseMemberRegistered(*txReceipt.Logs[0])
+	evt, err := web3Config.RLNContract.ParseMemberRegistered(*txReceipt.Logs[0])
 	if err != nil {
 		return 0, err
 	}
