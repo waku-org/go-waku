@@ -21,8 +21,9 @@ type RegistryContract struct {
 // that represents this contract
 type RLNContract struct {
 	*contracts.RLN
-	Address      common.Address
-	StorageIndex uint16
+	Address             common.Address
+	StorageIndex        uint16
+	DeployedBlockNumber uint64
 }
 
 // Config is a helper struct that contains attributes for interaction with RLN smart contracts
@@ -78,6 +79,11 @@ func BuildConfig(ctx context.Context, ethClientAddress string, registryAddress c
 		return nil, err
 	}
 
+	deploymentBlockNumber, err := rlnContract.DeployedBlockNumber(&bind.CallOpts{Context: ctx})
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		configured:       true,
 		ETHClientAddress: ethClientAddress,
@@ -88,9 +94,10 @@ func BuildConfig(ctx context.Context, ethClientAddress string, registryAddress c
 			Address:     registryAddress,
 		},
 		RLNContract: RLNContract{
-			RLN:          rlnContract,
-			Address:      rlnContractAddress,
-			StorageIndex: storageIndex,
+			RLN:                 rlnContract,
+			Address:             rlnContractAddress,
+			StorageIndex:        storageIndex,
+			DeployedBlockNumber: uint64(deploymentBlockNumber),
 		},
 	}, nil
 }
