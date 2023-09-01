@@ -95,6 +95,7 @@ func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) e
 		LastProcessedBlock: gm.lastBlockProcessed,
 		ChainID:            gm.web3Config.ChainID,
 		ContractAddress:    gm.web3Config.RegistryContract.Address,
+		ValidRootsPerBlock: gm.rootTracker.ValidRootsPerBlock(),
 	})
 	if err != nil {
 		// this is not a fatal error, hence we don't raise an exception

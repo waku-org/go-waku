@@ -49,7 +49,7 @@ func NewConfig(ethClientAddress string, registryAddress common.Address) *Config 
 
 // BuildConfig returns an instance of Web3Config with all the required elements for interaction with the RLN smart contracts
 func BuildConfig(ctx context.Context, ethClientAddress string, registryAddress common.Address) (*Config, error) {
-	ethClient, err := ethclient.Dial(ethClientAddress)
+	ethClient, err := ethclient.DialContext(ctx, ethClientAddress)
 	if err != nil {
 		return nil, err
 	}
