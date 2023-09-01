@@ -38,6 +38,8 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 		gm.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
 	}
 
+	gm.rootTracker.SetValidRootsPerBlock(metadata.ValidRootsPerBlock)
+
 	err = gm.loadOldEvents(ctx, fromBlock, handler)
 	if err != nil {
 		return err
