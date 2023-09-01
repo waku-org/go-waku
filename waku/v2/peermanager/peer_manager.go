@@ -231,7 +231,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 // addPeer adds peer to only the peerStore.
 // It also sets additional metadata such as origin, ENR and supported protocols
 func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) error {
-	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
+	pm.logger.Debug("adding peer to peerstore", logging.HostID("peer", ID))
 	pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
 	err := pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(ID, origin)
 	if err != nil {

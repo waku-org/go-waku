@@ -236,6 +236,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 			}()
 			return r
 		},
+		autorelay.WithBootDelay(2*time.Second),
 		autorelay.WithMinInterval(2*time.Second),
 	))
 

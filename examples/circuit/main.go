@@ -1,0 +1,187 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/libp2p/go-libp2p"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/utils"
+	"go.uber.org/zap"
+)
+
+func main() {
+	ctx := context.Background()
+
+	bootNode, err := bootnode(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	time.Sleep(3 * time.Second)
+
+	unreachableNode, err := unreachableNode(ctx, bootNode.ENR())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer unreachableNode.Stop()
+
+	err = unreachableNode.DialPeer(ctx, "/dns4/node-01.do-ams3.status.prod.statusim.net/tcp/30303/p2p/16Uiu2HAm6HZZr7aToTvEBPpiys4UxajCTU97zj5v7RNR2gbniy1D")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// Wait 15 seconds because there is an initial delay in libp2p for circuit relay ...
+	fmt.Println("==============================================================================")
+	fmt.Println("Waiting some seconds...")
+	time.Sleep(15 * time.Second)
+	fmt.Println("Waited enough :D")
+	fmt.Println("==============================================================================")
+
+	px, err := peerExchangeClient(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = px.DialPeerWithMultiAddress(ctx, bootNode.ListenAddresses()[0])
+	if err != nil {
+		fmt.Println("ERROR DIALING BOOTNODE:", err)
+		return
+	}
+
+	go func() {
+		t := time.NewTicker(3 * time.Second)
+		for range t.C {
+			err := px.PeerExchange().Request(ctx, 3)
+			if err != nil {
+				fmt.Println("==============================================================================")
+				fmt.Println("COULD NOT RETRIEVE PEERS")
+				fmt.Println("==============================================================================")
+			} else {
+				peers := px.Host().Peerstore().(peerstore.WakuPeerstore).PeersByOrigin(peerstore.PeerExchange)
+				fmt.Println("==============================================================================")
+				fmt.Println("Peers obtained via peer exchange: ")
+				for _, p := range peers {
+					hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", p.Pretty()))
+					if err != nil {
+						continue
+					}
+
+					for _, a := range px.Host().Peerstore().Addrs(p) {
+						addr := a.Encapsulate(hostInfo)
+						fmt.Println(addr)
+					}
+				}
+				fmt.Println("==============================================================================")
+
+			}
+		}
+	}()
+
+	// Wait for a SIGINT or SIGTERM signal
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	<-ch
+	fmt.Println("\n\n\nReceived signal, shutting down...")
+}
+
+func findFreeUDPPort(maxAttempts int) (int, error) {
+	host := "localhost"
+	for i := 0; i < maxAttempts; i++ {
+		addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(host, "0"))
+		if err != nil {
+			utils.Logger().Warn("unable to resolve addr: %v", zap.Error(err))
+			continue
+		}
+		l, err := net.ListenUDP("udp", addr)
+		if err != nil {
+			l.Close()
+			utils.Logger().Warn("unable to listen on addr: %v", zap.Error(err))
+			continue
+		}
+		port := l.LocalAddr().(*net.UDPAddr).Port
+		l.Close()
+		return port, nil
+	}
+	return 0, fmt.Errorf("no free port found")
+}
+
+func bootnode(ctx context.Context) (*node.WakuNode, error) {
+	port, err := findFreeUDPPort(3)
+	if err != nil {
+		return nil, err
+	}
+
+	wakuNode, err := node.New(
+		node.WithDiscoveryV5(uint(port), nil, true),
+		node.WithPeerExchange(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := wakuNode.Start(ctx); err != nil {
+		return nil, err
+	}
+
+	if err = wakuNode.DiscV5().Start(ctx); err != nil {
+		return nil, err
+	}
+
+	return wakuNode, nil
+}
+
+func unreachableNode(ctx context.Context, bootnode *enode.Node) (*node.WakuNode, error) {
+	port, err := findFreeUDPPort(3)
+	if err != nil {
+		return nil, err
+	}
+
+	wakuNode, err := node.New(
+		node.WithDiscoveryV5(uint(port), []*enode.Node{bootnode}, true),
+		node.WithLibP2POptions(append(node.DefaultLibP2POptions, libp2p.EnableRelay(), libp2p.ForceReachabilityPrivate())...),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := wakuNode.Start(ctx); err != nil {
+		return nil, err
+	}
+
+	if err = wakuNode.DiscV5().Start(ctx); err != nil {
+		return nil, err
+	}
+
+	return wakuNode, nil
+}
+
+func peerExchangeClient(ctx context.Context) (*node.WakuNode, error) {
+	wakuNode, err := node.New(
+		node.WithPeerExchange(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := wakuNode.Start(ctx); err != nil {
+		return nil, err
+	}
+
+	return wakuNode, nil
+}
