@@ -6,6 +6,7 @@ package main
 import (
 	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
 )
 
 func rlnFlags() []cli.Flag {
@@ -17,10 +18,10 @@ func rlnFlags() []cli.Flag {
 			Destination: &options.RLNRelay.Enable,
 		},
 		&cli.UintFlag{
-			Name:        "rln-relay-membership-group-index",
+			Name:        "rln-relay-membership-index",
 			Value:       0,
-			Usage:       "the index of credentials to use, within a specific rln membership set",
-			Destination: &options.RLNRelay.MembershipGroupIndex,
+			Usage:       "the index of credentials to use",
+			Destination: &options.RLNRelay.MembershipIndex,
 		},
 		&cli.BoolFlag{
 			Name:        "rln-relay-dynamic",
@@ -30,12 +31,12 @@ func rlnFlags() []cli.Flag {
 		&cli.PathFlag{
 			Name:        "rln-relay-cred-path",
 			Usage:       "RLN relay membership credentials file",
-			Value:       "",
+			Value:       keystore.DefaultCredentialsFilename,
 			Destination: &options.RLNRelay.CredentialsPath,
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-cred-password",
-			Value:       "",
+			Value:       keystore.DefaultCredentialsPassword,
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
 		},
@@ -44,12 +45,6 @@ func rlnFlags() []cli.Flag {
 			Value:       "",
 			Usage:       "Path to the RLN merkle tree sled db (https://github.com/spacejam/sled)",
 			Destination: &options.RLNRelay.TreePath,
-		},
-		&cli.UintFlag{
-			Name:        "rln-relay-membership-index",
-			Value:       0,
-			Usage:       "the index of credentials to use",
-			Destination: &options.RLNRelay.CredentialsIndex,
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-eth-client-address",

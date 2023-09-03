@@ -468,11 +468,7 @@ func (c *Chat) welcomeMessage() {
 		fmt.Println(err.Error())
 	}
 
-	idx, err := c.node.RLNRelay().MembershipIndex()
-	if err != nil {
-		c.ui.Quit()
-		fmt.Println(err.Error())
-	}
+	idx := c.node.RLNRelay().MembershipIndex()
 
 	idTrapdoor := credential.IDTrapdoor
 	idNullifier := credential.IDSecretHash

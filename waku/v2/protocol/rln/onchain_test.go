@@ -6,7 +6,6 @@ package rln
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -103,7 +102,7 @@ func (s *WakuRLNRelayDynamicSuite) generateCredentials(rlnInstance *rln.RLN) *rl
 	return identityCredential
 }
 
-func (s *WakuRLNRelayDynamicSuite) register(identityCredential *rln.IdentityCredential, privKey *ecdsa.PrivateKey, keystorePath string) (rln.MembershipIndex, uint) {
+func (s *WakuRLNRelayDynamicSuite) register(appKeystore *keystore.AppKeystore, identityCredential *rln.IdentityCredential, privKey *ecdsa.PrivateKey) rln.MembershipIndex {
 
 	auth, err := bind.NewKeyedTransactorWithChainID(privKey, s.chainID)
 	s.Require().NoError(err)
@@ -123,18 +122,16 @@ func (s *WakuRLNRelayDynamicSuite) register(identityCredential *rln.IdentityCred
 
 	membershipIndex := rln.MembershipIndex(uint(evt.Index.Int64()))
 
-	membershipGroup := keystore.MembershipGroup{
-		TreeIndex: membershipIndex,
-		MembershipContract: keystore.MembershipContract{
-			ChainId: fmt.Sprintf("0x%X", s.chainID.Int64()),
-			Address: s.rlnAddr.String(),
-		},
+	membershipCredential := keystore.MembershipCredentials{
+		IdentityCredential:     identityCredential,
+		TreeIndex:              membershipIndex,
+		MembershipContractInfo: keystore.NewMembershipContractInfo(s.chainID, s.rlnAddr),
 	}
 
-	membershipGroupIndex, err := keystore.AddMembershipCredentials(keystorePath, identityCredential, membershipGroup, keystorePassword, dynamic.RLNAppInfo, keystore.DefaultSeparator)
+	err = appKeystore.AddMembershipCredentials(membershipCredential, keystorePassword)
 	s.Require().NoError(err)
 
-	return membershipIndex, membershipGroupIndex
+	return membershipIndex
 }
 
 func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
@@ -147,10 +144,13 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 
 	u1Credentials := s.generateCredentials(rlnInstance)
 	keystorePath1 := "./test_onchain.json"
-	_, membershipGroupIndex := s.register(u1Credentials, s.u1PrivKey, keystorePath1)
+	appKeystore, err := keystore.New(keystorePath1, dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+
+	membershipIndex := s.register(appKeystore, u1Credentials, s.u1PrivKey)
 	defer s.removeCredentials(keystorePath1)
 
-	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, prometheus.DefaultRegisterer, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
 	// initialize the WakuRLNRelay
@@ -167,7 +167,10 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 
 	u2Credentials := s.generateCredentials(rlnInstance)
 	keystorePath2 := "./test_onchain2.json"
-	membershipIndex, _ := s.register(u2Credentials, s.u2PrivKey, keystorePath2)
+	appKeystore2, err := keystore.New(keystorePath2, dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+
+	membershipIndex = s.register(appKeystore2, u2Credentials, s.u2PrivKey)
 	defer s.removeCredentials(keystorePath2)
 
 	time.Sleep(1 * time.Second)
@@ -187,7 +190,10 @@ func (s *WakuRLNRelayDynamicSuite) TestInsertKeyMembershipContract() {
 	credentials3 := s.generateCredentials(rlnInstance)
 
 	keystorePath1 := "./test_onchain.json"
-	s.register(credentials1, s.u1PrivKey, keystorePath1)
+	appKeystore, err := keystore.New(keystorePath1, dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+
+	s.register(appKeystore, credentials1, s.u1PrivKey)
 	defer s.removeCredentials(keystorePath1)
 
 	// Batch Register
@@ -224,14 +230,18 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	s.Require().NoError(err)
 
 	// register the members to the contract
-	_, membershipGroupIndex := s.register(credentials1, s.u1PrivKey, "./test_onchain.json")
-	_, membershipGroupIndex = s.register(credentials2, s.u1PrivKey, "./test_onchain.json")
+	keystorePath1 := "./test_onchain.json"
+	appKeystore, err := keystore.New(keystorePath1, dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+
+	membershipIndex := s.register(appKeystore, credentials1, s.u1PrivKey)
+	membershipIndex = s.register(appKeystore, credentials2, s.u1PrivKey)
+
+	defer s.removeCredentials(keystorePath1)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	// TODO: This assumes the keystoreIndex is 0, but there are two possible credentials in this keystore due to using the same contract address
-	// when credentials1 and credentials2 were registered. We should remove this hardcoded value and obtain the correct value when the credentials are persisted
-	keystoreIndex := uint(0)
-	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, "./test_onchain.json", keystorePassword, keystoreIndex, false, prometheus.DefaultRegisterer, utils.Logger())
+	gm, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, utils.Logger())
+
 	s.Require().NoError(err)
 
 	rlnRelay, err := New(gm, "test-merkle-tree.db", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
@@ -261,11 +271,13 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	// Register credentials1 in contract and keystore1
 	credentials1 := s.generateCredentials(rlnInstance)
 	keystorePath1 := "./test_onchain.json"
-	_, membershipGroupIndex := s.register(credentials1, s.u1PrivKey, keystorePath1)
+	appKeystore, err := keystore.New(keystorePath1, dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+	membershipGroupIndex := s.register(appKeystore, credentials1, s.u1PrivKey)
 	defer s.removeCredentials(keystorePath1)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath1, keystorePassword, 0, false, prometheus.DefaultRegisterer, utils.Logger())
+	gm1, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay1, err := New(gm1, "test-correct-registration-1.db", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
@@ -278,11 +290,13 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	// Register credentials2 in contract and keystore2
 	credentials2 := s.generateCredentials(rlnInstance)
 	keystorePath2 := "./test_onchain2.json"
-	_, membershipGroupIndex = s.register(credentials2, s.u2PrivKey, keystorePath2)
+	appKeystore2, err := keystore.New(keystorePath2, dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+	membershipGroupIndex = s.register(appKeystore2, credentials2, s.u2PrivKey)
 	defer s.removeCredentials(keystorePath2)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, keystorePath2, keystorePassword, 0, false, prometheus.DefaultRegisterer, utils.Logger())
+	gm2, err := dynamic.NewDynamicGroupManager(s.clientAddr, s.rlnAddr, membershipGroupIndex, appKeystore2, keystorePassword, prometheus.DefaultRegisterer, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay2, err := New(gm2, "test-correct-registration-2.db", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
@@ -294,9 +308,8 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	// the two nodes should be registered into the contract
 	// since nodes are spun up sequentially
 	// the first node has index 0 whereas the second node gets index 1
-	idx1, err := rlnRelay1.groupManager.MembershipIndex()
-	s.Require().NoError(err)
-	idx2, err := rlnRelay2.groupManager.MembershipIndex()
+	idx1 := rlnRelay1.groupManager.MembershipIndex()
+	idx2 := rlnRelay2.groupManager.MembershipIndex()
 	s.Require().NoError(err)
 
 	s.Require().Equal(rln.MembershipIndex(0), idx1)
