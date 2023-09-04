@@ -135,6 +135,10 @@ func (gm *DynamicGroupManager) getMembershipFee(ctx context.Context) (*big.Int, 
 	return gm.web3Config.RLNContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
 }
 
+func (gm *DynamicGroupManager) memberExists(ctx context.Context, idCommitment rln.IDCommitment) (bool, error) {
+	return gm.web3Config.RLNContract.MemberExists(&bind.CallOpts{Context: ctx}, rln.Bytes32ToBigInt(idCommitment))
+}
+
 func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error {
 	if gm.cancel != nil {
 		return errors.New("already started")
@@ -159,7 +163,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return err
 	}
 
-	err = gm.loadCredential()
+	err = gm.loadCredential(ctx)
 	if err != nil {
 		return err
 	}
@@ -171,7 +175,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 	return nil
 }
 
-func (gm *DynamicGroupManager) loadCredential() error {
+func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
 	start := time.Now()
 
 	credentials, err := gm.appKeystore.GetMembershipCredentials(
@@ -185,6 +189,15 @@ func (gm *DynamicGroupManager) loadCredential() error {
 
 	if credentials == nil {
 		return errors.New("no credentials available")
+	}
+
+	exists, err := gm.memberExists(ctx, credentials.IdentityCredential.IDCommitment)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("the provided commitment does not have a membership")
 	}
 
 	gm.identityCredential = credentials.IdentityCredential

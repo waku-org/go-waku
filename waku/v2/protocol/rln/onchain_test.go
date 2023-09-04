@@ -217,7 +217,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	credentials1 := s.generateCredentials(rlnInstance)
 	credentials2 := s.generateCredentials(rlnInstance)
 
-	err = rlnInstance.InsertMembers(1, []rln.IDCommitment{credentials1.IDCommitment, credentials2.IDCommitment})
+	err = rlnInstance.InsertMembers(0, []rln.IDCommitment{credentials1.IDCommitment, credentials2.IDCommitment})
 	s.Require().NoError(err)
 
 	//  get the Merkle root
@@ -298,8 +298,8 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	idx1 := rlnRelay1.groupManager.MembershipIndex()
 	idx2 := rlnRelay2.groupManager.MembershipIndex()
 	s.Require().NoError(err)
-	s.Require().Equal(rln.MembershipIndex(1), idx1)
-	s.Require().Equal(rln.MembershipIndex(2), idx2)
+	s.Require().Equal(rln.MembershipIndex(0), idx1)
+	s.Require().Equal(rln.MembershipIndex(1), idx2)
 }
 
 func (s *WakuRLNRelayDynamicSuite) tmpKeystorePath() string {
