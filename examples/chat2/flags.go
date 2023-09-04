@@ -34,7 +34,12 @@ func getFlags() []cli.Flag {
 	// Defaults
 	options.Fleet = fleetProd
 
-	testnetContentTopic := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto").String()
+	testCT, err := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto")
+	if err != nil {
+		fmt.Println("Invalid contentTopic")
+		return nil
+	}
+	testnetContentTopic := testCT.String()
 
 	return []cli.Flag{
 		&cli.GenericFlag{
