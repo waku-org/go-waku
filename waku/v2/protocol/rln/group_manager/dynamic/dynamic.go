@@ -37,8 +37,9 @@ type DynamicGroupManager struct {
 
 	lastBlockProcessed uint64
 
-	appKeystore      *keystore.AppKeystore
-	keystorePassword string
+	appKeystore           *keystore.AppKeystore
+	keystorePassword      string
+	membershipIndexToLoad *uint
 }
 
 func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) error {
@@ -104,7 +105,7 @@ type RegistrationHandler = func(tx *types.Transaction)
 func NewDynamicGroupManager(
 	ethClientAddr string,
 	memContractAddr common.Address,
-	membershipIndex uint,
+	membershipIndexToLoad *uint,
 	appKeystore *keystore.AppKeystore,
 	keystorePassword string,
 	reg prometheus.Registerer,
@@ -116,11 +117,11 @@ func NewDynamicGroupManager(
 
 	web3Config := web3.NewConfig(ethClientAddr, memContractAddr)
 	return &DynamicGroupManager{
-		membershipIndex:   membershipIndex,
-		appKeystore:       appKeystore,
-		keystorePassword:  keystorePassword,
-		MembershipFetcher: NewMembershipFetcher(web3Config, rlnInstance, rootTracker, log),
-		metrics:           newMetrics(reg),
+		membershipIndexToLoad: membershipIndexToLoad,
+		appKeystore:           appKeystore,
+		keystorePassword:      keystorePassword,
+		MembershipFetcher:     NewMembershipFetcher(web3Config, rlnInstance, rootTracker, log),
+		metrics:               newMetrics(reg),
 	}, nil
 }
 
@@ -170,7 +171,7 @@ func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
 
 	credentials, err := gm.appKeystore.GetMembershipCredentials(
 		gm.keystorePassword,
-		gm.membershipIndex,
+		gm.membershipIndexToLoad,
 		keystore.NewMembershipContractInfo(gm.web3Config.ChainID, gm.web3Config.RegistryContract.Address))
 	if err != nil {
 		return err
@@ -191,6 +192,7 @@ func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
 	}
 
 	gm.identityCredential = credentials.IdentityCredential
+	gm.membershipIndex = credentials.TreeIndex
 
 	return nil
 }

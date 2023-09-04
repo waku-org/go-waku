@@ -94,7 +94,7 @@ type WakuNodeParameters struct {
 	enablePeerExchange bool
 
 	enableRLN                    bool
-	rlnRelayMemIndex             uint
+	rlnRelayMemIndex             *uint
 	rlnRelayDynamic              bool
 	rlnSpamHandler               func(message *pb.WakuMessage) error
 	rlnETHClientAddress          string
