@@ -31,7 +31,7 @@ type RLNRelayOptions struct {
 	Enable                    bool
 	CredentialsPath           string
 	CredentialsPassword       string
-	MembershipIndex           uint
+	MembershipIndex           *uint
 	Dynamic                   bool
 	ETHClientAddress          string
 	MembershipContractAddress common.Address

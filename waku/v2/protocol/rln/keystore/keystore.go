@@ -81,10 +81,31 @@ func getKey(treeIndex rln.MembershipIndex, filterMembershipContract MembershipCo
 }
 
 // GetMembershipCredentials decrypts and retrieves membership credentials from the keystore applying filters
-func (k *AppKeystore) GetMembershipCredentials(keystorePassword string, treeIndex rln.MembershipIndex, filterMembershipContract MembershipContractInfo) (*MembershipCredentials, error) {
-	key, err := getKey(treeIndex, filterMembershipContract)
-	if err != nil {
-		return nil, err
+func (k *AppKeystore) GetMembershipCredentials(keystorePassword string, index *rln.MembershipIndex, filterMembershipContract MembershipContractInfo) (*MembershipCredentials, error) {
+	// If there is only one, and index to laod nil, assume 0,
+	// if there is more than one, complain if the index to load is nil
+
+	var key Key
+	var err error
+	if len(k.Credentials) == 1 {
+		// Only one credential, the tree index does not matter.
+		k.logger.Warn("automatically loading the only credential found on the keystore")
+		for k := range k.Credentials {
+			key = k // Obtain the first c
+			break
+		}
+	} else {
+		treeIndex := uint(0)
+		if index != nil {
+			treeIndex = *index
+		} else {
+			return nil, errors.New("the index of the onchain commitment to use was not specified")
+		}
+
+		key, err = getKey(treeIndex, filterMembershipContract)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	credential, ok := k.Credentials[key]
@@ -108,7 +129,7 @@ func (k *AppKeystore) GetMembershipCredentials(keystorePassword string, treeInde
 
 // AddMembershipCredentials inserts a membership credential to the keystore matching the application, appIdentifier and version filters.
 func (k *AppKeystore) AddMembershipCredentials(newCredential MembershipCredentials, password string) error {
-	credentials, err := k.GetMembershipCredentials(password, newCredential.TreeIndex, newCredential.MembershipContractInfo)
+	credentials, err := k.GetMembershipCredentials(password, &newCredential.TreeIndex, newCredential.MembershipContractInfo)
 	if err != nil {
 		return err
 	}
@@ -118,7 +139,7 @@ func (k *AppKeystore) AddMembershipCredentials(newCredential MembershipCredentia
 		return err
 	}
 
-	if credentials != nil {
+	if credentials != nil && credentials.TreeIndex == newCredential.TreeIndex && credentials.MembershipContractInfo.Equals(newCredential.MembershipContractInfo) {
 		return errors.New("credential already present")
 	}
 

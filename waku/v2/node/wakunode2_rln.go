@@ -38,14 +38,18 @@ func (w *WakuNode) setupRLNRelay() error {
 	if !w.opts.rlnRelayDynamic {
 		w.log.Info("setting up waku-rln-relay in off-chain mode")
 
+		index := uint(0)
+		if w.opts.rlnRelayMemIndex != nil {
+			index = *w.opts.rlnRelayMemIndex
+		}
+
 		// set up rln relay inputs
-		groupKeys, idCredential, err := static.Setup(w.opts.rlnRelayMemIndex)
+		groupKeys, idCredential, err := static.Setup(index)
 		if err != nil {
 			return err
 		}
 
-		groupManager, err = static.NewStaticGroupManager(groupKeys, idCredential, w.opts.rlnRelayMemIndex, rlnInstance,
-			rootTracker, w.log)
+		groupManager, err = static.NewStaticGroupManager(groupKeys, idCredential, index, rlnInstance, rootTracker, w.log)
 		if err != nil {
 			return err
 		}

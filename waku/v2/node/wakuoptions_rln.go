@@ -11,7 +11,7 @@ import (
 
 // WithStaticRLNRelay enables the Waku V2 RLN protocol in offchain mode
 // Requires the `gowaku_rln` build constrain (or the env variable RLN=true if building go-waku)
-func WithStaticRLNRelay(memberIndex r.MembershipIndex, spamHandler rln.SpamHandler) WakuNodeOption {
+func WithStaticRLNRelay(memberIndex *r.MembershipIndex, spamHandler rln.SpamHandler) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRLN = true
 		params.rlnRelayDynamic = false
@@ -23,7 +23,7 @@ func WithStaticRLNRelay(memberIndex r.MembershipIndex, spamHandler rln.SpamHandl
 
 // WithDynamicRLNRelay enables the Waku V2 RLN protocol in onchain mode.
 // Requires the `gowaku_rln` build constrain (or the env variable RLN=true if building go-waku)
-func WithDynamicRLNRelay(keystorePath string, keystorePassword string, treePath string, membershipContract common.Address, membershipIndex uint, spamHandler rln.SpamHandler, ethClientAddress string) WakuNodeOption {
+func WithDynamicRLNRelay(keystorePath string, keystorePassword string, treePath string, membershipContract common.Address, membershipIndex *uint, spamHandler rln.SpamHandler, ethClientAddress string) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableRLN = true
 		params.rlnRelayDynamic = true

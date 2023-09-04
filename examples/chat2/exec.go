@@ -54,13 +54,13 @@ func execute(options Options) {
 				options.RLNRelay.CredentialsPassword,
 				"", // Will use default tree path
 				options.RLNRelay.MembershipContractAddress,
-				uint(options.RLNRelay.MembershipIndex),
+				options.RLNRelay.MembershipIndex,
 				spamHandler,
 				options.RLNRelay.ETHClientAddress,
 			))
 		} else {
 			opts = append(opts, node.WithStaticRLNRelay(
-				uint(options.RLNRelay.MembershipIndex),
+				options.RLNRelay.MembershipIndex,
 				spamHandler))
 		}
 	}

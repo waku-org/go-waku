@@ -36,8 +36,7 @@ func getFlags() []cli.Flag {
 
 	testCT, err := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto")
 	if err != nil {
-		fmt.Println("Invalid contentTopic")
-		return nil
+		panic("invalid contentTopic")
 	}
 	testnetContentTopic := testCT.String()
 
@@ -190,11 +189,12 @@ func getFlags() []cli.Flag {
 			Usage:       "Enable spam protection through rln-relay",
 			Destination: &options.RLNRelay.Enable,
 		},
-		&cli.UintFlag{
-			Name:        "rln-relay-membership-index",
-			Value:       0,
-			Usage:       "the index of credentials to use",
-			Destination: &options.RLNRelay.MembershipIndex,
+		&cli.GenericFlag{
+			Name:  "rln-relay-cred-index",
+			Usage: "the index of the onchain commitment to use",
+			Value: &wcli.OptionalUint{
+				Value: &options.RLNRelay.MembershipIndex,
+			},
 		},
 		&cli.BoolFlag{
 			Name:        "rln-relay-dynamic",

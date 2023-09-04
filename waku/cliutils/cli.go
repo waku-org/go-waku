@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -72,4 +73,34 @@ func (v *ChoiceValue) String() string {
 		return ""
 	}
 	return *v.Value
+}
+
+// OptionalUint represents a urfave/cli flag to store uint values that can be
+// optionally set and not have any default value assigned to it
+type OptionalUint struct {
+	Value **uint
+}
+
+// Set assigns a value to the flag only if it represents a valid uint value
+func (v *OptionalUint) Set(value string) error {
+	if value != "" {
+		uintVal, err := strconv.ParseUint(value, 10, 0)
+		if err != nil {
+			return err
+		}
+		uVal := uint(uintVal)
+		*v.Value = &uVal
+	} else {
+		v.Value = nil
+	}
+
+	return nil
+}
+
+// String returns the string representation of the OptionalUint flag, if set
+func (v *OptionalUint) String() string {
+	if v.Value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d", *v.Value)
 }
