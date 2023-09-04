@@ -34,7 +34,7 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 			return errors.New("persisted data: contract address mismatch")
 		}
 
-		fromBlock = metadata.LastProcessedBlock
+		fromBlock = metadata.LastProcessedBlock + 1
 		gm.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
 	}
 
