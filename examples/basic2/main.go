@@ -21,9 +21,15 @@ import (
 )
 
 var log = utils.Logger().Named("basic2")
-var contentTopic = protocol.NewContentTopic("basic2", 1, "test", "proto").String()
 
 func main() {
+	var cTopic, err = protocol.NewContentTopic("basic2", 1, "test", "proto")
+	if err != nil {
+		fmt.Println("Invalid contentTopic")
+		return
+	}
+	contentTopic := cTopic.String()
+
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	key, err := randomHex(32)
 	if err != nil {
@@ -54,8 +60,8 @@ func main() {
 		return
 	}
 
-	go writeLoop(ctx, wakuNode)
-	go readLoop(ctx, wakuNode)
+	go writeLoop(ctx, wakuNode, contentTopic)
+	go readLoop(ctx, wakuNode, contentTopic)
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -76,7 +82,7 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
+func write(ctx context.Context, wakuNode *node.WakuNode, contentTopic string, msgContent string) {
 	var version uint32 = 0
 	var timestamp int64 = utils.GetUnixEpoch(wakuNode.Timesource())
 
@@ -103,14 +109,14 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	}
 }
 
-func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
+func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
 	for {
 		time.Sleep(2 * time.Second)
-		write(ctx, wakuNode, "Hello world!")
+		write(ctx, wakuNode, contentTopic, "Hello world!")
 	}
 }
 
-func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
+func readLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
 	sub, err := wakuNode.Relay().Subscribe(ctx)
 	if err != nil {
 		log.Error("Could not subscribe", zap.Error(err))
