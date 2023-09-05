@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/web3"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"github.com/waku-org/go-zerokit-rln/rln"
 )
@@ -40,11 +41,13 @@ func TestHandler(t *testing.T) {
 	_ = ctx
 
 	gm := &DynamicGroupManager{
-		rln:         rlnInstance,
-		log:         utils.Logger(),
-		cancel:      cancel,
-		wg:          sync.WaitGroup{},
-		chainId:     big.NewInt(1),
+		rln:    rlnInstance,
+		log:    utils.Logger(),
+		cancel: cancel,
+		wg:     sync.WaitGroup{},
+		web3Config: &web3.Config{
+			ChainID: big.NewInt(1),
+		},
 		rootTracker: rootTracker,
 		metrics:     newMetrics(prometheus.DefaultRegisterer),
 	}

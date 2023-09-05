@@ -18,7 +18,7 @@ var flags = []cli.Flag{
 	},
 	&cli.StringFlag{
 		Name:        "cred-password",
-		Value:       keystore.DefaultCredentialsPassword,
+		Value:       "password",
 		Usage:       "Password for encrypting RLN credentials",
 		Destination: &options.CredentialsPassword,
 	},
