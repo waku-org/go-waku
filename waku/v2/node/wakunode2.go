@@ -327,7 +327,7 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 			}
 			if diff {
 				addrs = newAddrs
-				w.log.Info("listening addresses update received", logging.MultiAddrs("multiaddr", addrs...))
+				w.log.Warn("listening addresses update received", logging.MultiAddrs("multiaddr", addrs...))
 				_ = w.setupENR(ctx, addrs)
 				w.enrChangeCh <- struct{}{}
 			}

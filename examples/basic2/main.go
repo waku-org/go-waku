@@ -21,7 +21,7 @@ import (
 )
 
 var log = utils.Logger().Named("basic2")
-var contentTopic = protocol.NewContentTopic("basic2", 1, "test", "proto").String()
+var contentTopic, _ = protocol.NewContentTopic("basic2", 1, "test", "proto")
 
 func main() {
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
@@ -54,8 +54,14 @@ func main() {
 		return
 	}
 
+	// TODO: assume the address was obtained via peer exchange
+
+	err = wakuNode.DialPeer(context.Background(), "/dns4/node-01.do-ams3.status.prod.statusim.net/tcp/30303/p2p/16Uiu2HAm6HZZr7aToTvEBPpiys4UxajCTU97zj5v7RNR2gbniy1D/p2p-circuit/p2p/16Uiu2HAkyZuLQy4sPRte7khemYHmkQewzjdTPRXZcxPH6NgjhR97")
+	if err != nil {
+		panic("COULD NOT DIAL PEER!" + err.Error())
+	}
+
 	go writeLoop(ctx, wakuNode)
-	go readLoop(ctx, wakuNode)
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -93,7 +99,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	msg := &pb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
-		ContentTopic: contentTopic,
+		ContentTopic: contentTopic.String(),
 		Timestamp:    timestamp,
 	}
 
@@ -107,27 +113,5 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	for {
 		time.Sleep(2 * time.Second)
 		write(ctx, wakuNode, "Hello world!")
-	}
-}
-
-func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Relay().Subscribe(ctx)
-	if err != nil {
-		log.Error("Could not subscribe", zap.Error(err))
-		return
-	}
-
-	for envelope := range sub.Ch {
-		if envelope.Message().ContentTopic != contentTopic {
-			continue
-		}
-
-		payload, err := payload.DecodePayload(envelope.Message(), &payload.KeyInfo{Kind: payload.None})
-		if err != nil {
-			log.Error("Error decoding payload", zap.Error(err))
-			continue
-		}
-
-		log.Info("Received msg, ", zap.String("data", string(payload.Data)))
 	}
 }

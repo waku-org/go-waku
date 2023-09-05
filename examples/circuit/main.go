@@ -9,11 +9,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -97,36 +99,19 @@ func main() {
 	fmt.Println("\n\n\nReceived signal, shutting down...")
 }
 
-func findFreeUDPPort(maxAttempts int) (int, error) {
-	host := "localhost"
-	for i := 0; i < maxAttempts; i++ {
-		addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(host, "0"))
-		if err != nil {
-			utils.Logger().Warn("unable to resolve addr: %v", zap.Error(err))
-			continue
-		}
-		l, err := net.ListenUDP("udp", addr)
-		if err != nil {
-			l.Close()
-			utils.Logger().Warn("unable to listen on addr: %v", zap.Error(err))
-			continue
-		}
-		port := l.LocalAddr().(*net.UDPAddr).Port
-		l.Close()
-		return port, nil
-	}
-	return 0, fmt.Errorf("no free port found")
-}
-
 func bootnode(ctx context.Context) (*node.WakuNode, error) {
-	port, err := findFreeUDPPort(3)
+	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:45111")
+
+	prvKey, err := crypto.HexToECDSA("1122334455667788990011223344556677889900112233445566778899001122")
 	if err != nil {
 		return nil, err
 	}
 
 	wakuNode, err := node.New(
-		node.WithDiscoveryV5(uint(port), nil, true),
+		node.WithDiscoveryV5(64111, nil, true),
 		node.WithPeerExchange(),
+		node.WithPrivateKey(prvKey),
+		node.WithHostAddress(hostAddr),
 	)
 
 	if err != nil {
@@ -136,6 +121,9 @@ func bootnode(ctx context.Context) (*node.WakuNode, error) {
 	if err := wakuNode.Start(ctx); err != nil {
 		return nil, err
 	}
+
+	utils.Logger().Warn("bootnode listen addresses", zap.Any("addresses", wakuNode.ListenAddresses()))
+	utils.Logger().Warn("bootnode enr", zap.Stringer("enr", wakuNode.ENR()))
 
 	if err = wakuNode.DiscV5().Start(ctx); err != nil {
 		return nil, err
@@ -145,14 +133,19 @@ func bootnode(ctx context.Context) (*node.WakuNode, error) {
 }
 
 func unreachableNode(ctx context.Context, bootnode *enode.Node) (*node.WakuNode, error) {
-	port, err := findFreeUDPPort(3)
+	prvKey, err := crypto.HexToECDSA("1122334455667788990011223344556677889900112233445566778899003344")
 	if err != nil {
 		return nil, err
 	}
 
+	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:45222")
+
 	wakuNode, err := node.New(
-		node.WithDiscoveryV5(uint(port), []*enode.Node{bootnode}, true),
+		node.WithPrivateKey(prvKey),
+		node.WithHostAddress(hostAddr),
+		node.WithDiscoveryV5(64222, []*enode.Node{bootnode}, true),
 		node.WithLibP2POptions(append(node.DefaultLibP2POptions, libp2p.EnableRelay(), libp2p.ForceReachabilityPrivate())...),
+		node.WithWakuRelay(),
 	)
 
 	if err != nil {
@@ -163,9 +156,32 @@ func unreachableNode(ctx context.Context, bootnode *enode.Node) (*node.WakuNode,
 		return nil, err
 	}
 
+	utils.Logger().Warn("unreachable node listen addresses", zap.Any("addresses", wakuNode.ListenAddresses()))
+	utils.Logger().Warn("unreachable node enr", zap.Stringer("enr", wakuNode.ENR()))
+
 	if err = wakuNode.DiscV5().Start(ctx); err != nil {
 		return nil, err
 	}
+
+	sub, err := wakuNode.Relay().Subscribe(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	contentTopic, err := protocol.NewContentTopic("basic2", 1, "test", "proto")
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(contentTopic.String())
+
+	go func() {
+		for m := range sub.Ch {
+			if m.Message().ContentTopic == contentTopic.String() {
+				fmt.Println("MESSAGE RECEIVED: ", string(m.Message().Payload))
+			}
+		}
+	}()
 
 	return wakuNode, nil
 }
