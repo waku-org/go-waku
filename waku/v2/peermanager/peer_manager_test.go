@@ -161,7 +161,7 @@ func TestConnectToRelayPeers(t *testing.T) {
 
 	_, pm, deferFn := initTest(t)
 	defer deferFn()
-	
+
 	pm.connectToRelayPeers()
 
 }
