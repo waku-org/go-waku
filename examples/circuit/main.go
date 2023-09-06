@@ -146,6 +146,7 @@ func unreachableNode(ctx context.Context, bootnode *enode.Node) (*node.WakuNode,
 		node.WithDiscoveryV5(64222, []*enode.Node{bootnode}, true),
 		node.WithLibP2POptions(append(node.DefaultLibP2POptions, libp2p.EnableRelay(), libp2p.ForceReachabilityPrivate())...),
 		node.WithWakuRelay(),
+		node.WithSecureWebsockets("0.0.0.0", 6443, "./certs/cert.pem", "./certs/key.pem"),
 	)
 
 	if err != nil {
