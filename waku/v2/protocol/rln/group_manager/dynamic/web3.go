@@ -58,13 +58,14 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 }
 
 func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
-	var results []*contracts.RLNMemberRegistered
 	for ; fromBlock+maxBatchSize < toBlock; fromBlock += maxBatchSize + 1 { // check if the end of the batch is within the toBlock range
 		events, err := gm.getEvents(ctx, fromBlock, fromBlock+maxBatchSize)
 		if err != nil {
 			return err
 		}
-		results = append(results, events...)
+		if err := handler(gm, events); err != nil {
+			return err
+		}
 	}
 
 	//
@@ -72,10 +73,8 @@ func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *c
 	if err != nil {
 		return err
 	}
-	results = append(results, events...)
-	//
 	// process all the fetched events
-	return handler(gm, results)
+	return handler(gm, events)
 }
 
 func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {
