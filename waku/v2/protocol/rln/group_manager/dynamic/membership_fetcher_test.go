@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/web3"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"github.com/waku-org/go-zerokit-rln/rln"
@@ -16,7 +17,7 @@ import (
 var NULL_ADDR common.Address = common.HexToAddress("0x0000000000000000000000000000000000000000")
 
 func TestFetchingLogic(t *testing.T) {
-	client := NewMockClient(t, "web3_test.json")
+	client := NewMockClient(t, "membership_fetcher.json")
 
 	rlnContract, err := contracts.NewRLN(NULL_ADDR, client)
 	if err != nil {
@@ -26,20 +27,24 @@ func TestFetchingLogic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	dgm := DynamicGroupManager{
+	rootTracker, err := group_manager.NewMerkleRootTracker(1, rlnInstance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dgm := MembershipFetcher{
 		web3Config: &web3.Config{
 			RLNContract: web3.RLNContract{
 				RLN: rlnContract,
 			},
 			ETHClient: client,
 		},
-		rln: rlnInstance,
-		log: utils.Logger(),
+		rln:         rlnInstance,
+		log:         utils.Logger(),
+		rootTracker: rootTracker,
 	}
 
 	counts := []int{}
-	mockFn := func(_ *DynamicGroupManager, events []*contracts.RLNMemberRegistered) error {
+	mockFn := func(events []*contracts.RLNMemberRegistered) error {
 		counts = append(counts, len(events))
 		return nil
 	}

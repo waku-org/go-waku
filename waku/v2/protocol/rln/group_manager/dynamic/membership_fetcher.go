@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -11,16 +12,36 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/web3"
+	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
 )
 
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
-type RegistrationEventHandler = func(*DynamicGroupManager, []*contracts.RLNMemberRegistered) error
+type RegistrationEventHandler = func([]*contracts.RLNMemberRegistered) error
+
+type MembershipFetcher struct {
+	web3Config  *web3.Config
+	rln         *rln.RLN
+	log         *zap.Logger
+	rootTracker *group_manager.MerkleRootTracker
+	wg          sync.WaitGroup
+}
+
+func NewMembershipFetcher(web3Config *web3.Config, rln *rln.RLN, rootTracker *group_manager.MerkleRootTracker, log *zap.Logger) MembershipFetcher {
+	return MembershipFetcher{
+		web3Config:  web3Config,
+		rln:         rln,
+		log:         log,
+		rootTracker: rootTracker,
+	}
+}
 
 // HandleGroupUpdates mounts the supplied handler for the registration events emitting from the membership contract
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
-func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
+func (gm *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
 	fromBlock := gm.web3Config.RLNContract.DeployedBlockNumber
 	metadata, err := gm.GetMetadata()
 	if err != nil {
@@ -45,7 +66,7 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 		return err
 	}
 	//
-	err = gm.loadOldEvents(ctx, gm.web3Config.RLNContract.RLN, fromBlock, latestBlockNumber, handler)
+	err = gm.loadOldEvents(ctx, fromBlock, latestBlockNumber, handler)
 	if err != nil {
 		return err
 	}
@@ -57,13 +78,13 @@ func (gm *DynamicGroupManager) HandleGroupUpdates(ctx context.Context, handler R
 	return <-errCh
 }
 
-func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *contracts.RLN, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
+func (gm *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
 	for ; fromBlock+maxBatchSize < toBlock; fromBlock += maxBatchSize + 1 { // check if the end of the batch is within the toBlock range
 		events, err := gm.getEvents(ctx, fromBlock, fromBlock+maxBatchSize)
 		if err != nil {
 			return err
 		}
-		if err := handler(gm, events); err != nil {
+		if err := handler(events); err != nil {
 			return err
 		}
 	}
@@ -74,10 +95,10 @@ func (gm *DynamicGroupManager) loadOldEvents(ctx context.Context, rlnContract *c
 		return err
 	}
 	// process all the fetched events
-	return handler(gm, events)
+	return handler(events)
 }
 
-func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {
+func (gm *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {
 	defer gm.wg.Done()
 
 	// Watch for new events
@@ -113,7 +134,7 @@ func (gm *DynamicGroupManager) watchNewEvents(ctx context.Context, fromBlock uin
 			// update the last processed block
 			fromBlock = toBlock + 1
 
-			err = handler(gm, events)
+			err = handler(events)
 			if err != nil {
 				gm.log.Error("processing rln log", zap.Error(err))
 			}
@@ -135,7 +156,7 @@ func tooMuchDataRequestedError(err error) bool {
 	return err.Error() == "query returned more than 10000 results"
 }
 
-func (gm *DynamicGroupManager) latestBlockNumber(ctx context.Context) (uint64, error) {
+func (gm *MembershipFetcher) latestBlockNumber(ctx context.Context) (uint64, error) {
 	block, err := gm.web3Config.ETHClient.BlockByNumber(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -144,7 +165,7 @@ func (gm *DynamicGroupManager) latestBlockNumber(ctx context.Context) (uint64, e
 	return block.Number().Uint64(), nil
 }
 
-func (gm *DynamicGroupManager) getEvents(ctx context.Context, fromBlock uint64, toBlock uint64) ([]*contracts.RLNMemberRegistered, error) {
+func (gm *MembershipFetcher) getEvents(ctx context.Context, fromBlock uint64, toBlock uint64) ([]*contracts.RLNMemberRegistered, error) {
 	evts, err := gm.fetchEvents(ctx, fromBlock, toBlock)
 	if err != nil {
 		if tooMuchDataRequestedError(err) { // divide the range and try again
@@ -164,7 +185,7 @@ func (gm *DynamicGroupManager) getEvents(ctx context.Context, fromBlock uint64, 
 	return evts, nil
 }
 
-func (gm *DynamicGroupManager) fetchEvents(ctx context.Context, from uint64, to uint64) ([]*contracts.RLNMemberRegistered, error) {
+func (gm *MembershipFetcher) fetchEvents(ctx context.Context, from uint64, to uint64) ([]*contracts.RLNMemberRegistered, error) {
 	logIterator, err := gm.web3Config.RLNContract.FilterMemberRegistered(&bind.FilterOpts{Start: from, End: &to, Context: ctx})
 	if err != nil {
 		return nil, err
@@ -185,4 +206,20 @@ func (gm *DynamicGroupManager) fetchEvents(ctx context.Context, from uint64, to 
 	}
 
 	return results, nil
+}
+
+// GetMetadata retrieves metadata from the zerokit's RLN database
+func (gm *MembershipFetcher) GetMetadata() (RLNMetadata, error) {
+	b, err := gm.rln.GetMetadata()
+	if err != nil {
+		return RLNMetadata{}, err
+	}
+
+	return DeserializeMetadata(b)
+}
+
+func (gm *MembershipFetcher) Stop() {
+	gm.web3Config.ETHClient.Close()
+	// wait for the watchNewEvents goroutine to finish
+	gm.wg.Wait()
 }

@@ -10,6 +10,7 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/static"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
@@ -23,12 +24,14 @@ func (w *WakuNode) RLNRelay() RLNRelay {
 
 func (w *WakuNode) setupRLNRelay() error {
 	var err error
-	var groupManager rln.GroupManager
 
 	if !w.opts.enableRLN {
 		return nil
 	}
 
+	var groupManager rln.GroupManager
+
+	rlnInstance, rootTracker := rln.GetRLNInstanceAndRootTracker(w.opts.rlnTreePath)
 	if !w.opts.rlnRelayDynamic {
 		w.log.Info("setting up waku-rln-relay in off-chain mode")
 
@@ -58,13 +61,19 @@ func (w *WakuNode) setupRLNRelay() error {
 			w.opts.keystorePassword,
 			w.opts.prometheusReg,
 			w.log,
+			rlnInstance,
+			rootTracker,
 		)
 		if err != nil {
 			return err
 		}
 	}
 
-	rlnRelay, err := rln.New(groupManager, w.opts.rlnTreePath, w.timesource, w.opts.prometheusReg, w.log)
+	rlnRelay, err := rln.New(group_manager.GMDetails{
+		GroupManager: groupManager,
+		RootTracker:  rootTracker,
+		RLN:          rlnInstance,
+	}, w.timesource, w.opts.prometheusReg, w.log)
 	if err != nil {
 		return err
 	}

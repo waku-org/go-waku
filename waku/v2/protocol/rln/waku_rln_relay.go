@@ -22,21 +22,11 @@ import (
 	proto "google.golang.org/protobuf/proto"
 )
 
-type GroupManager interface {
-	Start(ctx context.Context, rln *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error
-	IdentityCredentials() (rln.IdentityCredential, error)
-	MembershipIndex() rln.MembershipIndex
-	Stop() error
-}
-
 type WakuRLNRelay struct {
 	timesource timesource.Timesource
 	metrics    Metrics
 
-	groupManager GroupManager
-	rootTracker  *group_manager.MerkleRootTracker
-
-	RLN *rln.RLN
+	group_manager.GMDetails
 
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
 	nullifierLogLock sync.RWMutex
@@ -47,20 +37,11 @@ type WakuRLNRelay struct {
 
 const rlnDefaultTreePath = "./rln_tree.db"
 
-func New(
-	groupManager GroupManager,
-	treePath string,
-	timesource timesource.Timesource,
-	reg prometheus.Registerer,
-	log *zap.Logger) (*WakuRLNRelay, error) {
-
+func GetRLNInstanceAndRootTracker(treePath string) (*rln.RLN, *group_manager.MerkleRootTracker, error) {
 	if treePath == "" {
 		treePath = rlnDefaultTreePath
 	}
 
-	metrics := newMetrics(reg)
-
-	start := time.Now()
 	rlnInstance, err := rln.NewWithConfig(rln.DefaultTreeDepth, &rln.TreeConfig{
 		CacheCapacity: 15000,
 		Mode:          rln.HighThroughput,
@@ -69,31 +50,39 @@ func New(
 		Path:          treePath,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	metrics.RecordInstanceCreation(time.Since(start))
 
 	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	return rlnInstance, rootTracker, nil
+}
+func New(
+	gmDetails group_manager.GMDetails,
+	timesource timesource.Timesource,
+	reg prometheus.Registerer,
+	log *zap.Logger) *WakuRLNRelay {
+
+	start := time.Now()
+	metrics := newMetrics(reg)
+	metrics.RecordInstanceCreation(time.Since(start))
 
 	// create the WakuRLNRelay
 	rlnPeer := &WakuRLNRelay{
-		RLN:          rlnInstance,
-		groupManager: groupManager,
-		rootTracker:  rootTracker,
+		GMDetails:    gmDetails,
 		metrics:      metrics,
 		log:          log,
 		timesource:   timesource,
 		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),
 	}
 
-	return rlnPeer, nil
+	return rlnPeer
 }
 
 func (rlnRelay *WakuRLNRelay) Start(ctx context.Context) error {
-	err := rlnRelay.groupManager.Start(ctx, rlnRelay.RLN, rlnRelay.rootTracker)
+	err := rlnRelay.GroupManager.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -105,7 +94,7 @@ func (rlnRelay *WakuRLNRelay) Start(ctx context.Context) error {
 
 // Stop will stop any operation or goroutine started while using WakuRLNRelay
 func (rlnRelay *WakuRLNRelay) Stop() error {
-	return rlnRelay.groupManager.Stop()
+	return rlnRelay.GroupManager.Stop()
 }
 
 func (rlnRelay *WakuRLNRelay) HasDuplicate(proofMD rln.ProofMetadata) (bool, error) {
@@ -214,7 +203,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		return invalidMessage, nil
 	}
 
-	if !(rlnRelay.rootTracker.ContainsRoot(msgProof.MerkleRoot)) {
+	if !(rlnRelay.RootTracker.ContainsRoot(msgProof.MerkleRoot)) {
 		rlnRelay.log.Debug("invalid message: unexpected root", logging.HexBytes("msgRoot", msg.RateLimitProof.MerkleRoot))
 		rlnRelay.metrics.RecordInvalidMessage(invalidRoot)
 		return invalidMessage, nil
@@ -261,7 +250,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 
 	rlnRelay.log.Debug("message is valid")
 
-	rootIndex := rlnRelay.rootTracker.IndexOf(msgProof.MerkleRoot)
+	rootIndex := rlnRelay.RootTracker.IndexOf(msgProof.MerkleRoot)
 	rlnRelay.metrics.RecordValidMessages(rootIndex)
 
 	return validMessage, nil
@@ -270,7 +259,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 func (rlnRelay *WakuRLNRelay) verifyProof(msg *pb.WakuMessage, proof *rln.RateLimitProof) (bool, error) {
 	contentTopicBytes := []byte(msg.ContentTopic)
 	input := append(msg.Payload, contentTopicBytes...)
-	return rlnRelay.RLN.Verify(input, *proof, rlnRelay.rootTracker.Roots()...)
+	return rlnRelay.RLN.Verify(input, *proof, rlnRelay.RootTracker.Roots()...)
 }
 
 func (rlnRelay *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error {
@@ -351,12 +340,12 @@ func (rlnRelay *WakuRLNRelay) Validator(
 }
 
 func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*pb.RateLimitProof, error) {
-	identityCredentials, err := rlnRelay.groupManager.IdentityCredentials()
+	identityCredentials, err := rlnRelay.GroupManager.IdentityCredentials()
 	if err != nil {
 		return nil, err
 	}
 
-	membershipIndex := rlnRelay.groupManager.MembershipIndex()
+	membershipIndex := rlnRelay.GroupManager.MembershipIndex()
 
 	proof, err := rlnRelay.RLN.GenerateProof(input, identityCredentials, membershipIndex, epoch)
 	if err != nil {
@@ -375,9 +364,9 @@ func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*pb.
 }
 
 func (rlnRelay *WakuRLNRelay) IdentityCredential() (rln.IdentityCredential, error) {
-	return rlnRelay.groupManager.IdentityCredentials()
+	return rlnRelay.GroupManager.IdentityCredentials()
 }
 
 func (rlnRelay *WakuRLNRelay) MembershipIndex() uint {
-	return rlnRelay.groupManager.MembershipIndex()
+	return rlnRelay.GroupManager.MembershipIndex()
 }

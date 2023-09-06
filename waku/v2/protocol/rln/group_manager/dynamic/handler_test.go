@@ -3,7 +3,6 @@ package dynamic
 import (
 	"context"
 	"math/big"
-	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -35,21 +34,21 @@ func TestHandler(t *testing.T) {
 	rootTracker, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.TODO())
+	_, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
-	_ = ctx
-
 	gm := &DynamicGroupManager{
-		rln:    rlnInstance,
-		log:    utils.Logger(),
+		MembershipFetcher: NewMembershipFetcher(
+			&web3.Config{
+				ChainID: big.NewInt(1),
+			},
+			rlnInstance,
+			rootTracker,
+			utils.Logger(),
+		),
 		cancel: cancel,
-		wg:     sync.WaitGroup{},
-		web3Config: &web3.Config{
-			ChainID: big.NewInt(1),
-		},
-		rootTracker: rootTracker,
-		metrics:     newMetrics(prometheus.DefaultRegisterer),
+
+		metrics: newMetrics(prometheus.DefaultRegisterer),
 	}
 
 	root0 := [32]byte{62, 31, 25, 34, 223, 182, 113, 211, 249, 18, 247, 234, 70, 30, 10, 136, 238, 132, 143, 221, 225, 43, 108, 24, 171, 26, 210, 197, 106, 231, 52, 33}
@@ -59,7 +58,7 @@ func TestHandler(t *testing.T) {
 
 	events := []*contracts.RLNMemberRegistered{eventBuilder(1, false, 0xaaaa, 1)}
 
-	err = handler(gm, events)
+	err = gm.handler(events)
 	require.NoError(t, err)
 
 	roots = gm.rootTracker.Roots()
@@ -75,7 +74,7 @@ func TestHandler(t *testing.T) {
 		eventBuilder(4, false, 0xeeee, 5),
 	}
 
-	err = handler(gm, events)
+	err = gm.handler(events)
 	require.NoError(t, err)
 
 	// Root[1] should become [0]
@@ -99,7 +98,7 @@ func TestHandler(t *testing.T) {
 		eventBuilder(3, false, 0xeeee, 5),
 	}
 
-	err = handler(gm, events)
+	err = gm.handler(events)
 	require.NoError(t, err)
 
 	roots = gm.rootTracker.Roots()
@@ -113,7 +112,7 @@ func TestHandler(t *testing.T) {
 	// Adding multiple events for same block
 	events = []*contracts.RLNMemberRegistered{}
 
-	err = handler(gm, events)
+	err = gm.handler(events)
 	require.NoError(t, err)
 
 	roots = gm.rootTracker.Roots()

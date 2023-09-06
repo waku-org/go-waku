@@ -26,6 +26,8 @@ func NewStaticGroupManager(
 	identityCredential rln.IdentityCredential,
 	index rln.MembershipIndex,
 	log *zap.Logger,
+	rlnInstance *rln.RLN,
+	rootTracker *group_manager.MerkleRootTracker,
 ) (*StaticGroupManager, error) {
 	// check the peer's index and the inclusion of user's identity commitment in the group
 	if identityCredential.IDCommitment != group[int(index)] {
@@ -37,14 +39,13 @@ func NewStaticGroupManager(
 		group:              group,
 		identityCredential: &identityCredential,
 		membershipIndex:    index,
+		rln:                rlnInstance,
+		rootTracker:        rootTracker,
 	}, nil
 }
 
-func (gm *StaticGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error {
+func (gm *StaticGroupManager) Start(ctx context.Context) error {
 	gm.log.Info("mounting rln-relay in off-chain/static mode")
-
-	gm.rln = rlnInstance
-	gm.rootTracker = rootTracker
 
 	// add members to the Merkle tree
 

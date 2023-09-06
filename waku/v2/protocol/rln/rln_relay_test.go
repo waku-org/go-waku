@@ -50,17 +50,24 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 		groupIDCommitments = append(groupIDCommitments, c.IDCommitment)
 	}
 
+	rlnInstance, rootTracker, err := GetRLNInstanceAndRootTracker("")
+	s.Require().NoError(err)
+
 	// index indicates the position of a membership key pair in the static list of group keys i.e., groupKeyPairs
 	// the corresponding key pair will be used to mount rlnRelay on the current node
 	// index also represents the index of the leaf in the Merkle tree that contains node's commitment key
 	index := r.MembershipIndex(5)
 
+	//
 	idCredential := groupKeyPairs[index]
-	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger(), rlnInstance, rootTracker)
 	s.Require().NoError(err)
 
-	wakuRLNRelay, err := New(groupManager, "", timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	s.Require().NoError(err)
+	wakuRLNRelay := New(group_manager.GMDetails{
+		GroupManager: groupManager,
+		RootTracker:  rootTracker,
+		RLN:          rlnInstance,
+	}, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 
 	err = wakuRLNRelay.Start(context.TODO())
 	s.Require().NoError(err)
@@ -85,7 +92,9 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 
 	rlnRelay := &WakuRLNRelay{
 		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
-		rootTracker:  rootTracker,
+		GMDetails: group_manager.GMDetails{
+			RootTracker: rootTracker,
+		},
 	}
 
 	epoch := r.GetCurrentEpoch()
@@ -166,18 +175,21 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	// Create a RLN instance
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
-
-	idCredential := groupKeyPairs[index]
-	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger())
-	s.Require().NoError(err)
-
+	//
 	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
+	s.Require().NoError(err)
+	//
+	idCredential := groupKeyPairs[index]
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger(), rlnInstance, rootTracker)
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
-		groupManager: groupManager,
-		rootTracker:  rootTracker,
-		RLN:          rlnInstance,
+		GMDetails: group_manager.GMDetails{
+			GroupManager: groupManager,
+			RootTracker:  rootTracker,
+			RLN:          rlnInstance,
+		},
+
 		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
 		log:          utils.Logger(),
 		metrics:      newMetrics(prometheus.DefaultRegisterer),
@@ -186,7 +198,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	//get the current epoch time
 	now := time.Now()
 
-	err = groupManager.Start(context.Background(), rlnInstance, rootTracker)
+	err = groupManager.Start(context.Background())
 	s.Require().NoError(err)
 
 	// create some messages from the same peer and append rln proof to them, except wm4

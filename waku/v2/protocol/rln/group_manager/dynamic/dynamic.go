@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -28,28 +27,21 @@ var RLNAppInfo = keystore.AppInfo{
 }
 
 type DynamicGroupManager struct {
-	rln     *rln.RLN
-	log     *zap.Logger
+	MembershipFetcher
 	metrics Metrics
 
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
 
 	identityCredential *rln.IdentityCredential
 	membershipIndex    rln.MembershipIndex
 
-	web3Config         *web3.Config
 	lastBlockProcessed uint64
-
-	eventHandler RegistrationEventHandler
 
 	appKeystore      *keystore.AppKeystore
 	keystorePassword string
-
-	rootTracker *group_manager.MerkleRootTracker
 }
 
-func handler(gm *DynamicGroupManager, events []*contracts.RLNMemberRegistered) error {
+func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) error {
 	toRemoveTable := om.New()
 	toInsertTable := om.New()
 
@@ -117,17 +109,18 @@ func NewDynamicGroupManager(
 	keystorePassword string,
 	reg prometheus.Registerer,
 	log *zap.Logger,
+	rlnInstance *rln.RLN,
+	rootTracker *group_manager.MerkleRootTracker,
 ) (*DynamicGroupManager, error) {
 	log = log.Named("rln-dynamic")
 
+	web3Config := web3.NewConfig(ethClientAddr, memContractAddr)
 	return &DynamicGroupManager{
-		membershipIndex:  membershipIndex,
-		web3Config:       web3.NewConfig(ethClientAddr, memContractAddr),
-		eventHandler:     handler,
-		appKeystore:      appKeystore,
-		keystorePassword: keystorePassword,
-		log:              log,
-		metrics:          newMetrics(reg),
+		membershipIndex:   membershipIndex,
+		appKeystore:       appKeystore,
+		keystorePassword:  keystorePassword,
+		MembershipFetcher: NewMembershipFetcher(web3Config, rlnInstance, rootTracker, log),
+		metrics:           newMetrics(reg),
 	}, nil
 }
 
@@ -168,7 +161,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 		return err
 	}
 
-	if err = gm.HandleGroupUpdates(ctx, gm.eventHandler); err != nil {
+	if err = gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler); err != nil {
 		return err
 	}
 
@@ -278,9 +271,7 @@ func (gm *DynamicGroupManager) Stop() error {
 		return err
 	}
 
-	gm.web3Config.ETHClient.Close()
-
-	gm.wg.Wait()
+	gm.MembershipFetcher.Stop()
 
 	return nil
 }
