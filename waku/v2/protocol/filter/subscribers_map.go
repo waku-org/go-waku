@@ -2,12 +2,15 @@ package filter
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/utils"
+	"go.uber.org/zap"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -67,6 +70,10 @@ func (sub *SubscribersMap) Set(peerID peer.ID, pubsubTopic string, contentTopics
 	pubsubTopicMap[pubsubTopic] = contentTopicsMap
 
 	sub.items[peerID] = pubsubTopicMap
+
+	subscriptions, _ := json.Marshal(sub.items[peerID])
+
+	utils.Logger().Warn("FILTERV2: subscriptions", zap.String("subscriptions", string(subscriptions)))
 
 	for _, c := range contentTopics {
 		c := c
@@ -191,12 +198,19 @@ func (sub *SubscribersMap) Items(pubsubTopic string, contentTopic string) <-chan
 
 func (sub *SubscribersMap) addToInterestMap(peerID peer.ID, pubsubTopic string, contentTopic string) {
 	key := getKey(pubsubTopic, contentTopic)
+
+	utils.Logger().Warn("FILTERV2: interestmap", zap.String("pubsubTopic", pubsubTopic), zap.String("contentTopic", contentTopic), zap.String("key", key))
+
 	peerSet, ok := sub.interestMap[key]
 	if !ok {
 		peerSet = make(PeerSet)
 	}
 	peerSet[peerID] = struct{}{}
 	sub.interestMap[key] = peerSet
+
+	for k := range sub.interestMap[key] {
+		utils.Logger().Warn("FILTERV2: interestmap loop", zap.String("peer", k.Pretty()))
+	}
 }
 
 func (sub *SubscribersMap) removeFromInterestMap(peerID peer.ID, pubsubTopic string, contentTopic string) {

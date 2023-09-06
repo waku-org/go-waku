@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -118,7 +119,7 @@ func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(s network.Stre
 
 		wf.metrics.RecordRequest(subscribeRequest.FilterSubscribeType.String(), time.Since(start))
 
-		logger.Info("received request", zap.String("requestType", subscribeRequest.FilterSubscribeType.String()))
+		logger.Warn("received request", zap.String("requestType", subscribeRequest.FilterSubscribeType.String()))
 	}
 }
 
@@ -127,6 +128,9 @@ func (wf *WakuFilterFullNode) reply(ctx context.Context, s network.Stream, reque
 		RequestId:  request.RequestId,
 		StatusCode: uint32(statusCode),
 	}
+
+	responseJSON, _ := json.Marshal(response)
+	wf.log.Warn("FILTERV2: reply", zap.String("response", string(responseJSON)))
 
 	if len(description) != 0 {
 		response.StatusDesc = description[0]
@@ -144,6 +148,7 @@ func (wf *WakuFilterFullNode) reply(ctx context.Context, s network.Stream, reque
 
 func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
 	exists := wf.subscriptions.Has(s.Conn().RemotePeer())
+	logger.Warn("FILTERV2: PING", zap.Bool("exists", exists))
 
 	if exists {
 		wf.reply(ctx, s, request, http.StatusOK)
@@ -153,6 +158,9 @@ func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger
 }
 
 func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+	theRequest, _ := json.Marshal(request)
+	logger.Warn("FILTERV2: SUBSCRIPTION REQUEST", zap.String("request", string(theRequest)))
+
 	if request.PubsubTopic == "" {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -175,6 +183,8 @@ func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, l
 	peerID := s.Conn().RemotePeer()
 
 	if totalSubs, exists := wf.subscriptions.Get(peerID); exists {
+		logger.Warn("FILTERV2: SUBSCRIPTION EXISTS FOR PEER", zap.String("peerID", peerID.Pretty()), zap.Int("qty", len(totalSubs)))
+
 		ctTotal := 0
 		for _, contentTopicSet := range totalSubs {
 			ctTotal += len(contentTopicSet)
@@ -184,6 +194,8 @@ func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, l
 			wf.reply(ctx, s, request, http.StatusServiceUnavailable, "peer has reached maximum number of filter criteria")
 			return
 		}
+	} else {
+		logger.Warn("FILTERV2: NO SUBSCRIPTIONS FOUND FOR THAT PEER", zap.String("peerID", peerID.Pretty()))
 	}
 
 	wf.subscriptions.Set(peerID, request.PubsubTopic, request.ContentTopics)
@@ -232,13 +244,23 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
 	handle := func(envelope *protocol.Envelope) error {
+
+		wf.log.Warn("FILTERV2: RECEIVED A MESSAGE", zap.String("contentTOpic", envelope.Message().ContentTopic), zap.String("pubsubTopic", envelope.Message().ContentTopic))
+
 		msg := envelope.Message()
 		pubsubTopic := envelope.PubsubTopic()
 		logger := wf.log.With(logging.HexBytes("envelopeHash", envelope.Hash()))
 
 		// Each subscriber is a light node that earlier on invoked
 		// a FilterRequest on this node
+
+		var subscribers []peer.ID
 		for subscriber := range wf.subscriptions.Items(pubsubTopic, msg.ContentTopic) {
+			subscribers = append(subscribers, subscriber)
+		}
+
+		wf.log.Warn("FILTERV2: RETRIEVING SUBSCRIBERS", zap.Stringers("peers", subscribers))
+		for _, subscriber := range subscribers {
 			logger := logger.With(logging.HostID("subscriber", subscriber))
 			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
 			// Do a message push to light node
@@ -250,7 +272,11 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 				err := wf.pushMessage(ctx, subscriber, envelope)
 				if err != nil {
 					logger.Error("pushing message", zap.Error(err))
+					wf.log.Warn("FILTERV2: ERROR PUSHING MESSAGE", zap.Error(err), zap.Stringer("peerID", subscriber))
 					return
+				} else {
+					wf.log.Warn("FILTERV2: PUSHED MESSAGE SUCCESFULLY", zap.Stringer("peerID", subscriber))
+
 				}
 				wf.metrics.RecordPushDuration(time.Since(start))
 			}(subscriber)
