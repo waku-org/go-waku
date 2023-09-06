@@ -91,7 +91,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
-		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
+		nullifierLog: NewNullifierLog(context.TODO(), utils.Logger()),
 		Details: group_manager.Details{
 			RootTracker: rootTracker,
 		},
@@ -132,27 +132,25 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 
 	// check whether hasDuplicate correctly finds records with the same nullifiers but different secret shares
 	// no duplicate for wm1 should be found, since the log is empty
-	result1, err := rlnRelay.HasDuplicate(md1)
+	result1, err := rlnRelay.nullifierLog.HasDuplicate(md1)
 	s.Require().NoError(err)
 	s.Require().False(result1) // No duplicate is found
 
 	// Add it to the log
-	added, err := rlnRelay.updateLog(md1)
+	err = rlnRelay.nullifierLog.Insert(md1)
 	s.Require().NoError(err)
-	s.Require().True(added)
 
 	// no duplicate for wm2 should be found, its nullifier differs from wm1
-	result2, err := rlnRelay.HasDuplicate(md2)
+	result2, err := rlnRelay.nullifierLog.HasDuplicate(md2)
 	s.Require().NoError(err)
 	s.Require().False(result2) // No duplicate is found
 
 	// Add it to the log
-	added, err = rlnRelay.updateLog(md2)
+	err = rlnRelay.nullifierLog.Insert(md2)
 	s.Require().NoError(err)
-	s.Require().True(added)
 
 	// wm3 has the same nullifier as wm1 but different secret shares, it should be detected as duplicate
-	result3, err := rlnRelay.HasDuplicate(md3)
+	result3, err := rlnRelay.nullifierLog.HasDuplicate(md3)
 	s.Require().NoError(err)
 	s.Require().True(result3) // It's a duplicate
 
@@ -189,8 +187,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 			RootTracker:  rootTracker,
 			RLN:          rlnInstance,
 		},
-
-		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
+		nullifierLog: NewNullifierLog(context.TODO(), utils.Logger()),
 		log:          utils.Logger(),
 		metrics:      newMetrics(prometheus.DefaultRegisterer),
 	}

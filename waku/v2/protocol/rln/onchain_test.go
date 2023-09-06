@@ -160,7 +160,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 			RLN:          rlnInstance,
 		},
 		log:          utils.Logger(),
-		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),
+		nullifierLog: NewNullifierLog(context.TODO(), utils.Logger()),
 	}
 
 	err = rlnRelay.Start(context.TODO())

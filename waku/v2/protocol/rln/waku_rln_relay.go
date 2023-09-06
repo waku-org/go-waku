@@ -1,12 +1,10 @@
 package rln
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -28,9 +26,7 @@ type WakuRLNRelay struct {
 
 	group_manager.Details
 
-	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
-	nullifierLogLock sync.RWMutex
-	nullifierLog     map[rln.Nullifier][]rln.ProofMetadata
+	nullifierLog *NullifierLog
 
 	log *zap.Logger
 }
@@ -67,17 +63,18 @@ func New(
 
 	// create the WakuRLNRelay
 	rlnPeer := &WakuRLNRelay{
-		Details:      Details,
-		metrics:      newMetrics(reg),
-		log:          log,
-		timesource:   timesource,
-		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),
+		Details:    Details,
+		metrics:    newMetrics(reg),
+		log:        log,
+		timesource: timesource,
 	}
 
 	return rlnPeer
 }
 
 func (rlnRelay *WakuRLNRelay) Start(ctx context.Context) error {
+	rlnRelay.nullifierLog = NewNullifierLog(ctx, rlnRelay.log)
+
 	err := rlnRelay.GroupManager.Start(ctx)
 	if err != nil {
 		return err
@@ -93,72 +90,12 @@ func (rlnRelay *WakuRLNRelay) Stop() error {
 	return rlnRelay.GroupManager.Stop()
 }
 
-func (rlnRelay *WakuRLNRelay) HasDuplicate(proofMD rln.ProofMetadata) (bool, error) {
-	// returns true if there is another message in the  `nullifierLog` of the `rlnPeer` with the same
-	// epoch and nullifier as `msg`'s epoch and nullifier but different Shamir secret shares
-	// otherwise, returns false
-
-	rlnRelay.nullifierLogLock.RLock()
-	proofs, ok := rlnRelay.nullifierLog[proofMD.ExternalNullifier]
-	rlnRelay.nullifierLogLock.RUnlock()
-
-	// check if the epoch exists
-	if !ok {
-		return false, nil
-	}
-
-	for _, p := range proofs {
-		if p.Equals(proofMD) {
-			// there is an identical record, ignore rhe mag
-			return true, nil
-		}
-	}
-
-	// check for a message with the same nullifier but different secret shares
-	matched := false
-	for _, it := range proofs {
-		if bytes.Equal(it.Nullifier[:], proofMD.Nullifier[:]) && (!bytes.Equal(it.ShareX[:], proofMD.ShareX[:]) || !bytes.Equal(it.ShareY[:], proofMD.ShareY[:])) {
-			matched = true
-			break
-		}
-	}
-
-	return matched, nil
-}
-
-func (rlnRelay *WakuRLNRelay) updateLog(proofMD rln.ProofMetadata) (bool, error) {
-	rlnRelay.nullifierLogLock.Lock()
-	defer rlnRelay.nullifierLogLock.Unlock()
-	proofs, ok := rlnRelay.nullifierLog[proofMD.ExternalNullifier]
-
-	// check if the epoch exists
-	if !ok {
-		rlnRelay.nullifierLog[proofMD.ExternalNullifier] = []rln.ProofMetadata{proofMD}
-		return true, nil
-	}
-
-	// check if an identical record exists
-	for _, p := range proofs {
-		if p.Equals(proofMD) {
-			// TODO: slashing logic
-			return true, nil
-		}
-	}
-
-	// add proofMD to the log
-	proofs = append(proofs, proofMD)
-	rlnRelay.nullifierLog[proofMD.ExternalNullifier] = proofs
-
-	return true, nil
-}
-
 // ValidateMessage validates the supplied message based on the waku-rln-relay routing protocol i.e.,
 // the message's epoch is within `maxEpochGap` of the current epoch
 // the message's has valid rate limit proof
 // the message's does not violate the rate limit
 // if `optionalTime` is supplied, then the current epoch is calculated based on that, otherwise the current time will be used
 func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime *time.Time) (messageValidationResult, error) {
-	//
 	if msg == nil {
 		return validationError, errors.New("nil message")
 	}
@@ -222,7 +159,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	}
 
 	// check if double messaging has happened
-	hasDup, err := rlnRelay.HasDuplicate(proofMD)
+	hasDup, err := rlnRelay.nullifierLog.HasDuplicate(proofMD)
 	if err != nil {
 		rlnRelay.log.Debug("validation error", zap.Error(err))
 		rlnRelay.metrics.RecordError(duplicateCheckErr)
@@ -234,10 +171,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		return spamMessage, nil
 	}
 
-	// insert the message to the log
-	// the result of `updateLog` is discarded because message insertion is guaranteed by the implementation i.e.,
-	// it will never error out
-	_, err = rlnRelay.updateLog(proofMD)
+	err = rlnRelay.nullifierLog.Insert(proofMD)
 	if err != nil {
 		rlnRelay.log.Debug("could not insert proof into log")
 		rlnRelay.metrics.RecordError(logInsertionErr)
