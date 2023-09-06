@@ -54,7 +54,6 @@ func TestFetchingLogic(t *testing.T) {
 	go func() {
 		for {
 			if client.latestBlockNum.Load() == 10012 {
-				time.Sleep(time.Second)
 				cancel()
 				return
 			}

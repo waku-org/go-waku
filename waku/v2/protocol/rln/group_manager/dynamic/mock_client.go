@@ -114,6 +114,5 @@ func (testNoopSub) Unsubscribe() {
 // The error channel is closed by Unsubscribe.
 func (testNoopSub) Err() <-chan error {
 	ch := make(chan error)
-	close(ch)
 	return ch
 }
