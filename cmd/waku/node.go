@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
-	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -48,6 +47,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -305,6 +305,9 @@ func Execute(options NodeOptions) {
 		addStaticPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
 	}
 
+	//Process pubSub and contentTopics specified and arrive at all corresponding pubSubTopics
+	pubSubTopicMap := processTopics(options)
+
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
@@ -318,14 +321,10 @@ func Execute(options NodeOptions) {
 	addStaticPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
 	addStaticPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
 
-	if len(options.Relay.Topics.Value()) == 0 {
-		options.Relay.Topics = *cli.NewStringSlice(relay.DefaultWakuTopic)
-	}
-
 	var wg sync.WaitGroup
 
 	if options.Relay.Enable {
-		for _, nodeTopic := range options.Relay.Topics.Value() {
+		for nodeTopic := range pubSubTopicMap {
 			nodeTopic := nodeTopic
 			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
 			failOnErr(err, "Error subscring to topic")
@@ -435,32 +434,6 @@ func Execute(options NodeOptions) {
 		}
 	}
 
-	if options.Store.Enable && len(options.Store.ResumeNodes) != 0 {
-		// TODO: extract this to a function and run it when you go offline
-		// TODO: determine if a store is listening to a topic
-
-		var peerIDs []peer.ID
-		for _, n := range options.Store.ResumeNodes {
-			pID, err := wakuNode.AddPeer(n, wakupeerstore.Static, store.StoreID_v20beta4)
-			if err != nil {
-				logger.Warn("adding peer to peerstore", logging.MultiAddrs("peer", n), zap.Error(err))
-			}
-			peerIDs = append(peerIDs, pID)
-		}
-
-		for _, t := range options.Relay.Topics.Value() {
-			wg.Add(1)
-			go func(topic string) {
-				defer wg.Done()
-				ctxWithTimeout, ctxCancel := context.WithTimeout(ctx, 20*time.Second)
-				defer ctxCancel()
-				if _, err := wakuNode.Store().Resume(ctxWithTimeout, topic, peerIDs); err != nil {
-					logger.Error("Could not resume history", zap.Error(err))
-				}
-			}(t)
-		}
-	}
-
 	var rpcServer *rpc.WakuRpc
 	if options.RPCServer.Enable {
 		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
@@ -505,6 +478,36 @@ func Execute(options NodeOptions) {
 		err = db.Close()
 		failOnErr(err, "DBClose")
 	}
+}
+
+func processTopics(options NodeOptions) map[string]struct{} {
+	//Using a map to avoid duplicate pub-sub topics that can result from autosharding
+	// or same-topic being passed twice.
+	pubSubTopicMap := make(map[string]struct{})
+
+	for _, topic := range options.Relay.Topics.Value() {
+		pubSubTopicMap[topic] = struct{}{}
+	}
+
+	for _, topic := range options.Relay.PubSubTopics.Value() {
+		pubSubTopicMap[topic] = struct{}{}
+	}
+
+	//Get pubSub topics from contentTopics if they are as per autosharding
+	for _, cTopic := range options.Relay.ContentTopics.Value() {
+		contentTopic, err := wprotocol.StringToContentTopic(cTopic)
+		if err != nil {
+			failOnErr(err, "failed to parse content topic")
+		}
+		pTopic := wprotocol.GetShardFromContentTopic(contentTopic, wprotocol.GenerationZeroShardsCount)
+		pubSubTopicMap[pTopic.String()] = struct{}{}
+	}
+	//If no topics are passed, then use default waku topic.
+	if len(pubSubTopicMap) == 0 {
+		pubSubTopicMap[relay.DefaultWakuTopic] = struct{}{}
+	}
+
+	return pubSubTopicMap
 }
 
 func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {

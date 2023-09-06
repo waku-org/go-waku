@@ -29,7 +29,6 @@ func main() {
 		return
 	}
 	contentTopic := cTopic.String()
-
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	key, err := randomHex(32)
 	if err != nil {
