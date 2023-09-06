@@ -29,9 +29,12 @@ func (w *WakuNode) setupRLNRelay() error {
 		return nil
 	}
 
-	var groupManager rln.GroupManager
+	var groupManager group_manager.GroupManagerI
 
-	rlnInstance, rootTracker := rln.GetRLNInstanceAndRootTracker(w.opts.rlnTreePath)
+	rlnInstance, rootTracker, err := rln.GetRLNInstanceAndRootTracker(w.opts.rlnTreePath)
+	if err != nil {
+		return err
+	}
 	if !w.opts.rlnRelayDynamic {
 		w.log.Info("setting up waku-rln-relay in off-chain mode")
 
@@ -41,7 +44,8 @@ func (w *WakuNode) setupRLNRelay() error {
 			return err
 		}
 
-		groupManager, err = static.NewStaticGroupManager(groupKeys, idCredential, w.opts.rlnRelayMemIndex, w.log)
+		groupManager, err = static.NewStaticGroupManager(groupKeys, idCredential, w.opts.rlnRelayMemIndex, rlnInstance,
+			rootTracker, w.log)
 		if err != nil {
 			return err
 		}
@@ -60,23 +64,20 @@ func (w *WakuNode) setupRLNRelay() error {
 			appKeystore,
 			w.opts.keystorePassword,
 			w.opts.prometheusReg,
-			w.log,
 			rlnInstance,
 			rootTracker,
+			w.log,
 		)
 		if err != nil {
 			return err
 		}
 	}
 
-	rlnRelay, err := rln.New(group_manager.GMDetails{
+	rlnRelay := rln.New(group_manager.GMDetails{
 		GroupManager: groupManager,
 		RootTracker:  rootTracker,
 		RLN:          rlnInstance,
 	}, w.timesource, w.opts.prometheusReg, w.log)
-	if err != nil {
-		return err
-	}
 
 	w.rlnRelay = rlnRelay
 

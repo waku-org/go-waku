@@ -108,9 +108,9 @@ func NewDynamicGroupManager(
 	appKeystore *keystore.AppKeystore,
 	keystorePassword string,
 	reg prometheus.Registerer,
-	log *zap.Logger,
 	rlnInstance *rln.RLN,
 	rootTracker *group_manager.MerkleRootTracker,
+	log *zap.Logger,
 ) (*DynamicGroupManager, error) {
 	log = log.Named("rln-dynamic")
 

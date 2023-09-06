@@ -25,9 +25,9 @@ func NewStaticGroupManager(
 	group []rln.IDCommitment,
 	identityCredential rln.IdentityCredential,
 	index rln.MembershipIndex,
-	log *zap.Logger,
 	rlnInstance *rln.RLN,
 	rootTracker *group_manager.MerkleRootTracker,
+	log *zap.Logger,
 ) (*StaticGroupManager, error) {
 	// check the peer's index and the inclusion of user's identity commitment in the group
 	if identityCredential.IDCommitment != group[int(index)] {

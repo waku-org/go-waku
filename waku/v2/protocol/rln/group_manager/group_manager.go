@@ -6,7 +6,7 @@ import (
 	"github.com/waku-org/go-zerokit-rln/rln"
 )
 
-type GroupManager interface {
+type GroupManagerI interface {
 	Start(ctx context.Context) error
 	IdentityCredentials() (rln.IdentityCredential, error)
 	MembershipIndex() rln.MembershipIndex
@@ -14,7 +14,7 @@ type GroupManager interface {
 }
 
 type GMDetails struct {
-	GroupManager GroupManager
+	GroupManager GroupManagerI
 	RootTracker  *MerkleRootTracker
 
 	RLN *rln.RLN

@@ -60,7 +60,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 
 	//
 	idCredential := groupKeyPairs[index]
-	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger(), rlnInstance, rootTracker)
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, rlnInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
 
 	wakuRLNRelay := New(group_manager.GMDetails{
@@ -180,7 +180,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	s.Require().NoError(err)
 	//
 	idCredential := groupKeyPairs[index]
-	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, utils.Logger(), rlnInstance, rootTracker)
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, rlnInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
