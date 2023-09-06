@@ -151,3 +151,17 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 	_, err = pm.SelectPeer(protocol2, nil, utils.Logger())
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 }
+
+func TestConnectToRelayPeers(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("TestConnectToRelayPeers panicked: %v", r)
+		}
+	}()
+
+	_, pm, deferFn := initTest(t)
+	defer deferFn()
+	
+	pm.connectToRelayPeers()
+
+}
