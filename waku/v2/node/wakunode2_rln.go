@@ -29,7 +29,7 @@ func (w *WakuNode) setupRLNRelay() error {
 		return nil
 	}
 
-	var groupManager group_manager.GroupManagerI
+	var groupManager group_manager.GroupManager
 
 	rlnInstance, rootTracker, err := rln.GetRLNInstanceAndRootTracker(w.opts.rlnTreePath)
 	if err != nil {
@@ -73,7 +73,7 @@ func (w *WakuNode) setupRLNRelay() error {
 		}
 	}
 
-	rlnRelay := rln.New(group_manager.GMDetails{
+	rlnRelay := rln.New(group_manager.Details{
 		GroupManager: groupManager,
 		RootTracker:  rootTracker,
 		RLN:          rlnInstance,

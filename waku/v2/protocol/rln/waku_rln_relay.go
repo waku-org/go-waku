@@ -26,7 +26,7 @@ type WakuRLNRelay struct {
 	timesource timesource.Timesource
 	metrics    Metrics
 
-	group_manager.GMDetails
+	group_manager.Details
 
 	// the log of nullifiers and Shamir shares of the past messages grouped per epoch
 	nullifierLogLock sync.RWMutex
@@ -60,19 +60,15 @@ func GetRLNInstanceAndRootTracker(treePath string) (*rln.RLN, *group_manager.Mer
 	return rlnInstance, rootTracker, nil
 }
 func New(
-	gmDetails group_manager.GMDetails,
+	Details group_manager.Details,
 	timesource timesource.Timesource,
 	reg prometheus.Registerer,
 	log *zap.Logger) *WakuRLNRelay {
 
-	start := time.Now()
-	metrics := newMetrics(reg)
-	metrics.RecordInstanceCreation(time.Since(start))
-
 	// create the WakuRLNRelay
 	rlnPeer := &WakuRLNRelay{
-		GMDetails:    gmDetails,
-		metrics:      metrics,
+		Details:      Details,
+		metrics:      newMetrics(reg),
 		log:          log,
 		timesource:   timesource,
 		nullifierLog: make(map[rln.MerkleNode][]rln.ProofMetadata),

@@ -63,7 +63,7 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, rlnInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
 
-	wakuRLNRelay := New(group_manager.GMDetails{
+	wakuRLNRelay := New(group_manager.Details{
 		GroupManager: groupManager,
 		RootTracker:  rootTracker,
 		RLN:          rlnInstance,
@@ -92,7 +92,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 
 	rlnRelay := &WakuRLNRelay{
 		nullifierLog: make(map[r.Nullifier][]r.ProofMetadata),
-		GMDetails: group_manager.GMDetails{
+		Details: group_manager.Details{
 			RootTracker: rootTracker,
 		},
 	}
@@ -184,7 +184,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
-		GMDetails: group_manager.GMDetails{
+		Details: group_manager.Details{
 			GroupManager: groupManager,
 			RootTracker:  rootTracker,
 			RLN:          rlnInstance,

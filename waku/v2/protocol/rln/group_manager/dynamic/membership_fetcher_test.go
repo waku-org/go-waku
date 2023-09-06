@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/contracts"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/web3"
@@ -14,24 +15,17 @@ import (
 	"github.com/waku-org/go-zerokit-rln/rln"
 )
 
-var NULL_ADDR common.Address = common.HexToAddress("0x0000000000000000000000000000000000000000")
-
 func TestFetchingLogic(t *testing.T) {
 	client := NewMockClient(t, "membership_fetcher.json")
 
-	rlnContract, err := contracts.NewRLN(NULL_ADDR, client)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rlnContract, err := contracts.NewRLN(common.Address{}, client)
+	require.NoError(t, err)
 	rlnInstance, err := rln.NewRLN()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	rootTracker, err := group_manager.NewMerkleRootTracker(1, rlnInstance)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dgm := MembershipFetcher{
+	require.NoError(t, err)
+	//
+	mf := MembershipFetcher{
 		web3Config: &web3.Config{
 			RLNContract: web3.RLNContract{
 				RLN: rlnContract,
@@ -53,25 +47,22 @@ func TestFetchingLogic(t *testing.T) {
 	// loadOldEvents will check till 10010
 	client.SetLatestBlockNumber(10010)
 	// watchNewEvents will check till 10012
-	if err := dgm.HandleGroupUpdates(context.TODO(), mockFn); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := mf.HandleGroupUpdates(ctx, mockFn); err != nil {
 		t.Fatal(err)
 	}
-	// sleep so that watchNewEvents can finish
-	time.Sleep(time.Second)
-	// check whether all the events are fetched or not.
-	if !sameArr(counts, []int{1, 3, 2, 1, 1}) {
-		t.Fatal("wrong no of events fetched per cycle", counts)
-	}
-}
-
-func sameArr(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
+	go func() {
+		for {
+			if client.latestBlockNum.Load() == 10012 {
+				time.Sleep(time.Second)
+				cancel()
+				return
+			}
+			time.Sleep(time.Second)
 		}
-	}
-	return true
+	}()
+	mf.Stop()
+	// sleep so that watchNewEvents can finish
+	// check whether all the events are fetched or not.
+	require.Equal(t, counts, []int{1, 3, 2, 1, 1})
 }

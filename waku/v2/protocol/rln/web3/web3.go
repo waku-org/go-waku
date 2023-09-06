@@ -28,8 +28,8 @@ type RLNContract struct {
 	DeployedBlockNumber uint64
 }
 
-// EthClientI is an interface for the ethclient.Client, so that we can pass mock client for testing
-type EthClientI interface {
+// EthClient is an interface for the ethclient.Client, so that we can pass mock client for testing
+type EthClient interface {
 	bind.ContractBackend
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
@@ -42,7 +42,7 @@ type Config struct {
 	configured bool
 
 	ETHClientAddress string
-	ETHClient        EthClientI
+	ETHClient        EthClient
 	ChainID          *big.Int
 	RegistryContract RegistryContract
 	RLNContract      RLNContract

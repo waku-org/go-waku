@@ -154,7 +154,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 
 	// initialize the WakuRLNRelay
 	rlnRelay := &WakuRLNRelay{
-		GMDetails: group_manager.GMDetails{
+		Details: group_manager.Details{
 			RootTracker:  rt,
 			GroupManager: gm,
 			RLN:          rlnInstance,
@@ -239,7 +239,7 @@ func (s *WakuRLNRelayDynamicSuite) TestMerkleTreeConstruction() {
 	gm, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, membershipIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, rlnInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay := New(group_manager.GMDetails{
+	rlnRelay := New(group_manager.Details{
 		RLN:          rlnInstance,
 		RootTracker:  rootTracker,
 		GroupManager: gm,
@@ -273,15 +273,15 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	membershipGroupIndex := s.register(appKeystore, credentials1, s.u1PrivKey)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rootIntance, rootTracker, err := GetRLNInstanceAndRootTracker(s.tmpRLNDBPath())
+	rootInstance, rootTracker, err := GetRLNInstanceAndRootTracker(s.tmpRLNDBPath())
 	s.Require().NoError(err)
-	gm1, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, membershipGroupIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, rootIntance, rootTracker, utils.Logger())
+	gm1, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, membershipGroupIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, rootInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay1 := New(group_manager.GMDetails{
+	rlnRelay1 := New(group_manager.Details{
 		GroupManager: gm1,
 		RootTracker:  rootTracker,
-		RLN:          rootIntance,
+		RLN:          rootInstance,
 	}, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 
 	err = rlnRelay1.Start(context.TODO())
@@ -297,15 +297,15 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	membershipGroupIndex = s.register(appKeystore2, credentials2, s.u2PrivKey)
 
 	// mount the rln relay protocol in the on-chain/dynamic mode
-	rootIntance, rootTracker, err := GetRLNInstanceAndRootTracker(s.tmpRLNDBPath())
+	rootInstance, rootTracker, err = GetRLNInstanceAndRootTracker(s.tmpRLNDBPath())
 	s.Require().NoError(err)
-	gm2, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, membershipGroupIndex, appKeystore2, keystorePassword, prometheus.DefaultRegisterer, rootIntance, rootTracker, utils.Logger())
+	gm2, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, membershipGroupIndex, appKeystore2, keystorePassword, prometheus.DefaultRegisterer, rootInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
 
-	rlnRelay2 := New(group_manager.GMDetails{
-		GroupManager: gm1,
+	rlnRelay2 := New(group_manager.Details{
+		GroupManager: gm2,
 		RootTracker:  rootTracker,
-		RLN:          rootIntance,
+		RLN:          rootInstance,
 	}, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	err = rlnRelay2.Start(context.TODO())
 	s.Require().NoError(err)
@@ -314,8 +314,8 @@ func (s *WakuRLNRelayDynamicSuite) TestCorrectRegistrationOfPeers() {
 	// the two nodes should be registered into the contract
 	// since nodes are spun up sequentially
 	// the first node has index 0 whereas the second node gets index 1
-	idx1 := rlnRelay1.groupManager.MembershipIndex()
-	idx2 := rlnRelay2.groupManager.MembershipIndex()
+	idx1 := rlnRelay1.GroupManager.MembershipIndex()
+	idx2 := rlnRelay2.GroupManager.MembershipIndex()
 	s.Require().NoError(err)
 	s.Require().Equal(rln.MembershipIndex(0), idx1)
 	s.Require().Equal(rln.MembershipIndex(1), idx2)

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"sort"
+	"sync/atomic"
 	"testing"
 
 	"github.com/ethereum/go-ethereum"
@@ -21,16 +22,19 @@ type ErrCount struct {
 type MockClient struct {
 	ethclient.Client
 	blockChain     MockBlockChain
-	latestBlockNum int64
+	latestBlockNum atomic.Int64
 	errOnBlock     map[int64]*ErrCount
 }
 
 func (c *MockClient) SetLatestBlockNumber(num int64) {
-	c.latestBlockNum = num
+	c.latestBlockNum.Store(num)
 }
 
-func (c MockClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
-	return types.NewBlock(&types.Header{Number: big.NewInt(c.latestBlockNum)}, nil, nil, nil, nil), nil
+func (c *MockClient) Close() {
+
+}
+func (c *MockClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	return types.NewBlock(&types.Header{Number: big.NewInt(c.latestBlockNum.Load())}, nil, nil, nil, nil), nil
 }
 func NewMockClient(t *testing.T, blockFile string) *MockClient {
 	blockChain := MockBlockChain{}
@@ -48,7 +52,7 @@ func (client *MockClient) SetErrorOnBlock(blockNum int64, err error, count int) 
 	client.errOnBlock[blockNum] = &ErrCount{err: err, count: count}
 }
 
-func (c MockClient) getFromAndToRange(query ethereum.FilterQuery) (int64, int64) {
+func (c *MockClient) getFromAndToRange(query ethereum.FilterQuery) (int64, int64) {
 	var fromBlock int64
 	if query.FromBlock == nil {
 		fromBlock = 0
@@ -64,7 +68,7 @@ func (c MockClient) getFromAndToRange(query ethereum.FilterQuery) (int64, int64)
 	}
 	return fromBlock, toBlock
 }
-func (c MockClient) FilterLogs(ctx context.Context, query ethereum.FilterQuery) (allTxLogs []types.Log, err error) {
+func (c *MockClient) FilterLogs(ctx context.Context, query ethereum.FilterQuery) (allTxLogs []types.Log, err error) {
 	fromBlock, toBlock := c.getFromAndToRange(query)
 	for block, details := range c.blockChain.Blocks {
 		if block >= fromBlock && block <= toBlock {
@@ -86,10 +90,10 @@ func (c MockClient) FilterLogs(ctx context.Context, query ethereum.FilterQuery) 
 
 func (c *MockClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	for {
-		next := c.latestBlockNum + 1
+		next := c.latestBlockNum.Load() + 1
 		if c.blockChain.Blocks[next] != nil {
 			ch <- &types.Header{Number: big.NewInt(next)}
-			c.latestBlockNum = next
+			c.latestBlockNum.Store(next)
 		} else {
 			break
 		}
