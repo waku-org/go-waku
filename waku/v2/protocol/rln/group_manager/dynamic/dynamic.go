@@ -132,7 +132,7 @@ func (gm *DynamicGroupManager) memberExists(ctx context.Context, idCommitment rl
 	return gm.web3Config.RLNContract.MemberExists(&bind.CallOpts{Context: ctx}, rln.Bytes32ToBigInt(idCommitment))
 }
 
-func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, rootTracker *group_manager.MerkleRootTracker) error {
+func (gm *DynamicGroupManager) Start(ctx context.Context) error {
 	if gm.cancel != nil {
 		return errors.New("already started")
 	}
@@ -146,9 +146,6 @@ func (gm *DynamicGroupManager) Start(ctx context.Context, rlnInstance *rln.RLN, 
 	if err != nil {
 		return err
 	}
-
-	gm.rln = rlnInstance
-	gm.rootTracker = rootTracker
 
 	// check if the contract exists by calling a static function
 	_, err = gm.getMembershipFee(ctx)

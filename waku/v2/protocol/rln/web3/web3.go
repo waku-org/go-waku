@@ -31,6 +31,7 @@ type RLNContract struct {
 // EthClientI is an interface for the ethclient.Client, so that we can pass mock client for testing
 type EthClientI interface {
 	bind.ContractBackend
+	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	Close()
