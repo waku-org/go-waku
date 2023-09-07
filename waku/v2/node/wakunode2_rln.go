@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
@@ -27,6 +26,10 @@ func (w *WakuNode) setupRLNRelay() error {
 
 	if !w.opts.enableRLN {
 		return nil
+	}
+
+	if !w.opts.enableRelay {
+		return errors.New("rln requires relay")
 	}
 
 	var groupManager group_manager.GroupManager
@@ -85,8 +88,7 @@ func (w *WakuNode) setupRLNRelay() error {
 
 	w.rlnRelay = rlnRelay
 
-	// Adding RLN as a default validator
-	w.opts.pubsubOpts = append(w.opts.pubsubOpts, pubsub.WithDefaultValidator(rlnRelay.Validator(w.opts.rlnSpamHandler)))
+	w.Relay().RegisterDefaultValidator(w.rlnRelay.Validator(w.opts.rlnSpamHandler))
 
 	return nil
 }

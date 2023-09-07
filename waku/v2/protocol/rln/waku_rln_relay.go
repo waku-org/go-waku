@@ -2,14 +2,11 @@ package rln
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"math"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -17,7 +14,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
-	proto "google.golang.org/protobuf/proto"
 )
 
 type WakuRLNRelay struct {
@@ -218,52 +214,49 @@ func (rlnRelay *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTim
 // Validator returns a validator for the waku messages.
 // The message validation logic is according to https://rfc.vac.dev/spec/17/
 func (rlnRelay *WakuRLNRelay) Validator(
-	spamHandler SpamHandler) func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
-	return func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
-		rlnRelay.log.Debug("rln-relay topic validator called")
+	spamHandler SpamHandler) func(ctx context.Context, msg *pb.WakuMessage, topic string) bool {
+	return func(ctx context.Context, msg *pb.WakuMessage, topic string) bool {
+
+		hash := msg.Hash(topic)
+
+		log := rlnRelay.log.With(
+			logging.HexBytes("hash", hash),
+			zap.String("pubsubTopic", topic),
+			zap.String("contentTopic", msg.ContentTopic),
+		)
+
+		log.Debug("rln-relay topic validator called")
 
 		rlnRelay.metrics.RecordMessage()
 
-		wakuMessage := &pb.WakuMessage{}
-		if err := proto.Unmarshal(message.Data, wakuMessage); err != nil {
-			rlnRelay.log.Debug("could not unmarshal message")
-			return true
-		}
-
 		// validate the message
-		validationRes, err := rlnRelay.ValidateMessage(wakuMessage, nil)
+		validationRes, err := rlnRelay.ValidateMessage(msg, nil)
 		if err != nil {
-			rlnRelay.log.Debug("validating message", zap.Error(err))
+			log.Debug("validating message", zap.Error(err))
 			return false
 		}
 
 		switch validationRes {
 		case validMessage:
-			rlnRelay.log.Debug("message verified",
-				zap.String("id", hex.EncodeToString([]byte(message.ID))),
-			)
+			log.Debug("message verified")
 			return true
 		case invalidMessage:
-			rlnRelay.log.Debug("message could not be verified",
-				zap.String("id", hex.EncodeToString([]byte(message.ID))),
-			)
+			log.Debug("message could not be verified")
 			return false
 		case spamMessage:
-			rlnRelay.log.Debug("spam message found",
-				zap.String("id", hex.EncodeToString([]byte(message.ID))),
-			)
+			log.Debug("spam message found")
 
-			rlnRelay.metrics.RecordSpam(wakuMessage.ContentTopic)
+			rlnRelay.metrics.RecordSpam(msg.ContentTopic)
 
 			if spamHandler != nil {
-				if err := spamHandler(wakuMessage); err != nil {
-					rlnRelay.log.Error("executing spam handler", zap.Error(err))
+				if err := spamHandler(msg, topic); err != nil {
+					log.Error("executing spam handler", zap.Error(err))
 				}
 			}
 
 			return false
 		default:
-			rlnRelay.log.Debug("unhandled validation result", zap.Int("validationResult", int(validationRes)))
+			log.Debug("unhandled validation result", zap.Int("validationResult", int(validationRes)))
 			return false
 		}
 	}
