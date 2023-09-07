@@ -3,11 +3,13 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -15,9 +17,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const ROUTE_RELAY_SUBSCRIPTIONSV1 = "/relay/v1/subscriptions"
-const ROUTE_RELAY_MESSAGESV1 = "/relay/v1/messages/{topic}"
+const routeRelayV1Subscriptions = "/relay/v1/subscriptions"
+const routeRelayV1Messages = "/relay/v1/messages/{topic}"
 
+// RelayService represents the REST service for WakuRelay
 type RelayService struct {
 	node   *node.WakuNode
 	cancel context.CancelFunc
@@ -31,6 +34,7 @@ type RelayService struct {
 	runner *runnerService
 }
 
+// NewRelayService returns an instance of RelayService
 func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *zap.Logger) *RelayService {
 	s := &RelayService{
 		node:          node,
@@ -41,10 +45,10 @@ func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *za
 
 	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
 
-	m.Post(ROUTE_RELAY_SUBSCRIPTIONSV1, s.postV1Subscriptions)
-	m.Delete(ROUTE_RELAY_SUBSCRIPTIONSV1, s.deleteV1Subscriptions)
-	m.Get(ROUTE_RELAY_MESSAGESV1, s.getV1Messages)
-	m.Post(ROUTE_RELAY_MESSAGESV1, s.postV1Message)
+	m.Post(routeRelayV1Subscriptions, s.postV1Subscriptions)
+	m.Delete(routeRelayV1Subscriptions, s.deleteV1Subscriptions)
+	m.Get(routeRelayV1Messages, s.getV1Messages)
+	m.Post(routeRelayV1Messages, s.postV1Message)
 
 	return s
 }
@@ -65,6 +69,7 @@ func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
 	r.messages[envelope.PubsubTopic()] = append(r.messages[envelope.PubsubTopic()], envelope.Message())
 }
 
+// Start starts the RelayService
 func (r *RelayService) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
@@ -80,6 +85,7 @@ func (r *RelayService) Start(ctx context.Context) {
 	r.runner.Start(ctx)
 }
 
+// Stop stops the RelayService
 func (r *RelayService) Stop() {
 	if r.cancel == nil {
 		return
@@ -187,11 +193,20 @@ func (d *RelayService) postV1Message(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	if topic == "" {
-		_, err = d.node.Relay().Publish(r.Context(), message)
-	} else {
-		_, err = d.node.Relay().PublishToTopic(r.Context(), message, strings.Replace(topic, "\n", "", -1))
+		topic = relay.DefaultWakuTopic
 	}
 
+	if !d.node.Relay().IsSubscribed(topic) {
+		writeErrOrResponse(w, errors.New("not subscribed to pubsubTopic"), nil)
+		return
+	}
+
+	if err = server.AppendRLNProof(d.node, message); err != nil {
+		writeErrOrResponse(w, err, nil)
+		return
+	}
+
+	_, err = d.node.Relay().PublishToTopic(r.Context(), message, strings.Replace(topic, "\n", "", -1))
 	if err != nil {
 		d.log.Error("publishing message", zap.Error(err))
 	}
