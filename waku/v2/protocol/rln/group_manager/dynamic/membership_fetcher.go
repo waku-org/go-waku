@@ -130,9 +130,10 @@ func (gm *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint6
 			events, err := gm.getEvents(ctx, fromBlock, toBlock)
 			if err != nil {
 				gm.log.Error("obtaining rln events", zap.Error(err))
+			} else {
+				// update the last processed block
+				fromBlock = toBlock + 1
 			}
-			// update the last processed block
-			fromBlock = toBlock + 1
 
 			err = handler(events)
 			if err != nil {
