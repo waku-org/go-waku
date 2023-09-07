@@ -21,6 +21,7 @@ import (
 // the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
 type RegistrationEventHandler = func([]*contracts.RLNMemberRegistered) error
 
+// for getting membershipRegsitered Events from the eth rpc
 type MembershipFetcher struct {
 	web3Config  *web3.Config
 	rln         *rln.RLN
@@ -41,46 +42,46 @@ func NewMembershipFetcher(web3Config *web3.Config, rln *rln.RLN, rootTracker *gr
 // HandleGroupUpdates mounts the supplied handler for the registration events emitting from the membership contract
 // It connects to the eth client, subscribes to the `MemberRegistered` event emitted from the `MembershipContract`
 // and collects all the events, for every received event, it calls the `handler`
-func (gm *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
-	fromBlock := gm.web3Config.RLNContract.DeployedBlockNumber
-	metadata, err := gm.GetMetadata()
+func (mf *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler RegistrationEventHandler) error {
+	fromBlock := mf.web3Config.RLNContract.DeployedBlockNumber
+	metadata, err := mf.GetMetadata()
 	if err != nil {
-		gm.log.Warn("could not load last processed block from metadata. Starting onchain sync from deployment block", zap.Error(err), zap.Uint64("deploymentBlock", gm.web3Config.RLNContract.DeployedBlockNumber))
+		mf.log.Warn("could not load last processed block from metadata. Starting onchain sync from deployment block", zap.Error(err), zap.Uint64("deploymentBlock", mf.web3Config.RLNContract.DeployedBlockNumber))
 	} else {
-		if gm.web3Config.ChainID.Cmp(metadata.ChainID) != 0 {
+		if mf.web3Config.ChainID.Cmp(metadata.ChainID) != 0 {
 			return errors.New("persisted data: chain id mismatch")
 		}
 
-		if !bytes.Equal(gm.web3Config.RegistryContract.Address.Bytes(), metadata.ContractAddress.Bytes()) {
+		if !bytes.Equal(mf.web3Config.RegistryContract.Address.Bytes(), metadata.ContractAddress.Bytes()) {
 			return errors.New("persisted data: contract address mismatch")
 		}
 
 		fromBlock = metadata.LastProcessedBlock + 1
-		gm.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
+		mf.log.Info("resuming onchain sync", zap.Uint64("fromBlock", fromBlock))
 	}
 
-	gm.rootTracker.SetValidRootsPerBlock(metadata.ValidRootsPerBlock)
+	mf.rootTracker.SetValidRootsPerBlock(metadata.ValidRootsPerBlock)
 	//
-	latestBlockNumber, err := gm.latestBlockNumber(ctx)
+	latestBlockNumber, err := mf.latestBlockNumber(ctx)
 	if err != nil {
 		return err
 	}
 	//
-	err = gm.loadOldEvents(ctx, fromBlock, latestBlockNumber, handler)
+	err = mf.loadOldEvents(ctx, fromBlock, latestBlockNumber, handler)
 	if err != nil {
 		return err
 	}
 
 	errCh := make(chan error)
 
-	gm.wg.Add(1)
-	go gm.watchNewEvents(ctx, latestBlockNumber+1, handler, errCh) // we have already fetched the events for latestBlocNumber in oldEvents
+	mf.wg.Add(1)
+	go mf.watchNewEvents(ctx, latestBlockNumber+1, handler, errCh) // we have already fetched the events for latestBlocNumber in oldEvents
 	return <-errCh
 }
 
-func (gm *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
+func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
 	for ; fromBlock+maxBatchSize < toBlock; fromBlock += maxBatchSize + 1 { // check if the end of the batch is within the toBlock range
-		events, err := gm.getEvents(ctx, fromBlock, fromBlock+maxBatchSize)
+		events, err := mf.getEvents(ctx, fromBlock, fromBlock+maxBatchSize)
 		if err != nil {
 			return err
 		}
@@ -90,7 +91,7 @@ func (gm *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 	}
 
 	//
-	events, err := gm.getEvents(ctx, fromBlock, toBlock)
+	events, err := mf.getEvents(ctx, fromBlock, toBlock)
 	if err != nil {
 		return err
 	}
@@ -98,19 +99,19 @@ func (gm *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 	return handler(events)
 }
 
-func (gm *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {
-	defer gm.wg.Done()
+func (mf *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {
+	defer mf.wg.Done()
 
 	// Watch for new events
 	firstErr := true
 	headerCh := make(chan *types.Header)
 	subs := event.Resubscribe(2*time.Second, func(ctx context.Context) (event.Subscription, error) {
-		s, err := gm.web3Config.ETHClient.SubscribeNewHead(ctx, headerCh)
+		s, err := mf.web3Config.ETHClient.SubscribeNewHead(ctx, headerCh)
 		if err != nil {
 			if err == rpc.ErrNotificationsUnsupported {
 				err = errors.New("notifications not supported. The node must support websockets")
 			}
-			gm.log.Error("subscribing to rln events", zap.Error(err))
+			mf.log.Error("subscribing to rln events", zap.Error(err))
 		}
 		if firstErr { // errCh can be closed only once
 			errCh <- err
@@ -127,9 +128,9 @@ func (gm *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint6
 		select {
 		case h := <-headerCh:
 			toBlock := h.Number.Uint64()
-			events, err := gm.getEvents(ctx, fromBlock, toBlock)
+			events, err := mf.getEvents(ctx, fromBlock, toBlock)
 			if err != nil {
-				gm.log.Error("obtaining rln events", zap.Error(err))
+				mf.log.Error("obtaining rln events", zap.Error(err))
 			} else {
 				// update the last processed block
 				fromBlock = toBlock + 1
@@ -137,13 +138,13 @@ func (gm *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint6
 
 			err = handler(events)
 			if err != nil {
-				gm.log.Error("processing rln log", zap.Error(err))
+				mf.log.Error("processing rln log", zap.Error(err))
 			}
 		case <-ctx.Done():
 			return
 		case err := <-subs.Err():
 			if err != nil {
-				gm.log.Error("watching new events", zap.Error(err))
+				mf.log.Error("watching new events", zap.Error(err))
 			}
 			return
 		}
@@ -157,8 +158,8 @@ func tooMuchDataRequestedError(err error) bool {
 	return err.Error() == "query returned more than 10000 results"
 }
 
-func (gm *MembershipFetcher) latestBlockNumber(ctx context.Context) (uint64, error) {
-	block, err := gm.web3Config.ETHClient.BlockByNumber(ctx, nil)
+func (mf *MembershipFetcher) latestBlockNumber(ctx context.Context) (uint64, error) {
+	block, err := mf.web3Config.ETHClient.BlockByNumber(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -166,16 +167,16 @@ func (gm *MembershipFetcher) latestBlockNumber(ctx context.Context) (uint64, err
 	return block.Number().Uint64(), nil
 }
 
-func (gm *MembershipFetcher) getEvents(ctx context.Context, fromBlock uint64, toBlock uint64) ([]*contracts.RLNMemberRegistered, error) {
-	evts, err := gm.fetchEvents(ctx, fromBlock, toBlock)
+func (mf *MembershipFetcher) getEvents(ctx context.Context, fromBlock uint64, toBlock uint64) ([]*contracts.RLNMemberRegistered, error) {
+	evts, err := mf.fetchEvents(ctx, fromBlock, toBlock)
 	if err != nil {
 		if tooMuchDataRequestedError(err) { // divide the range and try again
 			mid := (fromBlock + toBlock) / 2
-			firstHalfEvents, err := gm.getEvents(ctx, fromBlock, mid)
+			firstHalfEvents, err := mf.getEvents(ctx, fromBlock, mid)
 			if err != nil {
 				return nil, err
 			}
-			secondHalfEvents, err := gm.getEvents(ctx, mid+1, toBlock)
+			secondHalfEvents, err := mf.getEvents(ctx, mid+1, toBlock)
 			if err != nil {
 				return nil, err
 			}
@@ -186,8 +187,8 @@ func (gm *MembershipFetcher) getEvents(ctx context.Context, fromBlock uint64, to
 	return evts, nil
 }
 
-func (gm *MembershipFetcher) fetchEvents(ctx context.Context, from uint64, to uint64) ([]*contracts.RLNMemberRegistered, error) {
-	logIterator, err := gm.web3Config.RLNContract.FilterMemberRegistered(&bind.FilterOpts{Start: from, End: &to, Context: ctx})
+func (mf *MembershipFetcher) fetchEvents(ctx context.Context, from uint64, to uint64) ([]*contracts.RLNMemberRegistered, error) {
+	logIterator, err := mf.web3Config.RLNContract.FilterMemberRegistered(&bind.FilterOpts{Start: from, End: &to, Context: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +211,8 @@ func (gm *MembershipFetcher) fetchEvents(ctx context.Context, from uint64, to ui
 }
 
 // GetMetadata retrieves metadata from the zerokit's RLN database
-func (gm *MembershipFetcher) GetMetadata() (RLNMetadata, error) {
-	b, err := gm.rln.GetMetadata()
+func (mf *MembershipFetcher) GetMetadata() (RLNMetadata, error) {
+	b, err := mf.rln.GetMetadata()
 	if err != nil {
 		return RLNMetadata{}, err
 	}
@@ -219,8 +220,8 @@ func (gm *MembershipFetcher) GetMetadata() (RLNMetadata, error) {
 	return DeserializeMetadata(b)
 }
 
-func (gm *MembershipFetcher) Stop() {
-	gm.web3Config.ETHClient.Close()
+func (mf *MembershipFetcher) Stop() {
+	mf.web3Config.ETHClient.Close()
 	// wait for the watchNewEvents goroutine to finish
-	gm.wg.Wait()
+	mf.wg.Wait()
 }

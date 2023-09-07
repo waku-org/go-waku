@@ -9,6 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+// MockBlockChain  is currently a chain of events for different block numbers
+// it is used internal by mock client for returning events for a given block number or range in FilterLog rpc call.
 type MockBlockChain struct {
 	Blocks map[int64]*MockBlock `json:"blocks"`
 }
