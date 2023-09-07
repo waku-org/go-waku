@@ -156,24 +156,20 @@ func (pm *PeerManager) connectToRelayPeers() {
 		return
 	}
 	totalRelayPeers := inRelayPeers.Len() + outRelayPeers.Len()
-	// Establish additional connections if there are peers.
+	// Establish additional connections connected peers are lesser than target.
 	//What if the not connected peers in peerstore are not relay peers???
-	if totalRelayPeers < pm.host.Peerstore().Peers().Len() {
+	if totalRelayPeers < pm.maxRelayPeers {
 		//Find not connected peers.
 		notConnectedPeers := pm.getNotConnectedPers()
-		//Figure out outside backoff peers.
-
+		if notConnectedPeers.Len() == 0 {
+			return
+		}
 		//Connect to eligible peers.
 		numPeersToConnect := pm.maxRelayPeers - totalRelayPeers
 
 		if numPeersToConnect > notConnectedPeers.Len() {
-			numPeersToConnect = notConnectedPeers.Len() - 1
+			numPeersToConnect = notConnectedPeers.Len()
 		}
-
-		if numPeersToConnect <= 0 {
-			return
-		}
-
 		pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
 	} //Else: Should we raise some sort of unhealthy event??
 }

@@ -28,9 +28,11 @@ func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	h1, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h1.Close()
+
 	// host 1 is used by peer manager
 	pm := NewPeerManager(10, utils.Logger())
 	pm.SetHost(h1)
+
 	return ctx, pm, func() {
 		cancel()
 		h1.Close()
@@ -153,13 +155,15 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 }
 
 func TestConnectToRelayPeers(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("TestConnectToRelayPeers panicked: %v", r)
-		}
-	}()
 
-	_, pm, deferFn := initTest(t)
+	ctx, pm, deferFn := initTest(t)
+	pc, err := NewPeerConnectionStrategy(pm, 120*time.Second, pm.logger)
+	require.NoError(t, err)
+	pm.SetPeerConnector(pc)
+	err = pc.Start(ctx)
+	require.NoError(t, err)
+	pm.Start(ctx)
+
 	defer deferFn()
 
 	pm.connectToRelayPeers()
