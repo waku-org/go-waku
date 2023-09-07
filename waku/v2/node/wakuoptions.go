@@ -96,7 +96,7 @@ type WakuNodeParameters struct {
 	enableRLN                    bool
 	rlnRelayMemIndex             *uint
 	rlnRelayDynamic              bool
-	rlnSpamHandler               func(message *pb.WakuMessage) error
+	rlnSpamHandler               func(message *pb.WakuMessage, topic string) error
 	rlnETHClientAddress          string
 	keystorePath                 string
 	keystorePassword             string

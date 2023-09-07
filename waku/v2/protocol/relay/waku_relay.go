@@ -49,6 +49,10 @@ type WakuRelay struct {
 
 	minPeersToPublish int
 
+	topicValidatorMutex    sync.RWMutex
+	topicValidators        map[string][]validatorFn
+	defaultTopicValidators []validatorFn
+
 	// TODO: convert to concurrent maps
 	topicsMutex     sync.Mutex
 	wakuRelayTopics map[string]*pubsub.Topic
@@ -83,6 +87,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
 	w.relaySubs = make(map[string]*pubsub.Subscription)
+	w.topicValidators = make(map[string][]validatorFn)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
 	w.CommonService = waku_proto.NewCommonService()
@@ -177,12 +182,6 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 		pubsub.WithSeenMessagesTTL(2 * time.Minute),
 		pubsub.WithPeerScore(w.peerScoreParams, w.peerScoreThresholds),
 		pubsub.WithPeerScoreInspect(w.peerScoreInspector, 6*time.Second),
-		// TODO: to improve - setup default validator only if no default validator has been set.
-		pubsub.WithDefaultValidator(func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool {
-			msg := new(pb.WakuMessage)
-			err := proto.Unmarshal(message.Data, msg)
-			return err == nil
-		}),
 	}, opts...)
 
 	return w
@@ -270,6 +269,11 @@ func (w *WakuRelay) upsertTopic(topic string) (*pubsub.Topic, error) {
 
 	pubSubTopic, ok := w.wakuRelayTopics[topic]
 	if !ok { // Joins topic if node hasn't joined yet
+		err := w.pubsub.RegisterTopicValidator(topic, w.topicValidator(topic))
+		if err != nil {
+			return nil, err
+		}
+
 		newTopic, err := w.pubsub.Join(string(topic))
 		if err != nil {
 			return nil, err
@@ -418,6 +422,8 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {
 		return err
 	}
 	delete(w.wakuRelayTopics, topic)
+
+	w.RemoveTopicValidator(topic)
 
 	err = w.emitters.EvtRelayUnsubscribed.Emit(EvtRelayUnsubscribed{topic})
 	if err != nil {

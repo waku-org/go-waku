@@ -79,10 +79,6 @@ func TestGossipsubScore(t *testing.T) {
 	relay := make([]*WakuRelay, 5)
 	for i := 0; i < 5; i++ {
 		hosts[i], relay[i] = createRelayNode(t)
-		if i == 0 {
-			// This is a hack to remove the default validator from the list of default options
-			relay[i].opts = relay[i].opts[:len(relay[i].opts)-1]
-		}
 		err := relay[i].Start(context.Background())
 		require.NoError(t, err)
 	}
@@ -119,6 +115,11 @@ func TestGossipsubScore(t *testing.T) {
 	// We obtain the go-libp2p topic directly because we normally can't publish anything other than WakuMessages
 	pubsubTopic, err := relay[0].upsertTopic(testTopic)
 	require.NoError(t, err)
+
+	// Removing validator from relayer0 to allow it to send invalid messages
+	err = relay[0].pubsub.UnregisterTopicValidator(testTopic)
+	require.NoError(t, err)
+
 	for i := 0; i < 50; i++ {
 		buf := make([]byte, 1000)
 		_, err := rand.Read(buf)
