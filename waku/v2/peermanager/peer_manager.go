@@ -170,6 +170,10 @@ func (pm *PeerManager) connectToRelayPeers() {
 			numPeersToConnect = notConnectedPeers.Len() - 1
 		}
 
+		if numPeersToConnect <= 0 {
+			return
+		}
+
 		pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
 	} //Else: Should we raise some sort of unhealthy event??
 }
