@@ -160,15 +160,17 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 			return
 		}
 
-		if !wf.subscriptions.Has(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
-			logger.Warn("received messagepush with invalid subscription parameters", logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", messagePush.PubsubTopic), zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
+		if !wf.subscriptions.Has(s.Conn().RemotePeer(), *messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
+			logger.Warn("received messagepush with invalid subscription parameters",
+				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", *messagePush.PubsubTopic),
+				zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
 			wf.metrics.RecordError(invalidSubscriptionMessage)
 			return
 		}
 
 		wf.metrics.RecordMessage()
 
-		wf.notify(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage)
+		wf.notify(s.Conn().RemotePeer(), *messagePush.PubsubTopic, messagePush.WakuMessage)
 
 		logger.Info("received message push")
 	}
@@ -184,7 +186,8 @@ func (wf *WakuFilterLightNode) notify(remotePeerID peer.ID, pubsubTopic string, 
 	wf.subscriptions.Notify(remotePeerID, envelope)
 }
 
-func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscribeParameters, reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter ContentFilter) error {
+func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscribeParameters,
+	reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter ContentFilter) error {
 	conn, err := wf.h.NewStream(ctx, params.selectedPeer, FilterSubscribeID_v20beta1)
 	if err != nil {
 		wf.metrics.RecordError(dialFailure)
@@ -198,7 +201,7 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	request := &pb.FilterSubscribeRequest{
 		RequestId:           hex.EncodeToString(params.requestID),
 		FilterSubscribeType: reqType,
-		PubsubTopic:         contentFilter.Topic,
+		PubsubTopic:         &contentFilter.Topic,
 		ContentTopics:       contentFilter.ContentTopics,
 	}
 
@@ -388,7 +391,8 @@ func (wf *WakuFilterLightNode) cleanupSubscriptions(peerID peer.ID, contentFilte
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter,
+	opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 
@@ -474,7 +478,8 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails,
+	opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 

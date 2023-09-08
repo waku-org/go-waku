@@ -153,7 +153,7 @@ func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger
 }
 
 func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
-	if request.PubsubTopic == "" {
+	if request.PubsubTopic == nil {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
 	}
@@ -186,14 +186,14 @@ func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, l
 		}
 	}
 
-	wf.subscriptions.Set(peerID, request.PubsubTopic, request.ContentTopics)
+	wf.subscriptions.Set(peerID, *request.PubsubTopic, request.ContentTopics)
 
 	wf.metrics.RecordSubscriptions(wf.subscriptions.Count())
 	wf.reply(ctx, s, request, http.StatusOK)
 }
 
 func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
-	if request.PubsubTopic == "" {
+	if request.PubsubTopic == nil {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
 	}
@@ -207,7 +207,7 @@ func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream,
 		wf.reply(ctx, s, request, http.StatusBadRequest, fmt.Sprintf("exceeds maximum content topics: %d", MaxContentTopicsPerRequest))
 	}
 
-	err := wf.subscriptions.Delete(s.Conn().RemotePeer(), request.PubsubTopic, request.ContentTopics)
+	err := wf.subscriptions.Delete(s.Conn().RemotePeer(), *request.PubsubTopic, request.ContentTopics)
 	if err != nil {
 		wf.reply(ctx, s, request, http.StatusNotFound, peerHasNoSubscription)
 	} else {
@@ -273,9 +273,9 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 		zap.String("pubsubTopic", env.PubsubTopic()),
 		zap.String("contentTopic", env.Message().ContentTopic),
 	)
-
+	pubSubTopic := env.PubsubTopic()
 	messagePush := &pb.MessagePushV2{
-		PubsubTopic: env.PubsubTopic(),
+		PubsubTopic: &pubSubTopic,
 		WakuMessage: env.Message(),
 	}
 
