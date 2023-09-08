@@ -281,6 +281,8 @@ func (w *WakuNode) setupENR(ctx context.Context, addrs []ma.Multiaddr) error {
 		}
 	}
 
+	w.enrChangeCh <- struct{}{}
+
 	return nil
 
 }
