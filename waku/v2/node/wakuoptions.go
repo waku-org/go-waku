@@ -94,7 +94,7 @@ type WakuNodeParameters struct {
 	enablePeerExchange bool
 
 	enableRLN                    bool
-	rlnRelayMemIndex             uint
+	rlnRelayMemIndex             *uint
 	rlnRelayDynamic              bool
 	rlnSpamHandler               func(message *pb.WakuMessage) error
 	rlnETHClientAddress          string
@@ -190,8 +190,11 @@ func WithDns4Domain(dns4Domain string) WakuNodeOption {
 
 			if params.enableWS || params.enableWSS {
 				if params.enableWSS {
+					// WSS is deprecated in https://github.com/multiformats/multiaddr/pull/109
 					wss, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%d/wss", params.wssPort))
 					addresses = append(addresses, hostAddrMA.Encapsulate(wss))
+					tlsws, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%d/tls/ws", params.wssPort))
+					addresses = append(addresses, hostAddrMA.Encapsulate(tlsws))
 				} else {
 					ws, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%d/ws", params.wsPort))
 					addresses = append(addresses, hostAddrMA.Encapsulate(ws))

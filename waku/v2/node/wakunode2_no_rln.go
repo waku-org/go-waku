@@ -5,6 +5,7 @@ package node
 
 import "context"
 
+// RLNRelay is used to access any operation related to Waku RLN protocol
 func (w *WakuNode) RLNRelay() RLNRelay {
 	return nil
 }
