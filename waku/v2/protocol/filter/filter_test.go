@@ -68,15 +68,17 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 	return relay, sub, host, broadcaster
 }
 
-func (s *FilterTestSuite) makeWakuFilterLightNode(start bool) *WakuFilterLightNode {
+func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bool) *WakuFilterLightNode {
 	port, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
-
-	b := relay.NewBroadcaster(10)
-	s.Require().NoError(b.Start(context.Background()))
+	var b relay.Broadcaster
+	if withBroadcaster {
+		b = relay.NewBroadcaster(10)
+		s.Require().NoError(b.Start(context.Background()))
+	}
 	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	filterPush.SetHost(host)
 	s.lightNodeHost = host
@@ -181,7 +183,8 @@ func (s *FilterTestSuite) SetupTest() {
 	s.testTopic = "/waku/2/go/filter/test"
 	s.testContentTopic = "TopicA"
 
-	s.lightNode = s.makeWakuFilterLightNode(true)
+	s.lightNode = s.makeWakuFilterLightNode(true, false)
+	//TODO: Add tests to verify broadcaster.
 
 	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
 
@@ -383,7 +386,7 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 func (s *FilterTestSuite) TestStartStop() {
 	var wg sync.WaitGroup
 	wg.Add(2)
-	s.lightNode = s.makeWakuFilterLightNode(false)
+	s.lightNode = s.makeWakuFilterLightNode(false, false)
 
 	stopNode := func() {
 		for i := 0; i < 100000; i++ {

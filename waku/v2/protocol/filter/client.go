@@ -40,7 +40,7 @@ type WakuFilterLightNode struct {
 	cancel        context.CancelFunc
 	ctx           context.Context
 	h             host.Host
-	broadcaster   relay.Broadcaster
+	broadcaster   relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
 	timesource    timesource.Timesource
 	metrics       Metrics
 	wg            *sync.WaitGroup
@@ -63,6 +63,7 @@ var errNotStarted = errors.New("not started")
 var errAlreadyStarted = errors.New("already started")
 
 // NewWakuFilterLightnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
+// Note that broadcaster is optional.
 // Takes an optional peermanager if WakuFilterLightnode is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil
 func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerManager,
@@ -179,9 +180,10 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 func (wf *WakuFilterLightNode) notify(remotePeerID peer.ID, pubsubTopic string, msg *wpb.WakuMessage) {
 	envelope := protocol.NewEnvelope(msg, wf.timesource.Now().UnixNano(), pubsubTopic)
 
-	// Broadcasting message so it's stored
-	wf.broadcaster.Submit(envelope)
-
+	if wf.broadcaster != nil {
+		// Broadcasting message so it's stored
+		wf.broadcaster.Submit(envelope)
+	}
 	// Notify filter subscribers
 	wf.subscriptions.Notify(remotePeerID, envelope)
 }
