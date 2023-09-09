@@ -60,18 +60,20 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 		fOptions = append(fOptions, filter.WithAutomaticPeerSelection())
 	}
 
-	subscriptionDetails, err := wakuState.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
+	subscriptions, err := wakuState.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
 	if err != nil {
 		return "", err
 	}
 
-	go func(subscriptionDetails *filter.SubscriptionDetails) {
-		for envelope := range subscriptionDetails.C {
-			send("message", toSubscriptionMessage(envelope))
-		}
-	}(subscriptionDetails)
+	for _, subscriptionDetails := range subscriptions {
+		go func(subscriptionDetails *filter.SubscriptionDetails) {
+			for envelope := range subscriptionDetails.C {
+				send("message", toSubscriptionMessage(envelope))
+			}
+		}(subscriptionDetails)
+	}
 
-	return marshalJSON(subscriptionDetails)
+	return marshalJSON(subscriptions)
 }
 
 // FilterPing is used to determine if a peer has an active subscription
