@@ -204,7 +204,6 @@ func (s *FilterTestSuite) TearDownTest() {
 }
 
 func (s *FilterTestSuite) TestWakuFilter() {
-	s.log.Info("Running TestWakuFilter")
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
@@ -230,7 +229,6 @@ func (s *FilterTestSuite) TestWakuFilter() {
 }
 
 func (s *FilterTestSuite) TestSubscriptionPing() {
-	s.log.Info("Running TestSubscriptionPing")
 	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
 	s.Require().Error(err)
 	filterErr, ok := err.(*FilterError)
@@ -245,7 +243,6 @@ func (s *FilterTestSuite) TestSubscriptionPing() {
 }
 
 func (s *FilterTestSuite) TestPeerFailure() {
-	s.log.Info("Running TestPeerFailure")
 	broadcaster2 := relay.NewBroadcaster(10)
 	s.Require().NoError(broadcaster2.Start(context.Background()))
 
@@ -289,7 +286,6 @@ func (s *FilterTestSuite) TestPeerFailure() {
 }
 
 func (s *FilterTestSuite) TestCreateSubscription() {
-	s.log.Info("Running TestCreateSubscription")
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 	s.waitForMsg(func() {
@@ -300,7 +296,6 @@ func (s *FilterTestSuite) TestCreateSubscription() {
 }
 
 func (s *FilterTestSuite) TestModifySubscription() {
-	s.log.Info("Running TestModifySubscription")
 
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -323,7 +318,6 @@ func (s *FilterTestSuite) TestModifySubscription() {
 }
 
 func (s *FilterTestSuite) TestMultipleMessages() {
-	s.log.Info("Running TestMultipleMessages")
 
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -342,7 +336,6 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 }
 
 func (s *FilterTestSuite) TestRunningGuard() {
-	s.log.Info("Running TestRunningGuard")
 
 	s.lightNode.Stop()
 
@@ -364,7 +357,6 @@ func (s *FilterTestSuite) TestRunningGuard() {
 }
 
 func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
-	s.log.Info("Running TestFireAndForgetAndCustomWg")
 
 	contentFilter := ContentFilter{
 		Topic:         "test",
@@ -389,7 +381,6 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 }
 
 func (s *FilterTestSuite) TestStartStop() {
-	s.log.Info("Running TestStartStop")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -419,4 +410,83 @@ func (s *FilterTestSuite) TestStartStop() {
 	wg.Wait()
 }
 
-//TODO: Add tests for autosharding logic with filter.
+func (s *FilterTestSuite) TestAutoShard() {
+
+	//Workaround as could not find a way to reuse setup test with params
+	// Stop what is run in setup
+	s.fullNode.Stop()
+	s.lightNode.Stop()
+
+	cTopic1Str := "0/test/1/testTopic/proto"
+	cTopic1, err := protocol.StringToContentTopic(cTopic1Str)
+	s.Require().NoError(err)
+	//Computing pubSubTopic only for filterFullNode.
+	pubSubTopic := protocol.GetShardFromContentTopic(cTopic1, protocol.GenerationZeroShardsCount)
+	s.testContentTopic = cTopic1Str
+	s.testTopic = pubSubTopic.String()
+
+	s.lightNode = s.makeWakuFilterLightNode(true, false)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String())
+
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	s.log.Info("Testing Autoshard:CreateSubscription")
+	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails[0].C)
+
+	// Wrong content topic
+	s.waitForTimeout(func() {
+		s.publishMsg(s.testTopic, "TopicB", "second")
+	}, s.subDetails[0].C)
+
+	_, err = s.lightNode.Unsubscribe(s.ctx, s.contentFilter, Peer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	time.Sleep(1 * time.Second)
+
+	// Should not receive after unsubscribe
+	s.waitForTimeout(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "third")
+	}, s.subDetails[0].C)
+
+	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
+
+	s.log.Info("Testing Autoshard:SubscriptionPing")
+	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	s.Require().NoError(err)
+
+	// Test ModifySubscription Subscribe to another content_topic
+	s.log.Info("Testing Autoshard:ModifySubscription")
+
+	newContentTopic := "0/test/1/testTopic1/proto"
+	s.subDetails = s.subscribe("", newContentTopic, s.fullNodeHost.ID())
+
+	s.waitForMsg(func() {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		s.Require().NoError(err)
+
+	}, s.subDetails[0].C)
+	_, err = s.lightNode.Unsubscribe(s.ctx, ContentFilter{
+		Topic:         s.testTopic,
+		ContentTopics: []string{newContentTopic},
+	})
+	s.Require().NoError(err)
+
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {
+	s.log.Info("Executing ", zap.String("testName", testName))
+}
+
+func (s *FilterTestSuite) AfterTest(suiteName, testName string) {
+	s.log.Info("Finished executing ", zap.String("testName", testName))
+}
