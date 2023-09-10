@@ -32,5 +32,5 @@ message FilterSubscribeResponse {
 // Protocol identifier: /vac/waku/filter-push/2.0.0-beta1
 message MessagePushV2 {
   WakuMessage waku_message = 1;
-  optional string pubsub_topic = 2;
+  string pubsub_topic = 2;
 }
