@@ -22,7 +22,7 @@ func TestGetV1Info(t *testing.T) {
 		node: wakuNode1,
 	}
 
-	request, err := http.NewRequest(http.MethodPost, ROUTE_DEBUG_INFOV1, bytes.NewReader([]byte("")))
+	request, err := http.NewRequest(http.MethodPost, routeDebugInfoV1, bytes.NewReader([]byte("")))
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()

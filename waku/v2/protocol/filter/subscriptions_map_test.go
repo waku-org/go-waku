@@ -14,16 +14,16 @@ import (
 
 func TestSubscriptionMapAppend(t *testing.T) {
 	fmap := NewSubscriptionMap(utils.Logger())
-	peerId := createPeerId(t)
+	peerID := createPeerID(t)
 	contentTopics := []string{"ct1", "ct2"}
 
-	sub := fmap.NewSubscription(peerId, TOPIC, contentTopics)
+	sub := fmap.NewSubscription(peerID, TOPIC, contentTopics)
 	_, found := sub.ContentTopics["ct1"]
 	require.True(t, found)
 	_, found = sub.ContentTopics["ct2"]
 	require.True(t, found)
 	require.False(t, sub.Closed)
-	require.Equal(t, sub.PeerID, peerId)
+	require.Equal(t, sub.PeerID, peerID)
 	require.Equal(t, sub.PubsubTopic, TOPIC)
 
 	sub.Add("ct3")
@@ -47,9 +47,9 @@ func TestSubscriptionClear(t *testing.T) {
 	contentTopics := []string{"ct1", "ct2"}
 
 	var subscriptions = []*SubscriptionDetails{
-		fmap.NewSubscription(createPeerId(t), TOPIC+"1", contentTopics),
-		fmap.NewSubscription(createPeerId(t), TOPIC+"2", contentTopics),
-		fmap.NewSubscription(createPeerId(t), TOPIC+"3", contentTopics),
+		fmap.NewSubscription(createPeerID(t), TOPIC+"1", contentTopics),
+		fmap.NewSubscription(createPeerID(t), TOPIC+"2", contentTopics),
+		fmap.NewSubscription(createPeerID(t), TOPIC+"3", contentTopics),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -81,8 +81,8 @@ func TestSubscriptionClear(t *testing.T) {
 
 func TestSubscriptionsNotify(t *testing.T) {
 	fmap := NewSubscriptionMap(utils.Logger())
-	p1 := createPeerId(t)
-	p2 := createPeerId(t)
+	p1 := createPeerID(t)
+	p2 := createPeerID(t)
 	var subscriptions = []*SubscriptionDetails{
 		fmap.NewSubscription(p1, TOPIC+"1", []string{"ct1", "ct2"}),
 		fmap.NewSubscription(p2, TOPIC+"1", []string{"ct1"}),

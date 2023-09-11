@@ -51,7 +51,7 @@ func TestRendezvous(t *testing.T) {
 	err = sqlite.Migrations(db)
 	require.NoError(t, err)
 
-	rdb := NewDB(ctx, db, utils.Logger())
+	rdb := NewDB(db, utils.Logger())
 	rendezvousPoint := NewRendezvous(rdb, nil, utils.Logger())
 	rendezvousPoint.SetHost(host1)
 	err = rendezvousPoint.Start(ctx)

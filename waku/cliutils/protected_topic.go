@@ -42,12 +42,12 @@ func (k *ProtectedTopicSlice) Set(value string) error {
 	return nil
 }
 
-func (v *ProtectedTopicSlice) String() string {
-	if v.Values == nil {
+func (k *ProtectedTopicSlice) String() string {
+	if k.Values == nil {
 		return ""
 	}
 	var output []string
-	for _, v := range *v.Values {
+	for _, v := range *k.Values {
 		output = append(output, v.String())
 	}
 

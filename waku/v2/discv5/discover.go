@@ -76,6 +76,7 @@ func WithAutoUpdate(autoUpdate bool) DiscoveryV5Option {
 	}
 }
 
+// WithBootnodes is an option used to specify the bootstrap nodes to use with DiscV5
 func WithBootnodes(bootnodes []*enode.Node) DiscoveryV5Option {
 	return func(params *discV5Parameters) {
 		params.bootnodes = bootnodes
@@ -106,6 +107,7 @@ func WithAutoFindPeers(find bool) DiscoveryV5Option {
 	}
 }
 
+// DefaultOptions contains the default list of options used when setting up DiscoveryV5
 func DefaultOptions() []DiscoveryV5Option {
 	return []DiscoveryV5Option{
 		WithUDPPort(9000),
@@ -124,7 +126,7 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 
 	logger := log.Named("discv5")
 
-	var NAT nat.Interface = nil
+	var NAT nat.Interface
 	if params.advertiseAddr == nil {
 		NAT = nat.Any()
 	}
@@ -269,6 +271,7 @@ func (d *DiscoveryV5) Start(ctx context.Context) error {
 	return nil
 }
 
+// SetBootnodes is used to setup the bootstrap nodes to use for discovering new peers
 func (d *DiscoveryV5) SetBootnodes(nodes []*enode.Node) error {
 	if d.listener == nil {
 		return ErrNoDiscV5Listener
@@ -277,6 +280,7 @@ func (d *DiscoveryV5) SetBootnodes(nodes []*enode.Node) error {
 	return d.listener.SetFallbackNodes(nodes)
 }
 
+// Stop is a function that stops the execution of DiscV5.
 // only works if the discovery v5 is in running state
 // so we can assume that cancel method is set
 func (d *DiscoveryV5) Stop() {
@@ -524,6 +528,7 @@ restartLoop:
 	d.log.Warn("Discv5 loop stopped")
 }
 
+// IsStarted determines whether discoveryV5 started or not
 func (d *DiscoveryV5) IsStarted() bool {
 	return d.started.Load()
 }

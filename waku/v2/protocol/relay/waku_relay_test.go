@@ -139,7 +139,7 @@ func TestGossipsubScore(t *testing.T) {
 }
 
 func TestMsgID(t *testing.T) {
-	expectedMsgIdBytes := []byte{208, 214, 63, 55, 144, 6, 206, 39, 40, 251, 138, 74, 66, 168, 43, 32, 91, 94, 149, 122, 237, 198, 149, 87, 232, 156, 197, 34, 53, 131, 78, 112}
+	expectedMsgIDBytes := []byte{208, 214, 63, 55, 144, 6, 206, 39, 40, 251, 138, 74, 66, 168, 43, 32, 91, 94, 149, 122, 237, 198, 149, 87, 232, 156, 197, 34, 53, 131, 78, 112}
 
 	topic := "abcde"
 	msg := &pubsub_pb.Message{
@@ -147,7 +147,7 @@ func TestMsgID(t *testing.T) {
 		Topic: &topic,
 	}
 
-	msgId := msgIdFn(msg)
+	msgID := msgIDFn(msg)
 
-	require.Equal(t, expectedMsgIdBytes, []byte(msgId))
+	require.Equal(t, expectedMsgIDBytes, []byte(msgID))
 }

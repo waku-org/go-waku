@@ -75,7 +75,7 @@ type EvtRelayUnsubscribed struct {
 	Topic string
 }
 
-func msgIdFn(pmsg *pubsub_pb.Message) string {
+func msgIDFn(pmsg *pubsub_pb.Message) string {
 	return string(hash.SHA256(pmsg.Data))
 }
 
@@ -160,7 +160,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.opts = append([]pubsub.Option{
 		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
 		pubsub.WithNoAuthor(),
-		pubsub.WithMessageIdFn(msgIdFn),
+		pubsub.WithMessageIdFn(msgIDFn),
 		pubsub.WithGossipSubProtocols(
 			[]protocol.ID{WakuRelayID_v200, pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID},
 			func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
@@ -404,7 +404,7 @@ func (w *WakuRelay) SubscribeToTopic(ctx context.Context, topic string) (*Subscr
 	return &subscription, nil
 }
 
-// SubscribeToTopic returns a Subscription to receive messages from the default waku pubsub topic
+// Subscribe returns a Subscription to receive messages from the default waku pubsub topic
 func (w *WakuRelay) Subscribe(ctx context.Context) (*Subscription, error) {
 	return w.SubscribeToTopic(ctx, DefaultWakuTopic)
 }

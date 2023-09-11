@@ -63,7 +63,7 @@ func TestGetMessages(t *testing.T) {
 		"pubsubTopic": {pubsubTopic1},
 		"pageSize":    {"2"},
 	}
-	path := ROUTE_STORE_MESSAGESV1 + "?" + queryParams.Encode()
+	path := routeStoreMessagesV1 + "?" + queryParams.Encode()
 	req, _ := http.NewRequest(http.MethodGet, path, nil)
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -83,7 +83,7 @@ func TestGetMessages(t *testing.T) {
 		"digest":      {base64.URLEncoding.EncodeToString(response.Cursor.Digest)},
 		"pageSize":    {"2"},
 	}
-	path = ROUTE_STORE_MESSAGESV1 + "?" + queryParams.Encode()
+	path = routeStoreMessagesV1 + "?" + queryParams.Encode()
 	req, _ = http.NewRequest(http.MethodGet, path, nil)
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)

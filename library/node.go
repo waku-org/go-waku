@@ -104,7 +104,7 @@ func NewNode(configJSON string) error {
 	}
 
 	if config.DNS4DomainName != "" {
-		opts = append(opts, node.WithDns4Domain(config.DNS4DomainName))
+		opts = append(opts, node.WithDNS4Domain(config.DNS4DomainName))
 	}
 
 	if config.Websockets.Enabled {

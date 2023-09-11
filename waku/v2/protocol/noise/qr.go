@@ -10,16 +10,16 @@ import (
 type QR struct {
 	applicationName    string
 	applicationVersion string
-	shardId            string
+	shardID            string
 	ephemeralPublicKey ed25519.PublicKey
 	committedStaticKey []byte
 }
 
-func NewQR(applicationName, applicationVersion, shardId string, ephemeralKey ed25519.PublicKey, committedStaticKey []byte) QR {
+func NewQR(applicationName, applicationVersion, shardID string, ephemeralKey ed25519.PublicKey, committedStaticKey []byte) QR {
 	return QR{
 		applicationName:    applicationName,
 		applicationVersion: applicationVersion,
-		shardId:            shardId,
+		shardID:            shardID,
 		ephemeralPublicKey: ephemeralKey,
 		committedStaticKey: committedStaticKey,
 	}
@@ -29,7 +29,7 @@ func NewQR(applicationName, applicationVersion, shardId string, ephemeralKey ed2
 func (qr QR) String() string {
 	return base64.URLEncoding.EncodeToString([]byte(qr.applicationName)) + ":" +
 		base64.URLEncoding.EncodeToString([]byte(qr.applicationVersion)) + ":" +
-		base64.URLEncoding.EncodeToString([]byte(qr.shardId)) + ":" +
+		base64.URLEncoding.EncodeToString([]byte(qr.shardID)) + ":" +
 		base64.URLEncoding.EncodeToString(qr.ephemeralPublicKey) + ":" +
 		base64.URLEncoding.EncodeToString(qr.committedStaticKey[:])
 }
@@ -50,7 +50,7 @@ func decodeBase64String(inputValue string) ([]byte, error) {
 	return enc.DecodeString(inputValue)
 }
 
-// Deserializes input string in base64 to the corresponding (applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey)
+// StringToQR deserializes input string in base64 to the corresponding (applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey)
 func StringToQR(qrString string) (QR, error) {
 	values := strings.Split(qrString, ":")
 	if len(values) != 5 {
@@ -67,7 +67,7 @@ func StringToQR(qrString string) (QR, error) {
 		return QR{}, err
 	}
 
-	shardId, err := decodeBase64String(values[2])
+	shardID, err := decodeBase64String(values[2])
 	if err != nil {
 		return QR{}, err
 	}
@@ -85,7 +85,7 @@ func StringToQR(qrString string) (QR, error) {
 	return QR{
 		applicationName:    string(applicationName),
 		applicationVersion: string(applicationVersion),
-		shardId:            string(shardId),
+		shardID:            string(shardID),
 		ephemeralPublicKey: ephemeralKey,
 		committedStaticKey: committedStaticKey,
 	}, nil

@@ -12,10 +12,10 @@ import (
 
 const TOPIC = "/test/topic"
 
-func createPeerId(t *testing.T) peer.ID {
-	peerId, err := test.RandPeerID()
+func createPeerID(t *testing.T) peer.ID {
+	peerID, err := test.RandPeerID()
 	assert.NoError(t, err)
-	return peerId
+	return peerID
 }
 
 func firstSubscriber(subs *Subscribers, contentTopic string) *Subscriber {
@@ -27,7 +27,7 @@ func firstSubscriber(subs *Subscribers, contentTopic string) *Subscriber {
 
 func TestAppend(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
+	peerID := createPeerID(t)
 	requestID := "request_1"
 	contentTopic := "topic1"
 	request := &pb.FilterRequest{
@@ -35,7 +35,7 @@ func TestAppend(t *testing.T) {
 		Topic:          TOPIC,
 		ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: contentTopic}},
 	}
-	subs.Append(Subscriber{peerId, requestID, request})
+	subs.Append(Subscriber{peerID, requestID, request})
 
 	sub := firstSubscriber(subs, contentTopic)
 	assert.NotNil(t, sub)
@@ -43,7 +43,7 @@ func TestAppend(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 	requestID := "request_1"
 	contentTopic := "topic1"
 	request := &pb.FilterRequest{
@@ -60,7 +60,7 @@ func TestRemove(t *testing.T) {
 
 func TestRemovePartial(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 	requestID := "request_1"
 	topic1 := "topic1"
 	topic2 := "topic2"
@@ -79,7 +79,7 @@ func TestRemovePartial(t *testing.T) {
 
 func TestRemoveDuplicateSubscriptions(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 	topic := "topic"
 	requestID1 := "request_1"
 	requestID2 := "request_2"
@@ -104,7 +104,7 @@ func TestRemoveDuplicateSubscriptions(t *testing.T) {
 
 func TestRemoveDuplicateSubscriptionsPartial(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 	topic := "topic"
 	requestID1 := "request_1"
 	requestID2 := "request_2"
@@ -129,7 +129,7 @@ func TestRemoveDuplicateSubscriptionsPartial(t *testing.T) {
 
 func TestRemoveBogus(t *testing.T) {
 	subs := NewSubscribers(10 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 	requestID := "request_1"
 	contentTopic := "topic1"
 	request := &pb.FilterRequest{

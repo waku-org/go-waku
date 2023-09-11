@@ -14,8 +14,8 @@ func execOkCB(onOkCb C.WakuCallBack, value string) C.int {
 	}
 
 	val := C.CString(value)
-	len := C.size_t(len(value))
-	C._waku_execCB(onOkCb, val, len)
+	valLen := C.size_t(len(value))
+	C._waku_execCB(onOkCb, val, valLen)
 
 	C.free(unsafe.Pointer(val))
 

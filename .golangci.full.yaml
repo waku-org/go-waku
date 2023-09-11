@@ -1,0 +1,12 @@
+run:
+  build-tags:
+    - gowaku_rln
+
+issues:
+  include:
+    - EXC0012
+    - EXC0014
+
+linters:
+  enable:
+    - revive

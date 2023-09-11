@@ -59,7 +59,7 @@ func WithInitiatorParameters(qrString string, qrMessageNametag n.MessageNametag)
 	}
 }
 
-func WithResponderParameters(applicationName, applicationVersion, shardId string, qrMessageNameTag *n.MessageNametag) PairingParameterOption {
+func WithResponderParameters(applicationName, applicationVersion, shardID string, qrMessageNameTag *n.MessageNametag) PairingParameterOption {
 	return func(params *PairingParameters) error {
 		params.initiator = false
 		if qrMessageNameTag == nil {
@@ -72,17 +72,17 @@ func WithResponderParameters(applicationName, applicationVersion, shardId string
 		} else {
 			params.qrMessageNametag = *qrMessageNameTag
 		}
-		params.qr = NewQR(applicationName, applicationVersion, shardId, params.ephemeralPublicKey, params.myCommitedStaticKey)
+		params.qr = NewQR(applicationName, applicationVersion, shardID, params.ephemeralPublicKey, params.myCommitedStaticKey)
 		return nil
 	}
 }
 
 const DefaultApplicationName = "waku-noise-sessions"
 const DefaultApplicationVersion = "0.1"
-const DefaultShardId = "10"
+const DefaultShardID = "10"
 
 func WithDefaultResponderParameters() PairingParameterOption {
-	return WithResponderParameters(DefaultApplicationName, DefaultApplicationVersion, DefaultShardId, nil)
+	return WithResponderParameters(DefaultApplicationName, DefaultApplicationVersion, DefaultShardID, nil)
 }
 
 type PairingParameters struct {
@@ -115,7 +115,7 @@ func NewPairing(myStaticKey n.Keypair, myEphemeralKey n.Keypair, opts PairingPar
 		return nil, err
 	}
 
-	contentTopic := "/" + params.qr.applicationName + "/" + params.qr.applicationVersion + "/wakunoise/1/sessions_shard-" + params.qr.shardId + "/proto"
+	contentTopic := "/" + params.qr.applicationName + "/" + params.qr.applicationVersion + "/wakunoise/1/sessions_shard-" + params.qr.shardID + "/proto"
 
 	// TODO: check if subscription is removed on stop
 	msgCh := messenger.Subscribe(context.Background(), contentTopic)
@@ -197,9 +197,9 @@ func (p *Pairing) executeReadStepWithNextMessage(ctx context.Context, nextMsgCha
 				if errors.Is(err, n.ErrNametagNotExpected) || errors.Is(err, n.ErrUnexpectedMessageNametag) {
 					p.logger.Debug(err.Error())
 					continue
-				} else {
-					return nil, err
 				}
+
+				return nil, err
 			}
 			return step, nil
 		}

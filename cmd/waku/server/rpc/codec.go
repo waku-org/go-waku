@@ -40,7 +40,7 @@ type serverRequest struct {
 	Params *json.RawMessage `json:"params"`
 	// The request id. This can be of any type. It is used to match the
 	// response with the request that it is replying to.
-	Id *json.RawMessage `json:"id"`
+	ID *json.RawMessage `json:"id"`
 }
 
 // serverResponse represents a JSON-RPC response returned by the server.
@@ -52,7 +52,7 @@ type serverResponse struct {
 	// null if there was no error.
 	Error interface{} `json:"error"`
 	// This must be the same id as the request it is responding to.
-	Id *json.RawMessage `json:"id"`
+	ID *json.RawMessage `json:"id"`
 }
 
 // ----------------------------------------------------------------------------
@@ -158,12 +158,12 @@ func (c *CodecRequest) ReadRequest(args interface{}) error {
 
 // WriteResponse encodes the response and writes it to the ResponseWriter.
 func (c *CodecRequest) WriteResponse(w http.ResponseWriter, reply interface{}) {
-	if c.request.Id != nil {
+	if c.request.ID != nil {
 		// Id is null for notifications and they don't have a response.
 		res := &serverResponse{
 			Result: reply,
 			Error:  &null,
-			Id:     c.request.Id,
+			ID:     c.request.ID,
 		}
 		c.writeServerResponse(w, 200, res)
 	}
@@ -172,7 +172,7 @@ func (c *CodecRequest) WriteResponse(w http.ResponseWriter, reply interface{}) {
 func (c *CodecRequest) WriteError(w http.ResponseWriter, _ int, err error) {
 	res := &serverResponse{
 		Result: &null,
-		Id:     c.request.Id,
+		ID:     c.request.ID,
 	}
 	if jsonErr, ok := err.(*Error); ok {
 		res.Error = jsonErr.Data

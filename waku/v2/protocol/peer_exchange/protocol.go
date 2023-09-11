@@ -28,7 +28,7 @@ const MaxCacheSize = 1000
 
 var (
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
-	ErrInvalidId        = errors.New("invalid request id")
+	ErrInvalidID        = errors.New("invalid request id")
 )
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
@@ -69,7 +69,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	return wakuPX, nil
 }
 
-// Sets the host to be able to mount or consume a protocol
+// SetHost sets the host to be able to mount or consume a protocol
 func (wakuPX *WakuPeerExchange) SetHost(h host.Host) {
 	wakuPX.h = h
 }
@@ -85,7 +85,7 @@ func (wakuPX *WakuPeerExchange) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	wakuPX.cancel = cancel
 
-	wakuPX.h.SetStreamHandlerMatch(PeerExchangeID_v20alpha1, protocol.PrefixTextMatch(string(PeerExchangeID_v20alpha1)), wakuPX.onRequest(ctx))
+	wakuPX.h.SetStreamHandlerMatch(PeerExchangeID_v20alpha1, protocol.PrefixTextMatch(string(PeerExchangeID_v20alpha1)), wakuPX.onRequest())
 	wakuPX.log.Info("Peer exchange protocol started")
 
 	wakuPX.wg.Add(1)
@@ -93,7 +93,7 @@ func (wakuPX *WakuPeerExchange) Start(ctx context.Context) error {
 	return nil
 }
 
-func (wakuPX *WakuPeerExchange) onRequest(ctx context.Context) func(s network.Stream) {
+func (wakuPX *WakuPeerExchange) onRequest() func(s network.Stream) {
 	return func(s network.Stream) {
 		defer s.Close()
 		logger := wakuPX.log.With(logging.HostID("peer", s.Conn().RemotePeer()))

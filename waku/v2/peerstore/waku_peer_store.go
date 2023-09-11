@@ -18,7 +18,7 @@ const (
 	Discv5
 	Static
 	PeerExchange
-	DnsDiscovery
+	DNSDiscovery
 	Rendezvous
 )
 

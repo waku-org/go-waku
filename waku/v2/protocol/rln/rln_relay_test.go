@@ -18,9 +18,6 @@ import (
 	r "github.com/waku-org/go-zerokit-rln/rln"
 )
 
-const RLNRELAY_PUBSUB_TOPIC = "waku/2/rlnrelay/proto"
-const RLNRELAY_CONTENT_TOPIC = "waku/2/rlnrelay/proto"
-
 func TestWakuRLNRelaySuite(t *testing.T) {
 	suite.Run(t, new(WakuRLNRelaySuite))
 }

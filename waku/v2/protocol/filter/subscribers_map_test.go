@@ -12,7 +12,7 @@ import (
 
 const TOPIC = "/test/topic"
 
-func createPeerId(t *testing.T) peer.ID {
+func createPeerID(t *testing.T) peer.ID {
 	peerId, err := test.RandPeerID()
 	assert.NoError(t, err)
 	return peerId
@@ -27,7 +27,7 @@ func firstSubscriber(subs *SubscribersMap, pubsubTopic string, contentTopic stri
 
 func TestAppend(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 
 	subs.Set(peerId, TOPIC, []string{"topic1"})
 
@@ -51,7 +51,7 @@ func TestAppend(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 
 	subs.Set(peerId, TOPIC+"1", []string{"topic1", "topic2"})
 	subs.Set(peerId, TOPIC+"2", []string{"topic1"})
@@ -79,7 +79,7 @@ func TestRemove(t *testing.T) {
 
 func TestRemovePartial(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 
 	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
 	err := subs.Delete(peerId, TOPIC, []string{"topic1"})
@@ -91,7 +91,7 @@ func TestRemovePartial(t *testing.T) {
 
 func TestRemoveBogus(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 
 	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
 	err := subs.Delete(peerId, TOPIC, []string{"does not exist", "topic1"})
@@ -108,7 +108,7 @@ func TestRemoveBogus(t *testing.T) {
 
 func TestSuccessFailure(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
-	peerId := createPeerId(t)
+	peerId := createPeerID(t)
 
 	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
 

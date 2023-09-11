@@ -8,7 +8,7 @@ SHELL := bash # the shell used internally by Make
 
 GOBIN ?= $(shell which go)
 
-.PHONY: all build lint test coverage build-example static-library dynamic-library test-c test-c-template mobile-android mobile-ios
+.PHONY: all build lint lint-full test coverage build-example static-library dynamic-library test-c test-c-template mobile-android mobile-ios
 
 ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
  detected_OS := Windows
@@ -70,7 +70,11 @@ lint-install:
 
 lint:
 	@echo "lint"
-	@golangci-lint --exclude=SA1019 run ./... --deadline=5m
+	@golangci-lint run ./... --deadline=5m
+
+lint-full:
+	@echo "lint"
+	@golangci-lint run ./... --config=./.golangci.full.yaml --deadline=5m
 
 test-with-race:
 	${GOBIN} test -race -timeout 300s ./waku/... 

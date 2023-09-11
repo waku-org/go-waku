@@ -28,7 +28,7 @@ func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 		ctx = context.Background()
 	}
 
-	var dnsDiscOpt []dnsdisc.DnsDiscoveryOption
+	var dnsDiscOpt []dnsdisc.DNSDiscoveryOption
 	if nameserver != "" {
 		dnsDiscOpt = append(dnsDiscOpt, dnsdisc.WithNameserver(nameserver))
 	}

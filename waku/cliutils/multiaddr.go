@@ -22,13 +22,13 @@ func (k *MultiaddrSlice) Set(value string) error {
 	return nil
 }
 
-func (v *MultiaddrSlice) String() string {
-	if v.Values == nil {
+func (k *MultiaddrSlice) String() string {
+	if k.Values == nil {
 		return ""
 	}
 
 	var output []string
-	for _, v := range *v.Values {
+	for _, v := range *k.Values {
 		output = append(output, v.String())
 	}
 
