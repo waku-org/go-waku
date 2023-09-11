@@ -26,7 +26,7 @@ var log = logging.Logger("filter2")
 
 var pubSubTopic = protocol.DefaultPubsubTopic()
 
-const contentTopic = "test"
+const contentTopic = "/filter2test/1/testTopic/proto"
 
 func main() {
 	hostAddr1, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60000")
@@ -97,7 +97,6 @@ func main() {
 
 	// Send FilterRequest from light node to full node
 	cf := filter.ContentFilter{
-		Topic:         pubSubTopic.String(),
 		ContentTopics: []string{contentTopic},
 	}
 
