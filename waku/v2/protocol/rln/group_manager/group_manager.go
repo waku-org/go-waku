@@ -11,6 +11,7 @@ type GroupManager interface {
 	IdentityCredentials() (rln.IdentityCredential, error)
 	MembershipIndex() rln.MembershipIndex
 	Stop() error
+	IsReady(ctx context.Context) (bool, error)
 }
 
 type Details struct {
