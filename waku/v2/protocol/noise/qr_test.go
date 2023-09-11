@@ -26,16 +26,16 @@ func TestQR(t *testing.T) {
 	// Content topic information
 	applicationName := "waku-noise-sessions"
 	applicationVersion := "0.1"
-	shardId := "10"
+	shardID := "10"
 
-	qr := NewQR(applicationName, applicationVersion, shardId, ephemeralKey.Public, committedStaticKey)
+	qr := NewQR(applicationName, applicationVersion, shardID, ephemeralKey.Public, committedStaticKey)
 	readQR, err := StringToQR(qr.String())
 	require.NoError(t, err)
 
 	// We check if QR serialization/deserialization works
 	require.Equal(t, applicationName, readQR.applicationName)
 	require.Equal(t, applicationVersion, readQR.applicationVersion)
-	require.Equal(t, shardId, readQR.shardId)
+	require.Equal(t, shardID, readQR.shardID)
 	require.True(t, bytes.Equal(ephemeralKey.Public, readQR.ephemeralPublicKey))
 	require.True(t, bytes.Equal(committedStaticKey[:], readQR.committedStaticKey[:]))
 }

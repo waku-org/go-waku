@@ -44,7 +44,7 @@ type StoreWakuMessage struct {
 	Meta         []byte `json:"meta"`
 }
 
-const ROUTE_STORE_MESSAGESV1 = "/store/v1/messages"
+const routeStoreMessagesV1 = "/store/v1/messages"
 
 func NewStoreService(node *node.WakuNode, m *chi.Mux) *StoreService {
 	s := &StoreService{
@@ -52,7 +52,7 @@ func NewStoreService(node *node.WakuNode, m *chi.Mux) *StoreService {
 		mux:  m,
 	}
 
-	m.Get(ROUTE_STORE_MESSAGESV1, s.getV1Messages)
+	m.Get(routeStoreMessagesV1, s.getV1Messages)
 
 	return s
 }

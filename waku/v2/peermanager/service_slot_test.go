@@ -14,17 +14,17 @@ func TestServiceSlot(t *testing.T) {
 
 	protocol := libp2pProtocol.ID("test/protocol")
 
-	peerId := peer.ID("peerId")
+	peerID := peer.ID("peerId")
 
 	//
-	slots.getPeers(protocol).add(peerId)
+	slots.getPeers(protocol).add(peerID)
 	//
 	fetchedPeer, err := slots.getPeers(protocol).getRandom()
 	require.NoError(t, err)
-	require.Equal(t, peerId, fetchedPeer)
+	require.Equal(t, peerID, fetchedPeer)
 
 	//
-	slots.getPeers(protocol).remove(peerId)
+	slots.getPeers(protocol).remove(peerID)
 	//
 	_, err = slots.getPeers(protocol).getRandom()
 	require.Equal(t, err, utils.ErrNoPeersAvailable)
@@ -36,18 +36,18 @@ func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	protocol := libp2pProtocol.ID("test/protocol")
 	protocol1 := libp2pProtocol.ID("test/protocol1")
 
-	peerId := peer.ID("peerId")
+	peerID := peer.ID("peerId")
 
 	//
-	slots.getPeers(protocol).add(peerId)
-	slots.getPeers(protocol1).add(peerId)
+	slots.getPeers(protocol).add(peerID)
+	slots.getPeers(protocol1).add(peerID)
 	//
 	fetchedPeer, err := slots.getPeers(protocol1).getRandom()
 	require.NoError(t, err)
-	require.Equal(t, peerId, fetchedPeer)
+	require.Equal(t, peerID, fetchedPeer)
 
 	//
-	slots.removePeer(peerId)
+	slots.removePeer(peerID)
 	//
 	_, err = slots.getPeers(protocol).getRandom()
 	require.Equal(t, err, utils.ErrNoPeersAvailable)

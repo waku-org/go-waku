@@ -64,7 +64,7 @@ func TestServiceSlots(t *testing.T) {
 	///////////////
 
 	// select peer from pm, currently only h2 is set in pm
-	peerID, err := pm.SelectPeer(protocol, nil, utils.Logger())
+	peerID, err := pm.SelectPeer(protocol, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, h2.ID())
 
@@ -73,7 +73,7 @@ func TestServiceSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	// check that returned peer is h2 or h3 peer
-	peerID, err = pm.SelectPeer(protocol, nil, utils.Logger())
+	peerID, err = pm.SelectPeer(protocol, nil)
 	require.NoError(t, err)
 	if peerID == h2.ID() || peerID == h3.ID() {
 		//Test success
@@ -89,7 +89,7 @@ func TestServiceSlots(t *testing.T) {
 	require.NoError(t, err)
 	defer h4.Close()
 
-	_, err = pm.SelectPeer(protocol1, nil, utils.Logger())
+	_, err = pm.SelectPeer(protocol1, nil)
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	// add h4 peer for protocol1
@@ -97,7 +97,7 @@ func TestServiceSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	//Test peer selection for protocol1
-	peerID, err = pm.SelectPeer(protocol1, nil, utils.Logger())
+	peerID, err = pm.SelectPeer(protocol1, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, h4.ID())
 
@@ -110,7 +110,7 @@ func TestDefaultProtocol(t *testing.T) {
 	// check peer for default protocol
 	///////////////
 	//Test empty peer selection for relay protocol
-	_, err := pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
+	_, err := pm.SelectPeer(WakuRelayIDv200, nil)
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	///////////////
@@ -125,7 +125,7 @@ func TestDefaultProtocol(t *testing.T) {
 	require.NoError(t, err)
 
 	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
-	peerID, err := pm.SelectPeer(WakuRelayIDv200, nil, utils.Logger())
+	peerID, err := pm.SelectPeer(WakuRelayIDv200, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, h5.ID())
 }
@@ -145,12 +145,12 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 	_, err = pm.AddPeer(getAddr(h6), wps.Static, protocol2)
 	require.NoError(t, err)
 
-	peerID, err := pm.SelectPeer(protocol2, nil, utils.Logger())
+	peerID, err := pm.SelectPeer(protocol2, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, h6.ID())
 
 	pm.RemovePeer(peerID)
-	_, err = pm.SelectPeer(protocol2, nil, utils.Logger())
+	_, err = pm.SelectPeer(protocol2, nil)
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 }
 

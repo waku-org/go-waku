@@ -143,13 +143,13 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 					subscriber.filter.Topic = relay.DefaultWakuTopic
 				}
 
-				len := wf.subscribers.Append(subscriber)
+				subscribersLen := wf.subscribers.Append(subscriber)
 
 				logger.Info("adding subscriber")
-				wf.metrics.RecordSubscribers(len)
+				wf.metrics.RecordSubscribers(subscribersLen)
 			} else {
-				peerId := s.Conn().RemotePeer()
-				wf.subscribers.RemoveContentFilters(peerId, filterRPCRequest.RequestId, filterRPCRequest.Request.ContentFilters)
+				peerID := s.Conn().RemotePeer()
+				wf.subscribers.RemoveContentFilters(peerID, filterRPCRequest.RequestId, filterRPCRequest.Request.ContentFilters)
 
 				logger.Info("removing subscriber")
 				wf.metrics.RecordSubscribers(wf.subscribers.Length())
@@ -270,7 +270,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	defer conn.Close()
 
 	// This is the only successful path to subscription
-	requestID := hex.EncodeToString(protocol.GenerateRequestId())
+	requestID := hex.EncodeToString(protocol.GenerateRequestID())
 
 	writer := pbio.NewDelimitedWriter(conn)
 	filterRPC := &pb.FilterRPC{RequestId: requestID, Request: request}
@@ -301,7 +301,7 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 	defer conn.Close()
 
 	// This is the only successful path to subscription
-	id := protocol.GenerateRequestId()
+	id := protocol.GenerateRequestID()
 
 	var contentFilters []*pb.FilterRequest_ContentFilter
 	for _, ct := range contentFilter.ContentTopics {
@@ -444,8 +444,8 @@ func (wf *WakuFilter) UnsubscribeFilter(ctx context.Context, cf ContentFilter) e
 		}
 	}
 
-	for rId := range idsToRemove {
-		wf.filters.Delete(rId)
+	for rID := range idsToRemove {
+		wf.filters.Delete(rID)
 	}
 
 	return nil

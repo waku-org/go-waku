@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type WakuRpc struct {
+type WakuRPC struct {
 	node   *node.WakuNode
 	server *http.Server
 
@@ -24,8 +24,8 @@ type WakuRpc struct {
 	adminService  *AdminService
 }
 
-func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool, enablePProf bool, cacheCapacity int, log *zap.Logger) *WakuRpc {
-	wrpc := new(WakuRpc)
+func NewWakuRPC(node *node.WakuNode, address string, port int, enableAdmin bool, enablePProf bool, cacheCapacity int, log *zap.Logger) *WakuRPC {
+	wrpc := new(WakuRPC)
 	wrpc.log = log.Named("rpc")
 
 	s := rpc.NewServer()
@@ -102,7 +102,7 @@ func NewWakuRpc(node *node.WakuNode, address string, port int, enableAdmin bool,
 	return wrpc
 }
 
-func (r *WakuRpc) Start() {
+func (r *WakuRPC) Start() {
 	if r.relayService != nil {
 		go r.relayService.Start()
 	}
@@ -115,7 +115,7 @@ func (r *WakuRpc) Start() {
 	r.log.Info("server started", zap.String("addr", r.server.Addr))
 }
 
-func (r *WakuRpc) Stop(ctx context.Context) error {
+func (r *WakuRPC) Stop(ctx context.Context) error {
 	r.log.Info("shutting down server")
 	return r.server.Shutdown(ctx)
 }

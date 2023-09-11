@@ -107,13 +107,13 @@ func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(s network.Stre
 
 		switch subscribeRequest.FilterSubscribeType {
 		case pb.FilterSubscribeRequest_SUBSCRIBE:
-			wf.subscribe(ctx, s, logger, subscribeRequest)
+			wf.subscribe(ctx, s, subscribeRequest)
 		case pb.FilterSubscribeRequest_SUBSCRIBER_PING:
-			wf.ping(ctx, s, logger, subscribeRequest)
+			wf.ping(ctx, s, subscribeRequest)
 		case pb.FilterSubscribeRequest_UNSUBSCRIBE:
-			wf.unsubscribe(ctx, s, logger, subscribeRequest)
+			wf.unsubscribe(ctx, s, subscribeRequest)
 		case pb.FilterSubscribeRequest_UNSUBSCRIBE_ALL:
-			wf.unsubscribeAll(ctx, s, logger, subscribeRequest)
+			wf.unsubscribeAll(ctx, s, subscribeRequest)
 		}
 
 		wf.metrics.RecordRequest(subscribeRequest.FilterSubscribeType.String(), time.Since(start))
@@ -142,7 +142,7 @@ func (wf *WakuFilterFullNode) reply(ctx context.Context, s network.Stream, reque
 	}
 }
 
-func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	exists := wf.subscriptions.Has(s.Conn().RemotePeer())
 
 	if exists {
@@ -152,7 +152,7 @@ func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger
 	}
 }
 
-func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == nil {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -192,7 +192,7 @@ func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, l
 	wf.reply(ctx, s, request, http.StatusOK)
 }
 
-func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == nil {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -216,7 +216,7 @@ func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream,
 	}
 }
 
-func (wf *WakuFilterFullNode) unsubscribeAll(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) unsubscribeAll(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	err := wf.subscriptions.DeleteAll(s.Conn().RemotePeer())
 	if err != nil {
 		wf.reply(ctx, s, request, http.StatusNotFound, peerHasNoSubscription)

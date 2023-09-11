@@ -18,10 +18,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
+// RegistrationEventHandler represents the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
 type RegistrationEventHandler = func([]*contracts.RLNMemberRegistered) error
 
-// for getting membershipRegsitered Events from the eth rpc
+// MembershipFetcher is used for getting membershipRegsitered Events from the eth rpc
 type MembershipFetcher struct {
 	web3Config  *web3.Config
 	rln         *rln.RLN

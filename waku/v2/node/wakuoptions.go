@@ -171,8 +171,8 @@ func WithPrometheusRegisterer(reg prometheus.Registerer) WakuNodeOption {
 	}
 }
 
-// WithDns4Domain is a WakuNodeOption that adds a custom domain name to listen
-func WithDns4Domain(dns4Domain string) WakuNodeOption {
+// WithDNS4Domain is a WakuNodeOption that adds a custom domain name to listen
+func WithDNS4Domain(dns4Domain string) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.dns4Domain = dns4Domain
 		previousAddrFactory := params.addressFactory
@@ -203,9 +203,9 @@ func WithDns4Domain(dns4Domain string) WakuNodeOption {
 
 			if previousAddrFactory != nil {
 				return previousAddrFactory(addresses)
-			} else {
-				return addresses
 			}
+
+			return addresses
 		}
 
 		return nil

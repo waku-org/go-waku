@@ -9,8 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"github.com/waku-org/go-waku/waku/v2/utils"
-	"go.uber.org/zap"
 )
 
 func TestEnodeToMultiAddr(t *testing.T) {
@@ -25,7 +23,7 @@ func TestEnodeToMultiAddr(t *testing.T) {
 
 // TODO: this function is duplicated in localnode.go. Remove duplication
 
-func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool, log *zap.Logger) error {
+func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAddr *net.TCPAddr, udpPort uint, wakuFlags WakuEnrBitfield, advertiseAddr *net.IP, shouldAutoUpdate bool) error {
 	var options []ENROption
 	options = append(options, WithUDPPort(udpPort))
 	options = append(options, WithWakuBitfield(wakuFlags))
@@ -87,7 +85,7 @@ func TestMultiaddr(t *testing.T) {
 
 	db, _ := enode.OpenDB("")
 	localNode := enode.NewLocalNode(db, key)
-	err := updateLocalNode(localNode, multiaddrValues, &net.TCPAddr{IP: net.IPv4(192, 168, 1, 241), Port: 60000}, 50000, wakuFlag, nil, false, utils.Logger())
+	err := updateLocalNode(localNode, multiaddrValues, &net.TCPAddr{IP: net.IPv4(192, 168, 1, 241), Port: 60000}, 50000, wakuFlag, nil, false)
 	require.NoError(t, err)
 
 	_ = localNode.Node() // Should not panic

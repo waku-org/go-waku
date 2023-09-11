@@ -143,7 +143,7 @@ func Execute(options NodeOptions) {
 	}
 
 	if options.DNS4DomainName != "" {
-		nodeOpts = append(nodeOpts, node.WithDns4Domain(options.DNS4DomainName))
+		nodeOpts = append(nodeOpts, node.WithDNS4Domain(options.DNS4DomainName))
 	}
 
 	libp2pOpts := node.DefaultLibP2POptions
@@ -289,7 +289,7 @@ func Execute(options NodeOptions) {
 	}
 
 	if options.Rendezvous.Enable {
-		rdb := rendezvous.NewDB(ctx, db, logger)
+		rdb := rendezvous.NewDB(db, logger)
 		nodeOpts = append(nodeOpts, node.WithRendezvous(rdb))
 	}
 
@@ -313,7 +313,7 @@ func Execute(options NodeOptions) {
 	}
 
 	for _, d := range discoveredNodes {
-		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DnsDiscovery)
+		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery)
 	}
 
 	addStaticPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
@@ -434,16 +434,16 @@ func Execute(options NodeOptions) {
 		}
 	}
 
-	var rpcServer *rpc.WakuRpc
+	var rpcServer *rpc.WakuRPC
 	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRpc(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
+		rpcServer = rpc.NewWakuRPC(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
 		rpcServer.Start()
 	}
 
 	var restServer *rest.WakuRest
 	if options.RESTServer.Enable {
 		wg.Add(1)
-		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.RESTServer.Admin, options.PProf, options.RESTServer.RelayCacheCapacity, logger)
+		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.PProf, options.RESTServer.RelayCacheCapacity, logger)
 		restServer.Start(ctx, &wg)
 	}
 

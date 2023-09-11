@@ -3,8 +3,8 @@ package dynamic
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"math/big"
+	"os"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -38,7 +38,7 @@ func (c *MockClient) BlockByNumber(ctx context.Context, number *big.Int) (*types
 }
 func NewMockClient(t *testing.T, blockFile string) *MockClient {
 	blockChain := MockBlockChain{}
-	data, err := ioutil.ReadFile(blockFile)
+	data, err := os.ReadFile(blockFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,8 +48,8 @@ func NewMockClient(t *testing.T, blockFile string) *MockClient {
 	return &MockClient{blockChain: blockChain, errOnBlock: map[int64]*ErrCount{}}
 }
 
-func (client *MockClient) SetErrorOnBlock(blockNum int64, err error, count int) {
-	client.errOnBlock[blockNum] = &ErrCount{err: err, count: count}
+func (c *MockClient) SetErrorOnBlock(blockNum int64, err error, count int) {
+	c.errOnBlock[blockNum] = &ErrCount{err: err, count: count}
 }
 
 func (c *MockClient) getFromAndToRange(query ethereum.FilterQuery) (int64, int64) {

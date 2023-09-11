@@ -300,7 +300,7 @@ func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, logger *zap.Logger) (peer.ID, error) {
+func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID) (peer.ID, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
@@ -319,5 +319,6 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID, lo
 	if err != nil {
 		return "", err
 	}
+
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
 }

@@ -48,6 +48,6 @@ func (e *Envelope) Hash() []byte {
 	return e.hash
 }
 
-func (env *Envelope) Index() *pb.Index {
-	return env.index
+func (e *Envelope) Index() *pb.Index {
+	return e.index
 }
