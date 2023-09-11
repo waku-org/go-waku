@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -34,8 +33,6 @@ var (
 )
 
 type WakuFilterLightNode struct {
-	sync.RWMutex
-	started bool
 	protocol.AppDesign
 	h             host.Host
 	broadcaster   relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
