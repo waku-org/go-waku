@@ -89,10 +89,10 @@ func (wf *WakuFilter) SetHost(h host.Host) {
 
 func (wf *WakuFilter) Start(ctx context.Context, sub relay.Subscription) error {
 	err := wf.AppDesign.Start(ctx, func() error {
-		wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(ctx))
+		wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(wf.Context()))
 		wf.msgSub = sub
 		wf.WaitGroup().Add(1)
-		go wf.filterListener(ctx)
+		go wf.filterListener(wf.Context())
 		wf.log.Info("filter protocol started")
 		return nil
 	})

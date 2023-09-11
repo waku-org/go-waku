@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -31,13 +30,11 @@ const peerHasNoSubscription = "peer has no subscriptions"
 
 type (
 	WakuFilterFullNode struct {
-		cancel  context.CancelFunc
 		h       host.Host
 		msgSub  relay.Subscription
 		metrics Metrics
-		wg      *sync.WaitGroup
 		log     *zap.Logger
-
+		protocol.AppDesign
 		subscriptions *SubscribersMap
 
 		maxSubscriptions int
@@ -56,7 +53,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 		opt(params)
 	}
 
-	wf.wg = &sync.WaitGroup{}
+	wf.AppDesign = protocol.NewAppDesign()
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
@@ -70,20 +67,17 @@ func (wf *WakuFilterFullNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterFullNode) Start(ctx context.Context, sub relay.Subscription) error {
-	wf.wg.Wait() // Wait for any goroutines to stop
+	return wf.AppDesign.Start(ctx, func() error {
+		wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(wf.Context()))
 
-	ctx, cancel := context.WithCancel(ctx)
+		wf.msgSub = sub
+		wf.WaitGroup().Add(1)
+		go wf.filterListener(wf.Context())
 
-	wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(ctx))
+		wf.log.Info("filter-subscriber protocol started")
+		return nil
+	})
 
-	wf.cancel = cancel
-	wf.msgSub = sub
-	wf.wg.Add(1)
-	go wf.filterListener(ctx)
-
-	wf.log.Info("filter-subscriber protocol started")
-
-	return nil
 }
 
 func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(s network.Stream) {
@@ -227,7 +221,7 @@ func (wf *WakuFilterFullNode) unsubscribeAll(ctx context.Context, s network.Stre
 }
 
 func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
-	defer wf.wg.Done()
+	defer wf.WaitGroup().Done()
 
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
@@ -243,9 +237,9 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
 			// Do a message push to light node
 			logger.Info("pushing message to light node")
-			wf.wg.Add(1)
+			wf.WaitGroup().Add(1)
 			go func(subscriber peer.ID) {
-				defer wf.wg.Done()
+				defer wf.WaitGroup().Done()
 				start := time.Now()
 				err := wf.pushMessage(ctx, subscriber, envelope)
 				if err != nil {
@@ -317,15 +311,8 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilterFullNode) Stop() {
-	if wf.cancel == nil {
-		return
-	}
-
-	wf.h.RemoveStreamHandler(FilterSubscribeID_v20beta1)
-
-	wf.cancel()
-
-	wf.msgSub.Unsubscribe()
-
-	wf.wg.Wait()
+	wf.AppDesign.Stop(func() {
+		wf.h.RemoveStreamHandler(FilterSubscribeID_v20beta1)
+		wf.msgSub.Unsubscribe()
+	})
 }

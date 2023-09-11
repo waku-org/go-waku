@@ -79,7 +79,7 @@ func (wakuPX *WakuPeerExchange) Start(ctx context.Context) error {
 		wakuPX.h.SetStreamHandlerMatch(PeerExchangeID_v20alpha1, protocol.PrefixTextMatch(string(PeerExchangeID_v20alpha1)), wakuPX.onRequest())
 
 		wakuPX.WaitGroup().Add(1)
-		go wakuPX.runPeerExchangeDiscv5Loop(ctx)
+		go wakuPX.runPeerExchangeDiscv5Loop(wakuPX.Context())
 		wakuPX.log.Info("Peer exchange protocol started")
 		return nil
 	})
