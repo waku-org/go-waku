@@ -416,6 +416,9 @@ func (s *FilterTestSuite) TestAutoShard() {
 	// Stop what is run in setup
 	s.fullNode.Stop()
 	s.lightNode.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
 
 	cTopic1Str := "0/test/1/testTopic/proto"
 	cTopic1, err := protocol.StringToContentTopic(cTopic1Str)
