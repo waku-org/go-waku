@@ -293,3 +293,8 @@ func (rlnRelay *WakuRLNRelay) IdentityCredential() (rln.IdentityCredential, erro
 func (rlnRelay *WakuRLNRelay) MembershipIndex() uint {
 	return rlnRelay.GroupManager.MembershipIndex()
 }
+
+// IsReady returns true if the RLN Relay protocol is ready to relay messages
+func (rlnRelay *WakuRLNRelay) IsReady(ctx context.Context) (bool, error) {
+	return rlnRelay.GroupManager.IsReady(ctx)
+}

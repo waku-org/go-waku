@@ -74,6 +74,7 @@ type RLNRelay interface {
 	Validator(spamHandler SpamHandler) func(ctx context.Context, message *pb.WakuMessage, topic string) bool
 	Start(ctx context.Context) error
 	Stop() error
+	IsReady(ctx context.Context) (bool, error)
 }
 
 type WakuNode struct {
