@@ -88,7 +88,7 @@ The criteria to create subscription to a filter full node in JSON Format:
 Fields:
 
 - `contentTopics`: Array of content topics.
-- `topic`: pubsub topic.
+- `topic`: Optional pubsub topic.
 
 
 ### `LegacyFilterSubscription` type

@@ -10,7 +10,7 @@ import "github.com/waku-org/go-waku/library"
 // filterJSON must contain a JSON with this format:
 //
 //		{
-//		  "pubsubTopic": "the pubsub topic" // mandatory
+//		  "pubsubTopic": "the pubsub topic" // optional
 //	      "contentTopics": ["the content topic"] // mandatory, at least one required, with a max of 10
 //		}
 //
@@ -42,7 +42,7 @@ func waku_filter_ping(peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
 // criteria
 //
 //		{
-//		  "pubsubTopic": "the pubsub topic" // mandatory
+//		  "pubsubTopic": "the pubsub topic" // optional
 //	      "contentTopics": ["the content topic"] // mandatory, at least one required, with a max of 10
 //		}
 //
