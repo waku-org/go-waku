@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"math"
-	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -47,12 +46,11 @@ type (
 	}
 
 	WakuFilter struct {
-		cancel     context.CancelFunc
+		protocol.AppDesign
 		h          host.Host
 		isFullNode bool
 		msgSub     relay.Subscription
 		metrics    Metrics
-		wg         *sync.WaitGroup
 		log        *zap.Logger
 
 		filters     *FilterMap
@@ -75,8 +73,8 @@ func NewWakuFilter(broadcaster relay.Broadcaster, isFullNode bool, timesource ti
 		opt(params)
 	}
 
-	wf.wg = &sync.WaitGroup{}
 	wf.isFullNode = isFullNode
+	wf.AppDesign = protocol.NewAppDesign()
 	wf.filters = NewFilterMap(broadcaster, timesource)
 	wf.subscribers = NewSubscribers(params.Timeout)
 	wf.metrics = newMetrics(reg)
@@ -90,21 +88,16 @@ func (wf *WakuFilter) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilter) Start(ctx context.Context, sub relay.Subscription) error {
-	wf.wg.Wait() // Wait for any goroutines to stop
+	err := wf.AppDesign.Start(ctx, func() error {
+		wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(ctx))
+		wf.msgSub = sub
+		wf.WaitGroup().Add(1)
+		go wf.filterListener(ctx)
+		wf.log.Info("filter protocol started")
+		return nil
+	})
 
-	ctx, cancel := context.WithCancel(ctx)
-
-	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(ctx))
-
-	wf.cancel = cancel
-	wf.msgSub = sub
-
-	wf.wg.Add(1)
-	go wf.filterListener(ctx)
-
-	wf.log.Info("filter protocol started")
-
-	return nil
+	return err
 }
 
 func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
@@ -188,7 +181,7 @@ func (wf *WakuFilter) pushMessage(ctx context.Context, subscriber Subscriber, ms
 }
 
 func (wf *WakuFilter) filterListener(ctx context.Context) {
-	defer wf.wg.Done()
+	defer wf.WaitGroup().Done()
 
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
@@ -327,19 +320,13 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilter) Stop() {
-	if wf.cancel == nil {
-		return
-	}
+	wf.AppDesign.Stop(func() {
+		wf.msgSub.Unsubscribe()
 
-	wf.cancel()
-
-	wf.msgSub.Unsubscribe()
-
-	wf.h.RemoveStreamHandler(FilterID_v20beta1)
-	wf.filters.RemoveAll()
-	wf.subscribers.Clear()
-
-	wf.wg.Wait()
+		wf.h.RemoveStreamHandler(FilterID_v20beta1)
+		wf.filters.RemoveAll()
+		wf.subscribers.Clear()
+	})
 }
 
 // Subscribe setups a subscription to receive messages that match a specific content filter

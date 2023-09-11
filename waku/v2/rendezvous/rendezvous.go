@@ -2,10 +2,8 @@ package rendezvous
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -32,9 +30,8 @@ type Rendezvous struct {
 
 	peerConnector PeerConnector
 
-	log    *zap.Logger
-	wg     sync.WaitGroup
-	cancel context.CancelFunc
+	log *zap.Logger
+	protocol.AppDesign
 }
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
@@ -49,6 +46,7 @@ func NewRendezvous(db *DB, peerConnector PeerConnector, log *zap.Logger) *Rendez
 		db:            db,
 		peerConnector: peerConnector,
 		log:           logger,
+		AppDesign:     protocol.NewAppDesign(),
 	}
 }
 
@@ -58,23 +56,16 @@ func (r *Rendezvous) SetHost(h host.Host) {
 }
 
 func (r *Rendezvous) Start(ctx context.Context) error {
-	if r.cancel != nil {
-		return errors.New("already started")
-	}
+	return r.AppDesign.Start(ctx, func() error {
+		err := r.db.Start(ctx)
+		if err != nil {
+			return err
+		}
+		r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
 
-	ctx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-
-	err := r.db.Start(ctx)
-	if err != nil {
-		cancel()
-		return err
-	}
-
-	r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
-
-	r.log.Info("rendezvous protocol started")
-	return nil
+		r.log.Info("rendezvous protocol started")
+		return nil
+	})
 }
 
 const registerBackoff = 200 * time.Millisecond
@@ -161,9 +152,9 @@ func (r *Rendezvous) RegisterRelayShards(ctx context.Context, rs protocol.RelayS
 // RegisterWithNamespace registers the node in the rendezvous point by using an specific namespace (usually a pubsub topic)
 func (r *Rendezvous) RegisterWithNamespace(ctx context.Context, namespace string, rendezvousPoints []*RendezvousPoint) {
 	for _, m := range rendezvousPoints {
-		r.wg.Add(1)
+		r.WaitGroup().Add(1)
 		go func(m *RendezvousPoint) {
-			r.wg.Done()
+			r.WaitGroup().Done()
 
 			rendezvousClient := rvs.NewRendezvousClient(r.host, m.id)
 			retries := 0
@@ -186,14 +177,10 @@ func (r *Rendezvous) RegisterWithNamespace(ctx context.Context, namespace string
 }
 
 func (r *Rendezvous) Stop() {
-	if r.cancel == nil {
-		return
-	}
-
-	r.cancel()
-	r.wg.Wait()
-	r.host.RemoveStreamHandler(rvs.RendezvousProto)
-	r.rendezvousSvc = nil
+	r.AppDesign.Stop(func() {
+		r.host.RemoveStreamHandler(rvs.RendezvousProto)
+		r.rendezvousSvc = nil
+	})
 }
 
 // ShardToNamespace translates a cluster and shard index into a rendezvous namespace
