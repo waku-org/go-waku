@@ -75,11 +75,11 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 			filterOpt = filter.WithPeer(peerID)
 			chat.ui.InfoMessage(fmt.Sprintf("Subscribing to filter node %s", peerID))
 		}
-		theFilter, err := node.FilterLightnode().Subscribe(ctx, cf, filterOpt)
+		theFilters, err := node.FilterLightnode().Subscribe(ctx, cf, filterOpt)
 		if err != nil {
 			chat.ui.ErrorMessage(err)
 		} else {
-			chat.C = theFilter.C
+			chat.C = theFilters[0].C //Picking first subscription since there is only 1 contentTopic specified.
 		}
 	} else {
 

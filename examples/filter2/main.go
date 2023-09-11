@@ -107,7 +107,7 @@ func main() {
 	}
 
 	go func() {
-		for env := range theFilter.C {
+		for env := range theFilter[0].C { //Safely picking first subscriptions since only 1 contentTopic is subscribed
 			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
 		log.Info("Message channel closed!")
