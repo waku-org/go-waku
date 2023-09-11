@@ -60,9 +60,7 @@ type WakuRelay struct {
 		EvtRelayUnsubscribed event.Emitter
 	}
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	waku_proto.AppDesign
 }
 
 // EvtRelaySubscribed is an event emitted when a new subscription to a pubsub topic is created
@@ -87,7 +85,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.relaySubs = make(map[string]*pubsub.Subscription)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
-	w.wg = sync.WaitGroup{}
+	w.AppDesign = waku_proto.NewAppDesign()
 	w.log = log.Named("relay")
 	w.events = eventbus.NewBus()
 	w.metrics = newMetrics(reg, w.log)
@@ -213,28 +211,25 @@ func (w *WakuRelay) SetHost(h host.Host) {
 
 // Start initiates the WakuRelay protocol
 func (w *WakuRelay) Start(ctx context.Context) error {
-	w.wg.Wait()
-	ctx, cancel := context.WithCancel(ctx)
-	w.ctx = ctx // TODO: create worker for creating subscriptions instead of storing context
-	w.cancel = cancel
+	return w.AppDesign.Start(ctx, func() error {
+		ps, err := pubsub.NewGossipSub(w.Context(), w.host, w.opts...)
+		if err != nil {
+			return err
+		}
+		w.pubsub = ps
 
-	ps, err := pubsub.NewGossipSub(ctx, w.host, w.opts...)
-	if err != nil {
-		return err
-	}
-	w.pubsub = ps
+		w.emitters.EvtRelaySubscribed, err = w.events.Emitter(new(EvtRelaySubscribed))
+		if err != nil {
+			return err
+		}
+		w.emitters.EvtRelayUnsubscribed, err = w.events.Emitter(new(EvtRelayUnsubscribed))
+		if err != nil {
+			return err
+		}
 
-	w.emitters.EvtRelaySubscribed, err = w.events.Emitter(new(EvtRelaySubscribed))
-	if err != nil {
-		return err
-	}
-	w.emitters.EvtRelayUnsubscribed, err = w.events.Emitter(new(EvtRelayUnsubscribed))
-	if err != nil {
-		return err
-	}
-
-	w.log.Info("Relay protocol started")
-	return nil
+		w.log.Info("Relay protocol started")
+		return nil
+	})
 }
 
 // PubSub returns the implementation of the pubsub system
@@ -310,7 +305,7 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 		}
 
 		if w.bcaster != nil {
-			w.wg.Add(1)
+			w.WaitGroup().Add(1)
 			go w.subscribeToTopic(topic, sub)
 		}
 		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
@@ -364,15 +359,11 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byt
 
 // Stop unmounts the relay protocol and stops all subscriptions
 func (w *WakuRelay) Stop() {
-	if w.cancel == nil {
-		return // Not started
-	}
-
-	w.host.RemoveStreamHandler(WakuRelayID_v200)
-	w.emitters.EvtRelaySubscribed.Close()
-	w.emitters.EvtRelayUnsubscribed.Close()
-	w.cancel()
-	w.wg.Wait()
+	w.AppDesign.Stop(func() {
+		w.host.RemoveStreamHandler(WakuRelayID_v200)
+		w.emitters.EvtRelaySubscribed.Close()
+		w.emitters.EvtRelayUnsubscribed.Close()
+	})
 }
 
 // EnoughPeersToPublish returns whether there are enough peers connected in the default waku pubsub topic
@@ -454,12 +445,12 @@ func (w *WakuRelay) nextMessage(ctx context.Context, sub *pubsub.Subscription) <
 }
 
 func (w *WakuRelay) subscribeToTopic(pubsubTopic string, sub *pubsub.Subscription) {
-	defer w.wg.Done()
+	defer w.WaitGroup().Done()
 
-	subChannel := w.nextMessage(w.ctx, sub)
+	subChannel := w.nextMessage(w.Context(), sub)
 	for {
 		select {
-		case <-w.ctx.Done():
+		case <-w.Context().Done():
 			return
 			// TODO: if there are no more relay subscriptions, close the pubsub subscription
 		case msg, ok := <-subChannel:
