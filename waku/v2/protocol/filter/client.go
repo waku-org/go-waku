@@ -164,9 +164,9 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 			return
 		}
 
-		if !wf.subscriptions.Has(s.Conn().RemotePeer(), *messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
+		if !wf.subscriptions.Has(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
 			logger.Warn("received messagepush with invalid subscription parameters",
-				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", *messagePush.PubsubTopic),
+				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", messagePush.PubsubTopic),
 				zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
 			wf.metrics.RecordError(invalidSubscriptionMessage)
 			return
@@ -174,7 +174,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 
 		wf.metrics.RecordMessage()
 
-		wf.notify(s.Conn().RemotePeer(), *messagePush.PubsubTopic, messagePush.WakuMessage)
+		wf.notify(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage)
 
 		logger.Info("received message push")
 	}
