@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -126,11 +127,19 @@ func NewDynamicGroupManager(
 }
 
 func (gm *DynamicGroupManager) getMembershipFee(ctx context.Context) (*big.Int, error) {
-	return gm.web3Config.RLNContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
+	fee, err := gm.web3Config.RLNContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
+	if err != nil {
+		return nil, fmt.Errorf("could not check if credential exits in contract: %w", err)
+	}
+	return fee, nil
 }
 
 func (gm *DynamicGroupManager) memberExists(ctx context.Context, idCommitment rln.IDCommitment) (bool, error) {
-	return gm.web3Config.RLNContract.MemberExists(&bind.CallOpts{Context: ctx}, rln.Bytes32ToBigInt(idCommitment))
+	exists, err := gm.web3Config.RLNContract.MemberExists(&bind.CallOpts{Context: ctx}, rln.Bytes32ToBigInt(idCommitment))
+	if err != nil {
+		return false, fmt.Errorf("could not check if credential exits in contract: %w", err)
+	}
+	return exists, nil
 }
 
 func (gm *DynamicGroupManager) Start(ctx context.Context) error {
