@@ -67,10 +67,14 @@ func (mf *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler Reg
 		return err
 	}
 	//
+
+	mf.log.Info("loading old events...")
+	t := time.Now()
 	err = mf.loadOldEvents(ctx, fromBlock, latestBlockNumber, handler)
 	if err != nil {
 		return err
 	}
+	mf.log.Info("events loaded", zap.Duration("timeToLoad", time.Since(t)))
 
 	errCh := make(chan error)
 
@@ -81,22 +85,35 @@ func (mf *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler Reg
 
 func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
 	for ; fromBlock+maxBatchSize < toBlock; fromBlock += maxBatchSize + 1 { // check if the end of the batch is within the toBlock range
+		t1 := time.Now()
 		events, err := mf.getEvents(ctx, fromBlock, fromBlock+maxBatchSize)
 		if err != nil {
 			return err
 		}
+
+		t2 := time.Now()
 		if err := handler(events); err != nil {
 			return err
 		}
+
+		mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", time.Since(t1)), zap.Duration("timeToProcess", time.Since(t2)))
 	}
 
-	//
+	t1 := time.Now()
 	events, err := mf.getEvents(ctx, fromBlock, toBlock)
 	if err != nil {
 		return err
 	}
+
 	// process all the fetched events
-	return handler(events)
+	t2 := time.Now()
+	err = handler(events)
+	if err != nil {
+		return err
+	}
+
+	mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", time.Since(t1)), zap.Duration("timeToProcess", time.Since(t2)))
+	return nil
 }
 
 func (mf *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {
