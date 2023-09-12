@@ -90,13 +90,14 @@ func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 		if err != nil {
 			return err
 		}
+		t1Since := time.Since(t1)
 
 		t2 := time.Now()
 		if err := handler(events); err != nil {
 			return err
 		}
 
-		mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", time.Since(t1)), zap.Duration("timeToProcess", time.Since(t2)))
+		mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", t1Since), zap.Duration("timeToProcess", time.Since(t2)))
 	}
 
 	t1 := time.Now()
@@ -104,6 +105,7 @@ func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 	if err != nil {
 		return err
 	}
+	t1Since := time.Since(t1)
 
 	// process all the fetched events
 	t2 := time.Now()
@@ -112,7 +114,7 @@ func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 		return err
 	}
 
-	mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", time.Since(t1)), zap.Duration("timeToProcess", time.Since(t2)))
+	mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", t1Since), zap.Duration("timeToProcess", time.Since(t2)))
 	return nil
 }
 
