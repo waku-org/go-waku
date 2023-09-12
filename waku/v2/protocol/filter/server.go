@@ -275,7 +275,7 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 	)
 	pubSubTopic := env.PubsubTopic()
 	messagePush := &pb.MessagePushV2{
-		PubsubTopic: pubSubTopic,
+		PubsubTopic: &pubSubTopic,
 		WakuMessage: env.Message(),
 	}
 

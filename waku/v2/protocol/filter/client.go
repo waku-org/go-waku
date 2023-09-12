@@ -160,10 +160,15 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 			wf.metrics.RecordError(decodeRPCFailure)
 			return
 		}
-
-		if !wf.subscriptions.Has(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
+		//For now returning failure, this will get addressed with autosharding changes for filter.
+		if messagePush.PubsubTopic == nil {
+			logger.Error("empty pubSub Topic", zap.Error(err))
+			wf.metrics.RecordError(decodeRPCFailure)
+			return
+		}
+		if !wf.subscriptions.Has(s.Conn().RemotePeer(), *messagePush.PubsubTopic, messagePush.WakuMessage.ContentTopic) {
 			logger.Warn("received messagepush with invalid subscription parameters",
-				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", messagePush.PubsubTopic),
+				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", *messagePush.PubsubTopic),
 				zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
 			wf.metrics.RecordError(invalidSubscriptionMessage)
 			return
@@ -171,7 +176,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 
 		wf.metrics.RecordMessage()
 
-		wf.notify(s.Conn().RemotePeer(), messagePush.PubsubTopic, messagePush.WakuMessage)
+		wf.notify(s.Conn().RemotePeer(), *messagePush.PubsubTopic, messagePush.WakuMessage)
 
 		logger.Info("received message push")
 	}
