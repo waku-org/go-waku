@@ -97,7 +97,7 @@ func (sub *SubscriptionsMap) Has(peerID peer.ID, topic string, contentTopics ...
 	if !ok {
 		return false
 	}
-
+	//TODO: Handle pubsubTopic as null
 	// Check if pubsub topic exists
 	subscriptions, ok := peerSubscription.subscriptionsPerTopic[topic]
 	if !ok {
