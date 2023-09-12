@@ -22,6 +22,7 @@
           name = "go-waku";
           src = self;
           inherit subPackages;
+          tags = [ "gowaku_no_rln" ];
           ldflags = [
             "-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=${commit}"
             "-X github.com/waku-org/go-waku/waku/v2/node.Version=${version}"

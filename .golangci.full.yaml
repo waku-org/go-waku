@@ -1,7 +1,3 @@
-run:
-  build-tags:
-    - gowaku_rln
-
 issues:
   include:
     - EXC0012
