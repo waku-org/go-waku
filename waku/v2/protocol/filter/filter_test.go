@@ -184,6 +184,7 @@ func (s *FilterTestSuite) SetupTest() {
 	s.testContentTopic = "TopicA"
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
+
 	//TODO: Add tests to verify broadcaster.
 
 	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)

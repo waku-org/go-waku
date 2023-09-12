@@ -165,7 +165,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 		}
 		//For now returning failure, this will get addressed with autosharding changes for filter.
 		if messagePush.PubsubTopic == nil {
-			logger.Error("empty pubSub Topic", zap.Error(err))
+			logger.Error("empty pubsub topic")
 			wf.metrics.RecordError(decodeRPCFailure)
 			return
 		}
