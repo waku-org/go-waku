@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -34,16 +33,11 @@ var (
 )
 
 type WakuFilterLightNode struct {
-	sync.RWMutex
-	started bool
-
-	cancel        context.CancelFunc
-	ctx           context.Context
+	*protocol.CommonService
 	h             host.Host
 	broadcaster   relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
 	timesource    timesource.Timesource
 	metrics       Metrics
-	wg            *sync.WaitGroup
 	log           *zap.Logger
 	subscriptions *SubscriptionsMap
 	pm            *peermanager.PeerManager
@@ -59,9 +53,6 @@ type WakuFilterPushResult struct {
 	PeerID peer.ID
 }
 
-var errNotStarted = errors.New("not started")
-var errAlreadyStarted = errors.New("already started")
-
 // NewWakuFilterLightnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
 // Note that broadcaster is optional.
 // Takes an optional peermanager if WakuFilterLightnode is being created along with WakuNode.
@@ -72,8 +63,8 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	wf.log = log.Named("filterv2-lightnode")
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
-	wf.wg = &sync.WaitGroup{}
 	wf.pm = pm
+	wf.CommonService = protocol.NewCommonService()
 	wf.metrics = newMetrics(reg)
 
 	return wf
@@ -85,59 +76,36 @@ func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
-	wf.Lock()
-	defer wf.Unlock()
+	return wf.CommonService.Start(ctx, wf.start)
 
-	if wf.started {
-		return errAlreadyStarted
-	}
+}
 
-	wf.wg.Wait() // Wait for any goroutines to stop
-
-	ctx, cancel := context.WithCancel(ctx)
-	wf.cancel = cancel
-	wf.ctx = ctx
+func (wf *WakuFilterLightNode) start() error {
 	wf.subscriptions = NewSubscriptionMap(wf.log)
-	wf.started = true
-
-	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(ctx))
+	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(wf.Context()))
 
 	wf.log.Info("filter-push protocol started")
-
 	return nil
 }
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilterLightNode) Stop() {
-	wf.Lock()
-	defer wf.Unlock()
-
-	if !wf.started {
-		return
-	}
-
-	wf.cancel()
-
-	wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
-
-	res, err := wf.unsubscribeAll(wf.ctx)
-	if err != nil {
-		wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
-	}
-
-	for r := range res {
-		if r.Err != nil {
-			wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+	wf.CommonService.Stop(func() {
+		wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
+		res, err := wf.unsubscribeAll(wf.Context())
+		if err != nil {
+			wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
 		}
 
-	}
+		for r := range res {
+			if r.Err != nil {
+				wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+			}
 
-	wf.subscriptions.Clear()
-
-	wf.started = false
-	wf.cancel = nil
-
-	wf.wg.Wait()
+		}
+		//
+		wf.subscriptions.Clear()
+	})
 }
 
 func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Stream) {
@@ -248,9 +216,8 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) (*SubscriptionDetails, error) {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return nil, errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return nil, err
 	}
 
 	if contentFilter.Topic == "" {
@@ -285,7 +252,6 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 	if err != nil {
 		return nil, err
 	}
-
 	return wf.subscriptions.NewSubscription(params.selectedPeer, contentFilter.Topic, contentFilter.ContentTopics), nil
 }
 
@@ -293,9 +259,8 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 func (wf *WakuFilterLightNode) FilterSubscription(peerID peer.ID, contentFilter ContentFilter) (*SubscriptionDetails, error) {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return nil, errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return nil, err
 	}
 
 	if !wf.subscriptions.Has(peerID, contentFilter.Topic, contentFilter.ContentTopics...) {
@@ -319,9 +284,8 @@ func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterUnsubscrib
 func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID) error {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return err
 	}
 
 	return wf.request(
@@ -334,9 +298,8 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID) error {
 func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscription *SubscriptionDetails) error {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return err
 	}
 
 	return wf.Ping(ctx, subscription.PeerID)
@@ -345,8 +308,7 @@ func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscrip
 func (wf *WakuFilterLightNode) Subscriptions() []*SubscriptionDetails {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
+	if err := wf.ErrOnNotRunning(); err != nil {
 		return nil
 	}
 
@@ -398,13 +360,11 @@ func (wf *WakuFilterLightNode) cleanupSubscriptions(peerID peer.ID, contentFilte
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter,
-	opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return nil, errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return nil, err
 	}
 
 	if contentFilter.Topic == "" {
@@ -485,13 +445,11 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails,
-	opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return nil, errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return nil, err
 	}
 
 	var contentTopics []string
@@ -563,9 +521,8 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
-
-	if !wf.started {
-		return nil, errNotStarted
+	if err := wf.ErrOnNotRunning(); err != nil {
+		return nil, err
 	}
 
 	return wf.unsubscribeAll(ctx, opts...)

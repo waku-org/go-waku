@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -43,9 +42,8 @@ type WakuPeerExchange struct {
 	metrics Metrics
 	log     *zap.Logger
 
-	cancel context.CancelFunc
+	*protocol.CommonService
 
-	wg            sync.WaitGroup
 	peerConnector PeerConnector
 	enrCache      *enrCache
 }
@@ -65,6 +63,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
+	wakuPX.CommonService = protocol.NewCommonService()
 
 	return wakuPX, nil
 }
@@ -76,20 +75,15 @@ func (wakuPX *WakuPeerExchange) SetHost(h host.Host) {
 
 // Start inits the peer exchange protocol
 func (wakuPX *WakuPeerExchange) Start(ctx context.Context) error {
-	if wakuPX.cancel != nil {
-		return errors.New("peer exchange already started")
-	}
+	return wakuPX.CommonService.Start(ctx, wakuPX.start)
+}
 
-	wakuPX.wg.Wait() // Waiting for any go routines to stop
-
-	ctx, cancel := context.WithCancel(ctx)
-	wakuPX.cancel = cancel
-
+func (wakuPX *WakuPeerExchange) start() error {
 	wakuPX.h.SetStreamHandlerMatch(PeerExchangeID_v20alpha1, protocol.PrefixTextMatch(string(PeerExchangeID_v20alpha1)), wakuPX.onRequest())
-	wakuPX.log.Info("Peer exchange protocol started")
 
-	wakuPX.wg.Add(1)
-	go wakuPX.runPeerExchangeDiscv5Loop(ctx)
+	wakuPX.WaitGroup().Add(1)
+	go wakuPX.runPeerExchangeDiscv5Loop(wakuPX.Context())
+	wakuPX.log.Info("Peer exchange protocol started")
 	return nil
 }
 
@@ -133,12 +127,9 @@ func (wakuPX *WakuPeerExchange) onRequest() func(s network.Stream) {
 
 // Stop unmounts the peer exchange protocol
 func (wakuPX *WakuPeerExchange) Stop() {
-	if wakuPX.cancel == nil {
-		return
-	}
-	wakuPX.h.RemoveStreamHandler(PeerExchangeID_v20alpha1)
-	wakuPX.cancel()
-	wakuPX.wg.Wait()
+	wakuPX.CommonService.Stop(func() {
+		wakuPX.h.RemoveStreamHandler(PeerExchangeID_v20alpha1)
+	})
 }
 
 func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
@@ -173,7 +164,7 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
 }
 
 func (wakuPX *WakuPeerExchange) runPeerExchangeDiscv5Loop(ctx context.Context) {
-	defer wakuPX.wg.Done()
+	defer wakuPX.WaitGroup().Done()
 
 	// Runs a discv5 loop adding new peers to the px peer cache
 	if wakuPX.disc == nil {
