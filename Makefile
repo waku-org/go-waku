@@ -124,7 +124,10 @@ build-example-filter2:
 build-example-c-bindings:
 	cd examples/c-bindings && $(MAKE)
 
-build-example: build-example-basic2 build-example-chat-2 build-example-filter2 build-example-c-bindings
+build-example-rln:
+	cd examples/rln && $(MAKE)
+
+build-example: build-example-basic2 build-example-chat-2 build-example-filter2 build-example-c-bindings build-example-rln
 
 static-library:
 	@echo "Building static library..."

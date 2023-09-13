@@ -11,14 +11,14 @@ To complete this tutorial, you will need
 1. An rln keystore file with credentials to the rln membership smart contract you wish to use. You may obtain this by registering to the smart contract and generating a keystore. It is possible to use go-waku to register into the smart contract:
 ```
 make
-./build/waku generate-rln-credentials --eth-account-private-key=<private-key> --eth-contract-address=<0x000...> --eth-client-address=<eth-client-rpc-or-wss-endpoint> --cred-path=rlnKeystore.json
+./build/waku generate-rln-credentials --eth-account-private-key=<private-key> --eth-contract-address=<0x000...> --eth-client-address=<eth-client-rpc-or-wss-endpoint> --cred-path=./rlnKeystore.json
 ```
+Once this command is executed, A keystore file will be generated at the path defined in the `--cred-path` flag. You may now use this keystore with wakunode2 or chat2.
+
 
 ## Overview
 Figure 1 provides an overview of the interaction of the chat2 clients with the test fleets and the membership contract. 
 At a high level, when a chat2 client is run with Waku-RLN-Relay mounted in on-chain mode, the passed in credential will get displayed on the console of your chat2 client.
-You may copy the displayed RLN credential and reuse them for the future execution of the chat2 application.
-Proper instructions in this regard is provided in the following [section](#how-to-persist-and-reuse-rln-credential).
 Under the hood, the chat2 client constantly listens to the membership contract and keeps itself updated with the latest state of the group.
 
 In the following test setting, the chat2 clients are to be connected to the Waku test fleets as their first hop. 
@@ -56,7 +56,7 @@ Run the following command to set up your chat2 client.
 --content-topic=/toy-chat/3/mingde/proto \
 --rln-relay=true \
 --rln-relay-dynamic=true \
---rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 \
+--rln-relay-eth-contract-address=0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4 \
 --rln-relay-cred-path=xxx/xx/rlnKeystore.json \
 --rln-relay-cred-password=xxxx \
 --rln-relay-eth-client-address=xxxx
@@ -68,8 +68,8 @@ In this command
 - the `--rln-relay` flag is set to `true` to enable the Waku-RLN-Relay protocol for spam protection.
 - the `--rln-relay-dynamic` flag is set to `true` to enable the on-chain mode of Waku-RLN-Relay protocol with dynamic group management.
 - the `--rln-relay-eth-contract-address` option gets the address of the membership contract.
- The current address of the contract is `0x9C09146844C1326c2dBC41c451766C7138F88155`.
- You may check the state of the contract on the [Sepolia testnet](https://sepolia.etherscan.io/address/0x9C09146844C1326c2dBC41c451766C7138F88155).
+ The current address of the contract is `0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4`.
+ You may check the state of the contract on the [Sepolia testnet](https://sepolia.etherscan.io/address/0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4).
 - the `--rln-relay-cred-path` option denotes the path to the keystore file described above
 - the `--rln-relay-cred-password` option denotes the password to the keystore
 - the `rln-relay-eth-client-address` is the WebSocket address of the hosted node on the Sepolia testnet. 
@@ -176,7 +176,7 @@ You may provide an index to the membership you wish to use (within the same memb
 --content-topic=/toy-chat/3/mingde/proto \
 --rln-relay=true \
 --rln-relay-dynamic=true \
---rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 \
+--rln-relay-eth-contract-address=0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4 \
 --rln-relay-eth-client-address=your_sepolia_node \
 --rln-relay-cred-path=./rlnKeystore.json \
 --rln-relay-cred-password=your_password \
@@ -197,7 +197,7 @@ You can check this fact by looking at `Bob`'s console, where `message3` is missi
 
 **Alice**
 ```bash
-./build/chat2 --fleet=test --content-topic=/toy-chat/3/mingde/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 --rln-relay-cred-path=rlnKeystore.json --rln-relay-cred-password=password --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/12345678901234567890123456789012 --nickname=Alice
+./build/chat2 --fleet=test --content-topic=/toy-chat/3/mingde/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4 --rln-relay-cred-path=rlnKeystore.json --rln-relay-cred-password=password --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/12345678901234567890123456789012 --nickname=Alice
 ```
 
 ```
@@ -247,7 +247,7 @@ INFO RLN Epoch: 165886593
 
 **Bob**
 ```bash
-./build/chat2 --fleet=test --content-topic=/toy-chat/3/mingde/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0x9C09146844C1326c2dBC41c451766C7138F88155 --rln-relay-cred-path=rlnKeystore.json --rln-relay-cred-index=1 --rln-relay-cred-password=password --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/12345678901234567890123456789012 --nickname=Bob
+./build/chat2 --fleet=test --content-topic=/toy-chat/3/mingde/proto --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-contract-address=0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4 --rln-relay-cred-path=rlnKeystore.json --rln-relay-cred-index=1 --rln-relay-cred-password=password --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/12345678901234567890123456789012 --nickname=Bob
 ```
 
 ```

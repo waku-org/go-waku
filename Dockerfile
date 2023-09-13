@@ -1,10 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-FROM golang:1.19-alpine3.16 as builder
-
-# Get build tools and required header files
-RUN apk add --no-cache build-base
-RUN apk add --no-cache bash
-RUN apk add --no-cache git
+FROM golang:1.19 as builder
 
 WORKDIR /app
 COPY . .
@@ -14,7 +9,7 @@ RUN make -j$(nproc) build
 
 # ACTUAL IMAGE -------------------------------------------------------
 
-FROM alpine:3.16
+FROM debian:12.1-slim
 
 ARG GIT_COMMIT=unknown
 
@@ -25,6 +20,8 @@ LABEL commit=$GIT_COMMIT
 
 # color, nocolor, json
 ENV GOLOG_LOG_FMT=nocolor
+
+RUN apt update && apt install -y ca-certificates
 
 # go-waku default ports
 EXPOSE 9000 30303 60000 60001 8008 8009

@@ -87,6 +87,11 @@ func (k *AppKeystore) GetMembershipCredentials(keystorePassword string, index *r
 
 	var key Key
 	var err error
+
+	if len(k.Credentials) == 0 {
+		return nil, nil
+	}
+
 	if len(k.Credentials) == 1 {
 		// Only one credential, the tree index does not matter.
 		k.logger.Warn("automatically loading the only credential found on the keystore")

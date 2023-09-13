@@ -17,13 +17,13 @@ See [this tutorial](./configure-key.md) if you want to generate and configure a 
 - enable `relay` protocol
 - subscribe to the default pubsub topic, namely `/waku/2/default-waku/proto`
 - enable `store` protocol, but only as a client.
-This implies that the nwaku node will not persist any historical messages itself,
+This implies that the go-waku node will not persist any historical messages itself,
 but can query `store` service peers who do so.
 To configure `store` as a service node,
 see [this tutorial](./configure-store.md).
 
 > **Note:** The `filter` and `lightpush` protocols are _not_ enabled by default.
-Consult the [configuration guide](./configure.md) on how to configure your nwaku node to run these protocols.
+Consult the [configuration guide](./configure.md) on how to configure your go-waku node to run these protocols.
 
 Some typical non-default configurations are explained below.
 For more advanced configuration, see the [configuration guide](./configure.md).
@@ -33,7 +33,7 @@ Different ways to connect to other nodes are expanded upon in our [connection gu
 
 Find the log entry beginning with `Listening on`.
 It should be printed at INFO level when you start your node
-and contains a list of all publically announced listening addresses for the nwaku node.
+and contains a list of all publically announced listening addresses for the go-waku node.
 
 For example
 
@@ -80,7 +80,7 @@ returns a response similar to
 
 ## Finding your discoverable ENR address(es)
 
-A nwaku node can encode its addressing information in an [Ethereum Node Record (ENR)](https://eips.ethereum.org/EIPS/eip-778) according to [`31/WAKU2-ENR`](https://rfc.vac.dev/spec/31/).
+A go-waku node can encode its addressing information in an [Ethereum Node Record (ENR)](https://eips.ethereum.org/EIPS/eip-778) according to [`31/WAKU2-ENR`](https://rfc.vac.dev/spec/31/).
 These ENR are most often used for discovery purposes.
 
 ### ENR for DNS discovery and DiscV5
@@ -111,10 +111,10 @@ to continually discover and connect to random peers for a more robust mesh.
 
 A typical run configuration for a go-waku node is to connect to existing peers with known listening addresses using the `--staticnode` option.
 The `--staticnode` option can be repeated for each peer you want to connect to on startup.
-This is also useful if you want to run several nwaku instances locally
+This is also useful if you want to run several go-waku instances locally
 and therefore know the listening addresses of all peers.
 
-As an example, consider a nwaku node that connects to two known peers
+As an example, consider a go-waku node that connects to two known peers
 on the same local host (with IP `0.0.0.0`)
 with TCP ports `60002` and `60003`,
 and peer IDs `16Uiu2HAkzjwwgEAXfeGNMKFPSpc6vGBRqCdTLG5q3Gmk2v4pQw7H` and `16Uiu2HAmFBA7LGtwY5WVVikdmXVo3cKLqkmvVtuDu63fe8safeQJ` respectively.
@@ -180,5 +180,5 @@ See our [store configuration tutorial](./configure-store.md) for more.
 A running go-waku node can be interacted with using the [Waku v2 JSON RPC API](https://rfc.vac.dev/spec/16/).
 
 > **Note:** Private and Admin API functionality are disabled by default.
-To configure a nwaku node with these enabled,
+To configure a go-waku node with these enabled,
 use the `--rpc-admin:true` and `--rpc-private:true` CLI options.

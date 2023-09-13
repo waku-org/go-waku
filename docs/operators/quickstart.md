@@ -16,7 +16,7 @@ or download a precompiled binary from our [releases page](https://github.com/wak
 [Run the go-waku node](./how-to/run.md) using a default or common configuration
 or [configure](./how-to/configure.md) the node for more advanced use cases.
 
-[Connect](./how-to/connect.md) the nwaku node to other peers to start communicating.
+[Connect](./how-to/connect.md) the go-waku node to other peers to start communicating.
 
 ## 3. Interact
 
