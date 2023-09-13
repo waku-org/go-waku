@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -31,13 +30,11 @@ const peerHasNoSubscription = "peer has no subscriptions"
 
 type (
 	WakuFilterFullNode struct {
-		cancel  context.CancelFunc
 		h       host.Host
 		msgSub  relay.Subscription
 		metrics Metrics
-		wg      *sync.WaitGroup
 		log     *zap.Logger
-
+		*protocol.CommonService
 		subscriptions *SubscribersMap
 
 		maxSubscriptions int
@@ -56,7 +53,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 		opt(params)
 	}
 
-	wf.wg = &sync.WaitGroup{}
+	wf.CommonService = protocol.NewCommonService()
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
@@ -70,19 +67,19 @@ func (wf *WakuFilterFullNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterFullNode) Start(ctx context.Context, sub relay.Subscription) error {
-	wf.wg.Wait() // Wait for any goroutines to stop
+	return wf.CommonService.Start(ctx, func() error {
+		return wf.start(sub)
+	})
+}
 
-	ctx, cancel := context.WithCancel(ctx)
+func (wf *WakuFilterFullNode) start(sub relay.Subscription) error {
+	wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(wf.Context()))
 
-	wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(ctx))
-
-	wf.cancel = cancel
 	wf.msgSub = sub
-	wf.wg.Add(1)
-	go wf.filterListener(ctx)
+	wf.WaitGroup().Add(1)
+	go wf.filterListener(wf.Context())
 
 	wf.log.Info("filter-subscriber protocol started")
-
 	return nil
 }
 
@@ -107,13 +104,13 @@ func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(s network.Stre
 
 		switch subscribeRequest.FilterSubscribeType {
 		case pb.FilterSubscribeRequest_SUBSCRIBE:
-			wf.subscribe(ctx, s, logger, subscribeRequest)
+			wf.subscribe(ctx, s, subscribeRequest)
 		case pb.FilterSubscribeRequest_SUBSCRIBER_PING:
-			wf.ping(ctx, s, logger, subscribeRequest)
+			wf.ping(ctx, s, subscribeRequest)
 		case pb.FilterSubscribeRequest_UNSUBSCRIBE:
-			wf.unsubscribe(ctx, s, logger, subscribeRequest)
+			wf.unsubscribe(ctx, s, subscribeRequest)
 		case pb.FilterSubscribeRequest_UNSUBSCRIBE_ALL:
-			wf.unsubscribeAll(ctx, s, logger, subscribeRequest)
+			wf.unsubscribeAll(ctx, s, subscribeRequest)
 		}
 
 		wf.metrics.RecordRequest(subscribeRequest.FilterSubscribeType.String(), time.Since(start))
@@ -142,7 +139,7 @@ func (wf *WakuFilterFullNode) reply(ctx context.Context, s network.Stream, reque
 	}
 }
 
-func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	exists := wf.subscriptions.Has(s.Conn().RemotePeer())
 
 	if exists {
@@ -152,7 +149,7 @@ func (wf *WakuFilterFullNode) ping(ctx context.Context, s network.Stream, logger
 	}
 }
 
-func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == nil {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -192,7 +189,7 @@ func (wf *WakuFilterFullNode) subscribe(ctx context.Context, s network.Stream, l
 	wf.reply(ctx, s, request, http.StatusOK)
 }
 
-func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	if request.PubsubTopic == nil {
 		wf.reply(ctx, s, request, http.StatusBadRequest, "pubsubtopic can't be empty")
 		return
@@ -216,7 +213,7 @@ func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, s network.Stream,
 	}
 }
 
-func (wf *WakuFilterFullNode) unsubscribeAll(ctx context.Context, s network.Stream, logger *zap.Logger, request *pb.FilterSubscribeRequest) {
+func (wf *WakuFilterFullNode) unsubscribeAll(ctx context.Context, s network.Stream, request *pb.FilterSubscribeRequest) {
 	err := wf.subscriptions.DeleteAll(s.Conn().RemotePeer())
 	if err != nil {
 		wf.reply(ctx, s, request, http.StatusNotFound, peerHasNoSubscription)
@@ -227,7 +224,7 @@ func (wf *WakuFilterFullNode) unsubscribeAll(ctx context.Context, s network.Stre
 }
 
 func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
-	defer wf.wg.Done()
+	defer wf.WaitGroup().Done()
 
 	// This function is invoked for each message received
 	// on the full node in context of Waku2-Filter
@@ -243,9 +240,9 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 			subscriber := subscriber // https://golang.org/doc/faq#closures_and_goroutines
 			// Do a message push to light node
 			logger.Info("pushing message to light node")
-			wf.wg.Add(1)
+			wf.WaitGroup().Add(1)
 			go func(subscriber peer.ID) {
-				defer wf.wg.Done()
+				defer wf.WaitGroup().Done()
 				start := time.Now()
 				err := wf.pushMessage(ctx, subscriber, envelope)
 				if err != nil {
@@ -317,15 +314,8 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilterFullNode) Stop() {
-	if wf.cancel == nil {
-		return
-	}
-
-	wf.h.RemoveStreamHandler(FilterSubscribeID_v20beta1)
-
-	wf.cancel()
-
-	wf.msgSub.Unsubscribe()
-
-	wf.wg.Wait()
+	wf.CommonService.Stop(func() {
+		wf.h.RemoveStreamHandler(FilterSubscribeID_v20beta1)
+		wf.msgSub.Unsubscribe()
+	})
 }

@@ -35,7 +35,7 @@ func TestFilterOption(t *testing.T) {
 	require.NotNil(t, params.selectedPeer)
 
 	options2 := []FilterUnsubscribeOption{
-		AutomaticRequestId(),
+		AutomaticRequestID(),
 		UnsubscribeAll(),
 		Peer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 	}

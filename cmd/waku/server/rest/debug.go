@@ -20,8 +20,8 @@ type InfoReply struct {
 	ListenAddresses []string `json:"listenAddresses,omitempty"`
 }
 
-const ROUTE_DEBUG_INFOV1 = "/debug/v1/info"
-const ROUTE_DEBUG_VERSIONV1 = "/debug/v1/info"
+const routeDebugInfoV1 = "/debug/v1/info"
+const routeDebugVersionV1 = "/debug/v1/info"
 
 func NewDebugService(node *node.WakuNode, m *chi.Mux) *DebugService {
 	d := &DebugService{
@@ -29,15 +29,15 @@ func NewDebugService(node *node.WakuNode, m *chi.Mux) *DebugService {
 		mux:  m,
 	}
 
-	m.Get(ROUTE_DEBUG_INFOV1, d.getV1Info)
-	m.Get(ROUTE_DEBUG_VERSIONV1, d.getV1Version)
+	m.Get(routeDebugInfoV1, d.getV1Info)
+	m.Get(routeDebugVersionV1, d.getV1Version)
 
 	return d
 }
 
 type VersionResponse string
 
-func (d *DebugService) getV1Info(w http.ResponseWriter, r *http.Request) {
+func (d *DebugService) getV1Info(w http.ResponseWriter, req *http.Request) {
 	response := new(InfoReply)
 	response.ENRUri = d.node.ENR().String()
 	for _, addr := range d.node.ListenAddresses() {
@@ -46,7 +46,7 @@ func (d *DebugService) getV1Info(w http.ResponseWriter, r *http.Request) {
 	writeErrOrResponse(w, nil, response)
 }
 
-func (d *DebugService) getV1Version(w http.ResponseWriter, r *http.Request) {
+func (d *DebugService) getV1Version(w http.ResponseWriter, req *http.Request) {
 	response := VersionResponse(node.GetVersionInfo().String())
 	writeErrOrResponse(w, nil, response)
 }

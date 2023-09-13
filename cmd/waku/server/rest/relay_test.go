@@ -41,11 +41,11 @@ func TestPostV1Message(t *testing.T) {
 		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
-	msgJsonBytes, err := json.Marshal(msg)
+	msgJSONBytes, err := json.Marshal(msg)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/messages/test", bytes.NewReader(msgJsonBytes))
+	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/messages/test", bytes.NewReader(msgJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())

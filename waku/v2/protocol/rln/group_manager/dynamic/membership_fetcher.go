@@ -18,10 +18,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
+// RegistrationEventHandler represents the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
 type RegistrationEventHandler = func([]*contracts.RLNMemberRegistered) error
 
-// for getting membershipRegsitered Events from the eth rpc
+// MembershipFetcher is used for getting membershipRegsitered Events from the eth rpc
 type MembershipFetcher struct {
 	web3Config  *web3.Config
 	rln         *rln.RLN
@@ -67,10 +67,14 @@ func (mf *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler Reg
 		return err
 	}
 	//
+
+	mf.log.Info("loading old events...")
+	t := time.Now()
 	err = mf.loadOldEvents(ctx, fromBlock, latestBlockNumber, handler)
 	if err != nil {
 		return err
 	}
+	mf.log.Info("events loaded", zap.Duration("timeToLoad", time.Since(t)))
 
 	errCh := make(chan error)
 
@@ -81,22 +85,37 @@ func (mf *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler Reg
 
 func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlock uint64, handler RegistrationEventHandler) error {
 	for ; fromBlock+maxBatchSize < toBlock; fromBlock += maxBatchSize + 1 { // check if the end of the batch is within the toBlock range
+		t1 := time.Now()
 		events, err := mf.getEvents(ctx, fromBlock, fromBlock+maxBatchSize)
 		if err != nil {
 			return err
 		}
+		t1Since := time.Since(t1)
+
+		t2 := time.Now()
 		if err := handler(events); err != nil {
 			return err
 		}
+
+		mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", t1Since), zap.Duration("timeToProcess", time.Since(t2)))
 	}
 
-	//
+	t1 := time.Now()
 	events, err := mf.getEvents(ctx, fromBlock, toBlock)
 	if err != nil {
 		return err
 	}
+	t1Since := time.Since(t1)
+
 	// process all the fetched events
-	return handler(events)
+	t2 := time.Now()
+	err = handler(events)
+	if err != nil {
+		return err
+	}
+
+	mf.log.Info("fetching events", zap.Uint64("from", fromBlock), zap.Uint64("to", fromBlock+maxBatchSize), zap.Int("numEvents", len(events)), zap.Duration("timeToFetch", t1Since), zap.Duration("timeToProcess", time.Since(t2)))
+	return nil
 }
 
 func (mf *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint64, handler RegistrationEventHandler, errCh chan<- error) {

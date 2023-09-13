@@ -41,9 +41,8 @@ func WithMultiaddress(multiaddrs ...multiaddr.Multiaddr) ENROption {
 				couldWriteENRatLeastOnce = true
 				successIdx = i
 				break
-			} else {
-				failedOnceWritingENR = true
 			}
+			failedOnceWritingENR = true
 		}
 
 		if failedOnceWritingENR && couldWriteENRatLeastOnce {

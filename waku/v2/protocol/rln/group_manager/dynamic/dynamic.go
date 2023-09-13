@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -50,17 +51,17 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) 
 	for _, event := range events {
 		if event.Raw.Removed {
 			var indexes []uint
-			i_idx, ok := toRemoveTable.Get(event.Raw.BlockNumber)
+			iIdx, ok := toRemoveTable.Get(event.Raw.BlockNumber)
 			if ok {
-				indexes = i_idx.([]uint)
+				indexes = iIdx.([]uint)
 			}
 			indexes = append(indexes, uint(event.Index.Uint64()))
 			toRemoveTable.Set(event.Raw.BlockNumber, indexes)
 		} else {
 			var eventsPerBlock []*contracts.RLNMemberRegistered
-			i_evt, ok := toInsertTable.Get(event.Raw.BlockNumber)
+			iEvt, ok := toInsertTable.Get(event.Raw.BlockNumber)
 			if ok {
-				eventsPerBlock = i_evt.([]*contracts.RLNMemberRegistered)
+				eventsPerBlock = iEvt.([]*contracts.RLNMemberRegistered)
 			}
 			eventsPerBlock = append(eventsPerBlock, event)
 			toInsertTable.Set(event.Raw.BlockNumber, eventsPerBlock)
@@ -126,11 +127,19 @@ func NewDynamicGroupManager(
 }
 
 func (gm *DynamicGroupManager) getMembershipFee(ctx context.Context) (*big.Int, error) {
-	return gm.web3Config.RLNContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
+	fee, err := gm.web3Config.RLNContract.MEMBERSHIPDEPOSIT(&bind.CallOpts{Context: ctx})
+	if err != nil {
+		return nil, fmt.Errorf("could not check if credential exits in contract: %w", err)
+	}
+	return fee, nil
 }
 
 func (gm *DynamicGroupManager) memberExists(ctx context.Context, idCommitment rln.IDCommitment) (bool, error) {
-	return gm.web3Config.RLNContract.MemberExists(&bind.CallOpts{Context: ctx}, rln.Bytes32ToBigInt(idCommitment))
+	exists, err := gm.web3Config.RLNContract.MemberExists(&bind.CallOpts{Context: ctx}, rln.Bytes32ToBigInt(idCommitment))
+	if err != nil {
+		return false, fmt.Errorf("could not check if credential exits in contract: %w", err)
+	}
+	return exists, nil
 }
 
 func (gm *DynamicGroupManager) Start(ctx context.Context) error {
@@ -159,11 +168,7 @@ func (gm *DynamicGroupManager) Start(ctx context.Context) error {
 		return err
 	}
 
-	if err = gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler); err != nil {
-		return err
-	}
-
-	return nil
+	return gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler)
 }
 
 func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {

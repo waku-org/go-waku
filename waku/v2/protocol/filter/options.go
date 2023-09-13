@@ -63,7 +63,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 		if params.pm == nil {
 			p, err = utils.SelectPeer(params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
 		} else {
-			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, fromThesePeers, params.log)
+			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, fromThesePeers)
 		}
 		if err == nil {
 			params.selectedPeer = p
@@ -100,7 +100,7 @@ func WithRequestID(requestID []byte) FilterSubscribeOption {
 // when creating a filter subscription
 func WithAutomaticRequestID() FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		params.requestID = protocol.GenerateRequestId()
+		params.requestID = protocol.GenerateRequestID()
 	}
 }
 
@@ -131,9 +131,9 @@ func RequestID(requestID []byte) FilterUnsubscribeOption {
 	}
 }
 
-func AutomaticRequestId() FilterUnsubscribeOption {
+func AutomaticRequestID() FilterUnsubscribeOption {
 	return func(params *FilterUnsubscribeParameters) {
-		params.requestID = protocol.GenerateRequestId()
+		params.requestID = protocol.GenerateRequestID()
 	}
 }
 
@@ -155,7 +155,7 @@ func DontWait() FilterUnsubscribeOption {
 
 func DefaultUnsubscribeOptions() []FilterUnsubscribeOption {
 	return []FilterUnsubscribeOption{
-		AutomaticRequestId(),
+		AutomaticRequestID(),
 		WithWaitGroup(&sync.WaitGroup{}),
 	}
 }

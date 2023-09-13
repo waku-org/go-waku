@@ -347,7 +347,7 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 
-	s.Require().ErrorIs(err, errNotStarted)
+	s.Require().ErrorIs(err, protocol.ErrNotStarted)
 
 	err = s.lightNode.Start(s.ctx)
 	s.Require().NoError(err)
@@ -397,7 +397,7 @@ func (s *FilterTestSuite) TestStartStop() {
 	startNode := func() {
 		for i := 0; i < 100; i++ {
 			err := s.lightNode.Start(context.Background())
-			if errors.Is(err, errAlreadyStarted) {
+			if errors.Is(err, protocol.ErrAlreadyStarted) {
 				continue
 			}
 			s.Require().NoError(err)

@@ -93,66 +93,66 @@ func (r *RelayService) Stop() {
 	r.cancel()
 }
 
-func (d *RelayService) deleteV1Subscriptions(w http.ResponseWriter, r *http.Request) {
+func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Request) {
 	var topics []string
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&topics); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer req.Body.Close()
 
-	d.messagesMutex.Lock()
-	defer d.messagesMutex.Unlock()
+	r.messagesMutex.Lock()
+	defer r.messagesMutex.Unlock()
 
 	var err error
 	for _, topic := range topics {
-		err = d.node.Relay().Unsubscribe(r.Context(), topic)
+		err = r.node.Relay().Unsubscribe(req.Context(), topic)
 		if err != nil {
-			d.log.Error("unsubscribing from topic", zap.String("topic", strings.Replace(strings.Replace(topic, "\n", "", -1), "\r", "", -1)), zap.Error(err))
+			r.log.Error("unsubscribing from topic", zap.String("topic", strings.Replace(strings.Replace(topic, "\n", "", -1), "\r", "", -1)), zap.Error(err))
 		} else {
-			delete(d.messages, topic)
+			delete(r.messages, topic)
 		}
 	}
 
 	writeErrOrResponse(w, err, true)
 }
 
-func (d *RelayService) postV1Subscriptions(w http.ResponseWriter, r *http.Request) {
+func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Request) {
 	var topics []string
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&topics); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer req.Body.Close()
 
 	var err error
 	var sub *relay.Subscription
 	var topicToSubscribe string
 	for _, topic := range topics {
 		if topic == "" {
-			sub, err = d.node.Relay().Subscribe(r.Context())
+			sub, err = r.node.Relay().Subscribe(req.Context())
 			topicToSubscribe = relay.DefaultWakuTopic
 		} else {
-			sub, err = d.node.Relay().SubscribeToTopic(r.Context(), topic)
+			sub, err = r.node.Relay().SubscribeToTopic(req.Context(), topic)
 			topicToSubscribe = topic
 		}
 		if err != nil {
-			d.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
+			r.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
 		} else {
 			sub.Unsubscribe()
-			d.messagesMutex.Lock()
-			d.messages[topic] = []*pb.WakuMessage{}
-			d.messagesMutex.Unlock()
+			r.messagesMutex.Lock()
+			r.messages[topic] = []*pb.WakuMessage{}
+			r.messagesMutex.Unlock()
 		}
 	}
 
 	writeErrOrResponse(w, err, true)
 }
 
-func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
-	topic := chi.URLParam(r, "topic")
+func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
+	topic := chi.URLParam(req, "topic")
 	if topic == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -160,55 +160,55 @@ func (d *RelayService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	d.messagesMutex.Lock()
-	defer d.messagesMutex.Unlock()
+	r.messagesMutex.Lock()
+	defer r.messagesMutex.Unlock()
 
-	if _, ok := d.messages[topic]; !ok {
+	if _, ok := r.messages[topic]; !ok {
 		w.WriteHeader(http.StatusNotFound)
 		_, err = w.Write([]byte("not subscribed to topic"))
-		d.log.Error("writing response", zap.Error(err))
+		r.log.Error("writing response", zap.Error(err))
 		return
 	}
 
-	response := d.messages[topic]
+	response := r.messages[topic]
 
-	d.messages[topic] = []*pb.WakuMessage{}
+	r.messages[topic] = []*pb.WakuMessage{}
 	writeErrOrResponse(w, nil, response)
 }
 
-func (d *RelayService) postV1Message(w http.ResponseWriter, r *http.Request) {
-	topic := chi.URLParam(r, "topic")
+func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
+	topic := chi.URLParam(req, "topic")
 	if topic == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	var message *pb.WakuMessage
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&message); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer req.Body.Close()
 
 	var err error
 	if topic == "" {
 		topic = relay.DefaultWakuTopic
 	}
 
-	if !d.node.Relay().IsSubscribed(topic) {
+	if !r.node.Relay().IsSubscribed(topic) {
 		writeErrOrResponse(w, errors.New("not subscribed to pubsubTopic"), nil)
 		return
 	}
 
-	if err = server.AppendRLNProof(d.node, message); err != nil {
+	if err = server.AppendRLNProof(r.node, message); err != nil {
 		writeErrOrResponse(w, err, nil)
 		return
 	}
 
-	_, err = d.node.Relay().PublishToTopic(r.Context(), message, strings.Replace(topic, "\n", "", -1))
+	_, err = r.node.Relay().PublishToTopic(req.Context(), message, strings.Replace(topic, "\n", "", -1))
 	if err != nil {
-		d.log.Error("publishing message", zap.Error(err))
+		r.log.Error("publishing message", zap.Error(err))
 	}
 
 	writeErrOrResponse(w, err, true)

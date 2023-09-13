@@ -32,8 +32,8 @@ func TestBase64Encoding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, base64.StdEncoding.EncodeToString([]byte(input)), m["payload"])
 
-	decodedRpcMsg := new(RPCWakuMessage)
-	err = json.Unmarshal(jsonBytes, decodedRpcMsg)
+	decodedRPCMsg := new(RPCWakuMessage)
+	err = json.Unmarshal(jsonBytes, decodedRPCMsg)
 	require.NoError(t, err)
-	require.Equal(t, input, string(decodedRpcMsg.Payload))
+	require.Equal(t, input, string(decodedRPCMsg.Payload))
 }
