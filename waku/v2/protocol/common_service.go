@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+// this is common layout for all the services that require mutex protection and a guarantee that all running goroutines will be finished before stop finishes execution. This guarantee comes from waitGroup all one has to use CommonService.WaitGroup() in the goroutines that should finish by the end of stop function.
 type CommonService struct {
 	sync.RWMutex
 	cancel  context.CancelFunc
@@ -56,6 +57,7 @@ func (sp *CommonService) Stop(fn func()) {
 	sp.started = false
 }
 
+// This is not a mutex protected function, it is up to the caller to use it in a mutex protected context
 func (sp *CommonService) ErrOnNotRunning() error {
 	if !sp.started {
 		return ErrNotStarted
