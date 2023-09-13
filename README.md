@@ -5,7 +5,7 @@ A Go implementation of the [Waku v2 protocol](https://rfc.vac.dev/spec/10).
 <p align="left">
   <a href="https://goreportcard.com/report/github.com/waku-org/go-waku"><img src="https://goreportcard.com/badge/github.com/waku-org/go-waku" /></a>
   <a href="https://godoc.org/github.com/waku-org/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
-  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.18.0-orange.svg?style=flat-square" /></a>
+  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.19.0-orange.svg?style=flat-square" /></a>
   <a href="https://codeclimate.com/github/waku-org/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/426bdff6a339ff4d536b/maintainability" /></a>
   <br>
 </p>
@@ -38,7 +38,7 @@ nix develop
 #### Docker
 ```
 docker run -i -t -p 60000:60000 -p 9000:9000/udp \
-  statusteam/go-waku:v0.5.2 \ # or, the image:tag of your choice
+  statusteam/go-waku:latest \ # or, the image:tag of your choice
     --dns-discovery:true \
     --dns-discovery-url:enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im \
     --discv5-discovery
@@ -47,9 +47,9 @@ docker run -i -t -p 60000:60000 -p 9000:9000/udp \
 or build and run the image with:
 
 ```
-docker build -t go-waku:latest .
+docker build -t statusteam/go-waku:latest .
 
-docker run go-waku:latest --help
+docker run statusteam/go-waku:latest --help
 ```
 
 #### Building on windows

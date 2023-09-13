@@ -25,13 +25,12 @@ var log = utils.Logger().Named("rln")
 
 // Update these values
 // ============================================================================
-const ethClientAddress = "wss://sepolia.infura.io/ws/v3/API_KEY_GOES_HERE"
-const contractAddress = "0x9C09146844C1326c2dBC41c451766C7138F88155"
-const keystorePath = ""     // Empty to store in current folder
-const keystorePassword = "" // Empty to use default
-const membershipIndex = 0
-
-var contentTopic = protocol.NewContentTopic("rln", 1, "test", "proto").String()
+var ethClientAddress = "wss://sepolia.infura.io/ws/v3/API_KEY_GOES_HERE"
+var contractAddress = "0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4"
+var keystorePath = "./rlnKeystore.json"
+var keystorePassword = "password"
+var membershipIndex = uint(0)
+var contentTopic, _ = protocol.NewContentTopic("rln", 1, "test", "proto")
 var pubsubTopic = protocol.DefaultPubsubTopic()
 
 // ============================================================================
@@ -51,7 +50,7 @@ func main() {
 
 	ctx := context.Background()
 
-	spamHandler := func(message *pb.WakuMessage) error {
+	spamHandler := func(message *pb.WakuMessage, topic string) error {
 		fmt.Println("Spam message received")
 		return nil
 	}
@@ -66,7 +65,7 @@ func main() {
 			keystorePassword,
 			"", // Will use default tree path
 			common.HexToAddress(contractAddress),
-			membershipIndex,
+			&membershipIndex,
 			spamHandler,
 			ethClientAddress,
 		),
@@ -120,7 +119,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	msg := &pb.WakuMessage{
 		Payload:      payload,
 		Version:      version,
-		ContentTopic: contentTopic,
+		ContentTopic: contentTopic.String(),
 		Timestamp:    timestamp,
 	}
 
@@ -150,7 +149,7 @@ func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	}
 
 	for envelope := range sub.Ch {
-		if envelope.Message().ContentTopic != contentTopic {
+		if envelope.Message().ContentTopic != contentTopic.String() {
 			continue
 		}
 
