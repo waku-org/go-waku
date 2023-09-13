@@ -31,7 +31,7 @@ type Rendezvous struct {
 	peerConnector PeerConnector
 
 	log *zap.Logger
-	protocol.AppDesign
+	*protocol.CommonService
 }
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
@@ -46,7 +46,7 @@ func NewRendezvous(db *DB, peerConnector PeerConnector, log *zap.Logger) *Rendez
 		db:            db,
 		peerConnector: peerConnector,
 		log:           logger,
-		AppDesign:     protocol.NewAppDesign(),
+		CommonService: protocol.NewCommonService(),
 	}
 }
 
@@ -56,16 +56,18 @@ func (r *Rendezvous) SetHost(h host.Host) {
 }
 
 func (r *Rendezvous) Start(ctx context.Context) error {
-	return r.AppDesign.Start(ctx, func() error {
-		err := r.db.Start(ctx)
-		if err != nil {
-			return err
-		}
-		r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
+	return r.CommonService.Start(ctx, r.start)
+}
 
-		r.log.Info("rendezvous protocol started")
-		return nil
-	})
+func (r *Rendezvous) start() error {
+	err := r.db.Start(r.Context())
+	if err != nil {
+		return err
+	}
+	r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
+
+	r.log.Info("rendezvous protocol started")
+	return nil
 }
 
 const registerBackoff = 200 * time.Millisecond
@@ -177,7 +179,7 @@ func (r *Rendezvous) RegisterWithNamespace(ctx context.Context, namespace string
 }
 
 func (r *Rendezvous) Stop() {
-	r.AppDesign.Stop(func() {
+	r.CommonService.Stop(func() {
 		r.host.RemoveStreamHandler(rvs.RendezvousProto)
 		r.rendezvousSvc = nil
 	})

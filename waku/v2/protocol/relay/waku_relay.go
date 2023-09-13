@@ -60,7 +60,7 @@ type WakuRelay struct {
 		EvtRelayUnsubscribed event.Emitter
 	}
 
-	waku_proto.AppDesign
+	*waku_proto.CommonService
 }
 
 // EvtRelaySubscribed is an event emitted when a new subscription to a pubsub topic is created
@@ -85,7 +85,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.relaySubs = make(map[string]*pubsub.Subscription)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
-	w.AppDesign = waku_proto.NewAppDesign()
+	w.CommonService = waku_proto.NewCommonService()
 	w.log = log.Named("relay")
 	w.events = eventbus.NewBus()
 	w.metrics = newMetrics(reg, w.log)
@@ -211,25 +211,27 @@ func (w *WakuRelay) SetHost(h host.Host) {
 
 // Start initiates the WakuRelay protocol
 func (w *WakuRelay) Start(ctx context.Context) error {
-	return w.AppDesign.Start(ctx, func() error {
-		ps, err := pubsub.NewGossipSub(w.Context(), w.host, w.opts...)
-		if err != nil {
-			return err
-		}
-		w.pubsub = ps
+	return w.CommonService.Start(ctx, w.start)
+}
 
-		w.emitters.EvtRelaySubscribed, err = w.events.Emitter(new(EvtRelaySubscribed))
-		if err != nil {
-			return err
-		}
-		w.emitters.EvtRelayUnsubscribed, err = w.events.Emitter(new(EvtRelayUnsubscribed))
-		if err != nil {
-			return err
-		}
+func (w *WakuRelay) start() error {
+	ps, err := pubsub.NewGossipSub(w.Context(), w.host, w.opts...)
+	if err != nil {
+		return err
+	}
+	w.pubsub = ps
 
-		w.log.Info("Relay protocol started")
-		return nil
-	})
+	w.emitters.EvtRelaySubscribed, err = w.events.Emitter(new(EvtRelaySubscribed))
+	if err != nil {
+		return err
+	}
+	w.emitters.EvtRelayUnsubscribed, err = w.events.Emitter(new(EvtRelayUnsubscribed))
+	if err != nil {
+		return err
+	}
+
+	w.log.Info("Relay protocol started")
+	return nil
 }
 
 // PubSub returns the implementation of the pubsub system
@@ -359,7 +361,7 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byt
 
 // Stop unmounts the relay protocol and stops all subscriptions
 func (w *WakuRelay) Stop() {
-	w.AppDesign.Stop(func() {
+	w.CommonService.Stop(func() {
 		w.host.RemoveStreamHandler(WakuRelayID_v200)
 		w.emitters.EvtRelaySubscribed.Close()
 		w.emitters.EvtRelayUnsubscribed.Close()

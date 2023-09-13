@@ -6,39 +6,27 @@ import (
 	"sync"
 )
 
-type AppDesign struct {
-	mu      *sync.RWMutex
+type CommonService struct {
+	sync.RWMutex
 	cancel  context.CancelFunc
 	ctx     context.Context
-	wg      *sync.WaitGroup
+	wg      sync.WaitGroup
 	started bool
 }
 
-func NewAppDesign() AppDesign {
-	return AppDesign{
-		wg: &sync.WaitGroup{},
-		mu: &sync.RWMutex{},
-	}
-}
-
-func (sp *AppDesign) LockAndUnlock() func() {
-	sp.mu.Lock()
-	return func() {
-		sp.mu.Unlock()
-	}
-}
-func (sp *AppDesign) RLockAndUnlock() func() {
-	sp.mu.RLock()
-	return func() {
-		sp.mu.RUnlock()
+func NewCommonService() *CommonService {
+	return &CommonService{
+		wg:      sync.WaitGroup{},
+		RWMutex: sync.RWMutex{},
 	}
 }
 
 // mutex protected start function
 // creates internal context over provided context and runs fn safely
 // fn is excerpt to be executed to start the protocol
-func (sp *AppDesign) Start(ctx context.Context, fn func() error) error {
-	defer sp.LockAndUnlock()()
+func (sp *CommonService) Start(ctx context.Context, fn func() error) error {
+	sp.Lock()
+	defer sp.Unlock()
 	if sp.started {
 		return ErrAlreadyStarted
 	}
@@ -56,8 +44,9 @@ var ErrAlreadyStarted = errors.New("already started")
 var ErrNotStarted = errors.New("not started")
 
 // mutex protected stop function
-func (sp *AppDesign) Stop(fn func()) {
-	defer sp.LockAndUnlock()()
+func (sp *CommonService) Stop(fn func()) {
+	sp.Lock()
+	defer sp.Unlock()
 	if !sp.started {
 		return
 	}
@@ -67,16 +56,16 @@ func (sp *AppDesign) Stop(fn func()) {
 	sp.started = false
 }
 
-func (sp AppDesign) ErrOnNotRunning() error {
+func (sp *CommonService) ErrOnNotRunning() error {
 	if !sp.started {
 		return ErrNotStarted
 	}
 	return nil
 }
 
-func (sp *AppDesign) Context() context.Context {
+func (sp *CommonService) Context() context.Context {
 	return sp.ctx
 }
-func (sp *AppDesign) WaitGroup() *sync.WaitGroup {
-	return sp.wg
+func (sp *CommonService) WaitGroup() *sync.WaitGroup {
+	return &sp.wg
 }

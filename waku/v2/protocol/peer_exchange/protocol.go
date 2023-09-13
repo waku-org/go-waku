@@ -42,7 +42,7 @@ type WakuPeerExchange struct {
 	metrics Metrics
 	log     *zap.Logger
 
-	protocol.AppDesign
+	*protocol.CommonService
 
 	peerConnector PeerConnector
 	enrCache      *enrCache
@@ -63,7 +63,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
-	wakuPX.AppDesign = protocol.NewAppDesign()
+	wakuPX.CommonService = protocol.NewCommonService()
 
 	return wakuPX, nil
 }
@@ -75,14 +75,16 @@ func (wakuPX *WakuPeerExchange) SetHost(h host.Host) {
 
 // Start inits the peer exchange protocol
 func (wakuPX *WakuPeerExchange) Start(ctx context.Context) error {
-	return wakuPX.AppDesign.Start(ctx, func() error {
-		wakuPX.h.SetStreamHandlerMatch(PeerExchangeID_v20alpha1, protocol.PrefixTextMatch(string(PeerExchangeID_v20alpha1)), wakuPX.onRequest())
+	return wakuPX.CommonService.Start(ctx, wakuPX.start)
+}
 
-		wakuPX.WaitGroup().Add(1)
-		go wakuPX.runPeerExchangeDiscv5Loop(wakuPX.Context())
-		wakuPX.log.Info("Peer exchange protocol started")
-		return nil
-	})
+func (wakuPX *WakuPeerExchange) start() error {
+	wakuPX.h.SetStreamHandlerMatch(PeerExchangeID_v20alpha1, protocol.PrefixTextMatch(string(PeerExchangeID_v20alpha1)), wakuPX.onRequest())
+
+	wakuPX.WaitGroup().Add(1)
+	go wakuPX.runPeerExchangeDiscv5Loop(wakuPX.Context())
+	wakuPX.log.Info("Peer exchange protocol started")
+	return nil
 }
 
 func (wakuPX *WakuPeerExchange) onRequest() func(s network.Stream) {
@@ -125,7 +127,7 @@ func (wakuPX *WakuPeerExchange) onRequest() func(s network.Stream) {
 
 // Stop unmounts the peer exchange protocol
 func (wakuPX *WakuPeerExchange) Stop() {
-	wakuPX.AppDesign.Stop(func() {
+	wakuPX.CommonService.Stop(func() {
 		wakuPX.h.RemoveStreamHandler(PeerExchangeID_v20alpha1)
 	})
 }

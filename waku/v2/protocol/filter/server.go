@@ -34,7 +34,7 @@ type (
 		msgSub  relay.Subscription
 		metrics Metrics
 		log     *zap.Logger
-		protocol.AppDesign
+		*protocol.CommonService
 		subscriptions *SubscribersMap
 
 		maxSubscriptions int
@@ -53,7 +53,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 		opt(params)
 	}
 
-	wf.AppDesign = protocol.NewAppDesign()
+	wf.CommonService = protocol.NewCommonService()
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
@@ -67,17 +67,20 @@ func (wf *WakuFilterFullNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterFullNode) Start(ctx context.Context, sub relay.Subscription) error {
-	return wf.AppDesign.Start(ctx, func() error {
-		wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(wf.Context()))
-
-		wf.msgSub = sub
-		wf.WaitGroup().Add(1)
-		go wf.filterListener(wf.Context())
-
-		wf.log.Info("filter-subscriber protocol started")
-		return nil
+	return wf.CommonService.Start(ctx, func() error {
+		return wf.start(sub)
 	})
+}
 
+func (wf *WakuFilterFullNode) start(sub relay.Subscription) error {
+	wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(wf.Context()))
+
+	wf.msgSub = sub
+	wf.WaitGroup().Add(1)
+	go wf.filterListener(wf.Context())
+
+	wf.log.Info("filter-subscriber protocol started")
+	return nil
 }
 
 func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(s network.Stream) {
@@ -311,7 +314,7 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilterFullNode) Stop() {
-	wf.AppDesign.Stop(func() {
+	wf.CommonService.Stop(func() {
 		wf.h.RemoveStreamHandler(FilterSubscribeID_v20beta1)
 		wf.msgSub.Unsubscribe()
 	})

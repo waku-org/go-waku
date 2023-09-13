@@ -46,7 +46,7 @@ type (
 	}
 
 	WakuFilter struct {
-		protocol.AppDesign
+		*protocol.CommonService
 		h          host.Host
 		isFullNode bool
 		msgSub     relay.Subscription
@@ -74,7 +74,7 @@ func NewWakuFilter(broadcaster relay.Broadcaster, isFullNode bool, timesource ti
 	}
 
 	wf.isFullNode = isFullNode
-	wf.AppDesign = protocol.NewAppDesign()
+	wf.CommonService = protocol.NewCommonService()
 	wf.filters = NewFilterMap(broadcaster, timesource)
 	wf.subscribers = NewSubscribers(params.Timeout)
 	wf.metrics = newMetrics(reg)
@@ -88,18 +88,19 @@ func (wf *WakuFilter) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilter) Start(ctx context.Context, sub relay.Subscription) error {
-	err := wf.AppDesign.Start(ctx, func() error {
-		wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(wf.Context()))
-		wf.msgSub = sub
-		wf.WaitGroup().Add(1)
-		go wf.filterListener(wf.Context())
-		wf.log.Info("filter protocol started")
-		return nil
+	return wf.CommonService.Start(ctx, func() error {
+		return wf.start(sub)
 	})
-
-	return err
 }
 
+func (wf *WakuFilter) start(sub relay.Subscription) error {
+	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(wf.Context()))
+	wf.msgSub = sub
+	wf.WaitGroup().Add(1)
+	go wf.filterListener(wf.Context())
+	wf.log.Info("filter protocol started")
+	return nil
+}
 func (wf *WakuFilter) onRequest(ctx context.Context) func(s network.Stream) {
 	return func(s network.Stream) {
 		defer s.Close()
@@ -320,7 +321,7 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 
 // Stop unmounts the filter protocol
 func (wf *WakuFilter) Stop() {
-	wf.AppDesign.Stop(func() {
+	wf.CommonService.Stop(func() {
 		wf.msgSub.Unsubscribe()
 
 		wf.h.RemoveStreamHandler(FilterID_v20beta1)
