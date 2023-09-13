@@ -15,7 +15,7 @@ func TestCommonService(t *testing.T) {
 		if i%2 == 0 {
 			go func() {
 				wg.Done()
-				s.Start(context.TODO(), func() error { return nil })
+				_ = s.Start(context.TODO(), func() error { return nil })
 			}()
 		} else {
 			go func() {
