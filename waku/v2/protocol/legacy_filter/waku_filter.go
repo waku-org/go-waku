@@ -46,7 +46,7 @@ type (
 	}
 
 	WakuFilter struct {
-		*protocol.CommonService
+		*protocol.CommonService[struct{}]
 		h          host.Host
 		isFullNode bool
 		msgSub     relay.Subscription
@@ -74,7 +74,7 @@ func NewWakuFilter(broadcaster relay.Broadcaster, isFullNode bool, timesource ti
 	}
 
 	wf.isFullNode = isFullNode
-	wf.CommonService = protocol.NewCommonService()
+	wf.CommonService = protocol.NewCommonService[struct{}]()
 	wf.filters = NewFilterMap(broadcaster, timesource)
 	wf.subscribers = NewSubscribers(params.Timeout)
 	wf.metrics = newMetrics(reg)

@@ -64,7 +64,7 @@ type WakuRelay struct {
 		EvtRelayUnsubscribed event.Emitter
 	}
 
-	*waku_proto.CommonService
+	*waku_proto.CommonService[struct{}]
 }
 
 // EvtRelaySubscribed is an event emitted when a new subscription to a pubsub topic is created
@@ -90,7 +90,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.topicValidators = make(map[string][]validatorFn)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
-	w.CommonService = waku_proto.NewCommonService()
+	w.CommonService = waku_proto.NewCommonService[struct{}]()
 	w.log = log.Named("relay")
 	w.events = eventbus.NewBus()
 	w.metrics = newMetrics(reg, w.log)

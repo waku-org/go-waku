@@ -8,7 +8,7 @@ import (
 
 // check if start and stop on common service works in random order
 func TestCommonService(t *testing.T) {
-	s := NewCommonService()
+	s := NewCommonService[struct{}]()
 	wg := &sync.WaitGroup{}
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)

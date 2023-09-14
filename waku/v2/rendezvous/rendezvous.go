@@ -31,7 +31,7 @@ type Rendezvous struct {
 	peerConnector PeerConnector
 
 	log *zap.Logger
-	*protocol.CommonService
+	*protocol.CommonService[struct{}]
 }
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
@@ -46,7 +46,7 @@ func NewRendezvous(db *DB, peerConnector PeerConnector, log *zap.Logger) *Rendez
 		db:            db,
 		peerConnector: peerConnector,
 		log:           logger,
-		CommonService: protocol.NewCommonService(),
+		CommonService: protocol.NewCommonService[struct{}](),
 	}
 }
 
