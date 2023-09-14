@@ -12,6 +12,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 
@@ -217,6 +218,25 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // Note that these peers will not be set in service-slots.
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
 func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
+	// Try to fetch shard info from ENR to arrive at pubSub topics.
+	if len(p.PubSubTopics) == 0 && p.ENR != nil {
+		shards, err := wenr.RelaySharding(p.ENR.Record())
+		if err != nil {
+			pm.logger.Error("Could not derive relayShards from ENR", zap.Error(err),
+				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
+		} else {
+			if shards != nil {
+				p.PubSubTopics = make([]string, 0)
+				topics := shards.Topics()
+				for _, topic := range topics {
+					topicStr := topic.String()
+					p.PubSubTopics = append(p.PubSubTopics, topicStr)
+				}
+			} else {
+				pm.logger.Info("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
+			}
+		}
+	}
 
 	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics)
 
@@ -248,12 +268,9 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 		}
 	}
 	if len(pubSubTopics) == 0 {
-		//TODO: Try to fetch shard info from ENR to arrive at pubSub topics.
-
-		//If pubSubTopic and enr is there or no shard info in ENR,then set to defaultPubSubTopic
+		// Probably the peer is discovered via DNSDiscovery (for which we don't have pubSubTopic info)
+		//If pubSubTopic and enr is empty or no shard info in ENR,then set to defaultPubSubTopic
 		pubSubTopics = []string{relay.DefaultWakuTopic}
-		//Ideally this means the peer is statically configured which means we should assign it to topics passed as config
-		// Or the peer is discovered via DNSDiscovery (for which we don't have pubSubTopic info)
 	}
 	err = pm.host.Peerstore().(wps.WakuPeerstore).SetPubSubTopics(ID, pubSubTopics)
 	if err != nil {
