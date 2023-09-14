@@ -197,7 +197,7 @@ func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	_, err = d.node.AddPeer(peerAddr, peerstore.Static)
+	_, err = d.node.AddPeer(peerAddr, peerstore.Static, d.node.Relay().Topics())
 	if err != nil {
 		writeStoreError(w, http.StatusInternalServerError, err)
 		return

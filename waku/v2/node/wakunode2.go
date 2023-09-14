@@ -31,6 +31,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	wakuprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
@@ -688,18 +689,20 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
-	return w.peermanager.AddPeer(address, origin, protocols...)
+// TODO: Need to update this for autosharding, to only take contentTopics and optional pubSubTopics or provide an alternate API only for contentTopics.
+func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
+	return w.peermanager.AddPeer(address, origin, pubSubTopics, protocols...)
 }
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
-func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin) {
+func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string) {
 	p := peermanager.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    ID,
 			Addrs: addrs,
 		},
+		PubSubTopics: pubsubTopics,
 	}
 	w.peermanager.AddDiscoveredPeer(p)
 }
@@ -836,6 +839,11 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 		})
 	}
 	return peers, nil
+}
+
+func (w *WakuNode) PeersByShard(cluster uint16, shard uint16) peer.IDSlice {
+	pTopic := wakuprotocol.NewStaticShardingPubsubTopic(cluster, shard).String()
+	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
 }
 
 func (w *WakuNode) findRelayNodes(ctx context.Context) {

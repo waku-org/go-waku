@@ -103,8 +103,9 @@ func (r *Rendezvous) DiscoverWithNamespace(ctx context.Context, namespace string
 		r.peerConnector.Subscribe(ctx, peerCh)
 		for _, p := range addrInfo {
 			peer := peermanager.PeerData{
-				Origin:   peerstore.Rendezvous,
-				AddrInfo: p,
+				Origin:       peerstore.Rendezvous,
+				AddrInfo:     p,
+				PubSubTopics: []string{namespace},
 			}
 			select {
 			case <-ctx.Done():

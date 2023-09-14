@@ -77,19 +77,19 @@ func execute(options Options) {
 		return
 	}
 
-	err = addPeer(wakuNode, options.Store.Node, store.StoreID_v20beta4)
+	err = addPeer(wakuNode, options.Store.Node, options.Relay.Topics.Value(), store.StoreID_v20beta4)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	err = addPeer(wakuNode, options.LightPush.Node, lightpush.LightPushID_v20beta1)
+	err = addPeer(wakuNode, options.LightPush.Node, options.Relay.Topics.Value(), lightpush.LightPushID_v20beta1)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	err = addPeer(wakuNode, options.Filter.Node, filter.FilterSubscribeID_v20beta1)
+	err = addPeer(wakuNode, options.Filter.Node, options.Relay.Topics.Value(), filter.FilterSubscribeID_v20beta1)
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -113,10 +113,10 @@ func execute(options Options) {
 	chat.Stop()
 }
 
-func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, protocols ...protocol.ID) error {
+func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, topics []string, protocols ...protocol.ID) error {
 	if addr == nil {
 		return nil
 	}
-	_, err := wakuNode.AddPeer(*addr, peerstore.Static, protocols...)
+	_, err := wakuNode.AddPeer(*addr, peerstore.Static, topics, protocols...)
 	return err
 }

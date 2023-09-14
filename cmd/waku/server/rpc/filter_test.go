@@ -84,7 +84,7 @@ func TestFilterSubscription(t *testing.T) {
 		break
 	}
 
-	_, err = d.node.AddPeer(addr, peerstore.Static, legacy_filter.FilterID_v20beta1)
+	_, err = d.node.AddPeer(addr, peerstore.Static, []string{testTopic}, legacy_filter.FilterID_v20beta1)
 	require.NoError(t, err)
 
 	args := &FilterContentArgs{Topic: testTopic, ContentFilters: []*pb.FilterRequest_ContentFilter{{ContentTopic: "ct"}}}
