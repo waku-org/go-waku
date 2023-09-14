@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -110,7 +111,7 @@ func TestDefaultProtocol(t *testing.T) {
 	// check peer for default protocol
 	///////////////
 	//Test empty peer selection for relay protocol
-	_, err := pm.SelectPeer(WakuRelayIDv200, nil)
+	_, err := pm.SelectPeer(relay.WakuRelayID_v200, nil)
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	///////////////
@@ -121,11 +122,11 @@ func TestDefaultProtocol(t *testing.T) {
 	defer h5.Close()
 
 	//Test peer selection for relay protocol from peer store
-	_, err = pm.AddPeer(getAddr(h5), wps.Static, WakuRelayIDv200)
+	_, err = pm.AddPeer(getAddr(h5), wps.Static, relay.WakuRelayID_v200)
 	require.NoError(t, err)
 
 	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
-	peerID, err := pm.SelectPeer(WakuRelayIDv200, nil)
+	peerID, err := pm.SelectPeer(relay.WakuRelayID_v200, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, h5.ID())
 }

@@ -12,14 +12,11 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 
 	"go.uber.org/zap"
 )
-
-// WakuRelayIDv200 is protocol ID for Waku v2 relay protocol
-// TODO: Move all the protocol IDs to a common location.
-const WakuRelayIDv200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
@@ -133,10 +130,10 @@ func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers
 
 	//Need to filter peers to check if they support relay
 	if inPeers.Len() != 0 {
-		inRelayPeers, _ = utils.FilterPeersByProto(pm.host, inPeers, WakuRelayIDv200)
+		inRelayPeers, _ = utils.FilterPeersByProto(pm.host, inPeers, relay.WakuRelayID_v200)
 	}
 	if outPeers.Len() != 0 {
-		outRelayPeers, _ = utils.FilterPeersByProto(pm.host, outPeers, WakuRelayIDv200)
+		outRelayPeers, _ = utils.FilterPeersByProto(pm.host, outPeers, relay.WakuRelayID_v200)
 	}
 	return
 }
@@ -283,7 +280,7 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 // Adding to peerStore is expected to be already done by caller.
 // If relay proto is passed, it is not added to serviceSlot.
 func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
-	if proto == WakuRelayIDv200 {
+	if proto == relay.WakuRelayID_v200 {
 		pm.logger.Warn("Cannot add Relay peer to service peer slots")
 		return
 	}
