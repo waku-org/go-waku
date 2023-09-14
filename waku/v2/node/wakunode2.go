@@ -32,6 +32,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	wakuprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
@@ -838,6 +839,11 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 		})
 	}
 	return peers, nil
+}
+
+func (w *WakuNode) PeersByShard(cluster uint16, shard uint16) peer.IDSlice {
+	pTopic := wakuprotocol.NewStaticShardingPubsubTopic(cluster, shard).String()
+	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
 }
 
 func (w *WakuNode) findRelayNodes(ctx context.Context) {

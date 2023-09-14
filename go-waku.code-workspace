@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "examples/chat2"
+		},
+		{
+			"path": "examples/filter2"
+		}
+	],
+	"settings": {}
+}

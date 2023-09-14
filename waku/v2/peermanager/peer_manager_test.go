@@ -169,5 +169,3 @@ func TestConnectToRelayPeers(t *testing.T) {
 	pm.connectToRelayPeers()
 
 }
-
-//TODO: Add tests to verify peerStore and fetching peers based on topics.
