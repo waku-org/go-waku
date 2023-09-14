@@ -6,14 +6,13 @@ package rlngenerate
 import (
 	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
-	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
 )
 
 var flags = []cli.Flag{
 	&cli.PathFlag{
 		Name:        "cred-path",
 		Usage:       "RLN relay membership credentials file",
-		Value:       keystore.DefaultCredentialsFilename,
+		Value:       "./rlnKeystore.json",
 		Destination: &options.CredentialsPath,
 	},
 	&cli.StringFlag{

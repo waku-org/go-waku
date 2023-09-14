@@ -182,6 +182,10 @@ func (gm *DynamicGroupManager) Start(ctx context.Context) error {
 }
 
 func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
+	if gm.appKeystore == nil {
+		gm.log.Warn("no credentials were loaded. Node will only validate messages, but wont be able to generate proofs and attach them to messages")
+		return nil
+	}
 	start := time.Now()
 
 	credentials, err := gm.appKeystore.GetMembershipCredentials(
