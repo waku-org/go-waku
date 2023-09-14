@@ -15,20 +15,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// DefaultCredentialsFilename is the suggested default filename for the rln credentials keystore
-const DefaultCredentialsFilename = "./rlnKeystore.json"
-
-// DefaultCredentialsPassword is the suggested default password for the rln credentials store
-const DefaultCredentialsPassword = "password"
-
 // New creates a new instance of a rln credentials keystore
 func New(path string, appInfo AppInfo, logger *zap.Logger) (*AppKeystore, error) {
 	logger = logger.Named("rln-keystore")
-
-	if path == "" {
-		logger.Warn("keystore: no credentials path set, using default path", zap.String("path", DefaultCredentialsFilename))
-		path = DefaultCredentialsFilename
-	}
 
 	_, err := os.Stat(path)
 	if err != nil {

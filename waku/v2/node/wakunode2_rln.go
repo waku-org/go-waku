@@ -59,9 +59,12 @@ func (w *WakuNode) setupRLNRelay() error {
 	} else {
 		w.log.Info("setting up waku-rln-relay in on-chain mode")
 
-		appKeystore, err := keystore.New(w.opts.keystorePath, dynamic.RLNAppInfo, w.log)
-		if err != nil {
-			return err
+		var appKeystore *keystore.AppKeystore
+		if w.opts.keystorePath != "" {
+			appKeystore, err = keystore.New(w.opts.keystorePath, dynamic.RLNAppInfo, w.log)
+			if err != nil {
+				return err
+			}
 		}
 
 		groupManager, err = dynamic.NewDynamicGroupManager(

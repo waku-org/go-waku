@@ -6,7 +6,6 @@ package main
 import (
 	cli "github.com/urfave/cli/v2"
 	wcli "github.com/waku-org/go-waku/waku/cliutils"
-	"github.com/waku-org/go-waku/waku/v2/protocol/rln/keystore"
 )
 
 func rlnFlags() []cli.Flag {
@@ -32,12 +31,12 @@ func rlnFlags() []cli.Flag {
 		&cli.PathFlag{
 			Name:        "rln-relay-cred-path",
 			Usage:       "RLN relay membership credentials file",
-			Value:       keystore.DefaultCredentialsFilename,
+			Value:       "",
 			Destination: &options.RLNRelay.CredentialsPath,
 		},
 		&cli.StringFlag{
 			Name:        "rln-relay-cred-password",
-			Value:       keystore.DefaultCredentialsPassword,
+			Value:       "",
 			Usage:       "Password for encrypting RLN credentials",
 			Destination: &options.RLNRelay.CredentialsPassword,
 		},
