@@ -95,3 +95,7 @@ func (gm *StaticGroupManager) Stop() error {
 	// Do nothing
 	return nil
 }
+
+func (gm *StaticGroupManager) IsReady(ctx context.Context) (bool, error) {
+	return true, nil
+}

@@ -43,7 +43,7 @@ func execute(options Options) {
 	}
 
 	if options.RLNRelay.Enable {
-		spamHandler := func(message *pb.WakuMessage) error {
+		spamHandler := func(message *pb.WakuMessage, topic string) error {
 			return nil
 		}
 

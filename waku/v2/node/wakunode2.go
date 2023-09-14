@@ -10,7 +10,6 @@ import (
 	backoffv4 "github.com/cenkalti/backoff/v4"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -67,15 +66,16 @@ type IdentityCredential = struct {
 	IDCommitment byte32 `json:"idCommitment"`
 }
 
-type SpamHandler = func(message *pb.WakuMessage) error
+type SpamHandler = func(message *pb.WakuMessage, topic string) error
 
 type RLNRelay interface {
 	IdentityCredential() (IdentityCredential, error)
 	MembershipIndex() uint
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
-	Validator(spamHandler SpamHandler) func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
+	Validator(spamHandler SpamHandler) func(ctx context.Context, message *pb.WakuMessage, topic string) bool
 	Start(ctx context.Context) error
 	Stop() error
+	IsReady(ctx context.Context) (bool, error)
 }
 
 type WakuNode struct {
