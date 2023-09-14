@@ -178,7 +178,7 @@ func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
 			ID:    peerID,
 			Addrs: pm.host.Peerstore().Addrs(peerID),
 		}
-		pm.peerConnector.publishWork(pm.ctx, peerInfo)
+		pm.peerConnector.PushToChan(peerInfo)
 	}
 }
 
