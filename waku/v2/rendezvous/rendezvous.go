@@ -31,7 +31,7 @@ type Rendezvous struct {
 	peerConnector PeerConnector
 
 	log *zap.Logger
-	*protocol.CommonService[struct{}]
+	*protocol.CommonService[peermanager.PeerData]
 }
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
@@ -46,7 +46,7 @@ func NewRendezvous(db *DB, peerConnector PeerConnector, log *zap.Logger) *Rendez
 		db:            db,
 		peerConnector: peerConnector,
 		log:           logger,
-		CommonService: protocol.NewCommonService[struct{}](),
+		CommonService: protocol.NewCommonService[peermanager.PeerData](),
 	}
 }
 
@@ -60,10 +60,15 @@ func (r *Rendezvous) Start(ctx context.Context) error {
 }
 
 func (r *Rendezvous) start() error {
-	err := r.db.Start(r.Context())
-	if err != nil {
-		return err
+	if r.db != nil {
+		if err := r.db.Start(r.Context()); err != nil {
+			return err
+		}
 	}
+	if r.peerConnector != nil {
+		r.peerConnector.Subscribe(r.Context(), r.GetListeningChan())
+	}
+
 	r.rendezvousSvc = rvs.NewRendezvousService(r.host, r.db)
 
 	r.log.Info("rendezvous protocol started")
@@ -98,19 +103,14 @@ func (r *Rendezvous) DiscoverWithNamespace(ctx context.Context, namespace string
 	if len(addrInfo) != 0 {
 		rp.SetSuccess(cookie)
 
-		peerCh := make(chan peermanager.PeerData)
-		defer close(peerCh)
-		r.peerConnector.Subscribe(ctx, peerCh)
 		for _, p := range addrInfo {
 			peer := peermanager.PeerData{
 				Origin:       peerstore.Rendezvous,
 				AddrInfo:     p,
 				PubSubTopics: []string{namespace},
 			}
-			select {
-			case <-ctx.Done():
+			if !r.PushToChan(peer) {
 				return
-			case peerCh <- peer:
 			}
 		}
 	} else {
