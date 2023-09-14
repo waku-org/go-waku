@@ -688,18 +688,20 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
-	return w.peermanager.AddPeer(address, origin, protocols...)
+// TODO: Need to update this for autosharding, to only take contentTopics and optional pubSubTopics or provide an alternate API only for contentTopics.
+func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
+	return w.peermanager.AddPeer(address, origin, pubSubTopics, protocols...)
 }
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
-func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin) {
+func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string) {
 	p := peermanager.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    ID,
 			Addrs: addrs,
 		},
+		PubSubTopics: pubsubTopics,
 	}
 	w.peermanager.AddDiscoveredPeer(p)
 }

@@ -12,6 +12,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 
 	"go.uber.org/zap"
@@ -217,7 +218,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
 func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 
-	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin)
+	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics)
 
 	if p.ENR != nil {
 		err := pm.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
@@ -226,11 +227,12 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 		}
 	}
+
 }
 
 // addPeer adds peer to only the peerStore.
 // It also sets additional metadata such as origin, ENR and supported protocols
-func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) error {
+func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) error {
 	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
 	pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
 	err := pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(ID, origin)
@@ -245,11 +247,24 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 			return err
 		}
 	}
+	if len(pubSubTopics) == 0 {
+		//TODO: Try to fetch shard info from ENR to arrive at pubSub topics.
+
+		//If pubSubTopic and enr is there or no shard info in ENR,then set to defaultPubSubTopic
+		pubSubTopics = []string{relay.DefaultWakuTopic}
+		//Ideally this means the peer is statically configured which means we should assign it to topics passed as config
+		// Or the peer is discovered via DNSDiscovery (for which we don't have pubSubTopic info)
+	}
+	err = pm.host.Peerstore().(wps.WakuPeerstore).SetPubSubTopics(ID, pubSubTopics)
+	if err != nil {
+		pm.logger.Error("could not store pubSubTopic", zap.Error(err),
+			logging.HostID("peer", ID), zap.Strings("topics", pubSubTopics))
+	}
 	return nil
 }
 
 // AddPeer adds peer to the peerStore and also to service slots
-func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
+func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
 	//Assuming all addresses have peerId
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
@@ -262,7 +277,7 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, protocol
 	}
 
 	//Add to the peer-store
-	err = pm.addPeer(info.ID, info.Addrs, origin, protocols...)
+	err = pm.addPeer(info.ID, info.Addrs, origin, pubSubTopics, protocols...)
 	if err != nil {
 		return "", err
 	}

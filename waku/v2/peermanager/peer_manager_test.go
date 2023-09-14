@@ -56,7 +56,7 @@ func TestServiceSlots(t *testing.T) {
 
 	// add h2 peer to peer manager
 	t.Log(h2.ID())
-	_, err = pm.AddPeer(getAddr(h2), wps.Static, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	///////////////
@@ -69,7 +69,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerID, h2.ID())
 
 	// add h3 peer to peer manager
-	_, err = pm.AddPeer(getAddr(h3), wps.Static, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(getAddr(h3), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	// check that returned peer is h2 or h3 peer
@@ -93,7 +93,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	// add h4 peer for protocol1
-	_, err = pm.AddPeer(getAddr(h4), wps.Static, libp2pProtocol.ID(protocol1))
+	_, err = pm.AddPeer(getAddr(h4), wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
 	require.NoError(t, err)
 
 	//Test peer selection for protocol1
@@ -121,7 +121,7 @@ func TestDefaultProtocol(t *testing.T) {
 	defer h5.Close()
 
 	//Test peer selection for relay protocol from peer store
-	_, err = pm.AddPeer(getAddr(h5), wps.Static, WakuRelayIDv200)
+	_, err = pm.AddPeer(getAddr(h5), wps.Static, []string{""}, WakuRelayIDv200)
 	require.NoError(t, err)
 
 	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
@@ -142,7 +142,7 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer h6.Close()
 
-	_, err = pm.AddPeer(getAddr(h6), wps.Static, protocol2)
+	_, err = pm.AddPeer(getAddr(h6), wps.Static, []string{""}, protocol2)
 	require.NoError(t, err)
 
 	peerID, err := pm.SelectPeer(protocol2, nil)
@@ -169,3 +169,5 @@ func TestConnectToRelayPeers(t *testing.T) {
 	pm.connectToRelayPeers()
 
 }
+
+//TODO: Add tests to verify peerStore and fetching peers based on topics.
