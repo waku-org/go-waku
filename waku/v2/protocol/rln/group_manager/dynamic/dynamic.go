@@ -171,7 +171,14 @@ func (gm *DynamicGroupManager) Start(ctx context.Context) error {
 		return err
 	}
 
-	return gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler)
+	err = gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler)
+	if err != nil {
+		return err
+	}
+
+	gm.metrics.RecordRegisteredMembership(gm.rln.LeavesSet())
+
+	return nil
 }
 
 func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
@@ -231,7 +238,7 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 		}
 		gm.metrics.RecordMembershipInsertionDuration(time.Since(start))
 
-		gm.metrics.RecordRegisteredMembership(startIndex + uint(len(idCommitments)))
+		gm.metrics.RecordRegisteredMembership(gm.rln.LeavesSet())
 
 		_, err = gm.rootTracker.UpdateLatestRoot(pair.Key.(uint64))
 		if err != nil {
