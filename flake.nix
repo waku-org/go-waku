@@ -22,14 +22,14 @@
           name = "go-waku";
           src = self;
           inherit subPackages;
-          tags = [ "gowaku_no_rln" ];
+          tags = [ ];
           ldflags = [
             "-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=${commit}"
             "-X github.com/waku-org/go-waku/waku/v2/node.Version=${version}"
           ];
           doCheck = false;
           # FIXME: This needs to be manually changed when updating modules.
-          vendorSha256 = "sha256-aF+E7w4HahbkZ2mLmYg38Dma63uSVc+9wy0KZ/b9xVA=";
+          vendorSha256 = "sha256-eS/4YnNv2yGR+tVMq6xfx0Ntq8WosV+pTrbOb3mNYaA=";
           # Fix for 'nix run' trying to execute 'go-waku'.
           meta = { mainProgram = "waku"; };
         };
