@@ -20,6 +20,7 @@ const (
 	PeerExchange
 	DNSDiscovery
 	Rendezvous
+	PeerManager
 )
 
 const peerOrigin = "origin"
