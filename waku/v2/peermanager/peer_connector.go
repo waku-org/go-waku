@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -24,14 +23,6 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 )
-
-// PeerData contains information about a peer useful in establishing connections with it.
-type PeerData struct {
-	Origin       wps.Origin
-	AddrInfo     peer.AddrInfo
-	PubSubTopics []string
-	ENR          *enode.Node
-}
 
 // PeerConnectionStrategy is a utility to connect to peers,
 // but only if we have not recently tried connecting to them already
