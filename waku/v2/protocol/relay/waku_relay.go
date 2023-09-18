@@ -54,7 +54,7 @@ type WakuRelay struct {
 	defaultTopicValidators []validatorFn
 
 	// TODO: convert to concurrent maps
-	topicsMutex     sync.Mutex
+	topicsMutex     sync.RWMutex
 	wakuRelayTopics map[string]*pubsub.Topic
 	relaySubs       map[string]*pubsub.Subscription
 
@@ -240,8 +240,8 @@ func (w *WakuRelay) PubSub() *pubsub.PubSub {
 
 // Topics returns a list of all the pubsub topics currently subscribed to
 func (w *WakuRelay) Topics() []string {
-	defer w.topicsMutex.Unlock()
-	w.topicsMutex.Lock()
+	defer w.topicsMutex.RUnlock()
+	w.topicsMutex.RLock()
 
 	var result []string
 	for topic := range w.relaySubs {
@@ -252,8 +252,8 @@ func (w *WakuRelay) Topics() []string {
 
 // IsSubscribed indicates whether the node is subscribed to a pubsub topic or not
 func (w *WakuRelay) IsSubscribed(topic string) bool {
-	defer w.topicsMutex.Unlock()
-	w.topicsMutex.Lock()
+	defer w.topicsMutex.RUnlock()
+	w.topicsMutex.RLock()
 	_, ok := w.relaySubs[topic]
 	return ok
 }
@@ -408,6 +408,9 @@ func (w *WakuRelay) Subscribe(ctx context.Context) (*Subscription, error) {
 
 // Unsubscribe closes a subscription to a pubsub topic
 func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {
+	w.topicsMutex.Lock()
+	defer w.topicsMutex.Unlock()
+
 	sub, ok := w.relaySubs[topic]
 	if !ok {
 		return fmt.Errorf("not subscribed to topic")
