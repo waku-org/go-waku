@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -34,23 +32,20 @@ type PeerConnector interface {
 }
 
 type DiscoveryV5 struct {
-	params      *discV5Parameters
-	host        host.Host
-	config      discover.Config
-	udpAddr     *net.UDPAddr
-	listener    *discover.UDPv5
-	localnode   *enode.LocalNode
-	metrics     Metrics
-	peerChannel *peerChannel
+	params    *discV5Parameters
+	host      host.Host
+	config    discover.Config
+	udpAddr   *net.UDPAddr
+	listener  *discover.UDPv5
+	localnode *enode.LocalNode
+	metrics   Metrics
 
 	peerConnector PeerConnector
 	NAT           nat.Interface
 
 	log *zap.Logger
 
-	started atomic.Bool
-	cancel  context.CancelFunc
-	wg      *sync.WaitGroup
+	*peermanager.CommonDiscoveryService
 }
 
 type discV5Parameters struct {
@@ -132,13 +127,12 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 	}
 
 	return &DiscoveryV5{
-		params:        params,
-		peerConnector: peerConnector,
-		NAT:           NAT,
-		wg:            &sync.WaitGroup{},
-		peerChannel:   &peerChannel{},
-		localnode:     localnode,
-		metrics:       newMetrics(reg),
+		params:                 params,
+		peerConnector:          peerConnector,
+		NAT:                    NAT,
+		CommonDiscoveryService: peermanager.NewCommonDiscoveryService(),
+		localnode:              localnode,
+		metrics:                newMetrics(reg),
 		config: discover.Config{
 			PrivateKey: priv,
 			Bootnodes:  params.bootnodes,
@@ -167,9 +161,9 @@ func (d *DiscoveryV5) listen(ctx context.Context) error {
 	d.udpAddr = conn.LocalAddr().(*net.UDPAddr)
 
 	if d.NAT != nil && !d.udpAddr.IP.IsLoopback() {
-		d.wg.Add(1)
+		d.WaitGroup().Add(1)
 		go func() {
-			defer d.wg.Done()
+			defer d.WaitGroup().Done()
 			nat.Map(d.NAT, ctx.Done(), "udp", d.udpAddr.Port, d.udpAddr.Port, "go-waku discv5 discovery")
 		}()
 
@@ -197,74 +191,24 @@ func (d *DiscoveryV5) SetHost(h host.Host) {
 	d.host = h
 }
 
-type peerChannel struct {
-	mutex   sync.Mutex
-	channel chan peermanager.PeerData
-	started bool
-	ctx     context.Context
-}
-
-func (p *peerChannel) Start(ctx context.Context) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	p.started = true
-	p.ctx = ctx
-	p.channel = make(chan peermanager.PeerData)
-}
-
-func (p *peerChannel) Stop() {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	if !p.started {
-		return
-	}
-	p.started = false
-	close(p.channel)
-}
-
-func (p *peerChannel) Subscribe() chan peermanager.PeerData {
-	return p.channel
-}
-
-func (p *peerChannel) Publish(peer peermanager.PeerData) bool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	if !p.started {
-		return false
-	}
-	select {
-	case p.channel <- peer:
-	case <-p.ctx.Done():
-		return false
-
-	}
-	return true
-}
-
 // only works if the discovery v5 hasn't been started yet.
 func (d *DiscoveryV5) Start(ctx context.Context) error {
-	// compare and swap sets the discovery v5 to `started` state
-	// and prevents multiple calls to the start method by being atomic.
-	if !d.started.CompareAndSwap(false, true) {
-		return nil
-	}
+	return d.CommonDiscoveryService.Start(ctx, d.start)
+}
 
-	ctx, cancel := context.WithCancel(ctx)
-	d.cancel = cancel
+func (d *DiscoveryV5) start() error {
+	d.peerConnector.Subscribe(d.Context(), d.GetListeningChan())
 
-	d.peerChannel.Start(ctx)
-	d.peerConnector.Subscribe(ctx, d.peerChannel.Subscribe())
-
-	err := d.listen(ctx)
+	err := d.listen(d.Context())
 	if err != nil {
 		return err
 	}
 
 	if d.params.autoFindPeers {
-		d.wg.Add(1)
+		d.WaitGroup().Add(1)
 		go func() {
-			defer d.wg.Done()
-			d.runDiscoveryV5Loop(ctx)
+			defer d.WaitGroup().Done()
+			d.runDiscoveryV5Loop(d.Context())
 		}()
 	}
 
@@ -284,27 +228,18 @@ func (d *DiscoveryV5) SetBootnodes(nodes []*enode.Node) error {
 // only works if the discovery v5 is in running state
 // so we can assume that cancel method is set
 func (d *DiscoveryV5) Stop() {
-	if !d.started.CompareAndSwap(true, false) { // if Discoveryv5 is running, set started to false
-		return
-	}
-
-	d.cancel()
-
-	if d.listener != nil {
-		d.listener.Close()
-		d.listener = nil
-		d.log.Info("stopped Discovery V5")
-	}
-
-	d.wg.Wait()
-
 	defer func() {
 		if r := recover(); r != nil {
 			d.log.Info("recovering from panic and quitting")
 		}
 	}()
-
-	d.peerChannel.Stop()
+	d.CommonDiscoveryService.Stop(func() {
+		if d.listener != nil {
+			d.listener.Close()
+			d.listener = nil
+			d.log.Info("stopped Discovery V5")
+		}
+	})
 }
 
 /*
@@ -495,7 +430,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 			ENR:      n,
 		}
 
-		if d.peerChannel.Publish(peer) {
+		if d.PushToChan(peer) {
 			d.log.Debug("published peer into peer channel", logging.HostID("peerID", peer.AddrInfo.ID))
 		} else {
 			d.log.Debug("could not publish peer into peer channel", logging.HostID("peerID", peer.AddrInfo.ID))
@@ -526,9 +461,4 @@ restartLoop:
 		}
 	}
 	d.log.Warn("Discv5 loop stopped")
-}
-
-// IsStarted determines whether discoveryV5 started or not
-func (d *DiscoveryV5) IsStarted() bool {
-	return d.started.Load()
 }
