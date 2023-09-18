@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -29,6 +30,7 @@ type PeerManager struct {
 	host                host.Host
 	serviceSlots        *ServiceSlots
 	ctx                 context.Context
+	sub                 event.Subscription
 }
 
 const peerConnectivityLoopSecs = 15
@@ -80,9 +82,50 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 	pm.peerConnector = pc
 }
 
+func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
+	var err error
+	pm.sub, err = bus.Subscribe(new(relay.EvtPeerTopic))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pm *PeerManager) peerEventLoop(ctx context.Context) {
+	defer pm.sub.Close()
+	for {
+		select {
+		case e := <-pm.sub.Out():
+			peerEvt := e.(relay.EvtPeerTopic)
+			wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
+			peerId := peerEvt.PeerID
+			if peerEvt.State == relay.PEER_JOINED {
+				err := wps.AddPubSubTopic(peerId, peerEvt.Topic)
+				if err != nil {
+					pm.logger.Error("Failed to add pubSubTopic for a peer",
+						zap.String("peerId", peerId.Pretty()), zap.Error(err))
+				}
+			} else if peerEvt.State == relay.PEER_LEFT {
+				err := wps.RemovePubSubTopic(peerId, peerEvt.Topic)
+				if err != nil {
+					pm.logger.Error("Failed to remove pubSubTopic for a peer",
+						zap.String("peerId", peerId.Pretty()), zap.Error(err))
+				}
+			} else {
+				pm.logger.Error("Unknown peer event received", zap.Int("event-state", int(peerEvt.State)))
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
 	pm.ctx = ctx
+	if pm.sub != nil {
+		go pm.peerEventLoop(ctx)
+	}
 	go pm.connectivityLoop(ctx)
 }
 

@@ -54,6 +54,7 @@ type WakuPeerstore interface {
 	Direction(p peer.ID) (network.Direction, error)
 
 	AddPubSubTopic(p peer.ID, topic string) error
+	RemovePubSubTopic(p peer.ID, topic string) error
 	PubSubTopics(p peer.ID) ([]string, error)
 	SetPubSubTopics(p peer.ID, topics []string) error
 	PeersByPubSubTopic(pubSubTopic string) peer.IDSlice
@@ -154,6 +155,22 @@ func (ps *WakuPeerstoreImpl) AddPubSubTopic(p peer.ID, topic string) error {
 	}
 	existingTopics = append(existingTopics, topic)
 	return ps.peerStore.Put(p, peerPubSubTopics, existingTopics)
+}
+
+// RemovePubSubTopic removes a pubSubTopic from the peer
+func (ps *WakuPeerstoreImpl) RemovePubSubTopic(p peer.ID, topic string) error {
+	existingTopics, err := ps.PubSubTopics(p)
+	if err != nil {
+		return err
+	}
+	for i := range existingTopics {
+		existingTopics = append(existingTopics[:i], existingTopics[i+1:]...)
+	}
+	err = ps.SetPubSubTopics(p, existingTopics)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetPubSubTopics sets pubSubTopics for a peer, it also overrides existing ones that were set previously..
