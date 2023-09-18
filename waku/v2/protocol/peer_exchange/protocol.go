@@ -42,7 +42,7 @@ type WakuPeerExchange struct {
 	metrics Metrics
 	log     *zap.Logger
 
-	*protocol.CommonService[struct{}]
+	*protocol.CommonService
 
 	peerConnector PeerConnector
 	enrCache      *enrCache
@@ -63,7 +63,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
-	wakuPX.CommonService = protocol.NewCommonService[struct{}]()
+	wakuPX.CommonService = protocol.NewCommonService()
 
 	return wakuPX, nil
 }

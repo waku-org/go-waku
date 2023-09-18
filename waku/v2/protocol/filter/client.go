@@ -33,7 +33,7 @@ var (
 )
 
 type WakuFilterLightNode struct {
-	*protocol.CommonService[struct{}]
+	*protocol.CommonService
 	h             host.Host
 	broadcaster   relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
 	timesource    timesource.Timesource
@@ -64,7 +64,7 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
 	wf.pm = pm
-	wf.CommonService = protocol.NewCommonService[struct{}]()
+	wf.CommonService = protocol.NewCommonService()
 	wf.metrics = newMetrics(reg)
 
 	return wf

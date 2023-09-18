@@ -34,7 +34,7 @@ type (
 		msgSub  relay.Subscription
 		metrics Metrics
 		log     *zap.Logger
-		*protocol.CommonService[struct{}]
+		*protocol.CommonService
 		subscriptions *SubscribersMap
 
 		maxSubscriptions int
@@ -53,7 +53,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 		opt(params)
 	}
 
-	wf.CommonService = protocol.NewCommonService[struct{}]()
+	wf.CommonService = protocol.NewCommonService()
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers

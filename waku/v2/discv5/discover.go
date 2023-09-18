@@ -16,7 +16,6 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -46,7 +45,7 @@ type DiscoveryV5 struct {
 
 	log *zap.Logger
 
-	*protocol.CommonService[peermanager.PeerData]
+	*peermanager.CommonDiscoveryService
 }
 
 type discV5Parameters struct {
@@ -128,12 +127,12 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 	}
 
 	return &DiscoveryV5{
-		params:        params,
-		peerConnector: peerConnector,
-		NAT:           NAT,
-		CommonService: protocol.NewCommonService[peermanager.PeerData](),
-		localnode:     localnode,
-		metrics:       newMetrics(reg),
+		params:                 params,
+		peerConnector:          peerConnector,
+		NAT:                    NAT,
+		CommonDiscoveryService: peermanager.NewCommonDiscoveryService(),
+		localnode:              localnode,
+		metrics:                newMetrics(reg),
 		config: discover.Config{
 			PrivateKey: priv,
 			Bootnodes:  params.bootnodes,
@@ -194,7 +193,7 @@ func (d *DiscoveryV5) SetHost(h host.Host) {
 
 // only works if the discovery v5 hasn't been started yet.
 func (d *DiscoveryV5) Start(ctx context.Context) error {
-	return d.CommonService.Start(ctx, d.start)
+	return d.CommonDiscoveryService.Start(ctx, d.start)
 }
 
 func (d *DiscoveryV5) start() error {
@@ -234,7 +233,7 @@ func (d *DiscoveryV5) Stop() {
 			d.log.Info("recovering from panic and quitting")
 		}
 	}()
-	d.CommonService.Stop(func() {
+	d.CommonDiscoveryService.Stop(func() {
 		if d.listener != nil {
 			d.listener.Close()
 			d.listener = nil
