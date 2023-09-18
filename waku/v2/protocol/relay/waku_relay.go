@@ -551,10 +551,16 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 		}
 		if evt.Type == pubsub.PeerJoin {
 			w.log.Info("Recived a PeerJoin event", zap.String("topic", topic), zap.String("peerID", evt.Peer.Pretty()))
-			w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_JOINED})
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_JOINED})
+			if err != nil {
+				w.log.Error("Failed to emit PeerJoin due to error ", zap.String("topic", topic), zap.Error(err))
+			}
 		} else if evt.Type == pubsub.PeerLeave {
 			w.log.Info("Recived a PeerLeave event", zap.String("topic", topic), zap.String("peerID", evt.Peer.Pretty()))
-			w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_LEFT})
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_LEFT})
+			if err != nil {
+				w.log.Error("Failed to emit PeerLeave due to error ", zap.String("topic", topic), zap.Error(err))
+			}
 		} else {
 			w.log.Error("Unknown event type received on pubSub topic ", zap.String("topic", topic),
 				zap.Int("eventType", int(evt.Type)))
