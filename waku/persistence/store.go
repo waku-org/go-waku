@@ -410,6 +410,10 @@ func (d *DBStore) prepareQuerySQL(query *pb.HistoryQuery) (string, []interface{}
 	paramCnt++
 
 	sqlQuery += fmt.Sprintf("LIMIT $%d", paramCnt)
+	// pageSize
+	pageSize := query.PagingInfo.PageSize + 1
+	parameters = append(parameters, pageSize)
+	//
 	sqlQuery = fmt.Sprintf(sqlQuery, conditionStr, orderDirection, orderDirection, orderDirection, orderDirection)
 	d.log.Info(fmt.Sprintf("sqlQuery: %s", sqlQuery))
 
@@ -434,10 +438,7 @@ func (d *DBStore) Query(query *pb.HistoryQuery) (*pb.Index, []StoredMessage, err
 		return nil, nil, err
 	}
 	defer stmt.Close()
-	pageSize := query.PagingInfo.PageSize + 1
-
-	parameters = append(parameters, pageSize)
-
+	//
 	measurementStart := time.Now()
 	rows, err := stmt.Query(parameters...)
 	if err != nil {
