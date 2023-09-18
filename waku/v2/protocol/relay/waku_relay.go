@@ -252,8 +252,8 @@ func (w *WakuRelay) Topics() []string {
 
 // IsSubscribed indicates whether the node is subscribed to a pubsub topic or not
 func (w *WakuRelay) IsSubscribed(topic string) bool {
-	defer w.topicsMutex.RUnlock()
 	w.topicsMutex.RLock()
+	defer w.topicsMutex.RUnlock()
 	_, ok := w.relaySubs[topic]
 	return ok
 }
