@@ -1,6 +1,6 @@
 .PHONY: all build
 
 build:
-	go build -tags="gowaku_rln" -o build/rln .
+	go build -o build/rln .
 
 all: build

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,7 +37,8 @@ type DynamicGroupManager struct {
 	identityCredential *rln.IdentityCredential
 	membershipIndex    rln.MembershipIndex
 
-	lastBlockProcessed uint64
+	lastBlockProcessedMutex sync.RWMutex
+	lastBlockProcessed      uint64
 
 	appKeystore           *keystore.AppKeystore
 	keystorePassword      string
@@ -44,6 +46,9 @@ type DynamicGroupManager struct {
 }
 
 func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) error {
+	gm.lastBlockProcessedMutex.Lock()
+	defer gm.lastBlockProcessedMutex.Unlock()
+
 	toRemoveTable := om.New()
 	toInsertTable := om.New()
 
@@ -82,8 +87,6 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) 
 		return err
 	}
 
-	gm.metrics.RecordRegisteredMembership(toInsertTable.Len() - toRemoveTable.Len())
-
 	gm.lastBlockProcessed = lastBlockProcessed
 	err = gm.SetMetadata(RLNMetadata{
 		LastProcessedBlock: gm.lastBlockProcessed,
@@ -95,7 +98,7 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) 
 		// this is not a fatal error, hence we don't raise an exception
 		gm.log.Warn("failed to persist rln metadata", zap.Error(err))
 	} else {
-		gm.log.Debug("rln metadata persisted", zap.Uint64("lastProcessedBlock", gm.lastBlockProcessed), zap.Uint64("chainID", gm.web3Config.ChainID.Uint64()), logging.HexBytes("contractAddress", gm.web3Config.RegistryContract.Address.Bytes()))
+		gm.log.Debug("rln metadata persisted", zap.Uint64("lastBlockProcessed", gm.lastBlockProcessed), zap.Uint64("chainID", gm.web3Config.ChainID.Uint64()), logging.HexBytes("contractAddress", gm.web3Config.RegistryContract.Address.Bytes()))
 	}
 
 	return nil
@@ -168,10 +171,21 @@ func (gm *DynamicGroupManager) Start(ctx context.Context) error {
 		return err
 	}
 
-	return gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler)
+	err = gm.MembershipFetcher.HandleGroupUpdates(ctx, gm.handler)
+	if err != nil {
+		return err
+	}
+
+	gm.metrics.RecordRegisteredMembership(gm.rln.LeavesSet())
+
+	return nil
 }
 
 func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
+	if gm.appKeystore == nil {
+		gm.log.Warn("no credentials were loaded. Node will only validate messages, but wont be able to generate proofs and attach them to messages")
+		return nil
+	}
 	start := time.Now()
 
 	credentials, err := gm.appKeystore.GetMembershipCredentials(
@@ -228,6 +242,8 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 		}
 		gm.metrics.RecordMembershipInsertionDuration(time.Since(start))
 
+		gm.metrics.RecordRegisteredMembership(gm.rln.LeavesSet())
+
 		_, err = gm.rootTracker.UpdateLatestRoot(pair.Key.(uint64))
 		if err != nil {
 			return err
@@ -278,4 +294,26 @@ func (gm *DynamicGroupManager) Stop() error {
 	gm.MembershipFetcher.Stop()
 
 	return nil
+}
+
+func (gm *DynamicGroupManager) IsReady(ctx context.Context) (bool, error) {
+	latestBlockNumber, err := gm.latestBlockNumber(ctx)
+	if err != nil {
+		return false, fmt.Errorf("could not retrieve latest block: %w", err)
+	}
+
+	gm.lastBlockProcessedMutex.RLock()
+	allBlocksProcessed := gm.lastBlockProcessed >= latestBlockNumber
+	gm.lastBlockProcessedMutex.RUnlock()
+
+	if !allBlocksProcessed {
+		return false, nil
+	}
+
+	syncProgress, err := gm.web3Config.ETHClient.SyncProgress(ctx)
+	if err != nil {
+		return false, fmt.Errorf("could not retrieve sync state: %w", err)
+	}
+
+	return syncProgress == nil, nil // syncProgress only has a value while node is syncing
 }

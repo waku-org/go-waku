@@ -260,7 +260,7 @@ func AddPeer(address string, protocolID string) (string, error) {
 		return "", err
 	}
 
-	peerID, err := wakuState.node.AddPeer(ma, peerstore.Static, libp2pProtocol.ID(protocolID))
+	peerID, err := wakuState.node.AddPeer(ma, peerstore.Static, wakuState.relayTopics, libp2pProtocol.ID(protocolID))
 	if err != nil {
 		return "", err
 	}

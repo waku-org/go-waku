@@ -10,7 +10,7 @@ Edit `main.go` and set proper values to these constants and variables:
 ```go
 const ethClientAddress = "wss://sepolia.infura.io/ws/v3/API_KEY_GOES_HERE"
 const ethPrivateKey = "PRIVATE_KEY_GOES_HERE"
-const contractAddress = "0x9C09146844C1326c2dBC41c451766C7138F88155"
+const contractAddress = "0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4"
 const credentialsPath = ""
 const credentialsPassword = ""
 

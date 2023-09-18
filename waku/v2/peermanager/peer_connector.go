@@ -27,9 +27,10 @@ import (
 
 // PeerData contains information about a peer useful in establishing connections with it.
 type PeerData struct {
-	Origin   wps.Origin
-	AddrInfo peer.AddrInfo
-	ENR      *enode.Node
+	Origin       wps.Origin
+	AddrInfo     peer.AddrInfo
+	PubSubTopics []string
+	ENR          *enode.Node
 }
 
 // PeerConnectionStrategy is a utility to connect to peers,

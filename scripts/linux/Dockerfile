@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 ARG UNAME=jenkins
 ARG UID=1001
 ARG GID=1001

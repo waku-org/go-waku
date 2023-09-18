@@ -300,26 +300,30 @@ func Execute(options NodeOptions) {
 	utils.Logger().Info("Version details ", zap.String("version", node.Version), zap.String("commit", node.GitCommit))
 
 	failOnErr(err, "Wakunode")
-
-	if options.Filter.UseV1 {
-		addStaticPeers(wakuNode, options.Filter.NodesV1, legacy_filter.FilterID_v20beta1)
-	}
-
 	//Process pubSub and contentTopics specified and arrive at all corresponding pubSubTopics
 	pubSubTopicMap := processTopics(options)
+	pubSubTopicMapKeys := make([]string, 0, len(pubSubTopicMap))
+	for k := range pubSubTopicMap {
+		pubSubTopicMapKeys = append(pubSubTopicMapKeys, k)
+	}
+
+	if options.Filter.UseV1 {
+		addStaticPeers(wakuNode, options.Filter.NodesV1, pubSubTopicMapKeys, legacy_filter.FilterID_v20beta1)
+	}
 
 	if err = wakuNode.Start(ctx); err != nil {
 		logger.Fatal("starting waku node", zap.Error(err))
 	}
 
 	for _, d := range discoveredNodes {
-		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery)
+		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery, nil)
 	}
 
-	addStaticPeers(wakuNode, options.Store.Nodes, store.StoreID_v20beta4)
-	addStaticPeers(wakuNode, options.LightPush.Nodes, lightpush.LightPushID_v20beta1)
-	addStaticPeers(wakuNode, options.Rendezvous.Nodes, rendezvous.RendezvousID)
-	addStaticPeers(wakuNode, options.Filter.Nodes, filter.FilterSubscribeID_v20beta1)
+	//For now assuming that static peers added support/listen on all topics specified via commandLine.
+	addStaticPeers(wakuNode, options.Store.Nodes, pubSubTopicMapKeys, store.StoreID_v20beta4)
+	addStaticPeers(wakuNode, options.LightPush.Nodes, pubSubTopicMapKeys, lightpush.LightPushID_v20beta1)
+	addStaticPeers(wakuNode, options.Rendezvous.Nodes, pubSubTopicMapKeys, rendezvous.RendezvousID)
+	addStaticPeers(wakuNode, options.Filter.Nodes, pubSubTopicMapKeys, filter.FilterSubscribeID_v20beta1)
 
 	var wg sync.WaitGroup
 
@@ -409,7 +413,8 @@ func Execute(options NodeOptions) {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, wakupeerstore.Static, peer_exchange.PeerExchangeID_v20alpha1)
+		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, wakupeerstore.Static,
+			pubSubTopicMapKeys, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
 		} else {
@@ -510,9 +515,9 @@ func processTopics(options NodeOptions) map[string]struct{} {
 	return pubSubTopicMap
 }
 
-func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, protocols ...protocol.ID) {
+func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, pubSubTopics []string, protocols ...protocol.ID) {
 	for _, addr := range addresses {
-		_, err := wakuNode.AddPeer(addr, wakupeerstore.Static, protocols...)
+		_, err := wakuNode.AddPeer(addr, wakupeerstore.Static, pubSubTopics, protocols...)
 		failOnErr(err, "error adding peer")
 	}
 }

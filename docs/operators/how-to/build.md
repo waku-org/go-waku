@@ -4,7 +4,7 @@ Go-waku can be built on Linux, macOS and Windows
 
 ## Installing dependencies
 
-Cloning and building go-waku requires Go +1.17, a C compiler, Make, Bash and Git.
+Cloning and building go-waku requires Go +1.19, a C compiler, Make, Bash and Git.
 
 Go can be installed by following [these instructions](https://go.dev/doc/install)
 
@@ -31,13 +31,13 @@ Assuming you use [Homebrew](https://brew.sh/) to manage packages
 brew install cmake
 ```
 
-## Building nwaku
+## Building go-waku
 
-### 1. Clone the nwaku repository
+### 1. Clone the go-waku repository
 
 ```sh
 git clone https://github.com/waku-org/go-waku
-cd nwaku
+cd go-waku
 ```
 
 ### 2. Build waku

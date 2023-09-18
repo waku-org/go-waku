@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -56,7 +57,7 @@ func TestServiceSlots(t *testing.T) {
 
 	// add h2 peer to peer manager
 	t.Log(h2.ID())
-	_, err = pm.AddPeer(getAddr(h2), wps.Static, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	///////////////
@@ -69,7 +70,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, peerID, h2.ID())
 
 	// add h3 peer to peer manager
-	_, err = pm.AddPeer(getAddr(h3), wps.Static, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(getAddr(h3), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	// check that returned peer is h2 or h3 peer
@@ -93,7 +94,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	// add h4 peer for protocol1
-	_, err = pm.AddPeer(getAddr(h4), wps.Static, libp2pProtocol.ID(protocol1))
+	_, err = pm.AddPeer(getAddr(h4), wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
 	require.NoError(t, err)
 
 	//Test peer selection for protocol1
@@ -110,7 +111,7 @@ func TestDefaultProtocol(t *testing.T) {
 	// check peer for default protocol
 	///////////////
 	//Test empty peer selection for relay protocol
-	_, err := pm.SelectPeer(WakuRelayIDv200, nil)
+	_, err := pm.SelectPeer(relay.WakuRelayID_v200, nil)
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	///////////////
@@ -121,11 +122,11 @@ func TestDefaultProtocol(t *testing.T) {
 	defer h5.Close()
 
 	//Test peer selection for relay protocol from peer store
-	_, err = pm.AddPeer(getAddr(h5), wps.Static, WakuRelayIDv200)
+	_, err = pm.AddPeer(getAddr(h5), wps.Static, []string{""}, relay.WakuRelayID_v200)
 	require.NoError(t, err)
 
 	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
-	peerID, err := pm.SelectPeer(WakuRelayIDv200, nil)
+	peerID, err := pm.SelectPeer(relay.WakuRelayID_v200, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, h5.ID())
 }
@@ -142,7 +143,7 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer h6.Close()
 
-	_, err = pm.AddPeer(getAddr(h6), wps.Static, protocol2)
+	_, err = pm.AddPeer(getAddr(h6), wps.Static, []string{""}, protocol2)
 	require.NoError(t, err)
 
 	peerID, err := pm.SelectPeer(protocol2, nil)

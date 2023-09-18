@@ -1,5 +1,5 @@
-//go:build !gowaku_rln
-// +build !gowaku_rln
+//go:build gowaku_no_rln
+// +build gowaku_no_rln
 
 package rlngenerate
 

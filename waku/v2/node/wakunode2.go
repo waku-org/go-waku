@@ -10,7 +10,6 @@ import (
 	backoffv4 "github.com/cenkalti/backoff/v4"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -32,6 +31,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	wakuprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
@@ -66,15 +66,16 @@ type IdentityCredential = struct {
 	IDCommitment byte32 `json:"idCommitment"`
 }
 
-type SpamHandler = func(message *pb.WakuMessage) error
+type SpamHandler = func(message *pb.WakuMessage, topic string) error
 
 type RLNRelay interface {
 	IdentityCredential() (IdentityCredential, error)
 	MembershipIndex() uint
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
-	Validator(spamHandler SpamHandler) func(ctx context.Context, peerID peer.ID, message *pubsub.Message) bool
+	Validator(spamHandler SpamHandler) func(ctx context.Context, message *pb.WakuMessage, topic string) bool
 	Start(ctx context.Context) error
 	Stop() error
+	IsReady(ctx context.Context) (bool, error)
 }
 
 type WakuNode struct {
@@ -272,6 +273,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 
 	w.rendezvous = rendezvous.NewRendezvous(w.opts.rendezvousDB, w.peerConnector, w.log)
 
+	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log, w.opts.pubsubOpts...)
+
 	if w.opts.enableRelay {
 		err = w.setupRLNRelay()
 		if err != nil {
@@ -279,7 +282,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
-	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log, w.opts.pubsubOpts...)
 	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullNode, w.timesource, w.opts.prometheusReg, w.log, w.opts.legacyFilterOpts...)
 	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.opts.prometheusReg, w.log, w.opts.filterOpts...)
 	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
@@ -688,18 +690,20 @@ func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error
 }
 
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
-func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, protocols ...protocol.ID) (peer.ID, error) {
-	return w.peermanager.AddPeer(address, origin, protocols...)
+// TODO: Need to update this for autosharding, to only take contentTopics and optional pubSubTopics or provide an alternate API only for contentTopics.
+func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
+	return w.peermanager.AddPeer(address, origin, pubSubTopics, protocols...)
 }
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
-func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin) {
+func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string) {
 	p := peermanager.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    ID,
 			Addrs: addrs,
 		},
+		PubSubTopics: pubsubTopics,
 	}
 	w.peermanager.AddDiscoveredPeer(p)
 }
@@ -836,6 +840,11 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 		})
 	}
 	return peers, nil
+}
+
+func (w *WakuNode) PeersByShard(cluster uint16, shard uint16) peer.IDSlice {
+	pTopic := wakuprotocol.NewStaticShardingPubsubTopic(cluster, shard).String()
+	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
 }
 
 func (w *WakuNode) findRelayNodes(ctx context.Context) {
