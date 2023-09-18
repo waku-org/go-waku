@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 
 	"go.uber.org/zap"
 
@@ -34,7 +33,7 @@ type PeerConnectionStrategy struct {
 
 	paused      atomic.Bool
 	dialTimeout time.Duration
-	*protocol.CommonService[peer.AddrInfo]
+	*CommonDiscoveryService
 	subscriptions []<-chan PeerData
 
 	backoff backoff.BackoffFactory
@@ -64,12 +63,12 @@ func NewPeerConnectionStrategy(pm *PeerManager,
 	}
 	//
 	pc := &PeerConnectionStrategy{
-		cache:         cache,
-		dialTimeout:   dialTimeout,
-		CommonService: protocol.NewCommonService[peer.AddrInfo](),
-		pm:            pm,
-		backoff:       getBackOff(),
-		logger:        logger.Named("discovery-connector"),
+		cache:                  cache,
+		dialTimeout:            dialTimeout,
+		CommonDiscoveryService: NewCommonDiscoveryService(),
+		pm:                     pm,
+		backoff:                getBackOff(),
+		logger:                 logger.Named("discovery-connector"),
 	}
 	pm.SetPeerConnector(pc)
 	return pc, nil
@@ -84,9 +83,9 @@ type connCacheData struct {
 func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerData) {
 	// if not running yet, store the subscription and return
 	if err := c.ErrOnNotRunning(); err != nil {
-		c.Lock()
+		c.mux.Lock()
 		c.subscriptions = append(c.subscriptions, ch)
-		c.Unlock()
+		c.mux.Unlock()
 		return
 	}
 	// if running start a goroutine to consume the subscription
@@ -115,7 +114,7 @@ func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
 					return
 				}
 				c.pm.AddDiscoveredPeer(p)
-				c.PushToChan(p.AddrInfo)
+				c.PushToChan(p)
 			case <-time.After(1 * time.Second):
 				// This timeout is to not lock the goroutine
 				break
@@ -134,7 +133,7 @@ func (c *PeerConnectionStrategy) SetHost(h host.Host) {
 // Start attempts to connect to the peers passed in by peerCh.
 // Will not connect to peers if they are within the backoff period.
 func (c *PeerConnectionStrategy) Start(ctx context.Context) error {
-	return c.CommonService.Start(ctx, c.start)
+	return c.CommonDiscoveryService.Start(ctx, c.start)
 
 }
 func (c *PeerConnectionStrategy) start() error {
@@ -149,7 +148,7 @@ func (c *PeerConnectionStrategy) start() error {
 
 // Stop terminates the peer-connector
 func (c *PeerConnectionStrategy) Stop() {
-	c.CommonService.Stop(func() {})
+	c.CommonDiscoveryService.Stop(func() {})
 }
 
 func (c *PeerConnectionStrategy) isPaused() bool {
@@ -221,20 +220,21 @@ func (c *PeerConnectionStrategy) dialPeers() {
 
 	for {
 		select {
-		case pi, ok := <-c.GetListeningChan():
+		case pd, ok := <-c.GetListeningChan():
 			if !ok {
 				return
 			}
+			addrInfo := pd.AddrInfo
 
-			if pi.ID == c.host.ID() || pi.ID == "" ||
-				c.host.Network().Connectedness(pi.ID) == network.Connected {
+			if addrInfo.ID == c.host.ID() || addrInfo.ID == "" ||
+				c.host.Network().Connectedness(addrInfo.ID) == network.Connected {
 				continue
 			}
 
-			if c.canDialPeer(pi) {
+			if c.canDialPeer(addrInfo) {
 				sem <- struct{}{}
 				c.WaitGroup().Add(1)
-				go c.dialPeer(pi, sem)
+				go c.dialPeer(addrInfo, sem)
 			}
 		case <-c.Context().Done():
 			return
