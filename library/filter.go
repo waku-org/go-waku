@@ -30,7 +30,7 @@ func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
 
 type subscribeResult struct {
 	Subscriptions []*filter.SubscriptionDetails `json:"subscriptions"`
-	Error         string                        `json:"error,omitEmpty"`
+	Error         string                        `json:"error,omitempty"`
 }
 
 // FilterSubscribe is used to create a subscription to a filter node to receive messages
