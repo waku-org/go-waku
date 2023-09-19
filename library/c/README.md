@@ -88,7 +88,7 @@ The criteria to create subscription to a filter full node in JSON Format:
 Fields:
 
 - `contentTopics`: Array of content topics.
-- `topic`: Optional pubsub topic.
+- `topic`: Optional pubsub topic when using contentTopics as per Autosharding. In case of named or static-sharding, pubSub topic is mandatory.
 
 
 ### `LegacyFilterSubscription` type

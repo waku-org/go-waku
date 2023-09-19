@@ -44,9 +44,9 @@ type WakuFilterLightNode struct {
 }
 
 // ContentFilter is used to specify the filter to be applied for a FilterNode.
-// Topic means pubSubTopic (which is optional in case of using contentTopics that following Static/Auto sharding)
-// ContentTopics - Specify list of content topics to be filtered under a pubSubTopic or a list of contentTopics (which follow static/Auto sharding)
-// If pubSub topic is not specified, then content-topics are used to derive the shard and corresponding pubSubTopic
+// Topic means pubSubTopic - optional in case of using contentTopics that following Auto sharding, mandatory in case of named or static sharding.
+// ContentTopics - Specify list of content topics to be filtered under a pubSubTopic (for named and static sharding), or a list of contentTopics (in case ofAuto sharding)
+// If pubSub topic is not specified, then content-topics are used to derive the shard and corresponding pubSubTopic using autosharding algorithm
 type ContentFilter struct {
 	Topic         string
 	ContentTopics []string
