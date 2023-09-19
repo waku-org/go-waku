@@ -172,13 +172,19 @@ func (pm *PeerManager) connectToRelayPeers() {
 	} //Else: Should we raise some sort of unhealthy event??
 }
 
+func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) PeerData {
+	return PeerData{
+		Origin: origin,
+		AddrInfo: peer.AddrInfo{
+			ID:    peerID,
+			Addrs: host.Peerstore().Addrs(peerID),
+		},
+	}
+}
 func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
 	for _, peerID := range peers {
-		peerInfo := peer.AddrInfo{
-			ID:    peerID,
-			Addrs: pm.host.Peerstore().Addrs(peerID),
-		}
-		pm.peerConnector.publishWork(pm.ctx, peerInfo)
+		peerData := addrInfoToPeerData(wps.PeerManager, peerID, pm.host)
+		pm.peerConnector.PushToChan(peerData)
 	}
 }
 

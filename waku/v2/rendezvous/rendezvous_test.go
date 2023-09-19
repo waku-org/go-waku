@@ -92,6 +92,8 @@ func TestRendezvous(t *testing.T) {
 
 	rendezvousClient2 := NewRendezvous(nil, myPeerConnector, utils.Logger())
 	rendezvousClient2.SetHost(host3)
+	err = rendezvousClient2.Start(ctx)
+	require.NoError(t, err)
 
 	timedCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
@@ -108,4 +110,5 @@ func TestRendezvous(t *testing.T) {
 	case p := <-myPeerConnector.ch:
 		require.Equal(t, p.AddrInfo.ID.Pretty(), host2.ID().Pretty())
 	}
+	rendezvousClient2.Stop()
 }
