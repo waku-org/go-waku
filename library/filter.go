@@ -11,7 +11,7 @@ import (
 )
 
 type filterArgument struct {
-	Topic         string   `json:"pubsubTopic,omitempty"`
+	PubsubTopic   string   `json:"pubsubTopic,omitempty"`
 	ContentTopics []string `json:"contentTopics,omitempty"`
 }
 
@@ -23,8 +23,8 @@ func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
 	}
 
 	return filter.ContentFilter{
-		Topic:         f.Topic,
-		ContentTopics: f.ContentTopics,
+		PubsubTopic:   f.PubsubTopic,
+		ContentTopics: filter.NewContentTopicSet(f.ContentTopics...),
 	}, nil
 }
 
