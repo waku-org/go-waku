@@ -131,19 +131,21 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 			wf.metrics.RecordError(decodeRPCFailure)
 			return
 		}
-		pubSubTopic := messagePush.PubsubTopic
+		pubSubTopic := ""
 		//For now returning failure, this will get addressed with autosharding changes for filter.
 		if messagePush.PubsubTopic == nil {
-			*pubSubTopic, err = getPubSubTopicFromContentTopic(messagePush.WakuMessage.ContentTopic)
+			pubSubTopic, err = getPubSubTopicFromContentTopic(messagePush.WakuMessage.ContentTopic)
 			if err != nil {
 				logger.Error("could not derive pubSubTopic from contentTopic", zap.Error(err))
 				wf.metrics.RecordError(decodeRPCFailure)
 				return
 			}
+		} else {
+			pubSubTopic = *messagePush.PubsubTopic
 		}
-		if !wf.subscriptions.Has(s.Conn().RemotePeer(), *pubSubTopic, messagePush.WakuMessage.ContentTopic) {
+		if !wf.subscriptions.Has(s.Conn().RemotePeer(), pubSubTopic, messagePush.WakuMessage.ContentTopic) {
 			logger.Warn("received messagepush with invalid subscription parameters",
-				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", *pubSubTopic),
+				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", pubSubTopic),
 				zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
 			wf.metrics.RecordError(invalidSubscriptionMessage)
 			return
@@ -151,7 +153,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 
 		wf.metrics.RecordMessage()
 
-		wf.notify(s.Conn().RemotePeer(), *pubSubTopic, messagePush.WakuMessage)
+		wf.notify(s.Conn().RemotePeer(), pubSubTopic, messagePush.WakuMessage)
 
 		logger.Info("received message push")
 	}
@@ -221,7 +223,7 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 func getPubSubTopicFromContentTopic(cTopicString string) (string, error) {
 	cTopic, err := protocol.StringToContentTopic(cTopicString)
 	if err != nil {
-		return "", errors.New(err.Error() + " : " + cTopicString)
+		return "", fmt.Errorf("%s : %s", err.Error(), cTopicString)
 	}
 	pTopic := protocol.GetShardFromContentTopic(cTopic, protocol.GenerationZeroShardsCount)
 
@@ -233,7 +235,6 @@ func contentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]st
 	pubSubTopicMap := make(map[string][]string)
 
 	if contentFilter.Topic != "" {
-		pubSubTopicMap[contentFilter.Topic] = make([]string, 0)
 		pubSubTopicMap[contentFilter.Topic] = contentFilter.ContentTopics
 	} else {
 		//Parse the content-Topics to figure out shards.
@@ -244,7 +245,7 @@ func contentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]st
 			}
 			_, ok := pubSubTopicMap[pTopicStr]
 			if !ok {
-				pubSubTopicMap[pTopicStr] = make([]string, 1)
+				pubSubTopicMap[pTopicStr] = []string{}
 			}
 			pubSubTopicMap[pTopicStr] = append(pubSubTopicMap[pTopicStr], cTopicString)
 		}
