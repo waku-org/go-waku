@@ -884,15 +884,21 @@ Creates a subscription to a filter full node matching a content filter..
 
 A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
 
-If the function is executed succesfully, `onOkCb` will receive the subscription details.
+If the function is executed succesfully, `onOkCb` will receive the following subscription details along with any partial errors.
 
 For example:
 
 ```json
 {
-  "peerID": "....",
-  "pubsubTopic": "...",
-  "contentTopics": [...]
+  "subscriptions" : [
+    {
+      "ID": "<subscriptionID>",
+      "peerID": "....",
+      "pubsubTopic": "...",
+      "contentTopics": [...]
+    }
+  ],
+  "error" : "subscriptions failed for contentTopics:<topicA>,.." // Empty if all subscriptions are succesful
 }
 ```
 

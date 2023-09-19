@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -256,6 +257,7 @@ func contentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]st
 // Subscribe setups a subscription to receive messages that match a specific content filter
 // If contentTopics passed result in different pubSub topics (due to Auto/Static sharding), then multiple subscription requests are sent to the peer.
 // This may change if Filterv2 protocol is updated to handle such a scenario in a single request.
+// Note: In case of partial failure, results are returned for successful subscriptions along with error indicating failed contentTopics.
 func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) ([]*SubscriptionDetails, error) {
 	wf.RLock()
 	defer wf.RUnlock()
@@ -291,6 +293,7 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 	if err != nil {
 		return nil, err
 	}
+	failedContentTopics := []string{}
 	subscriptions := make([]*SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		var cFilter ContentFilter
@@ -299,12 +302,18 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 		//TO OPTIMIZE: Should we parallelize these, if so till how many batches?
 		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
 		if err != nil {
-			return nil, err
+			wf.log.Error("Failed to subscribe for conentTopics ",
+				zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
+				zap.Error(err))
+			failedContentTopics = append(failedContentTopics, cTopics...)
 		}
 		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(params.selectedPeer, cFilter.Topic, cFilter.ContentTopics))
 	}
-	return subscriptions, nil
-
+	if len(failedContentTopics) > 0 {
+		return subscriptions, fmt.Errorf("subscriptions failed for contentTopics: %s", strings.Join(failedContentTopics, ","))
+	} else {
+		return subscriptions, nil
+	}
 }
 
 // FilterSubscription is used to obtain an object from which you could receive messages received via filter protocol

@@ -17,7 +17,7 @@ import "github.com/waku-org/go-waku/library"
 // peerID should contain the ID of a peer supporting the filter protocol. Use NULL to automatically select a node
 // If ms is greater than 0, the subscription must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned
-// It returns a json object containing the peerID to which we are subscribed to and the details of the subscription
+// It returns a json object containing the details of the subscriptions along with any errors in case of partial failures
 //
 //export waku_filter_subscribe
 func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
