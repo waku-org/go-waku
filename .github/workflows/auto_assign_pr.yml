@@ -11,6 +11,6 @@ jobs:
     steps:
     - name: Assign PR to author
       run: |
-        gh pr update ${{ github.event.pull_request.number }} --assignee "${{ github.event.pull_request.user.login }}"
+        gh pr update ${{ github.event.pull_request.number }} --add-assignee "${{ github.event.pull_request.user.login }}"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
