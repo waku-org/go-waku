@@ -97,6 +97,10 @@ func TestStoreRetention(t *testing.T) {
 	require.Equal(t, "test5", dbResults[0].Message.ContentTopic)
 	require.Equal(t, "test6", dbResults[1].Message.ContentTopic)
 	require.Equal(t, "test7", dbResults[2].Message.ContentTopic)
+	// checking the number of all the message in the db
+	msgCount, err := store.Count()
+	require.NoError(t, err)
+	require.Equal(t, msgCount, 3)
 }
 
 func TestQuery(t *testing.T) {
@@ -129,7 +133,7 @@ func TestQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, msgs, 2)
 
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", insertTime.Add(time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", insertTime.UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
 
 	// Range [cursor-endTime]
 	// Check:  matching ContentTopic,pubsubTopic, pageSize
@@ -176,4 +180,9 @@ func TestQuery(t *testing.T) {
 	for ind, msg := range msgs {
 		require.Equal(t, msg.Message.ContentTopic, fmt.Sprintf("test%d", ind+2)) // test2,test3,test4
 	}
+
+	// checking most recent timestamp in db
+	timestamp, err := store.MostRecentTimestamp()
+	require.NoError(t, err)
+	require.Equal(t, timestamp, insertTime.UnixNano())
 }
