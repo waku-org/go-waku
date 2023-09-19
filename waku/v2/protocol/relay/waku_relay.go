@@ -542,27 +542,27 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 	defer w.WaitGroup().Done()
 	for {
 		evt, err := handler.NextPeerEvent(w.Context())
-		if evt.Peer == "" { //Empty peerEvent is returned when context passed in done.
+		if evt.Peer.Validate() != nil { //Empty peerEvent is returned when context passed in done.
 			break
 		}
 		if err != nil {
-			w.log.Error("Failed to get next peer event due to error ", zap.String("topic", topic), zap.Error(err))
+			w.log.Error("failed to get next peer event", zap.String("topic", topic), zap.Error(err))
 			continue
 		}
 		if evt.Type == pubsub.PeerJoin {
-			w.log.Info("Recived a PeerJoin event", zap.String("topic", topic), zap.String("peerID", evt.Peer.Pretty()))
+			w.log.Debug("received a PeerJoin event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
 			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_JOINED})
 			if err != nil {
-				w.log.Error("Failed to emit PeerJoin due to error ", zap.String("topic", topic), zap.Error(err))
+				w.log.Error("failed to emit PeerJoin", zap.String("topic", topic), zap.Error(err))
 			}
 		} else if evt.Type == pubsub.PeerLeave {
-			w.log.Info("Recived a PeerLeave event", zap.String("topic", topic), zap.String("peerID", evt.Peer.Pretty()))
+			w.log.Debug("received a PeerLeave event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
 			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_LEFT})
 			if err != nil {
-				w.log.Error("Failed to emit PeerLeave due to error ", zap.String("topic", topic), zap.Error(err))
+				w.log.Error("failed to emit PeerLeave", zap.String("topic", topic), zap.Error(err))
 			}
 		} else {
-			w.log.Error("Unknown event type received on pubSub topic ", zap.String("topic", topic),
+			w.log.Error("unknown event type received", zap.String("topic", topic),
 				zap.Int("eventType", int(evt.Type)))
 		}
 	}

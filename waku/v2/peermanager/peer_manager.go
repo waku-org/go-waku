@@ -98,21 +98,21 @@ func (pm *PeerManager) peerEventLoop(ctx context.Context) {
 		case e := <-pm.sub.Out():
 			peerEvt := e.(relay.EvtPeerTopic)
 			wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
-			peerId := peerEvt.PeerID
+			peerID := peerEvt.PeerID
 			if peerEvt.State == relay.PEER_JOINED {
-				err := wps.AddPubSubTopic(peerId, peerEvt.Topic)
+				err := wps.AddPubSubTopic(peerID, peerEvt.Topic)
 				if err != nil {
-					pm.logger.Error("Failed to add pubSubTopic for a peer",
-						zap.String("peerId", peerId.Pretty()), zap.Error(err))
+					pm.logger.Error("failed to add pubSubTopic for peer",
+						logging.HostID("peerID", peerID), zap.Error(err))
 				}
 			} else if peerEvt.State == relay.PEER_LEFT {
-				err := wps.RemovePubSubTopic(peerId, peerEvt.Topic)
+				err := wps.RemovePubSubTopic(peerID, peerEvt.Topic)
 				if err != nil {
-					pm.logger.Error("Failed to remove pubSubTopic for a peer",
-						zap.String("peerId", peerId.Pretty()), zap.Error(err))
+					pm.logger.Error("failed to remove pubSubTopic for peer",
+						logging.HostID("peerID", peerID), zap.Error(err))
 				}
 			} else {
-				pm.logger.Error("Unknown peer event received", zap.Int("event-state", int(peerEvt.State)))
+				pm.logger.Error("unknown peer event received", zap.Int("eventState", int(peerEvt.State)))
 			}
 		case <-ctx.Done():
 			return
