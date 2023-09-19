@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const TOPIC = "/test/topic"
+const PUBSUB_TOPIC = "/test/topic"
 
 func createPeerID(t *testing.T) peer.ID {
 	peerId, err := test.RandPeerID()
@@ -29,23 +29,23 @@ func TestAppend(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
 	peerId := createPeerID(t)
 
-	subs.Set(peerId, TOPIC, []string{"topic1"})
+	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1"})
 
-	sub := firstSubscriber(subs, TOPIC, "topic1")
+	sub := firstSubscriber(subs, PUBSUB_TOPIC, "topic1")
 	assert.NotEmpty(t, sub)
 
 	// Adding to existing peer
-	subs.Set(peerId, TOPIC, []string{"topic2"})
+	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic2"})
 
-	sub = firstSubscriber(subs, TOPIC, "topic2")
+	sub = firstSubscriber(subs, PUBSUB_TOPIC, "topic2")
 	assert.NotEmpty(t, sub)
 
-	subs.Set(peerId, TOPIC+"2", []string{"topic1"})
+	subs.Set(peerId, PUBSUB_TOPIC+"2", []string{"topic1"})
 
-	sub = firstSubscriber(subs, TOPIC+"2", "topic1")
+	sub = firstSubscriber(subs, PUBSUB_TOPIC+"2", "topic1")
 	assert.NotEmpty(t, sub)
 
-	sub = firstSubscriber(subs, TOPIC+"2", "topic2")
+	sub = firstSubscriber(subs, PUBSUB_TOPIC+"2", "topic2")
 	assert.Empty(t, sub)
 }
 
@@ -53,19 +53,19 @@ func TestRemove(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
 	peerId := createPeerID(t)
 
-	subs.Set(peerId, TOPIC+"1", []string{"topic1", "topic2"})
-	subs.Set(peerId, TOPIC+"2", []string{"topic1"})
+	subs.Set(peerId, PUBSUB_TOPIC+"1", []string{"topic1", "topic2"})
+	subs.Set(peerId, PUBSUB_TOPIC+"2", []string{"topic1"})
 
 	err := subs.DeleteAll(peerId)
 	assert.Empty(t, err)
 
-	sub := firstSubscriber(subs, TOPIC+"1", "topic1")
+	sub := firstSubscriber(subs, PUBSUB_TOPIC+"1", "topic1")
 	assert.Empty(t, sub)
 
-	sub = firstSubscriber(subs, TOPIC+"1", "topic2")
+	sub = firstSubscriber(subs, PUBSUB_TOPIC+"1", "topic2")
 	assert.Empty(t, sub)
 
-	sub = firstSubscriber(subs, TOPIC+"2", "topic1")
+	sub = firstSubscriber(subs, PUBSUB_TOPIC+"2", "topic1")
 	assert.Empty(t, sub)
 
 	assert.False(t, subs.Has(peerId))
@@ -81,11 +81,11 @@ func TestRemovePartial(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
 	peerId := createPeerID(t)
 
-	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
-	err := subs.Delete(peerId, TOPIC, []string{"topic1"})
+	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1", "topic2"})
+	err := subs.Delete(peerId, PUBSUB_TOPIC, []string{"topic1"})
 	require.NoError(t, err)
 
-	sub := firstSubscriber(subs, TOPIC, "topic2")
+	sub := firstSubscriber(subs, PUBSUB_TOPIC, "topic2")
 	assert.NotEmpty(t, sub)
 }
 
@@ -93,13 +93,13 @@ func TestRemoveBogus(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
 	peerId := createPeerID(t)
 
-	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
-	err := subs.Delete(peerId, TOPIC, []string{"does not exist", "topic1"})
+	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1", "topic2"})
+	err := subs.Delete(peerId, PUBSUB_TOPIC, []string{"does not exist", "topic1"})
 	require.NoError(t, err)
 
-	sub := firstSubscriber(subs, TOPIC, "topic1")
+	sub := firstSubscriber(subs, PUBSUB_TOPIC, "topic1")
 	assert.Empty(t, sub)
-	sub = firstSubscriber(subs, TOPIC, "does not exist")
+	sub = firstSubscriber(subs, PUBSUB_TOPIC, "does not exist")
 	assert.Empty(t, sub)
 
 	err = subs.Delete(peerId, "DOES_NOT_EXIST", []string{"topic1"})
@@ -110,7 +110,7 @@ func TestSuccessFailure(t *testing.T) {
 	subs := NewSubscribersMap(5 * time.Second)
 	peerId := createPeerID(t)
 
-	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
+	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1", "topic2"})
 
 	subs.FlagAsFailure(peerId)
 	require.True(t, subs.IsFailedPeer(peerId))
@@ -118,7 +118,7 @@ func TestSuccessFailure(t *testing.T) {
 	subs.FlagAsFailure(peerId)
 	require.False(t, subs.Has(peerId))
 
-	subs.Set(peerId, TOPIC, []string{"topic1", "topic2"})
+	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1", "topic2"})
 
 	subs.FlagAsFailure(peerId)
 	require.True(t, subs.IsFailedPeer(peerId))

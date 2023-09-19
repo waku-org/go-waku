@@ -64,8 +64,8 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 
 	if options.Filter.Enable {
 		cf := filter.ContentFilter{
-			Topic:         relay.DefaultWakuTopic,
-			ContentTopics: []string{options.ContentTopic},
+			PubsubTopic:   relay.DefaultWakuTopic,
+			ContentTopics: filter.NewContentTopicSet(options.ContentTopic),
 		}
 		var filterOpt filter.FilterSubscribeOption
 		peerID, err := options.Filter.NodePeerID()

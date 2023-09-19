@@ -22,6 +22,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 // FilterPushID_v20beta1 is the current Waku Filter protocol identifier used to allow
@@ -44,8 +45,12 @@ type WakuFilterLightNode struct {
 }
 
 type ContentFilter struct {
-	Topic         string
-	ContentTopics []string
+	PubsubTopic   string
+	ContentTopics ContentTopicSet
+}
+
+func (cf ContentFilter) ContentTopicsList() []string {
+	return maps.Keys(cf.ContentTopics)
 }
 
 type WakuFilterPushResult struct {
@@ -176,8 +181,8 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	request := &pb.FilterSubscribeRequest{
 		RequestId:           hex.EncodeToString(params.requestID),
 		FilterSubscribeType: reqType,
-		PubsubTopic:         &contentFilter.Topic,
-		ContentTopics:       contentFilter.ContentTopics,
+		PubsubTopic:         &contentFilter.PubsubTopic,
+		ContentTopics:       contentFilter.ContentTopicsList(),
 	}
 
 	wf.log.Debug("sending FilterSubscribeRequest", zap.Stringer("request", request))
@@ -220,8 +225,8 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 		return nil, err
 	}
 
-	if contentFilter.Topic == "" {
-		return nil, errors.New("topic is required")
+	if contentFilter.PubsubTopic == "" {
+		return nil, errors.New("pubsub topic is required")
 	}
 
 	if len(contentFilter.ContentTopics) == 0 {
@@ -248,11 +253,16 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 		return nil, ErrNoPeersAvailable
 	}
 
-	err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, contentFilter)
-	if err != nil {
-		return nil, err
+	existingSub := wf.subscriptions.Get(params.selectedPeer, contentFilter)
+	if existingSub != nil {
+		return existingSub, nil
+	} else {
+		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, contentFilter)
+		if err != nil {
+			return nil, err
+		}
+		return wf.subscriptions.NewSubscription(params.selectedPeer, contentFilter), nil
 	}
-	return wf.subscriptions.NewSubscription(params.selectedPeer, contentFilter.Topic, contentFilter.ContentTopics), nil
 }
 
 // FilterSubscription is used to obtain an object from which you could receive messages received via filter protocol
@@ -263,11 +273,11 @@ func (wf *WakuFilterLightNode) FilterSubscription(peerID peer.ID, contentFilter 
 		return nil, err
 	}
 
-	if !wf.subscriptions.Has(peerID, contentFilter.Topic, contentFilter.ContentTopics...) {
+	if !wf.subscriptions.Has(peerID, contentFilter.PubsubTopic, contentFilter.ContentTopicsList()...) {
 		return nil, errors.New("subscription does not exist")
 	}
 
-	return wf.subscriptions.NewSubscription(peerID, contentFilter.Topic, contentFilter.ContentTopics), nil
+	return wf.subscriptions.NewSubscription(peerID, contentFilter), nil
 }
 
 func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterUnsubscribeOption) (*FilterUnsubscribeParameters, error) {
@@ -318,8 +328,8 @@ func (wf *WakuFilterLightNode) Subscriptions() []*SubscriptionDetails {
 	var output []*SubscriptionDetails
 
 	for _, peerSubscription := range wf.subscriptions.items {
-		for _, subscriptionPerTopic := range peerSubscription.subscriptionsPerTopic {
-			for _, subscriptionDetail := range subscriptionPerTopic {
+		for _, subscriptions := range peerSubscription.subsPerPubsubTopic {
+			for _, subscriptionDetail := range subscriptions {
 				output = append(output, subscriptionDetail)
 			}
 		}
@@ -337,14 +347,14 @@ func (wf *WakuFilterLightNode) cleanupSubscriptions(peerID peer.ID, contentFilte
 		return
 	}
 
-	subscriptionDetailList, ok := peerSubscription.subscriptionsPerTopic[contentFilter.Topic]
+	subscriptionDetailList, ok := peerSubscription.subsPerPubsubTopic[contentFilter.PubsubTopic]
 	if !ok {
 		return
 	}
 
 	for subscriptionDetailID, subscriptionDetail := range subscriptionDetailList {
-		subscriptionDetail.Remove(contentFilter.ContentTopics...)
-		if len(subscriptionDetail.ContentTopics) == 0 {
+		subscriptionDetail.Remove(contentFilter.ContentTopicsList()...)
+		if len(subscriptionDetail.ContentFilter.ContentTopics) == 0 {
 			delete(subscriptionDetailList, subscriptionDetailID)
 		} else {
 			subscriptionDetailList[subscriptionDetailID] = subscriptionDetail
@@ -352,9 +362,9 @@ func (wf *WakuFilterLightNode) cleanupSubscriptions(peerID peer.ID, contentFilte
 	}
 
 	if len(subscriptionDetailList) == 0 {
-		delete(wf.subscriptions.items[peerID].subscriptionsPerTopic, contentFilter.Topic)
+		delete(wf.subscriptions.items[peerID].subsPerPubsubTopic, contentFilter.PubsubTopic)
 	} else {
-		wf.subscriptions.items[peerID].subscriptionsPerTopic[contentFilter.Topic] = subscriptionDetailList
+		wf.subscriptions.items[peerID].subsPerPubsubTopic[contentFilter.PubsubTopic] = subscriptionDetailList
 	}
 
 }
@@ -367,8 +377,8 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 		return nil, err
 	}
 
-	if contentFilter.Topic == "" {
-		return nil, errors.New("topic is required")
+	if contentFilter.PubsubTopic == "" {
+		return nil, errors.New("pubsub topic is required")
 	}
 
 	if len(contentFilter.ContentTopics) == 0 {
@@ -396,7 +406,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 		}
 
 		wf.cleanupSubscriptions(peerID, contentFilter)
-		if len(subscriptions.subscriptionsPerTopic) == 0 {
+		if len(subscriptions.subsPerPubsubTopic) == 0 {
 			delete(wf.subscriptions.items, peerID)
 		}
 
@@ -452,14 +462,9 @@ func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, 
 		return nil, err
 	}
 
-	var contentTopics []string
-	for k := range sub.ContentTopics {
-		contentTopics = append(contentTopics, k)
-	}
-
 	opts = append(opts, Peer(sub.PeerID))
 
-	return wf.Unsubscribe(ctx, ContentFilter{Topic: sub.PubsubTopic, ContentTopics: contentTopics}, opts...)
+	return wf.Unsubscribe(ctx, sub.ContentFilter, opts...)
 }
 
 func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
