@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -29,6 +30,7 @@ type PeerManager struct {
 	host                host.Host
 	serviceSlots        *ServiceSlots
 	ctx                 context.Context
+	sub                 event.Subscription
 }
 
 const peerConnectivityLoopSecs = 15
@@ -80,9 +82,50 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 	pm.peerConnector = pc
 }
 
+func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
+	var err error
+	pm.sub, err = bus.Subscribe(new(relay.EvtPeerTopic))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pm *PeerManager) peerEventLoop(ctx context.Context) {
+	defer pm.sub.Close()
+	for {
+		select {
+		case e := <-pm.sub.Out():
+			peerEvt := e.(relay.EvtPeerTopic)
+			wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
+			peerID := peerEvt.PeerID
+			if peerEvt.State == relay.PEER_JOINED {
+				err := wps.AddPubSubTopic(peerID, peerEvt.Topic)
+				if err != nil {
+					pm.logger.Error("failed to add pubSubTopic for peer",
+						logging.HostID("peerID", peerID), zap.Error(err))
+				}
+			} else if peerEvt.State == relay.PEER_LEFT {
+				err := wps.RemovePubSubTopic(peerID, peerEvt.Topic)
+				if err != nil {
+					pm.logger.Error("failed to remove pubSubTopic for peer",
+						logging.HostID("peerID", peerID), zap.Error(err))
+				}
+			} else {
+				pm.logger.Error("unknown peer event received", zap.Int("eventState", int(peerEvt.State)))
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
 	pm.ctx = ctx
+	if pm.sub != nil {
+		go pm.peerEventLoop(ctx)
+	}
 	go pm.connectivityLoop(ctx)
 }
 
@@ -172,13 +215,19 @@ func (pm *PeerManager) connectToRelayPeers() {
 	} //Else: Should we raise some sort of unhealthy event??
 }
 
+func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) PeerData {
+	return PeerData{
+		Origin: origin,
+		AddrInfo: peer.AddrInfo{
+			ID:    peerID,
+			Addrs: host.Peerstore().Addrs(peerID),
+		},
+	}
+}
 func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
 	for _, peerID := range peers {
-		peerInfo := peer.AddrInfo{
-			ID:    peerID,
-			Addrs: pm.host.Peerstore().Addrs(peerID),
-		}
-		pm.peerConnector.publishWork(pm.ctx, peerInfo)
+		peerData := addrInfoToPeerData(wps.PeerManager, peerID, pm.host)
+		pm.peerConnector.PushToChan(peerData)
 	}
 }
 

@@ -110,6 +110,7 @@ func (r *Rendezvous) DiscoverWithNamespace(ctx context.Context, namespace string
 				PubSubTopics: []string{namespace},
 			}
 			if !r.PushToChan(peer) {
+				r.log.Error("could push to closed channel/context completed")
 				return
 			}
 		}
