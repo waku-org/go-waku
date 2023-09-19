@@ -57,11 +57,13 @@ type WakuRelay struct {
 	topicsMutex     sync.RWMutex
 	wakuRelayTopics map[string]*pubsub.Topic
 	relaySubs       map[string]*pubsub.Subscription
+	topicEvtHanders map[string]*pubsub.TopicEventHandler
 
 	events   event.Bus
 	emitters struct {
 		EvtRelaySubscribed   event.Emitter
 		EvtRelayUnsubscribed event.Emitter
+		EvtPeerTopic         event.Emitter
 	}
 
 	*waku_proto.CommonService
@@ -77,6 +79,19 @@ type EvtRelayUnsubscribed struct {
 	Topic string
 }
 
+type PeerTopicState int
+
+const (
+	PEER_JOINED = iota
+	PEER_LEFT
+)
+
+type EvtPeerTopic struct {
+	Topic  string
+	PeerID peer.ID
+	State  PeerTopicState
+}
+
 func msgIDFn(pmsg *pubsub_pb.Message) string {
 	return string(hash.SHA256(pmsg.Data))
 }
@@ -87,6 +102,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
 	w.relaySubs = make(map[string]*pubsub.Subscription)
+	w.topicEvtHanders = make(map[string]*pubsub.TopicEventHandler)
 	w.topicValidators = make(map[string][]validatorFn)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
@@ -229,6 +245,11 @@ func (w *WakuRelay) start() error {
 		return err
 	}
 
+	w.emitters.EvtPeerTopic, err = w.events.Emitter(new(EvtPeerTopic))
+	if err != nil {
+		return err
+	}
+
 	w.log.Info("Relay protocol started")
 	return nil
 }
@@ -303,6 +324,11 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 			return nil, err
 		}
 
+		evtHandler, err := w.addPeerTopicEventListener(pubSubTopic)
+		if err != nil {
+			return nil, err
+		}
+		w.topicEvtHanders[topic] = evtHandler
 		w.relaySubs[topic] = sub
 
 		err = w.emitters.EvtRelaySubscribed.Emit(EvtRelaySubscribed{topic})
@@ -420,6 +446,12 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, topic string) error {
 	w.relaySubs[topic].Cancel()
 	delete(w.relaySubs, topic)
 
+	evtHandler, ok := w.topicEvtHanders[topic]
+	if ok {
+		evtHandler.Cancel()
+		delete(w.topicEvtHanders, topic)
+	}
+
 	err := w.wakuRelayTopics[topic].Close()
 	if err != nil {
 		return err
@@ -494,4 +526,47 @@ func (w *WakuRelay) Params() pubsub.GossipSubParams {
 // Events returns the event bus on which WakuRelay events will be emitted
 func (w *WakuRelay) Events() event.Bus {
 	return w.events
+}
+
+func (w *WakuRelay) addPeerTopicEventListener(topic *pubsub.Topic) (*pubsub.TopicEventHandler, error) {
+	handler, err := topic.EventHandler()
+	if err != nil {
+		return nil, err
+	}
+	w.WaitGroup().Add(1)
+	go w.topicEventPoll(topic.String(), handler)
+	return handler, nil
+}
+
+func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandler) {
+	defer w.WaitGroup().Done()
+	for {
+		evt, err := handler.NextPeerEvent(w.Context())
+		if err != nil {
+			if err == context.Canceled {
+				break
+			}
+			w.log.Error("failed to get next peer event", zap.String("topic", topic), zap.Error(err))
+			continue
+		}
+		if evt.Peer.Validate() != nil { //Empty peerEvent is returned when context passed in done.
+			break
+		}
+		if evt.Type == pubsub.PeerJoin {
+			w.log.Debug("received a PeerJoin event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_JOINED})
+			if err != nil {
+				w.log.Error("failed to emit PeerJoin", zap.String("topic", topic), zap.Error(err))
+			}
+		} else if evt.Type == pubsub.PeerLeave {
+			w.log.Debug("received a PeerLeave event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_LEFT})
+			if err != nil {
+				w.log.Error("failed to emit PeerLeave", zap.String("topic", topic), zap.Error(err))
+			}
+		} else {
+			w.log.Error("unknown event type received", zap.String("topic", topic),
+				zap.Int("eventType", int(evt.Type)))
+		}
+	}
 }
