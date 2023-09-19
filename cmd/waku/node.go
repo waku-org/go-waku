@@ -169,6 +169,12 @@ func Execute(options NodeOptions) {
 		libp2pOpts = append(libp2pOpts, libp2p.EnableRelayService())
 	}
 
+	if options.ForceUnreachable {
+		logger.Warn("node forced to be unreachable!")
+		libp2pOpts = append(libp2pOpts, libp2p.EnableRelay(), libp2p.ForceReachabilityPrivate())
+		nodeOpts = append(nodeOpts, node.WithCircuitRelayParams(2*time.Second, 2*time.Second))
+	}
+
 	if options.UserAgent != "" {
 		libp2pOpts = append(libp2pOpts, libp2p.UserAgent(options.UserAgent))
 	}

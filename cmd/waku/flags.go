@@ -171,6 +171,14 @@ var (
 		Destination: &options.CircuitRelay,
 		EnvVars:     []string{"WAKUNODE2_CIRCUIT_RELAY"},
 	})
+	ForceUnreachable = altsrc.NewBoolFlag(&cli.BoolFlag{
+		Name:        "unreachable",
+		Usage:       "Force the node to be unreachable. WARNING: This flag is created for testing circuit relay and is not meant to be used in production",
+		Value:       false,
+		Hidden:      true,
+		Destination: &options.ForceUnreachable,
+		EnvVars:     []string{"WAKUNODE2_UNREACHABLE"},
+	})
 	ResourceScalingMemoryPercent = altsrc.NewFloat64Flag(&cli.Float64Flag{
 		Name:        "resource-scaling-memory-percentage",
 		Usage:       "Determines the percentage of total accessible memory that wil be dedicated to go-waku. A dedicated node with a lot of RAM could allocate 25% or more memory to go-waku",

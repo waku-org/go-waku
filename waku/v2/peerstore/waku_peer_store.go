@@ -1,6 +1,7 @@
 package peerstore
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -183,7 +184,11 @@ func (ps *WakuPeerstoreImpl) SetPubSubTopics(p peer.ID, topics []string) error {
 func (ps *WakuPeerstoreImpl) PubSubTopics(p peer.ID) ([]string, error) {
 	result, err := ps.peerStore.Get(p, peerPubSubTopics)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, peerstore.ErrNotFound) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
 	return result.([]string), nil
 }

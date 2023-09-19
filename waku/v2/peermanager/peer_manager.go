@@ -103,7 +103,7 @@ func (pm *PeerManager) peerEventLoop(ctx context.Context) {
 				err := wps.AddPubSubTopic(peerID, peerEvt.Topic)
 				if err != nil {
 					pm.logger.Error("failed to add pubSubTopic for peer",
-						logging.HostID("peerID", peerID), zap.Error(err))
+						logging.HostID("peerID", peerID), zap.String("topic", peerEvt.Topic), zap.Error(err))
 				}
 			} else if peerEvt.State == relay.PEER_LEFT {
 				err := wps.RemovePubSubTopic(peerID, peerEvt.Topic)

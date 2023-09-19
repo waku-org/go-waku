@@ -41,6 +41,7 @@ func main() {
 		ExtMultiaddresses,
 		ShowAddresses,
 		CircuitRelay,
+		ForceUnreachable,
 		ResourceScalingMemoryPercent,
 		ResourceScalingFDPercent,
 		LogLevel,
