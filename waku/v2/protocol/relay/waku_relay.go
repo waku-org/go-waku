@@ -542,12 +542,15 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 	defer w.WaitGroup().Done()
 	for {
 		evt, err := handler.NextPeerEvent(w.Context())
-		if evt.Peer.Validate() != nil { //Empty peerEvent is returned when context passed in done.
-			break
-		}
 		if err != nil {
+			if err == context.Canceled {
+				break
+			}
 			w.log.Error("failed to get next peer event", zap.String("topic", topic), zap.Error(err))
 			continue
+		}
+		if evt.Peer.Validate() != nil { //Empty peerEvent is returned when context passed in done.
+			break
 		}
 		if evt.Type == pubsub.PeerJoin {
 			w.log.Debug("received a PeerJoin event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
