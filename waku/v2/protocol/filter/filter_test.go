@@ -20,6 +20,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 func TestFilterSuite(t *testing.T) {
@@ -109,7 +110,7 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 		defer s.wg.Done()
 		select {
 		case env := <-ch:
-			s.Require().Equal(s.contentFilter.ContentTopics[0], env.Message().GetContentTopic())
+			s.Require().Equal(maps.Keys(s.contentFilter.ContentTopics)[0], env.Message().GetContentTopic())
 		case <-time.After(5 * time.Second):
 			s.Require().Fail("Message timeout")
 		case <-s.ctx.Done():
@@ -141,11 +142,8 @@ func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) 
 	s.wg.Wait()
 }
 
-func (s *FilterTestSuite) subscribe(topic string, contentTopic string, peer peer.ID) []*SubscriptionDetails {
-	s.contentFilter = ContentFilter{
-		Topic:         string(topic),
-		ContentTopics: []string{contentTopic},
-	}
+func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*SubscriptionDetails {
+	s.contentFilter = ContentFilter{pubsubTopic, NewContentTopicSet(contentTopic)}
 
 	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
 	s.Require().NoError(err)
@@ -340,10 +338,7 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 	s.lightNode.Stop()
 
-	contentFilter := ContentFilter{
-		Topic:         "test",
-		ContentTopics: []string{"test"},
-	}
+	contentFilter := ContentFilter{"test", NewContentTopicSet("test")}
 
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 
@@ -359,10 +354,7 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 
-	contentFilter := ContentFilter{
-		Topic:         "test",
-		ContentTopics: []string{"test"},
-	}
+	contentFilter := ContentFilter{"test", NewContentTopicSet("test")}
 
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
@@ -477,8 +469,8 @@ func (s *FilterTestSuite) TestAutoShard() {
 
 	}, s.subDetails[0].C)
 	_, err = s.lightNode.Unsubscribe(s.ctx, ContentFilter{
-		Topic:         s.testTopic,
-		ContentTopics: []string{newContentTopic},
+		PubsubTopic:   s.testTopic,
+		ContentTopics: NewContentTopicSet(newContentTopic),
 	})
 	s.Require().NoError(err)
 
