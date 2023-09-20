@@ -11,13 +11,18 @@ pipeline {
     )
     string(
       name: 'IMAGE_NAME',
-      defaultValue: 'statusteam/go-waku',
       description: 'Docker image name.',
+      defaultValue: params.IMAGE_NAME ?: 'wakuorg/go-waku',
     )
     string(
       name: 'IMAGE_TAG',
-      defaultValue: env.JOB_BASE_NAME == 'release' ? 'stable' : 'deploy-test',
       description: 'Docker image tag.',
+      defaultValue: env.JOB_BASE_NAME == 'release' ? 'stable' : 'deploy-test',
+    )
+    string(
+      name: 'DOCKER_CRED',
+      description: 'Name of Docker Hub credential.',
+      defaultValue: params.DOCKER_CRED ?: 'dockerhub-vacorgbot-api-token',
     )
   }
 
@@ -46,7 +51,7 @@ pipeline {
     stage('Push') {
       steps { script {
         withDockerRegistry([
-          credentialsId: "dockerhub-statusteam-auto", url: ""
+          credentialsId: params.DOCKER_CRED, url: ""
         ]) {
           image.push()
         }
@@ -56,7 +61,7 @@ pipeline {
     stage('Deploy') {
       steps { script {
         withDockerRegistry([
-          credentialsId: "dockerhub-statusteam-auto", url: ""
+          credentialsId: params.DOCKER_CRED, url: ""
         ]) {
           image.push(env.IMAGE_TAG)
         }
