@@ -28,6 +28,11 @@ func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
 	}, nil
 }
 
+type subscribeResult struct {
+	Subscriptions []*filter.SubscriptionDetails `json:"subscriptions"`
+	Error         string                        `json:"error,omitempty"`
+}
+
 // FilterSubscribe is used to create a subscription to a filter node to receive messages
 func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	cf, err := toContentFilter(filterJSON)
@@ -60,18 +65,22 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 		fOptions = append(fOptions, filter.WithAutomaticPeerSelection())
 	}
 
-	subscriptionDetails, err := wakuState.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
-	if err != nil {
+	subscriptions, err := wakuState.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
+	if err != nil && subscriptions == nil {
 		return "", err
 	}
 
-	go func(subscriptionDetails *filter.SubscriptionDetails) {
-		for envelope := range subscriptionDetails.C {
-			send("message", toSubscriptionMessage(envelope))
-		}
-	}(subscriptionDetails)
-
-	return marshalJSON(subscriptionDetails)
+	for _, subscriptionDetails := range subscriptions {
+		go func(subscriptionDetails *filter.SubscriptionDetails) {
+			for envelope := range subscriptionDetails.C {
+				send("message", toSubscriptionMessage(envelope))
+			}
+		}(subscriptionDetails)
+	}
+	var subResult subscribeResult
+	subResult.Subscriptions = subscriptions
+	subResult.Error = err.Error()
+	return marshalJSON(subResult)
 }
 
 // FilterPing is used to determine if a peer has an active subscription
