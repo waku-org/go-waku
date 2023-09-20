@@ -55,6 +55,9 @@ type WakuNodeParameters struct {
 	peerstore      peerstore.Peerstore
 	prometheusReg  prometheus.Registerer
 
+	circuitRelayMinInterval time.Duration
+	circuitRelayBootDelay   time.Duration
+
 	enableNTP bool
 	ntpURLs   []string
 
@@ -119,6 +122,7 @@ type WakuNodeOption func(*WakuNodeParameters) error
 var DefaultWakuNodeOptions = []WakuNodeOption{
 	WithPrometheusRegisterer(prometheus.NewRegistry()),
 	WithMaxPeerConnections(50),
+	WithCircuitRelayParams(2*time.Second, 3*time.Minute),
 }
 
 // MultiAddresses return the list of multiaddresses configured in the node
@@ -513,6 +517,14 @@ func WithSecureWebsockets(address string, port int, certPath string, keyPath str
 			MinVersion:   tls.VersionTLS12,
 		}
 
+		return nil
+	}
+}
+
+func WithCircuitRelayParams(minInterval time.Duration, bootDelay time.Duration) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.circuitRelayBootDelay = bootDelay
+		params.circuitRelayMinInterval = minInterval
 		return nil
 	}
 }

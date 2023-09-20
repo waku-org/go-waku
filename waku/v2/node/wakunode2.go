@@ -237,7 +237,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 			}()
 			return r
 		},
-		autorelay.WithMinInterval(2*time.Second),
+		autorelay.WithMinInterval(params.circuitRelayMinInterval),
+		autorelay.WithBootDelay(params.circuitRelayBootDelay),
 	))
 
 	if params.enableNTP {
@@ -754,12 +755,12 @@ func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 		// host.Connect adds the addresses with a TempAddressTTL
 		// however, identify will filter out all non IP addresses
 		// and expire all temporary addrs. So in the meantime, let's
-		// store dns4 addresses with a connectedAddressTTL, otherwise
+		// store dns4 addresses with a RecentlyConnectedAddrTTL, otherwise
 		// it will have trouble with the status fleet circuit relay addresses
 		// See https://github.com/libp2p/go-libp2p/issues/2550
 		_, err := addr.ValueForProtocol(ma.P_DNS4)
 		if err == nil {
-			w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.ConnectedAddrTTL)
+			w.host.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.RecentlyConnectedAddrTTL)
 		}
 	}
 
