@@ -17,6 +17,7 @@ func TestFilterOption(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
+	// subscribe options
 	options := []FilterSubscribeOption{
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 		WithAutomaticPeerSelection(),
@@ -34,13 +35,14 @@ func TestFilterOption(t *testing.T) {
 	require.Equal(t, host, params.host)
 	require.NotNil(t, params.selectedPeer)
 
-	options2 := []FilterUnsubscribeOption{
-		AutomaticRequestID(),
+	// Unsubscribe options
+	options2 := []FilterSubscribeOption{
+		WithAutomaticRequestID(),
 		UnsubscribeAll(),
-		Peer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
+		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 	}
 
-	params2 := new(FilterUnsubscribeParameters)
+	params2 := new(FilterSubscribeParameters)
 
 	for _, opt := range options2 {
 		opt(params2)
