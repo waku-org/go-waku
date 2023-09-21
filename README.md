@@ -38,7 +38,7 @@ nix develop
 #### Docker
 ```
 docker run -i -t -p 60000:60000 -p 9000:9000/udp \
-  statusteam/go-waku:latest \ # or, the image:tag of your choice
+  wakuorg/go-waku:latest \ # or, the image:tag of your choice
     --dns-discovery:true \
     --dns-discovery-url:enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im \
     --discv5-discovery
@@ -47,9 +47,9 @@ docker run -i -t -p 60000:60000 -p 9000:9000/udp \
 or build and run the image with:
 
 ```
-docker build -t statusteam/go-waku:latest .
+docker build -t wakuorg/go-waku:latest .
 
-docker run statusteam/go-waku:latest --help
+docker run wakuorg/go-waku:latest --help
 ```
 
 #### Building on windows
