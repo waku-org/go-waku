@@ -1,3 +1,6 @@
+//go:build include_postgres_tests
+// +build include_postgres_tests
+
 package persistence
 
 import (
@@ -7,41 +10,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence/migrate"
-	sqlitemigrations "github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
+	postgresmigration "github.com/waku-org/go-waku/waku/persistence/postgres/migrations"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
-	"go.uber.org/zap"
 )
 
 func Migrate(db *sql.DB) error {
-	migrationDriver, err := sqlite3.WithInstance(db, &sqlite3.Config{
-		MigrationsTable: "gowaku_" + sqlite3.DefaultMigrationsTable,
+	migrationDriver, err := postgres.WithInstance(db, &postgres.Config{
+		MigrationsTable: "gowaku_" + postgres.DefaultMigrationsTable,
 	})
 	if err != nil {
 		return err
 	}
-	return migrate.Migrate(db, migrationDriver, sqlitemigrations.AssetNames(), sqlitemigrations.Asset)
-}
-
-func NewMock() *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		utils.Logger().Fatal("opening a stub database connection", zap.Error(err))
-	}
-
-	return db
+	return migrate.Migrate(db, migrationDriver, postgresmigration.AssetNames(), postgresmigration.Asset)
 }
 
 func TestDbStore(t *testing.T) {
-	db := NewMock()
+	db := NewMockPgDB()
 	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate))
 	require.NoError(t, err)
 
@@ -61,7 +54,7 @@ func TestDbStore(t *testing.T) {
 }
 
 func TestStoreRetention(t *testing.T) {
-	db := NewMock()
+	db := NewMockPgDB()
 	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
@@ -104,7 +97,8 @@ func TestStoreRetention(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	db := NewMock()
+	db := NewMockPgDB()
+
 	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
