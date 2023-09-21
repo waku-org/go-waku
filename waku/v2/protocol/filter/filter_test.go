@@ -20,7 +20,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 )
 
 func TestFilterSuite(t *testing.T) {
@@ -110,7 +109,7 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 		defer s.wg.Done()
 		select {
 		case env := <-ch:
-			s.Require().Equal(maps.Keys(s.contentFilter.ContentTopics)[0], env.Message().GetContentTopic())
+			s.Require().Equal(s.contentFilter.ContentTopicsList()[0], env.Message().GetContentTopic())
 		case <-time.After(5 * time.Second):
 			s.Require().Fail("Message timeout")
 		case <-s.ctx.Done():
@@ -118,7 +117,9 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 		}
 	}()
 
-	fn()
+	if fn != nil {
+		fn()
+	}
 
 	s.wg.Wait()
 }
@@ -128,12 +129,14 @@ func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) 
 	go func() {
 		defer s.wg.Done()
 		select {
-		case <-ch:
-			s.Require().Fail("should not receive another message")
+		case env, ok := <-ch:
+			if ok {
+				s.Require().Fail("should not receive another message", zap.String("payload", string(env.Message().Payload)))
+			}
 		case <-time.After(1 * time.Second):
 			// Timeout elapsed, all good
 		case <-s.ctx.Done():
-			s.Require().Fail("test exceeded allocated time")
+			s.Require().Fail("waitForTimeout test exceeded allocated time")
 		}
 	}()
 
@@ -216,14 +219,51 @@ func (s *FilterTestSuite) TestWakuFilter() {
 		s.publishMsg(s.testTopic, "TopicB", "second")
 	}, s.subDetails[0].C)
 
-	_, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, Peer(s.fullNodeHost.ID()))
+	_, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
-
-	time.Sleep(1 * time.Second)
 
 	// Should not receive after unsubscribe
 	s.waitForTimeout(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "third")
+	}, s.subDetails[0].C)
+
+	// Two new subscriptions with same [peer, contentFilter]
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+	secondSub := s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// Assert that we have 2 subscriptions now
+	s.Require().Equal(len(s.lightNode.Subscriptions()), 2)
+
+	// Should be received on both subscriptions
+	s.waitForMsg(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "fourth")
+	}, s.subDetails[0].C)
+
+	s.waitForMsg(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "fifth")
+	}, secondSub[0].C)
+
+	s.waitForMsg(nil, s.subDetails[0].C)
+	s.waitForMsg(nil, secondSub[0].C)
+
+	// Unsubscribe from second sub only
+	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, secondSub[0])
+	s.Require().NoError(err)
+
+	// Should still receive
+	s.waitForMsg(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "sixth")
+	}, s.subDetails[0].C)
+
+	// Unsubscribe from first sub only
+	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, s.subDetails[0])
+	s.Require().NoError(err)
+
+	s.Require().Equal(len(s.lightNode.Subscriptions()), 0)
+
+	// Should not receive after unsubscribe
+	s.waitForTimeout(func() {
+		s.publishMsg(s.testTopic, s.testContentTopic, "seventh")
 	}, s.subDetails[0].C)
 }
 
@@ -441,7 +481,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 		s.publishMsg(s.testTopic, "TopicB", "second")
 	}, s.subDetails[0].C)
 
-	_, err = s.lightNode.Unsubscribe(s.ctx, s.contentFilter, Peer(s.fullNodeHost.ID()))
+	_, err = s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)

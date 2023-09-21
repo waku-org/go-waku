@@ -15,18 +15,16 @@ import (
 
 type (
 	FilterSubscribeParameters struct {
-		host         host.Host
 		selectedPeer peer.ID
-		pm           *peermanager.PeerManager
 		requestID    []byte
 		log          *zap.Logger
-	}
 
-	FilterUnsubscribeParameters struct {
+		// Subscribe-specific
+		host host.Host
+		pm   *peermanager.PeerManager
+
+		// Unsubscribe-specific
 		unsubscribeAll bool
-		selectedPeer   peer.ID
-		requestID      []byte
-		log            *zap.Logger
 		wg             *sync.WaitGroup
 	}
 
@@ -37,8 +35,7 @@ type (
 
 	Option func(*FilterParameters)
 
-	FilterSubscribeOption   func(*FilterSubscribeParameters)
-	FilterUnsubscribeOption func(*FilterUnsubscribeParameters)
+	FilterSubscribeOption func(*FilterSubscribeParameters)
 )
 
 func WithTimeout(timeout time.Duration) Option {
@@ -89,7 +86,7 @@ func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Fi
 }
 
 // WithRequestID is an option to set a specific request ID to be used when
-// creating a filter subscription
+// creating/removing a filter subscription
 func WithRequestID(requestID []byte) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
 		params.requestID = requestID
@@ -111,51 +108,31 @@ func DefaultSubscriptionOptions() []FilterSubscribeOption {
 	}
 }
 
-func UnsubscribeAll() FilterUnsubscribeOption {
-	return func(params *FilterUnsubscribeParameters) {
+func UnsubscribeAll() FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) {
 		params.unsubscribeAll = true
 	}
 }
 
-func Peer(p peer.ID) FilterUnsubscribeOption {
-	return func(params *FilterUnsubscribeParameters) {
-		params.selectedPeer = p
-	}
-}
-
-// RequestID is an option to set a specific request ID to be used when
-// removing a subscription from a filter node
-func RequestID(requestID []byte) FilterUnsubscribeOption {
-	return func(params *FilterUnsubscribeParameters) {
-		params.requestID = requestID
-	}
-}
-
-func AutomaticRequestID() FilterUnsubscribeOption {
-	return func(params *FilterUnsubscribeParameters) {
-		params.requestID = protocol.GenerateRequestID()
-	}
-}
-
-// WithWaitGroup allos specigying a waitgroup to wait until all
+// WithWaitGroup allows specifying a waitgroup to wait until all
 // unsubscribe requests are complete before the function is complete
-func WithWaitGroup(wg *sync.WaitGroup) FilterUnsubscribeOption {
-	return func(params *FilterUnsubscribeParameters) {
+func WithWaitGroup(wg *sync.WaitGroup) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) {
 		params.wg = wg
 	}
 }
 
 // DontWait is used to fire and forget an unsubscription, and don't
 // care about the results of it
-func DontWait() FilterUnsubscribeOption {
-	return func(params *FilterUnsubscribeParameters) {
+func DontWait() FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) {
 		params.wg = nil
 	}
 }
 
-func DefaultUnsubscribeOptions() []FilterUnsubscribeOption {
-	return []FilterUnsubscribeOption{
-		AutomaticRequestID(),
+func DefaultUnsubscribeOptions() []FilterSubscribeOption {
+	return []FilterSubscribeOption{
+		WithAutomaticRequestID(),
 		WithWaitGroup(&sync.WaitGroup{}),
 	}
 }
