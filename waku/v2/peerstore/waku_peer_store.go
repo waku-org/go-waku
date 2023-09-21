@@ -165,6 +165,11 @@ func (ps *WakuPeerstoreImpl) RemovePubSubTopic(p peer.ID, topic string) error {
 	if err != nil {
 		return err
 	}
+
+	if len(existingTopics) == 0 {
+		return nil
+	}
+
 	for i := range existingTopics {
 		existingTopics = append(existingTopics[:i], existingTopics[i+1:]...)
 	}
