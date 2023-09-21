@@ -8,7 +8,7 @@ For a more advanced configuration see our [configuration guides](./how-to/config
 
 [Build the go-waku node](./how-to/build.md)
 or download a precompiled binary from our [releases page](https://github.com/waku-org/go-waku/releases).
-<!-- Docker images are published to [statusteam/go-waku](https://hub.docker.com/r/statusteam/go-waku/tags) on DockerHub. -->
+<!-- Docker images are published to [wakuorg/go-waku](https://hub.docker.com/r/wakuorg/go-waku/tags) on DockerHub. -->
 <!-- TODO: more advanced explanation on finding and using docker images -->
 
 ## 2. Run

@@ -7,5 +7,5 @@ docker run -it --rm \
   -u  jenkins:$(id -g) \
   -v "${PWD}:/go-waku" \
   -w /go-waku \
-  statusteam/gowaku-linux-pkgs:latest \
+  wakuorg/gowaku-linux-pkgs:latest \
   /go-waku/scripts/linux/build-pkgs.sh
