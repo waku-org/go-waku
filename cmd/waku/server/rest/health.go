@@ -30,19 +30,23 @@ func NewHealthService(node *node.WakuNode, m *chi.Mux) *HealthService {
 type HealthResponse string
 
 func (d *HealthService) getHealth(w http.ResponseWriter, r *http.Request) {
-	isReady, err := d.node.RLNRelay().IsReady(r.Context())
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			writeResponse(w, HealthResponse("Health check timed out"), http.StatusInternalServerError)
-		} else {
-			writeResponse(w, HealthResponse(err.Error()), http.StatusInternalServerError)
+	if d.node.RLNRelay() != nil {
+		isReady, err := d.node.RLNRelay().IsReady(r.Context())
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				writeResponse(w, HealthResponse("Health check timed out"), http.StatusInternalServerError)
+			} else {
+				writeResponse(w, HealthResponse(err.Error()), http.StatusInternalServerError)
+			}
+			return
 		}
-		return
-	}
 
-	if isReady {
-		writeResponse(w, HealthResponse("Node is healthy"), http.StatusOK)
+		if isReady {
+			writeResponse(w, HealthResponse("Node is healthy"), http.StatusOK)
+		} else {
+			writeResponse(w, HealthResponse("Node is not ready"), http.StatusInternalServerError)
+		}
 	} else {
-		writeResponse(w, HealthResponse("Node is not ready"), http.StatusInternalServerError)
+		writeResponse(w, HealthResponse("Non RLN healthcheck is not implemented"), http.StatusNotImplemented)
 	}
 }

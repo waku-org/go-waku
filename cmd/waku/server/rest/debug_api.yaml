@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Waku V2 node REST API 
+  title: Waku V2 node Debug REST API 
   version: 1.0.0
   contact:
     name: VAC Team
