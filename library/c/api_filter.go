@@ -10,14 +10,14 @@ import "github.com/waku-org/go-waku/library"
 // filterJSON must contain a JSON with this format:
 //
 //		{
-//		  "pubsubTopic": "the pubsub topic" // mandatory
+//		  "pubsubTopic": "the pubsub topic" // optional if using autosharding, mandatory if using static or named sharding.
 //	      "contentTopics": ["the content topic"] // mandatory, at least one required, with a max of 10
 //		}
 //
 // peerID should contain the ID of a peer supporting the filter protocol. Use NULL to automatically select a node
 // If ms is greater than 0, the subscription must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned
-// It returns a json object containing the peerID to which we are subscribed to and the details of the subscription
+// It returns a json object containing the details of the subscriptions along with any errors in case of partial failures
 //
 //export waku_filter_subscribe
 func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
@@ -42,7 +42,7 @@ func waku_filter_ping(peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
 // criteria
 //
 //		{
-//		  "pubsubTopic": "the pubsub topic" // mandatory
+//		  "pubsubTopic": "the pubsub topic" //  optional if using autosharding, mandatory if using static or named sharding.
 //	      "contentTopics": ["the content topic"] // mandatory, at least one required, with a max of 10
 //		}
 //

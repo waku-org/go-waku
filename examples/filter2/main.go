@@ -26,7 +26,7 @@ var log = logging.Logger("filter2")
 
 var pubSubTopic = protocol.DefaultPubsubTopic()
 
-const contentTopic = "test"
+const contentTopic = "/filter2test/1/testTopic/proto"
 
 func main() {
 	hostAddr1, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:60000")
@@ -98,7 +98,6 @@ func main() {
 
 	// Send FilterRequest from light node to full node
 	cf := filter.ContentFilter{
-		PubsubTopic:   pubSubTopic.String(),
 		ContentTopics: filter.NewContentTopicSet(contentTopic),
 	}
 
@@ -108,7 +107,7 @@ func main() {
 	}
 
 	go func() {
-		for env := range theFilter.C {
+		for env := range theFilter[0].C { //Safely picking first subscriptions since only 1 contentTopic is subscribed
 			log.Info("Light node received msg, ", string(env.Message().Payload))
 		}
 		log.Info("Message channel closed!")

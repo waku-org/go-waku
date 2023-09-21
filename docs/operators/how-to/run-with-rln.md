@@ -48,7 +48,7 @@ export SEPOLIA_WS_NODE_ADDRESS=<WS RPC URL to a Sepolia Node>
 export RLN_RELAY_CONTRACT_ADDRESS="0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4" # Replace this with any compatible implementation
 docker run -i -t -p 60000:60000 -p 9000:9000/udp \
   -v /absolute/path/to/your/rlnKeystore.json:/rlnKeystore.json:ro \
-  statusteam/go-waku:latest \
+  wakuorg/go-waku:latest \
   --dns-discovery=true \
   --dns-discovery-url="$WAKU_FLEET" \
   --discv5-discovery \
