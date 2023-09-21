@@ -224,7 +224,7 @@ func (d *DBStore) cleanOlderRecords(ctx context.Context) error {
 	// Limit number of records to a max N
 	if d.maxMessages > 0 {
 		start := time.Now()
-		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC LIMIT -1 OFFSET $1)`
+		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC OFFSET $1)`
 		_, err := d.db.Exec(sqlStmt, d.maxMessages)
 		if err != nil {
 			d.metrics.RecordError(retPolicyFailure)
