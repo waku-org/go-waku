@@ -114,7 +114,8 @@ func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
 					return
 				}
 				c.pm.AddDiscoveredPeer(p)
-				c.PushToChan(p)
+				//Not connecting to peer as soon as it is discovered,
+				// rather expecting this to be pushed from PeerManager based on the need.
 			case <-time.After(1 * time.Second):
 				// This timeout is to not lock the goroutine
 				break
@@ -137,8 +138,8 @@ func (c *PeerConnectionStrategy) Start(ctx context.Context) error {
 
 }
 func (c *PeerConnectionStrategy) start() error {
-	c.WaitGroup().Add(2)
-	go c.shouldDialPeers()
+	c.WaitGroup().Add(1)
+
 	go c.dialPeers()
 
 	c.consumeSubscriptions()
@@ -153,22 +154,6 @@ func (c *PeerConnectionStrategy) Stop() {
 
 func (c *PeerConnectionStrategy) isPaused() bool {
 	return c.paused.Load()
-}
-
-func (c *PeerConnectionStrategy) shouldDialPeers() {
-	defer c.WaitGroup().Done()
-
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.Context().Done():
-			return
-		case <-ticker.C:
-			_, outRelayPeers := c.pm.getRelayPeers()
-			c.paused.Store(outRelayPeers.Len() >= c.pm.OutRelayPeersTarget) // pause if no of OutPeers more than or eq to target
-		}
-	}
 }
 
 // it might happen Subscribe is called before peerConnector has started so store these subscriptions in subscriptions array and custom after c.cancel is set.

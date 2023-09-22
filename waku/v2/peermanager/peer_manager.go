@@ -246,6 +246,7 @@ func (pm *PeerManager) Start(ctx context.Context) {
 
 // This is a connectivity loop, which currently checks and prunes inbound connections.
 func (pm *PeerManager) connectivityLoop(ctx context.Context) {
+	pm.connectToRelayPeers()
 	t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
 	defer t.Stop()
 	for {
@@ -378,6 +379,12 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // Note that these peers will not be set in service-slots.
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
 func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
+	//Check if the peer is already present, if so skip adding
+	_, err := pm.host.Peerstore().(wps.WakuPeerstore).Origin(p.AddrInfo.ID)
+	if err == nil || err != peerstore.ErrNotFound {
+		pm.logger.Debug("Found discovered peer already in peerStore", logging.HostID("peer", p.AddrInfo.ID))
+		return
+	}
 	// Try to fetch shard info from ENR to arrive at pubSub topics.
 	if len(p.PubSubTopics) == 0 && p.ENR != nil {
 		shards, err := wenr.RelaySharding(p.ENR.Record())
@@ -393,7 +400,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 					p.PubSubTopics = append(p.PubSubTopics, topicStr)
 				}
 			} else {
-				pm.logger.Info("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
+				pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
 			}
 		}
 	}
