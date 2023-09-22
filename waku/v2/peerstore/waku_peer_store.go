@@ -155,6 +155,11 @@ func (ps *WakuPeerstoreImpl) AddPubSubTopic(p peer.ID, topic string) error {
 	if err != nil {
 		return err
 	}
+	for _, t := range existingTopics {
+		if t == topic {
+			return nil
+		}
+	}
 	existingTopics = append(existingTopics, topic)
 	return ps.peerStore.Put(p, peerPubSubTopics, existingTopics)
 }
