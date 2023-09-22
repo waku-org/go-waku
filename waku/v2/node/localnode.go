@@ -191,7 +191,7 @@ func decapsulateCircuitRelayAddr(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return addr, nil
 }
 
-func selectWSSListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
+func selectWSListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	var result []ma.Multiaddr
 	for _, addr := range addresses {
 		// It's a p2p-circuit address. We dont use these at this stage yet
@@ -200,14 +200,9 @@ func selectWSSListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) 
 			continue
 		}
 
-		// Only WSS with a domain name are allowed
-		_, err = addr.ValueForProtocol(ma.P_DNS4)
-		if err != nil {
-			continue
-		}
-
-		_, err = addr.ValueForProtocol(ma.P_WSS)
-		if err != nil {
+		_, noWS := addr.ValueForProtocol(ma.P_WSS)
+		_, noWSS := addr.ValueForProtocol(ma.P_WS)
+		if noWS != nil && noWSS != nil { // Neither WS or WSS found
 			continue
 		}
 
@@ -240,7 +235,7 @@ func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, 
 		return nil, nil, err
 	}
 
-	wssAddrs, err := selectWSSListenAddresses(addrs)
+	wssAddrs, err := selectWSListenAddresses(addrs)
 	if err != nil {
 		return nil, nil, err
 	}
