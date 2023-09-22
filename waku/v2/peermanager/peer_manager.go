@@ -2,6 +2,7 @@ package peermanager
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/event"
@@ -31,9 +32,12 @@ type PeerManager struct {
 	serviceSlots        *ServiceSlots
 	ctx                 context.Context
 	sub                 event.Subscription
+	topicMutex          sync.RWMutex
+	subRelayTopics      map[string]struct{}
 }
 
 const peerConnectivityLoopSecs = 15
+const relayOptimalPeersPerShard = 6
 
 // 80% relay peers 20% service peers
 func relayAndServicePeers(maxConnections int) (int, int) {
@@ -63,6 +67,7 @@ func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 		InRelayPeersTarget:  inRelayPeersTarget,
 		OutRelayPeersTarget: outRelayPeersTarget,
 		serviceSlots:        NewServiceSlot(),
+		subRelayTopics:      make(map[string]struct{}),
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
@@ -84,11 +89,103 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 
 func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
 	var err error
-	pm.sub, err = bus.Subscribe(new(relay.EvtPeerTopic))
+	pm.sub, err = bus.Subscribe([]interface{}{new(relay.EvtPeerTopic), new(relay.EvtRelaySubscribed), new(relay.EvtRelayUnsubscribed)})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string) {
+	pm.logger.Info("handleNewRelayTopicSubscription", zap.String("pubSubTopic", pubsubTopic))
+	pm.topicMutex.Lock()
+	defer pm.topicMutex.Unlock()
+
+	_, ok := pm.subRelayTopics[pubsubTopic]
+	if ok {
+		//Nothing to be done, as we are already subscribed to this topic.
+		return
+	}
+	pm.subRelayTopics[pubsubTopic] = struct{}{}
+	//Check how many relay peers we are connected to that subscribe to this topic, if less than D find peers in peerstore and connect.
+	//If no peers in peerStore, trigger discovery for this topic?
+	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
+	var notConnectedPeers peer.IDSlice
+	connectedPeers := 0
+	for _, peer := range relevantPeersForPubSubTopic {
+		if pm.host.Network().Connectedness(peer) == network.Connected {
+			connectedPeers++
+		} else {
+			notConnectedPeers = append(notConnectedPeers, peer)
+		}
+	}
+	if connectedPeers >= relayOptimalPeersPerShard { //TODO: Use a config rather than hard-coding.
+		// Should we use optimal number or define some sort of a config for the node to choose from?
+		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
+		// or bandwidth it can support.
+		// Should we link this to bandwidth management somehow or just depend on some sort of config profile?
+		pm.logger.Info("Optimal required relay peers for new pubSubTopic are already connected ", zap.String("pubSubTopic", pubsubTopic),
+			zap.Int("connectedPeerCount", connectedPeers))
+		return
+	}
+	triggerDiscovery := false
+	if notConnectedPeers.Len() > 0 {
+		numPeersToConnect := notConnectedPeers.Len() - connectedPeers
+		if numPeersToConnect < 0 {
+			numPeersToConnect = notConnectedPeers.Len()
+		} else if numPeersToConnect-connectedPeers > relayOptimalPeersPerShard {
+			numPeersToConnect = relayOptimalPeersPerShard - connectedPeers
+		}
+		if numPeersToConnect+connectedPeers < relayOptimalPeersPerShard {
+			triggerDiscovery = true
+		}
+		//For now all peers are being given same priority,
+		// Later we may want to choose peers that have more shards in common over others.
+		pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
+	} else {
+		triggerDiscovery = true
+	}
+
+	if triggerDiscovery {
+		//TODO: Initiate on-demand discovery for this pubSubTopic.
+		// Use peer-exchange and rendevouz?
+		//Should we query discoverycache to find out if there are any more peers before triggering discovery?
+		return
+	}
+}
+
+func (pm *PeerManager) handleNewRelayTopicUnSubscription(pubsubTopic string) {
+	pm.logger.Info("handleNewRelayTopicUnSubscription", zap.String("pubSubTopic", pubsubTopic))
+	pm.topicMutex.Lock()
+	defer pm.topicMutex.Unlock()
+	_, ok := pm.subRelayTopics[pubsubTopic]
+	if !ok {
+		//Nothing to be done, as we are already unsubscribed from this topic.
+		return
+	}
+	delete(pm.subRelayTopics, pubsubTopic)
+
+	//If there are peers only subscribed to this topic, disconnect them.
+	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
+	for _, peer := range relevantPeersForPubSubTopic {
+		if pm.host.Network().Connectedness(peer) == network.Connected {
+			peerTopics, err := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PubSubTopics(peer)
+			if err != nil {
+				pm.logger.Error("Could not retrieve pubsub topics for peer", zap.Error(err),
+					logging.HostID("peerID", peer))
+				continue
+			}
+			if len(peerTopics) == 1 && peerTopics[0] == pubsubTopic {
+				err := pm.host.Network().ClosePeer(peer)
+				if err != nil {
+					pm.logger.Warn("Failed to disconnect connection towards peer",
+						logging.HostID("peerID", peer))
+				}
+				pm.logger.Debug("Successfully disconnected connection towards peer",
+					logging.HostID("peerID", peer))
+			}
+		}
+	}
 }
 
 func (pm *PeerManager) peerEventLoop(ctx context.Context) {
@@ -96,24 +193,42 @@ func (pm *PeerManager) peerEventLoop(ctx context.Context) {
 	for {
 		select {
 		case e := <-pm.sub.Out():
-			peerEvt := e.(relay.EvtPeerTopic)
-			wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
-			peerID := peerEvt.PeerID
-			if peerEvt.State == relay.PEER_JOINED {
-				err := wps.AddPubSubTopic(peerID, peerEvt.Topic)
-				if err != nil {
-					pm.logger.Error("failed to add pubSubTopic for peer",
-						logging.HostID("peerID", peerID), zap.String("topic", peerEvt.Topic), zap.Error(err))
+			switch e := e.(type) {
+			case relay.EvtPeerTopic:
+				{
+					peerEvt := (relay.EvtPeerTopic)(e)
+					wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
+					peerID := peerEvt.PeerID
+					if peerEvt.State == relay.PEER_JOINED {
+						err := wps.AddPubSubTopic(peerID, peerEvt.PubsubTopic)
+						if err != nil {
+							pm.logger.Error("failed to add pubSubTopic for peer",
+								logging.HostID("peerID", peerID), zap.String("topic", peerEvt.PubsubTopic), zap.Error(err))
+						}
+					} else if peerEvt.State == relay.PEER_LEFT {
+						err := wps.RemovePubSubTopic(peerID, peerEvt.PubsubTopic)
+						if err != nil {
+							pm.logger.Error("failed to remove pubSubTopic for peer",
+								logging.HostID("peerID", peerID), zap.Error(err))
+						}
+					} else {
+						pm.logger.Error("unknown peer event received", zap.Int("eventState", int(peerEvt.State)))
+					}
 				}
-			} else if peerEvt.State == relay.PEER_LEFT {
-				err := wps.RemovePubSubTopic(peerID, peerEvt.Topic)
-				if err != nil {
-					pm.logger.Error("failed to remove pubSubTopic for peer",
-						logging.HostID("peerID", peerID), zap.Error(err))
+			case relay.EvtRelaySubscribed:
+				{
+					eventDetails := (relay.EvtRelaySubscribed)(e)
+					pm.handleNewRelayTopicSubscription(eventDetails.Topic)
 				}
-			} else {
-				pm.logger.Error("unknown peer event received", zap.Int("eventState", int(peerEvt.State)))
+			case relay.EvtRelayUnsubscribed:
+				{
+					eventDetails := (relay.EvtRelayUnsubscribed)(e)
+					pm.handleNewRelayTopicUnSubscription(eventDetails.Topic)
+				}
+			default:
+				pm.logger.Error("Received an unsupported event type", zap.Any("eventType", e))
 			}
+
 		case <-ctx.Done():
 			return
 		}

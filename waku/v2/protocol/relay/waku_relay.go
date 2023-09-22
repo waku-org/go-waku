@@ -87,9 +87,9 @@ const (
 )
 
 type EvtPeerTopic struct {
-	Topic  string
-	PeerID peer.ID
-	State  PeerTopicState
+	PubsubTopic string
+	PeerID      peer.ID
+	State       PeerTopicState
 }
 
 func msgIDFn(pmsg *pubsub_pb.Message) string {
@@ -554,13 +554,13 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 		}
 		if evt.Type == pubsub.PeerJoin {
 			w.log.Debug("received a PeerJoin event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
-			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_JOINED})
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{PubsubTopic: topic, PeerID: evt.Peer, State: PEER_JOINED})
 			if err != nil {
 				w.log.Error("failed to emit PeerJoin", zap.String("topic", topic), zap.Error(err))
 			}
 		} else if evt.Type == pubsub.PeerLeave {
 			w.log.Debug("received a PeerLeave event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
-			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_LEFT})
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{PubsubTopic: topic, PeerID: evt.Peer, State: PEER_LEFT})
 			if err != nil {
 				w.log.Error("failed to emit PeerLeave", zap.String("topic", topic), zap.Error(err))
 			}
