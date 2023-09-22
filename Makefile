@@ -107,7 +107,7 @@ coverage:
 
 # build a docker image for the fleet
 docker-image: DOCKER_IMAGE_TAG ?= latest
-docker-image: DOCKER_IMAGE_NAME ?= statusteam/go-waku:$(DOCKER_IMAGE_TAG)
+docker-image: DOCKER_IMAGE_NAME ?= wakuorg/go-waku:$(DOCKER_IMAGE_TAG)
 docker-image:
 	docker build --tag $(DOCKER_IMAGE_NAME) \
 		--build-arg="GIT_COMMIT=$(shell git rev-parse HEAD)" .
@@ -191,7 +191,7 @@ install-gomobile: install-xtools
 	${GOBIN} install golang.org/x/mobile/cmd/gobind@v0.0.0-20220518205345-8578da9835fd
 
 build-linux-pkg:
-	docker build --build-arg UID=${UID} --build-arg GID=${GID} -f ./scripts/linux/Dockerfile -t statusteam/gowaku-linux-pkgs:latest .
+	docker build --build-arg UID=${UID} --build-arg GID=${GID} -f ./scripts/linux/Dockerfile -t wakuorg/gowaku-linux-pkgs:latest .
 	./scripts/linux/docker-run.sh
 	ls -la ./build/*.rpm ./build/*.deb
 
