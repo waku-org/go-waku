@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -21,6 +22,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type NodeTopicDetails struct {
+	topic *pubsub.Topic
+}
+
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
 	peerConnector       *PeerConnectionStrategy
@@ -33,7 +38,7 @@ type PeerManager struct {
 	ctx                 context.Context
 	sub                 event.Subscription
 	topicMutex          sync.RWMutex
-	subRelayTopics      map[string]struct{}
+	subRelayTopics      map[string]*NodeTopicDetails
 }
 
 const peerConnectivityLoopSecs = 15
@@ -67,7 +72,7 @@ func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 		InRelayPeersTarget:  inRelayPeersTarget,
 		OutRelayPeersTarget: outRelayPeersTarget,
 		serviceSlots:        NewServiceSlot(),
-		subRelayTopics:      make(map[string]struct{}),
+		subRelayTopics:      make(map[string]*NodeTopicDetails),
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
@@ -96,7 +101,7 @@ func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
 	return nil
 }
 
-func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string) {
+func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topicInst *pubsub.Topic) {
 	pm.logger.Info("handleNewRelayTopicSubscription", zap.String("pubSubTopic", pubsubTopic))
 	pm.topicMutex.Lock()
 	defer pm.topicMutex.Unlock()
@@ -106,7 +111,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string) {
 		//Nothing to be done, as we are already subscribed to this topic.
 		return
 	}
-	pm.subRelayTopics[pubsubTopic] = struct{}{}
+	pm.subRelayTopics[pubsubTopic] = &NodeTopicDetails{topicInst}
 	//Check how many relay peers we are connected to that subscribe to this topic, if less than D find peers in peerstore and connect.
 	//If no peers in peerStore, trigger discovery for this topic?
 	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
@@ -119,6 +124,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string) {
 			notConnectedPeers = append(notConnectedPeers, peer)
 		}
 	}
+
 	if connectedPeers >= relayOptimalPeersPerShard { //TODO: Use a config rather than hard-coding.
 		// Should we use optimal number or define some sort of a config for the node to choose from?
 		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
@@ -218,7 +224,7 @@ func (pm *PeerManager) peerEventLoop(ctx context.Context) {
 			case relay.EvtRelaySubscribed:
 				{
 					eventDetails := (relay.EvtRelaySubscribed)(e)
-					pm.handleNewRelayTopicSubscription(eventDetails.Topic)
+					pm.handleNewRelayTopicSubscription(eventDetails.Topic, eventDetails.TopicInst)
 				}
 			case relay.EvtRelayUnsubscribed:
 				{
@@ -260,10 +266,12 @@ func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 }
 
 // GroupPeersByDirection returns all the connected peers in peer store grouped by Inbound or outBound direction
-func (pm *PeerManager) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
-	peers := pm.host.Network().Peers()
+func (pm *PeerManager) GroupPeersByDirection(specificPeers []peer.ID) (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
+	if len(specificPeers) == 0 {
+		specificPeers = pm.host.Network().Peers()
+	}
 
-	for _, p := range peers {
+	for _, p := range specificPeers {
 		direction, err := pm.host.Peerstore().(wps.WakuPeerstore).Direction(p)
 		if err == nil {
 			if direction == network.DirInbound {
@@ -279,9 +287,9 @@ func (pm *PeerManager) GroupPeersByDirection() (inPeers peer.IDSlice, outPeers p
 	return inPeers, outPeers, nil
 }
 
-func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
+func (pm *PeerManager) getRelayPeers(specificPeers []peer.ID) (inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
 	//Group peers by their connected direction inbound or outbound.
-	inPeers, outPeers, err := pm.GroupPeersByDirection()
+	inPeers, outPeers, err := pm.GroupPeersByDirection(specificPeers)
 	if err != nil {
 		return
 	}
@@ -298,37 +306,46 @@ func (pm *PeerManager) getRelayPeers() (inRelayPeers peer.IDSlice, outRelayPeers
 	return
 }
 
-func (pm *PeerManager) connectToRelayPeers() {
+func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
+	pm.topicMutex.RLock()
+	defer pm.topicMutex.RUnlock()
+	for topicStr, topicInst := range pm.subRelayTopics {
+		curPeers := topicInst.topic.ListPeers()
+		curPeerLen := len(curPeers)
+		if curPeerLen < relayOptimalPeersPerShard {
+			pm.logger.Info("Subscribed topic is unhealthy, initiating more connections to maintain health",
+				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
+				zap.Int("optimumPeers", relayOptimalPeersPerShard))
+			//Find not connected peers.
+			notConnectedPeers := pm.getNotConnectedPers(topicStr)
+			if notConnectedPeers.Len() == 0 {
+				//TODO: Trigger on-demand discovery for this topic.
+				continue
+			}
+			//Connect to eligible peers.
+			numPeersToConnect := relayOptimalPeersPerShard - curPeerLen
 
+			if numPeersToConnect > notConnectedPeers.Len() {
+				numPeersToConnect = notConnectedPeers.Len()
+			}
+			pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
+		}
+	}
+}
+
+func (pm *PeerManager) connectToRelayPeers() {
 	//Check for out peer connections and connect to more peers.
-	inRelayPeers, outRelayPeers := pm.getRelayPeers()
-	pm.logger.Info("Number of Relay peers connected", zap.Int("inRelayPeers", inRelayPeers.Len()),
+	pm.ensureMinRelayConnsPerTopic()
+
+	inRelayPeers, outRelayPeers := pm.getRelayPeers(nil)
+	pm.logger.Info("Number of Relay peers connected",
+		zap.Int("inRelayPeers", inRelayPeers.Len()),
 		zap.Int("outRelayPeers", outRelayPeers.Len()))
 	if inRelayPeers.Len() > 0 &&
 		inRelayPeers.Len() > pm.InRelayPeersTarget {
 		pm.pruneInRelayConns(inRelayPeers)
 	}
 
-	if outRelayPeers.Len() > pm.OutRelayPeersTarget {
-		return
-	}
-	totalRelayPeers := inRelayPeers.Len() + outRelayPeers.Len()
-	// Establish additional connections connected peers are lesser than target.
-	//What if the not connected peers in peerstore are not relay peers???
-	if totalRelayPeers < pm.maxRelayPeers {
-		//Find not connected peers.
-		notConnectedPeers := pm.getNotConnectedPers()
-		if notConnectedPeers.Len() == 0 {
-			return
-		}
-		//Connect to eligible peers.
-		numPeersToConnect := pm.maxRelayPeers - totalRelayPeers
-
-		if numPeersToConnect > notConnectedPeers.Len() {
-			numPeersToConnect = notConnectedPeers.Len()
-		}
-		pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
-	} //Else: Should we raise some sort of unhealthy event??
 }
 
 func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) PeerData {
@@ -347,8 +364,14 @@ func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
 	}
 }
 
-func (pm *PeerManager) getNotConnectedPers() (notConnectedPeers peer.IDSlice) {
-	for _, peerID := range pm.host.Peerstore().Peers() {
+func (pm *PeerManager) getNotConnectedPers(pubsubTopic string) (notConnectedPeers peer.IDSlice) {
+	var peerList peer.IDSlice
+	if pubsubTopic == "" {
+		peerList = pm.host.Peerstore().Peers()
+	} else {
+		peerList = pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
+	}
+	for _, peerID := range peerList {
 		if pm.host.Network().Connectedness(peerID) != network.Connected {
 			notConnectedPeers = append(notConnectedPeers, peerID)
 		}
@@ -361,6 +384,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 	//Start disconnecting peers, based on what?
 	//For now, just disconnect most recently connected peers
 	//TODO: Need to have more intelligent way of doing this, maybe peer scores.
+	//TODO: Keep optimalPeersRequired for a pubSubTopic in mind while pruning connections to peers.
 	pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning",
 		zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
 	for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < inRelayPeers.Len(); pruningStartIndex++ {
@@ -378,7 +402,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // AddDiscoveredPeer to add dynamically discovered peers.
 // Note that these peers will not be set in service-slots.
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
-func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
+func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
 	//Check if the peer is already present, if so skip adding
 	_, err := pm.host.Peerstore().(wps.WakuPeerstore).Origin(p.AddrInfo.ID)
 	if err == nil || err != peerstore.ErrNotFound {
@@ -414,7 +438,9 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 		}
 	}
-
+	if connectNow {
+		pm.peerConnector.PushToChan(p)
+	}
 }
 
 // addPeer adds peer to only the peerStore.

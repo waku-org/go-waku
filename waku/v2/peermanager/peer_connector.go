@@ -113,9 +113,14 @@ func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
 				if !ok {
 					return
 				}
-				c.pm.AddDiscoveredPeer(p)
+				triggerImmediateConnection := false
 				//Not connecting to peer as soon as it is discovered,
 				// rather expecting this to be pushed from PeerManager based on the need.
+				if len(c.host.Network().Peers()) < relayOptimalPeersPerShard {
+					triggerImmediateConnection = true
+				}
+				c.pm.AddDiscoveredPeer(p, triggerImmediateConnection)
+
 			case <-time.After(1 * time.Second):
 				// This timeout is to not lock the goroutine
 				break

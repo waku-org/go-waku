@@ -71,7 +71,8 @@ type WakuRelay struct {
 
 // EvtRelaySubscribed is an event emitted when a new subscription to a pubsub topic is created
 type EvtRelaySubscribed struct {
-	Topic string
+	Topic     string
+	TopicInst *pubsub.Topic
 }
 
 // EvtRelayUnsubscribed is an event emitted when a subscription to a pubsub topic is closed
@@ -331,7 +332,7 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 		w.topicEvtHanders[topic] = evtHandler
 		w.relaySubs[topic] = sub
 
-		err = w.emitters.EvtRelaySubscribed.Emit(EvtRelaySubscribed{topic})
+		err = w.emitters.EvtRelaySubscribed.Emit(EvtRelaySubscribed{topic, pubSubTopic})
 		if err != nil {
 			return nil, err
 		}

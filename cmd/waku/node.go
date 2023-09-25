@@ -322,7 +322,7 @@ func Execute(options NodeOptions) {
 	}
 
 	for _, d := range discoveredNodes {
-		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery, nil)
+		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery, nil, true)
 	}
 
 	//For now assuming that static peers added support/listen on all topics specified via commandLine.
