@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	"golang.org/x/exp/slices"
 )
 
 // Origin is used to determine how the peer is identified,
@@ -156,6 +155,11 @@ func (ps *WakuPeerstoreImpl) AddPubSubTopic(p peer.ID, topic string) error {
 	if err != nil {
 		return err
 	}
+	for _, t := range existingTopics {
+		if t == topic {
+			return nil
+		}
+	}
 	existingTopics = append(existingTopics, topic)
 	return ps.peerStore.Put(p, peerPubSubTopics, existingTopics)
 }
@@ -173,9 +177,7 @@ func (ps *WakuPeerstoreImpl) RemovePubSubTopic(p peer.ID, topic string) error {
 
 	for i := range existingTopics {
 		if existingTopics[i] == topic {
-			if i != len(existingTopics)-1 {
-				existingTopics = slices.Delete(existingTopics, i, i)
-			}
+			existingTopics = append(existingTopics[:i], existingTopics[i+1:]...)
 			break
 		}
 	}

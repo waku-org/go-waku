@@ -17,7 +17,7 @@ pipeline {
     string(
       name: 'IMAGE_TAG',
       description: 'Docker image tag.',
-      defaultValue: env.JOB_BASE_NAME == 'release' ? 'stable' : 'deploy-test',
+      defaultValue: getDefaultImageTag()
     )
     string(
       name: 'DOCKER_CRED',
@@ -38,20 +38,21 @@ pipeline {
     stage('Build') {
       steps { script {
         image = docker.build(
-          "${params.IMAGE_NAME}:${params.IMAGE_TAG}",
+          "${params.IMAGE_NAME}:${params.IMAGE_TAG ?: GIT_COMMIT.take(8)}",
           "--build-arg='GIT_COMMIT=${GIT_COMMIT.take(8)}' ."
         )
       } }
     }
 
     stage('Push') {
+      when { expression { params.IMAGE_TAG != '' } }
       steps { script {
         withDockerRegistry([
           credentialsId: params.DOCKER_CRED, url: ''
         ]) {
           image.push()
           /* If Git ref is a tag push it as Docker tag too. */
-          if (env.GIT_BRANCH ==~ /v\d+\.\d+\.\d+.*/) {
+          if (params.GIT_REF ==~ /v\d+\.\d+\.\d+.*/) {
             image.push(params.GIT_REF)
           }
         }
@@ -105,5 +106,13 @@ def discordNotify(Map args=[:]) {
         By: [`${BUILD_USER_ID}`](${repo.url}/commits?author=${BUILD_USER_ID})
       """,
     )
+  }
+}
+
+def getDefaultImageTag() {
+  switch (env.JOB_BASE_NAME) {
+    case 'docker-latest':  return 'latest'
+    case 'docker-release': return 'stable'
+    default:               return ''
   }
 }
