@@ -169,6 +169,7 @@ type NodeOptions struct {
 	UserAgent                    string
 	PProf                        bool
 	MaxPeerConnections           int
+	PeerStoreCapacity            int
 
 	PeerExchange PeerExchangeOptions
 	Websocket    WSOptions

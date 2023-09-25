@@ -2,6 +2,7 @@ package peermanager
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ type NodeTopicDetails struct {
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
 	peerConnector       *PeerConnectionStrategy
+	maxPeers            int
 	maxRelayPeers       int
 	logger              *zap.Logger
 	InRelayPeersTarget  int
@@ -61,10 +63,14 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 }
 
 // NewPeerManager creates a new peerManager instance.
-func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
+func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerManager {
 
 	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
 	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
+
+	if maxPeers == 0 || maxConnections > maxPeers {
+		maxPeers = 5 * maxConnections
+	}
 
 	pm := &PeerManager{
 		logger:              logger.Named("peer-manager"),
@@ -73,11 +79,13 @@ func NewPeerManager(maxConnections int, logger *zap.Logger) *PeerManager {
 		OutRelayPeersTarget: outRelayPeersTarget,
 		serviceSlots:        NewServiceSlot(),
 		subRelayTopics:      make(map[string]*NodeTopicDetails),
+		maxPeers:            maxPeers,
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
 		zap.Int("outRelayPeersTarget", outRelayPeersTarget),
-		zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
+		zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget),
+		zap.Int("maxPeers", maxPeers))
 
 	return pm
 }
@@ -253,6 +261,10 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // Note that these peers will not be set in service-slots.
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
 func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
+	//Doing this check again inside addPeer, in order to avoid additional complexity of rollingBack other changes.
+	if pm.maxPeers < pm.host.Peerstore().Peers().Len() {
+		return
+	}
 	//Check if the peer is already present, if so skip adding
 	_, err := pm.host.Peerstore().(wps.WakuPeerstore).Origin(p.AddrInfo.ID)
 	if err == nil || err != peerstore.ErrNotFound {
@@ -296,6 +308,9 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
 // addPeer adds peer to only the peerStore.
 // It also sets additional metadata such as origin, ENR and supported protocols
 func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) error {
+	if pm.maxPeers < pm.host.Peerstore().Peers().Len() {
+		return errors.New("peer store capacity reached")
+	}
 	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
 	pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
 	err := pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(ID, origin)
