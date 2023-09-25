@@ -262,7 +262,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
 func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
 	//Doing this check again inside addPeer, in order to avoid additional complexity of rollingBack other changes.
-	if pm.maxPeers < pm.host.Peerstore().Peers().Len() {
+	if pm.maxPeers <= pm.host.Peerstore().Peers().Len() {
 		return
 	}
 	//Check if the peer is already present, if so skip adding
@@ -308,7 +308,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
 // addPeer adds peer to only the peerStore.
 // It also sets additional metadata such as origin, ENR and supported protocols
 func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) error {
-	if pm.maxPeers < pm.host.Peerstore().Peers().Len() {
+	if pm.maxPeers <= pm.host.Peerstore().Peers().Len() {
 		return errors.New("peer store capacity reached")
 	}
 	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
