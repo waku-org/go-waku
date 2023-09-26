@@ -8,7 +8,6 @@
 
 #include "libgowaku.h"
 #include "nxjson.c"
-#include "base64.h"
 #include "main.h"
 
 char *alicePrivKey = "0x4f012057e1a1458ce34189cb27daedbbe434f3df0825c1949475dec786e2c64e";
@@ -17,24 +16,7 @@ char *alicePubKey = "0x0440f05847c4c7166f57ae8ecaaf72d31bddcbca345e26713ca9e26c9
 char *bobPrivKey = "0xb91d6b2df8fb6ef8b53b51b2b30a408c49d5e2b530502d58ac8f94e5c5de1453";
 char *bobPubKey = "0x045eef61a98ba1cf44a2736fac91183ea2bd86e67de20fe4bff467a71249a8a0c05f795dd7f28ced7c15eaa69c89d4212cc4f526ca5e9a62e88008f506d850cccd";
 
-
-char* result = NULL;
-char* contentTopic;
-
-void handle_ok(const char* msg, size_t len) {
-    if (result != NULL) {
-        free(result);
-    }
-    result = malloc(len * sizeof(char) + 1);
-    strcpy(result, msg);
-}
-
-void handle_error(const char* msg, size_t len) {
-    printf("Error: %s\n", msg);
-    exit(1);
-}
-
-void callBack(const char* signal, size_t len_0)
+void callBack(char *signal)
 {
   // This callback will be executed each time a new message is received
 
@@ -54,34 +36,22 @@ void callBack(const char* signal, size_t len_0)
       }
     }*/
 
-  const nx_json *json = nx_json_parse((char*) signal, 0);
+  const nx_json *json = nx_json_parse(signal, 0);
   const char *type = nx_json_get(json, "type")->text_value;
 
   if (strcmp(type, "message") == 0)
   {
-    const nx_json *wakuMsgJson = nx_json_get(nx_json_get(json, "event"), "wakuMessage");
-    const char *contentTopic = nx_json_get(wakuMsgJson, "contentTopic")->text_value;
+    char* msg = utils_extract_wakumessage_from_signal(json);
+    char *decodedMsg =  waku_decode_asymmetric(msg, bobPrivKey);
+    free(msg);
 
-    if (strcmp(contentTopic, contentTopic) == 0)
-    {
-      char* msg = utils_extract_wakumessage_from_signal(wakuMsgJson);
-      WAKU_CALL(waku_decode_asymmetric(msg, bobPrivKey, handle_ok, handle_error));
-
-      char *decodedMsg = strdup(result);
-
-      const nx_json *dataJson = nx_json_parse(decodedMsg, 0);
-
-      const char *pubkey = nx_json_get(dataJson, "pubkey")->text_value;
-      const char *base64data = nx_json_get(dataJson, "data")->text_value;
-          
-      size_t data_len = b64_decoded_size(base64data);
-      char *data = malloc(data_len);
-    
-      b64_decode(base64data,  (unsigned char *)data, data_len) ;
-
-      printf(">>> Received \"%s\" from %s\n", data, pubkey);
-      fflush(stdout);
+    if(isError(decodedMsg)) {
+      free(decodedMsg);
+      return;
     }
+
+    printf(">>> Received msg from");
+    fflush(stdout);
   }
 
   nx_json_free(json);
@@ -89,39 +59,50 @@ void callBack(const char* signal, size_t len_0)
 
 int main(int argc, char *argv[])
 {
+  char *response;
   waku_set_event_callback(callBack);
 
   char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000, \"logLevel\":\"error\", \"store\":true}";
-  WAKU_CALL( waku_new(configJSON, handle_error) );  // configJSON can be NULL too to use defaults
+  response = waku_new(configJSON); // configJSON can be NULL too to use defaults
+  if (isError(response))
+    return 1;
 
-  WAKU_CALL(waku_start(handle_error) ); // Start the node, enabling the waku protocols
+  response = waku_start(); // Start the node, enabling the waku protocols
+  if (isError(response))
+    return 1;
 
-  WAKU_CALL(waku_peerid(handle_ok, handle_error)); // Obtain the node peerID
-  char *peerID = strdup(result);
-  printf("PeerID: %s\n", result);
+  response = waku_peerid(); // Obtain the node peerID
+  if (isError(response))
+    return 1;
+  char *nodePeerID = utils_get_str(response);
+  printf("PeerID: %s\n", nodePeerID);
 
-  WAKU_CALL(waku_content_topic("example", 1, "default", "rfc26", handle_ok));
-  contentTopic = strdup(result);
   
-  WAKU_CALL(waku_connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS", 0, handle_error)); // Connect to a node
+  response =  waku_connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS", 0); // Connect to a node
+  if (isError(response))
+    printf("Could not connect to node: %s\n", response);
 
-  // To use dns discovery, and retrieve nodes from a enrtree url
- WAKU_CALL( waku_dns_discovery("enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im", "", 0, handle_ok, handle_error)); // Discover Nodes
-  printf("Discovered nodes: %s\n", result);
-  
-  WAKU_CALL(waku_default_pubsub_topic(handle_ok));
-  char *pubsubTopic = strdup(result);
-  printf("Default pubsub topic: %s\n", pubsubTopic);
 
-  // To see a store query in action:
   /*
-  char query[1000];
-  sprintf(query, "{\"pubsubTopic\":\"%s\", \"pagingOptions\":{\"pageSize\": 40, \"forward\":false}}", pubsubTopic);
-  WAKU_CALL(waku_store_query(query, NULL, 0, handle_ok, handle_error));
-  printf("%s\n",result);
+  // To use dns discovery, and retrieve nodes from a enrtree url
+  response = waku_dns_discovery("enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im", "", 0); // Discover Nodes
+  if (isError(response))
+    return 1;
+  printf("Discovered nodes: %s\n", response);
   */
-
-  WAKU_CALL( waku_relay_subscribe(NULL, handle_error));
+  
+  /*
+  // To see a store query in action:
+  char query[1000];
+  sprintf(query, "{\"pubsubTopic\":\"%s\", \"pagingOptions\":{\"pageSize\": 40, \"forward\":false}}", waku_default_pubsub_topic());
+  response = waku_store_query(query, NULL, 0);
+  if (isError(response))
+    return 1;
+  printf("%s\n",response);
+  */
+  response = waku_relay_subscribe(NULL);
+  if (isError(response))
+    return 1;
 
   int i = 0;
   int version = 1;
@@ -130,22 +111,18 @@ int main(int argc, char *argv[])
     i++;
 
     char wakuMsg[1000];
-    char *msgPayload = b64_encode("Hello World!", 12);
+    char *contentTopic = waku_content_topic("example", 1, "default", "rfc26");
+    sprintf(wakuMsg, "{\"payload\":\"SGVsbG8gV29ybGQh\",\"contentTopic\":\"%s\",\"timestamp\":%d}", contentTopic, i);
+    free(contentTopic);
 
-    sprintf(wakuMsg, "{\"payload\":\"%s\",\"contentTopic\":\"%s\",\"timestamp\":%"PRIu64"}", msgPayload, contentTopic, nowInNanosecs());
-    free(msgPayload);
 
-
-    WAKU_CALL(waku_encode_asymmetric(wakuMsg, bobPubKey, alicePrivKey, handle_ok, handle_error));
-    char *encodedMessage = strdup(result);
-
-    WAKU_CALL(waku_relay_publish(encodedMessage, NULL, 0, handle_ok, handle_error)); // Broadcast via waku relay
-    printf("C\n");
-
-    char *messageID = strdup(result);
-    printf("MessageID: %s\n",messageID);
-
-    free(messageID);
+    response = waku_relay_publish(wakuMsg, NULL, 0); // Broadcast via waku relay a message encrypting it with Bob's PubK, and signing it with Alice PrivK
+    // response = waku_lightpush_publish_enc_asymmetric(wakuMsg, NULL, NULL, bobPubKey, alicePrivKey, 0); // Broadcast via waku lightpush a message encrypting it with Bob's PubK, and signing it with Alice PrivK
+    if (isError(response))
+      return 1;
+    
+    // char *messageID = utils_get_str(response);
+    // free(messageID);
 
     sleep(1);
   }
@@ -154,12 +131,16 @@ int main(int argc, char *argv[])
   // To retrieve messages from local store, set store:true in the node config, and use waku_store_local_query
   /*
   char query[1000];
-  sprintf(query, "{\"pubsubTopic\":\"%s\", \"pagingOptions\":{\"pageSize\": 40, \"forward\":false}}", pubsubTopic);
-  WAKU_CALL(waku_store_local_query(query, handle_ok, handle_error));
-  printf("%s\n",result);
+  sprintf(query, "{\"pubsubTopic\":\"%s\", \"pagingOptions\":{\"pageSize\": 40, \"forward\":false}}", waku_default_pubsub_topic());
+  response = waku_store_local_query(query);
+  if (isError(response))
+    return 1;
+  printf("%s\n",response);
   */
 
-  WAKU_CALL(waku_stop(handle_error));
-  
+  response = waku_stop();
+  if (isError(response))
+    return 1;
+
   return 0;
 }

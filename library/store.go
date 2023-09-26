@@ -35,7 +35,7 @@ type storeMessagesReply struct {
 	Error      string             `json:"error,omitempty"`
 }
 
-func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.HistoryRequestOption) (string, error) {
+func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.HistoryRequestOption) *storeMessagesReply {
 	var contentTopics []string
 	for _, ct := range args.ContentFilters {
 		contentTopics = append(contentTopics, ct.ContentTopic)
@@ -52,11 +52,11 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 		options...,
 	)
 
-	reply := storeMessagesReply{}
+	reply := &storeMessagesReply{}
 
 	if err != nil {
 		reply.Error = err.Error()
-		return marshalJSON(reply)
+		return reply
 	}
 	reply.Messages = res.Messages
 	reply.PagingInfo = storePagingOptions{
@@ -65,19 +65,19 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 		Forward:  args.PagingOptions.Forward,
 	}
 
-	return marshalJSON(reply)
+	return reply
 }
 
 // StoreQuery is used to retrieve historic messages using waku store protocol.
-func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
+func StoreQuery(queryJSON string, peerID string, ms int) (*storeMessagesReply, error) {
 	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+		return nil, errWakuNodeNotReady
 	}
 
 	var args storeMessagesArgs
 	err := json.Unmarshal([]byte(queryJSON), &args)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	options := []store.HistoryRequestOption{
@@ -89,7 +89,7 @@ func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		options = append(options, store.WithPeer(p))
 	} else {
@@ -106,19 +106,19 @@ func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
 		ctx = context.Background()
 	}
 
-	return queryResponse(ctx, args, options)
+	return queryResponse(ctx, args, options), nil
 }
 
 // StoreLocalQuery is used to retrieve historic messages stored in the localDB using waku store protocol.
-func StoreLocalQuery(queryJSON string) (string, error) {
+func StoreLocalQuery(queryJSON string) (*storeMessagesReply, error) {
 	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+		return nil, errWakuNodeNotReady
 	}
 
 	var args storeMessagesArgs
 	err := json.Unmarshal([]byte(queryJSON), &args)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	options := []store.HistoryRequestOption{
@@ -128,5 +128,5 @@ func StoreLocalQuery(queryJSON string) (string, error) {
 		store.WithLocalQuery(),
 	}
 
-	return queryResponse(context.TODO(), args, options)
+	return queryResponse(context.TODO(), args, options), nil
 }

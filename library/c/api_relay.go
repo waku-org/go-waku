@@ -1,8 +1,5 @@
 package main
 
-/*
-#include <cgo_utils.h>
-*/
 import "C"
 import "github.com/waku-org/go-waku/library"
 
@@ -10,14 +7,14 @@ import "github.com/waku-org/go-waku/library"
 // to verify the number of peers in the default pubsub topic
 //
 //export waku_relay_enough_peers
-func waku_relay_enough_peers(topic *C.char, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_relay_enough_peers(topic *C.char) *C.char {
+	return singleFnExec(func() (any, error) {
 		result, err := library.RelayEnoughPeers(C.GoString(topic))
 		if result {
 			return "true", err
 		}
 		return "false", err
-	}, onOkCb, onErrCb)
+	})
 }
 
 // Publish a message using waku relay and returns the message ID. Use NULL for topic to use the default pubsub topic
@@ -25,10 +22,10 @@ func waku_relay_enough_peers(topic *C.char, onOkCb C.WakuCallBack, onErrCb C.Wak
 // (in milliseconds) is reached, or an error will be returned.
 //
 //export waku_relay_publish
-func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int) *C.char {
+	return singleFnExec(func() (any, error) {
 		return library.RelayPublish(C.GoString(messageJSON), C.GoString(topic), int(ms))
-	}, onOkCb, onErrCb)
+	})
 }
 
 // Subscribe to a WakuRelay topic. Set the topic to NULL to subscribe
@@ -37,25 +34,25 @@ func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int, onOkCb C.W
 // the message was received
 //
 //export waku_relay_subscribe
-func waku_relay_subscribe(topic *C.char, onErrCb C.WakuCallBack) C.int {
+func waku_relay_subscribe(topic *C.char) *C.char {
 	err := library.RelaySubscribe(C.GoString(topic))
-	return execErrCB(onErrCb, err)
+	return execErrCB(err)
 }
 
 // Returns a json response with the list of pubsub topics the node
 // is subscribed to in WakuRelay
 //
 //export waku_relay_topics
-func waku_relay_topics(onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_relay_topics() *C.char {
+	return singleFnExec(func() (any, error) {
 		return library.RelayTopics()
-	}, onOkCb, onErrCb)
+	})
 }
 
 // Closes the pubsub subscription to a pubsub topic
 //
 //export waku_relay_unsubscribe
-func waku_relay_unsubscribe(topic *C.char, onErrCb C.WakuCallBack) C.int {
+func waku_relay_unsubscribe(topic *C.char) *C.char {
 	err := library.RelayUnsubscribe(C.GoString(topic))
-	return execErrCB(onErrCb, err)
+	return execErrCB(err)
 }

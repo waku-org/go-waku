@@ -1,8 +1,5 @@
 package main
 
-/*
-#include <cgo_utils.h>
-*/
 import "C"
 import "github.com/waku-org/go-waku/library"
 
@@ -12,8 +9,8 @@ import "github.com/waku-org/go-waku/library"
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_lightpush_publish
-func waku_lightpush_publish(messageJSON *C.char, topic *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_lightpush_publish(messageJSON *C.char, topic *C.char, peerID *C.char, ms C.int) *C.char {
+	return singleFnExec(func() (any, error) {
 		return library.LightpushPublish(C.GoString(messageJSON), C.GoString(topic), C.GoString(peerID), int(ms))
-	}, onOkCb, onErrCb)
+	})
 }

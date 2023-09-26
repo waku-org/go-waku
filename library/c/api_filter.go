@@ -1,8 +1,5 @@
 package main
 
-/*
-#include <cgo_utils.h>
-*/
 import "C"
 import "github.com/waku-org/go-waku/library"
 
@@ -20,10 +17,10 @@ import "github.com/waku-org/go-waku/library"
 // It returns a json object containing the details of the subscriptions along with any errors in case of partial failures
 //
 //export waku_filter_subscribe
-func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char {
+	return singleFnExec(func() (any, error) {
 		return library.FilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	}, onOkCb, onErrCb)
+	})
 }
 
 // Used to know if a service node has an active subscription for this client
@@ -32,9 +29,9 @@ func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onOkCb 
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_ping
-func waku_filter_ping(peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+func waku_filter_ping(peerID *C.char, ms C.int) *C.char {
 	err := library.FilterPing(C.GoString(peerID), int(ms))
-	return execErrCB(onErrCb, err)
+	return execErrCB(err)
 }
 
 // Sends a requests to a service node to stop pushing messages matching this filter to this client.
@@ -51,9 +48,9 @@ func waku_filter_ping(peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_unsubscribe
-func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char {
 	err := library.FilterUnsubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	return execErrCB(onErrCb, err)
+	return execErrCB(err)
 }
 
 // Sends a requests to a service node (or all service nodes) to stop pushing messages
@@ -63,8 +60,8 @@ func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int, onErr
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_unsubscribe_all
-func waku_filter_unsubscribe_all(peerID *C.char, ms C.int, onOkCb C.WakuCallBack, onErrCb C.WakuCallBack) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_filter_unsubscribe_all(peerID *C.char, ms C.int) *C.char {
+	return singleFnExec(func() (any, error) {
 		return library.FilterUnsubscribeAll(C.GoString(peerID), int(ms))
-	}, onOkCb, onErrCb)
+	})
 }

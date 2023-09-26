@@ -95,12 +95,12 @@ func RelaySubscribe(topic string) error {
 }
 
 // RelayTopics returns a list of pubsub topics the node is subscribed to in WakuRelay
-func RelayTopics() (string, error) {
+func RelayTopics() ([]string, error) {
 	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+		return nil, errWakuNodeNotReady
 	}
 
-	return marshalJSON(wakuState.node.Relay().Topics())
+	return wakuState.node.Relay().Topics(), nil
 }
 
 // RelayUnsubscribe closes the pubsub subscription to a pubsub topic

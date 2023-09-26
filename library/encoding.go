@@ -20,10 +20,10 @@ func wakuMessage(messageJSON string) (*pb.WakuMessage, error) {
 	return msg, err
 }
 
-func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey string) (string, error) {
+func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey string) (*pb.WakuMessage, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	payload := payload.Payload{
@@ -35,7 +35,7 @@ func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey
 
 	keyBytes, err := utils.DecodeHexString(symmetricKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	payload.Key.SymKey = keyBytes
@@ -43,33 +43,28 @@ func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey
 	if optionalSigningKey != "" {
 		signingKeyBytes, err := utils.DecodeHexString(optionalSigningKey)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		payload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	msg.Version = 1
 	msg.Payload, err = payload.Encode(1)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	encodedMsg, err := json.Marshal(msg)
-	if err != nil {
-		return "", err
-	}
-
-	return string(encodedMsg), err
+	return msg, err
 }
 
-func EncodeAsymmetric(messageJSON string, publicKey string, optionalSigningKey string) (string, error) {
+func EncodeAsymmetric(messageJSON string, publicKey string, optionalSigningKey string) (*pb.WakuMessage, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	payload := payload.Payload{
@@ -81,38 +76,33 @@ func EncodeAsymmetric(messageJSON string, publicKey string, optionalSigningKey s
 
 	keyBytes, err := utils.DecodeHexString(publicKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	payload.Key.PubKey, err = unmarshalPubkey(keyBytes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if optionalSigningKey != "" {
 		signingKeyBytes, err := utils.DecodeHexString(optionalSigningKey)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		payload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	msg.Version = 1
 	msg.Payload, err = payload.Encode(1)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	encodedMsg, err := json.Marshal(msg)
-	if err != nil {
-		return "", err
-	}
-
-	return string(encodedMsg), err
+	return msg, err
 }
 
 func extractPubKeyAndSignature(payload *payload.DecodedPayload) (pubkey string, signature string) {
@@ -129,17 +119,22 @@ func extractPubKeyAndSignature(payload *payload.DecodedPayload) (pubkey string, 
 }
 
 // DecodeSymmetric decodes a waku message using a 32 bytes symmetric key. The key must be a hex encoded string with "0x" prefix
-func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
+func DecodeSymmetric(messageJSON string, symmetricKey string) (any, error) {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if msg.Version == 0 {
-		return marshalJSON(msg.Payload)
+		return struct {
+			Data    []byte `json:"data"`
+			Padding []byte `json:"padding"`
+		}{
+			Data: msg.Payload,
+		}, nil
 	} else if msg.Version > 1 {
-		return "", errors.New("unsupported wakumessage version")
+		return nil, errors.New("unsupported wakumessage version")
 	}
 
 	keyInfo := &payload.KeyInfo{
@@ -148,12 +143,12 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 
 	keyInfo.SymKey, err = utils.DecodeHexString(symmetricKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	payload, err := payload.DecodePayload(&msg, keyInfo)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	pubkey, signature := extractPubKeyAndSignature(payload)
@@ -162,7 +157,7 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 		PubKey    string `json:"pubkey,omitempty"`
 		Signature string `json:"signature,omitempty"`
 		Data      []byte `json:"data"`
-		Padding   []byte `json:"padding"`
+		Padding   []byte `json:"padding,omitempty"`
 	}{
 		PubKey:    pubkey,
 		Signature: signature,
@@ -170,11 +165,11 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 		Padding:   payload.Padding,
 	}
 
-	return marshalJSON(response)
+	return response, nil
 }
 
 // DecodeAsymmetric decodes a waku message using a secp256k1 private key. The key must be a hex encoded string with "0x" prefix
-func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
+func DecodeAsymmetric(messageJSON string, privateKey string) (any, error) {
 	var msg pb.WakuMessage
 	err := json.Unmarshal([]byte(messageJSON), &msg)
 	if err != nil {
@@ -182,9 +177,14 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 	}
 
 	if msg.Version == 0 {
-		return marshalJSON(msg.Payload)
+		return struct {
+			Data    []byte `json:"data"`
+			Padding []byte `json:"padding"`
+		}{
+			Data: msg.Payload,
+		}, nil
 	} else if msg.Version > 1 {
-		return "", errors.New("unsupported wakumessage version")
+		return nil, errors.New("unsupported wakumessage version")
 	}
 
 	keyInfo := &payload.KeyInfo{
@@ -193,17 +193,17 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 
 	keyBytes, err := utils.DecodeHexString(privateKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	keyInfo.PrivKey, err = crypto.ToECDSA(keyBytes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	payload, err := payload.DecodePayload(&msg, keyInfo)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	pubkey, signature := extractPubKeyAndSignature(payload)
@@ -220,7 +220,7 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 		Padding:   payload.Padding,
 	}
 
-	return marshalJSON(response)
+	return response, nil
 }
 
 func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {

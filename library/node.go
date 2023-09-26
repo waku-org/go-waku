@@ -236,9 +236,9 @@ func PeerID() (string, error) {
 }
 
 // ListenAddresses returns the multiaddresses the wakunode is listening to
-func ListenAddresses() (string, error) {
+func ListenAddresses() ([]string, error) {
 	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+		return nil, errWakuNodeNotReady
 	}
 
 	var addresses []string
@@ -246,7 +246,7 @@ func ListenAddresses() (string, error) {
 		addresses = append(addresses, addr.String())
 	}
 
-	return marshalJSON(addresses)
+	return addresses, nil
 }
 
 // AddPeer adds a node multiaddress and protocol to the wakunode peerstore
@@ -265,7 +265,7 @@ func AddPeer(address string, protocolID string) (string, error) {
 		return "", err
 	}
 
-	return marshalJSON(peerID)
+	return peerID.Pretty(), nil
 }
 
 // Connect is used to connect to a peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
@@ -372,15 +372,10 @@ func toSubscriptionMessage(msg *protocol.Envelope) *subscriptionMsg {
 }
 
 // Peers retrieves the list of peers known by the waku node
-func Peers() (string, error) {
+func Peers() ([]*node.Peer, error) {
 	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+		return nil, errWakuNodeNotReady
 	}
 
-	peers, err := wakuState.node.Peers()
-	if err != nil {
-		return "", err
-	}
-
-	return marshalJSON(peers)
+	return wakuState.node.Peers()
 }

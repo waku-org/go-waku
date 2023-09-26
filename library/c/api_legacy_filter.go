@@ -1,8 +1,5 @@
 package main
 
-/*
-#include <cgo_utils.h>
-*/
 import "C"
 import "github.com/waku-org/go-waku/library"
 
@@ -23,9 +20,9 @@ import "github.com/waku-org/go-waku/library"
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_legacy_filter_subscribe
-func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int) *C.char {
 	err := library.LegacyFilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	return execErrCB(onErrCb, err)
+	return execErrCB(err)
 }
 
 // Removes subscriptions in a light node matching a content filter and, optionally, a pubSub topic.
@@ -44,7 +41,7 @@ func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, 
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_legacy_filter_unsubscribe
-func waku_legacy_filter_unsubscribe(filterJSON *C.char, ms C.int, onErrCb C.WakuCallBack) C.int {
+func waku_legacy_filter_unsubscribe(filterJSON *C.char, ms C.int) *C.char {
 	err := library.LegacyFilterUnsubscribe(C.GoString(filterJSON), int(ms))
-	return execErrCB(onErrCb, err)
+	return execErrCB(err)
 }

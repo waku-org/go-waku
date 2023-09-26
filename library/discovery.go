@@ -17,7 +17,7 @@ type dnsDiscoveryItem struct {
 }
 
 // DNSDiscovery executes dns discovery on an url and returns a list of nodes
-func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
+func DNSDiscovery(url string, nameserver string, ms int) ([]dnsDiscoveryItem, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -35,7 +35,7 @@ func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 
 	nodes, err := dnsdisc.RetrieveNodes(ctx, url, dnsDiscOpt...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var response []dnsDiscoveryItem
@@ -54,7 +54,7 @@ func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 		response = append(response, item)
 	}
 
-	return marshalJSON(response)
+	return response, nil
 }
 
 // StartDiscoveryV5 starts discv5 discovery

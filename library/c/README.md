@@ -88,7 +88,7 @@ The criteria to create subscription to a filter full node in JSON Format:
 Fields:
 
 - `contentTopics`: Array of content topics.
-- `topic`: Optional pubsub topic when using contentTopics as per Autosharding. In case of named or static-sharding, pubSub topic is mandatory.
+- `topic`: pubsub topic.
 
 
 ### `LegacyFilterSubscription` type
@@ -766,6 +766,62 @@ A status code. Refer to the [`Status codes`](#status-codes) section for possible
 
 If the function is executed succesfully, `onOkCb` will receive the message ID.
 
+### `extern int waku_relay_publish_enc_asymmetric(char* messageJson, char* pubsubTopic, char* publicKey, char* optionalSigningKey, int timeoutMs, WakuCallBack onOkCb, WakuCallBack onErrCb)`
+
+Optionally sign,
+encrypt using asymmetric encryption
+and publish a message using Waku Relay.
+
+**Parameters**
+
+1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
+2. `char* pubsubTopic`: pubsub topic on which to publish the message.
+   If `NULL`, it uses the default pubsub topic.
+3. `char* publicKey`: hex encoded public key to be used for encryption.
+4. `char* optionalSigningKey`: hex encoded private key to be used to sign the message.
+5. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+6. `WakuCallBack onOkCb`: callback to be executed if the function is succesful
+7. `WakuCallBack onErrCb`: callback to be executed if the function fails
+
+Note: `messageJson.version` is overwritten to `1`.
+
+**Returns**
+
+A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
+
+If the function is executed succesfully, `onOkCb` will receive the message ID.
+
+### `extern int waku_relay_publish_enc_symmetric(char* messageJson, char* pubsubTopic, char* symmetricKey, char* optionalSigningKey, int timeoutMs, WakuCallBack onOkCb, WakuCallBack onErrCb)`
+
+Optionally sign,
+encrypt using symmetric encryption
+and publish a message using Waku Relay.
+
+**Parameters**
+
+1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
+2. `char* pubsubTopic`: pubsub topic on which to publish the message.
+   If `NULL`, it uses the default pubsub topic.
+3. `char* symmetricKey`: hex encoded secret key to be used for encryption.
+4. `char* optionalSigningKey`: hex encoded private key to be used to sign the message.
+5. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+6. `WakuCallBack onOkCb`: callback to be executed if the function is succesful
+7. `WakuCallBack onErrCb`: callback to be executed if the function fails
+
+Note: `messageJson.version` is overwritten to `1`.
+
+**Returns**
+
+A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
+
+If the function is executed succesfully, `onOkCb` will receive the message ID.
+
 ### `extern int waku_relay_enough_peers(char* pubsubTopic, WakuCallBack onOkCb, WakuCallBack onErrCb)`
 
 Determine if there are enough peers to publish a message on a given pubsub topic.
@@ -884,21 +940,15 @@ Creates a subscription to a filter full node matching a content filter..
 
 A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
 
-If the function is executed succesfully, `onOkCb` will receive the following subscription details along with any partial errors.
+If the function is executed succesfully, `onOkCb` will receive the subscription details.
 
 For example:
 
 ```json
 {
-  "subscriptions" : [
-    {
-      "ID": "<subscriptionID>",
-      "peerID": "....",
-      "pubsubTopic": "...",
-      "contentTopics": [...]
-    }
-  ],
-  "error" : "subscriptions failed for contentTopics:<topicA>,.." // Empty if all subscriptions are succesful
+  "peerID": "....",
+  "pubsubTopic": "...",
+  "contentTopics": [...]
 }
 ```
 
@@ -1104,6 +1154,70 @@ A status code. Refer to the [`Status codes`](#status-codes) section for possible
 
 If the function is executed succesfully, `onOkCb` will receive the message ID.
 
+### `extern int waku_lightpush_publish_enc_asymmetric(char* messageJson, char* pubsubTopic, char* peerID, char* publicKey, char* optionalSigningKey, int timeoutMs, WakuCallBack onOkCb, WakuCallBack onErrCb)`
+
+Optionally sign,
+encrypt using asymmetric encryption
+and publish a message using Waku Lightpush.
+
+**Parameters**
+
+1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
+2. `char* pubsubTopic`: pubsub topic on which to publish the message.
+   If `NULL`, it uses the default pubsub topic.
+3. `char* peerID`: Peer ID supporting the lightpush protocol.
+   The peer must be already known.
+   It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
+   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+4. `char* publicKey`: hex encoded public key to be used for encryption.
+5. `char* optionalSigningKey`: hex encoded private key to be used to sign the message.
+6. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+7. `WakuCallBack onOkCb`: callback to be executed if the function is succesful
+8. `WakuCallBack onErrCb`: callback to be executed if the function fails
+
+Note: `messageJson.version` is overwritten to `1`.
+
+**Returns**
+
+A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
+
+If the function is executed succesfully, `onOkCb` will receive the message ID.
+
+### `extern int waku_lightpush_publish_enc_symmetric(char* messageJson, char* pubsubTopic, char* peerID, char* symmetricKey, char* optionalSigningKey, int timeoutMs, WakuCallBack onOkCb, WakuCallBack onErrCb)`
+
+Optionally sign,
+encrypt using symmetric encryption
+and publish a message using Waku Lightpush.
+
+**Parameters**
+
+1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
+2. `char* pubsubTopic`: pubsub topic on which to publish the message.
+   If `NULL`, it uses the default pubsub topic.
+3. `char* peerID`: Peer ID supporting the lightpush protocol.
+   The peer must be already known.
+   It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)
+   or previously dialed with [`waku_connect_peer`](#extern-char-waku_connect_peerchar-address-int-timeoutms).
+4. `char* symmetricKey`: hex encoded secret key to be used for encryption.
+5. `char* optionalSigningKey`: hex encoded private key to be used to sign the message.
+6. `int timeoutMs`: Timeout value in milliseconds to execute the call.
+   If the function execution takes longer than this value,
+   the execution will be canceled and an error returned.
+   Use `0` for no timeout.
+7. `WakuCallBack onOkCb`: callback to be executed if the function is succesful
+8. `WakuCallBack onErrCb`: callback to be executed if the function fails
+
+Note: `messageJson.version` is overwritten to `1`.
+
+**Returns**
+
+A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
+
+If the function is executed succesfully, `onOkCb` will receive the message ID.
+
 ## Waku Store
 
 ### `extern int waku_store_query(char* queryJSON, char* peerID, int timeoutMs, WakuCallBack onOkCb, WakuCallBack onErrCb)`
@@ -1155,49 +1269,6 @@ must contain a cursor pointing to the Index from which a new page can be request
 A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
 
 If the function is executed succesfully, `onOkCb` will receive a [`StoreResponse`](#storeresponse-type).
-
-## Encrypting messages
-
-### `extern int waku_encode_symmetric(char* messageJson, char* symmetricKey, char* optionalSigningKey, WakuCallBack onOkCb, WakuCallBack onErrCb)`
-
-Encrypt a message using symmetric encryption and optionally sign the message
-
-**Parameters**
-
-1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
-2. `char* symmetricKey`: hex encoded secret key to be used for encryption.
-3. `char* optionalSigningKey`: hex encoded private key to be used to sign the message.
-4. `WakuCallBack onOkCb`: callback to be executed if the function is succesful
-5. `WakuCallBack onErrCb`: callback to be executed if the function fails
-
-Note: `messageJson.version` is overwritten to `1`.
-
-**Returns**
-
-A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
-
-If the function is executed succesfully, `onOkCb` will receive the encrypted waku message which can be broadcasted with relay or lightpush protocol publish functions
-
-### `extern int waku_encode_asymmetric(char* messageJson, char* publicKey, char* optionalSigningKey, WakuCallBack onOkCb, WakuCallBack onErrCb)`
-
-Encrypt a message using asymmetric encryption and optionally sign the message
-
-**Parameters**
-
-1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
-2. `char* publicKey`: hex encoded public key to be used for encryption.
-3. `char* optionalSigningKey`: hex encoded private key to be used to sign the message.
-4. `WakuCallBack onOkCb`: callback to be executed if the function is succesful
-5. `WakuCallBack onErrCb`: callback to be executed if the function fails
-
-Note: `messageJson.version` is overwritten to `1`.
-
-**Returns**
-
-A status code. Refer to the [`Status codes`](#status-codes) section for possible values.
-
-If the function is executed succesfully, `onOkCb` will receive the encrypted waku message which can be broadcasted with relay or lightpush protocol publish functions
-
 
 ## Decrypting messages
 

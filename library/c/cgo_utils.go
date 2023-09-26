@@ -1,37 +1,59 @@
 package main
 
+import (
+	"encoding/json"
+)
+
 /*
 #include <stdlib.h>
-#include <cgo_utils.h>
-extern void _waku_execCB(WakuCallBack op, char* a, size_t b);
 */
 import "C"
-import "unsafe"
 
-func execOkCB(onOkCb C.WakuCallBack, value string) C.int {
-	if onOkCb == nil {
-		return retMissingCallback
-	}
-
-	val := C.CString(value)
-	valLen := C.size_t(len(value))
-	C._waku_execCB(onOkCb, val, valLen)
-
-	C.free(unsafe.Pointer(val))
-
-	return retOk
+func execOkCB(value any) *C.char {
+	return C.CString(prepareJSONResponse(value, nil))
 }
 
-func execErrCB(onErrCb C.WakuCallBack, err error) C.int {
-	if onErrCb == nil {
-		return retMissingCallback
-	}
+func execErrCB(err error) *C.char {
+	return C.CString(makeJSONResponse(err))
+}
+
+type jsonResponseError struct {
+	Error *string `json:"error"`
+}
+
+type jsonResponseSuccess struct {
+	Result interface{} `json:"result"`
+}
+
+func prepareJSONResponse(result interface{}, err error) string {
 
 	if err != nil {
-		errMsg := err.Error()
-		execOkCB(onErrCb, errMsg) // reusing ok cb
-		return retErr
+		errStr := err.Error()
+		errResponse := jsonResponseError{
+			Error: &errStr,
+		}
+		response, _ := json.Marshal(&errResponse)
+		return string(response)
 	}
 
-	return retOk
+	data, err := json.Marshal(jsonResponseSuccess{Result: result})
+	if err != nil {
+		return prepareJSONResponse(nil, err)
+	}
+	return string(data)
+}
+
+func makeJSONResponse(err error) string {
+	if err != nil {
+		errStr := err.Error()
+		outBytes, _ := json.Marshal(jsonResponseError{Error: &errStr})
+		return string(outBytes)
+	}
+
+	out := jsonResponseSuccess{
+		Result: true,
+	}
+	outBytes, _ := json.Marshal(out)
+
+	return string(outBytes)
 }
