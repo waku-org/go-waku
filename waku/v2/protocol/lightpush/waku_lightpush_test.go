@@ -152,5 +152,76 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 }
 
 func TestWakuLightPushAutoSharding(t *testing.T) {
+	contentTopic := "0/test/1/testTopic/proto"
+	cTopic1, err := protocol.StringToContentTopic(contentTopic)
+	require.NoError(t, err)
+	//Computing pubSubTopic only for filterFullNode.
+	pubSubTopicInst := protocol.GetShardFromContentTopic(cTopic1, protocol.GenerationZeroShardsCount)
+	pubSubTopic := pubSubTopicInst.String()
+	node1, sub1, host1 := makeWakuRelay(t, pubSubTopic)
+	defer node1.Stop()
+	defer sub1.Unsubscribe()
+
+	node2, sub2, host2 := makeWakuRelay(t, pubSubTopic)
+	defer node2.Stop()
+	defer sub2.Unsubscribe()
+
+	ctx := context.Background()
+	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2.SetHost(host2)
+	err = lightPushNode2.Start(ctx)
+	require.NoError(t, err)
+	defer lightPushNode2.Stop()
+
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
+	client.SetHost(clientHost)
+
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
+	err = host2.Peerstore().AddProtocols(host1.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
+	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host1.ID()))
+	require.NoError(t, err)
+
+	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
+	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
+	require.NoError(t, err)
+
+	msg1 := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
+	msg2 := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
+
+	// Wait for the mesh connection to happen between node1 and node2
+	time.Sleep(2 * time.Second)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-sub1.Ch
+		<-sub1.Ch
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-sub2.Ch
+		<-sub2.Ch
+	}()
+
+	// Verifying successful request
+	hash1, err := client.Publish(ctx, msg1)
+	require.NoError(t, err)
+	require.Equal(t, protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash1)
+
+	// Checking that msg hash is correct
+	hash, err := client.PublishToTopic(ctx, msg2, "")
+	require.NoError(t, err)
+	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash)
+	wg.Wait()
 
 }
