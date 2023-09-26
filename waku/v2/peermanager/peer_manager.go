@@ -69,7 +69,7 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
 
 	if maxPeers == 0 || maxConnections > maxPeers {
-		maxPeers = 5 * maxConnections
+		maxPeers = maxConnsToPeerRatio * maxConnections
 	}
 
 	pm := &PeerManager{
