@@ -45,6 +45,7 @@ type PeerManager struct {
 
 const peerConnectivityLoopSecs = 15
 const relayOptimalPeersPerShard = 6
+const maxConnsToPeerRatio = 5
 
 // 80% relay peers 20% service peers
 func relayAndServicePeers(maxConnections int) (int, int) {
