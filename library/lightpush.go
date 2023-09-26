@@ -42,11 +42,11 @@ func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms
 }
 
 // LightpushPublish is used to publish a WakuMessage in a pubsub topic using Lightpush protocol
-func LightpushPublish(messageJSON string, topic string, peerID string, ms int) (string, error) {
+func LightpushPublish(messageJSON string, pubsubTopic string, peerID string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return "", err
 	}
 
-	return lightpushPublish(msg, getTopic(topic), peerID, ms)
+	return lightpushPublish(msg, getTopic(pubsubTopic), peerID, ms)
 }

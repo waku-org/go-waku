@@ -144,7 +144,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 		pubSubTopic := ""
 		//For now returning failure, this will get addressed with autosharding changes for filter.
 		if messagePush.PubsubTopic == nil {
-			pubSubTopic, err = getPubSubTopicFromContentTopic(messagePush.WakuMessage.ContentTopic)
+			pubSubTopic, err = protocol.GetPubSubTopicFromContentTopic(messagePush.WakuMessage.ContentTopic)
 			if err != nil {
 				logger.Error("could not derive pubSubTopic from contentTopic", zap.Error(err))
 				wf.metrics.RecordError(decodeRPCFailure)
@@ -230,16 +230,6 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	return nil
 }
 
-func getPubSubTopicFromContentTopic(cTopicString string) (string, error) {
-	cTopic, err := protocol.StringToContentTopic(cTopicString)
-	if err != nil {
-		return "", fmt.Errorf("%s : %s", err.Error(), cTopicString)
-	}
-	pTopic := protocol.GetShardFromContentTopic(cTopic, protocol.GenerationZeroShardsCount)
-
-	return pTopic.String(), nil
-}
-
 // This function converts a contentFilter into a map of pubSubTopics and corresponding contentTopics
 func contentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]string, error) {
 	pubSubTopicMap := make(map[string][]string)
@@ -249,7 +239,7 @@ func contentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]st
 	} else {
 		//Parse the content-Topics to figure out shards.
 		for _, cTopicString := range contentFilter.ContentTopicsList() {
-			pTopicStr, err := getPubSubTopicFromContentTopic(cTopicString)
+			pTopicStr, err := protocol.GetPubSubTopicFromContentTopic(cTopicString)
 			if err != nil {
 				return nil, err
 			}

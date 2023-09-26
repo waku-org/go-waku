@@ -19,7 +19,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscription, host.Host) {
+func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
@@ -34,7 +34,7 @@ func makeWakuRelay(t *testing.T, topic string) (*relay.WakuRelay, *relay.Subscri
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
-	sub, err := relay.SubscribeToTopic(context.Background(), topic)
+	sub, err := relay.SubscribeToTopic(context.Background(), pusubTopic)
 	require.NoError(t, err)
 
 	return relay, sub, host
@@ -149,4 +149,8 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	client.SetHost(clientHost)
 	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), testTopic)
 	require.Errorf(t, err, "no suitable remote peers")
+}
+
+func TestWakuLightPushAutoSharding(t *testing.T) {
+
 }

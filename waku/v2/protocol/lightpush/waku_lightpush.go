@@ -215,15 +215,22 @@ func (wakuLP *WakuLightPush) Stop() {
 	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
 }
 
-// PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
-func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, topic string, opts ...Option) ([]byte, error) {
+// Optional PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
+// If pubSubTopic is not provided, then contentTopic is use to derive the relevant pubSubTopic via autosharding.
+func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, pubsubTopic string, opts ...Option) ([]byte, error) {
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}
-
+	if pubsubTopic == "" {
+		var err error
+		pubsubTopic, err = protocol.GetPubSubTopicFromContentTopic(message.ContentTopic)
+		if err != nil {
+			return nil, err
+		}
+	}
 	req := new(pb.PushRequest)
 	req.Message = message
-	req.PubsubTopic = topic
+	req.PubsubTopic = pubsubTopic
 
 	response, err := wakuLP.request(ctx, req, opts...)
 	if err != nil {
@@ -231,7 +238,7 @@ func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.Wa
 	}
 
 	if response.IsSuccess {
-		hash := message.Hash(topic)
+		hash := message.Hash(pubsubTopic)
 		wakuLP.log.Info("waku.lightpush published", logging.HexString("hash", hash))
 		return hash, nil
 	}
@@ -239,7 +246,7 @@ func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.Wa
 	return nil, errors.New(response.Info)
 }
 
-// Publish is used to broadcast a WakuMessage to the default waku pubsub topic via lightpush protocol
+// Publish is used to broadcast a WakuMessage to the pubSubTopic (which is derived from the contentTopic) via lightpush protocol
 func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
-	return wakuLP.PublishToTopic(ctx, message, relay.DefaultWakuTopic, opts...)
+	return wakuLP.PublishToTopic(ctx, message, "", opts...)
 }
