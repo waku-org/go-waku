@@ -24,6 +24,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// NodeTopicDetails stores pubSubTopic related data like topicHandle for the node.
 type NodeTopicDetails struct {
 	topic *pubsub.Topic
 }
@@ -46,7 +47,6 @@ type PeerManager struct {
 
 const peerConnectivityLoopSecs = 15
 const maxConnsToPeerRatio = 5
-
 
 // 80% relay peers 20% service peers
 func relayAndServicePeers(maxConnections int) (int, int) {
@@ -148,6 +148,8 @@ func (pm *PeerManager) GroupPeersByDirection(specificPeers []peer.ID) (inPeers p
 	return inPeers, outPeers, nil
 }
 
+// getRelayPeers - Returns list of in and out peers supporting WakuRelayProtocol within specifiedPeers.
+// If specifiedPeers is empty, it checks within all peers in peerStore.
 func (pm *PeerManager) getRelayPeers(specificPeers []peer.ID) (inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
 	//Group peers by their connected direction inbound or outbound.
 	inPeers, outPeers, err := pm.GroupPeersByDirection(specificPeers)
@@ -167,6 +169,9 @@ func (pm *PeerManager) getRelayPeers(specificPeers []peer.ID) (inRelayPeers peer
 	return
 }
 
+// ensureMinRelayConnsPerTopic makes sure there are min of D conns per pubsubTopic.
+// If not it will look into peerStore to initiate more connections.
+// If peerStore doesn't have enough peers, will wait for discv5 to find more and try in next cycle
 func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 	pm.topicMutex.RLock()
 	defer pm.topicMutex.RUnlock()
@@ -194,6 +199,9 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 	}
 }
 
+// connectToRelayPeers ensures minimum D connections are there for each pubSubTopic.
+// If not, initiates connections to additional peers.
+// It also checks for incoming relay connections and prunes once they cross inRelayTarget
 func (pm *PeerManager) connectToRelayPeers() {
 	//Check for out peer connections and connect to more peers.
 	pm.ensureMinRelayConnsPerTopic()
@@ -208,22 +216,36 @@ func (pm *PeerManager) connectToRelayPeers() {
 	}
 }
 
-func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) PeerData {
-	return PeerData{
+// addrInfoToPeerData returns addressinfo for a peer
+// If addresses are expired, it removes the peer from host peerStore and returns nil.
+func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) *PeerData {
+	addrs := host.Peerstore().Addrs(peerID)
+	if len(addrs) == 0 {
+		//Addresses expired, remove peer from peerStore
+		host.Peerstore().RemovePeer(peerID)
+		return nil
+	}
+	return &PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    peerID,
-			Addrs: host.Peerstore().Addrs(peerID),
+			Addrs: addrs,
 		},
 	}
 }
+
+// connectToPeers connects to peers provided in the list if the addresses have not expired.
 func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
 	for _, peerID := range peers {
 		peerData := addrInfoToPeerData(wps.PeerManager, peerID, pm.host)
-		pm.peerConnector.PushToChan(peerData)
+		if peerData == nil {
+			continue
+		}
+		pm.peerConnector.PushToChan(*peerData)
 	}
 }
 
+// getNotConnectedPers returns peers for a pubSubTopic that are not connected.
 func (pm *PeerManager) getNotConnectedPers(pubsubTopic string) (notConnectedPeers peer.IDSlice) {
 	var peerList peer.IDSlice
 	if pubsubTopic == "" {
@@ -239,10 +261,11 @@ func (pm *PeerManager) getNotConnectedPers(pubsubTopic string) (notConnectedPeer
 	return
 }
 
+// pruneInRelayConns prune any incoming relay connections crossing derived inrelayPeerTarget
 func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 
 	//Start disconnecting peers, based on what?
-	//For now, just disconnect most recently connected peers
+	//For now no preference is used
 	//TODO: Need to have more intelligent way of doing this, maybe peer scores.
 	//TODO: Keep optimalPeersRequired for a pubSubTopic in mind while pruning connections to peers.
 	pm.logger.Info("peer connections exceed target relay peers, hence pruning",
@@ -314,7 +337,13 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 		return errors.New("peer store capacity reached")
 	}
 	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
-	pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
+	if origin == wps.Static {
+		pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.PermanentAddrTTL)
+	} else {
+		//Need to re-evaluate the address expiry
+		// For now expiring them with default addressTTL which is an hour.
+		pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
+	}
 	err := pm.host.Peerstore().(wps.WakuPeerstore).SetOrigin(ID, origin)
 	if err != nil {
 		pm.logger.Error("could not set origin", zap.Error(err), logging.HostID("peer", ID))
