@@ -88,6 +88,7 @@ type WakuNodeParameters struct {
 	rendezvousDB          *rendezvous.DB
 
 	maxPeerConnections int
+	peerStoreCapacity  int
 
 	enableDiscV5     bool
 	udpPort          uint
@@ -352,6 +353,13 @@ func WithWakuRelayAndMinPeers(minRelayPeersToPublish int, opts ...pubsub.Option)
 func WithMaxPeerConnections(maxPeers int) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.maxPeerConnections = maxPeers
+		return nil
+	}
+}
+
+func WithPeerStoreCapacity(capacity int) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.peerStoreCapacity = capacity
 		return nil
 	}
 }

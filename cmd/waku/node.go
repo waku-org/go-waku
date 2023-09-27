@@ -129,6 +129,7 @@ func Execute(options NodeOptions) {
 		node.WithKeepAlive(options.KeepAlive),
 		node.WithMaxPeerConnections(options.MaxPeerConnections),
 		node.WithPrometheusRegisterer(prometheus.DefaultRegisterer),
+		node.WithPeerStoreCapacity(options.PeerStoreCapacity),
 	}
 	if len(options.AdvertiseAddresses) != 0 {
 		nodeOpts = append(nodeOpts, node.WithAdvertiseAddresses(options.AdvertiseAddresses...))
