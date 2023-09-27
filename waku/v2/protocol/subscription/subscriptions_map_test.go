@@ -1,4 +1,4 @@
-package filter
+package subscription
 
 import (
 	"context"
@@ -6,11 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
+
+const PUBSUB_TOPIC = "/test/topic"
+
+func createPeerID(t *testing.T) peer.ID {
+	peerId, err := test.RandPeerID()
+	assert.NoError(t, err)
+	return peerId
+}
 
 func TestSubscriptionMapAppend(t *testing.T) {
 	fmap := NewSubscriptionMap(utils.Logger())

@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 )
 
 type filterArgument struct {
@@ -30,8 +31,8 @@ func toContentFilter(filterJSON string) (protocol.ContentFilter, error) {
 }
 
 type subscribeResult struct {
-	Subscriptions []*filter.SubscriptionDetails `json:"subscriptions"`
-	Error         string                        `json:"error,omitempty"`
+	Subscriptions []*subscription.SubscriptionDetails `json:"subscriptions"`
+	Error         string                              `json:"error,omitempty"`
 }
 
 // FilterSubscribe is used to create a subscription to a filter node to receive messages
@@ -72,7 +73,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	}
 
 	for _, subscriptionDetails := range subscriptions {
-		go func(subscriptionDetails *filter.SubscriptionDetails) {
+		go func(subscriptionDetails *subscription.SubscriptionDetails) {
 			for envelope := range subscriptionDetails.C {
 				send("message", toSubscriptionMessage(envelope))
 			}

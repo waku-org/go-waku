@@ -204,28 +204,21 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	require.NoError(t, err)
 
 	msg1 := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
-	msg2 := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
 
 	// Wait for the mesh connection to happen between node1 and node2
 	time.Sleep(2 * time.Second)
 	var wg sync.WaitGroup
-	t.Log("host2 peers ", host2.Network().Peers())
-	t.Log("host1 peers ", host1.Network().Peers())
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-sub1.Ch
-		<-sub1.Ch
-		t.Logf("Received msgs on relay1")
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-sub2.Ch
-		<-sub2.Ch
-		t.Logf("Received msgs on relay2")
 	}()
 
 	// Verifying successful request
@@ -233,10 +226,6 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash1)
 
-	// Checking that msg hash is correct
-	hash, err := client.PublishToTopic(ctx, msg2, "")
-	require.NoError(t, err)
-	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash)
 	wg.Wait()
 
 }

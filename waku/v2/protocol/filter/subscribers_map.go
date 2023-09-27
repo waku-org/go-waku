@@ -2,16 +2,14 @@ package filter
 
 import (
 	"encoding/hex"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type PeerSet map[peer.ID]struct{}
 
@@ -97,12 +95,12 @@ func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTop
 
 	pubsubTopicMap, ok := sub.items[peerID]
 	if !ok {
-		return ErrNotFound
+		return subscription.ErrNotFound
 	}
 
 	contentTopicsMap, ok := pubsubTopicMap[pubsubTopic]
 	if !ok {
-		return ErrNotFound
+		return subscription.ErrNotFound
 	}
 
 	// Removing content topics individually
@@ -131,7 +129,7 @@ func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTop
 func (sub *SubscribersMap) deleteAll(peerID peer.ID) error {
 	pubsubTopicMap, ok := sub.items[peerID]
 	if !ok {
-		return ErrNotFound
+		return subscription.ErrNotFound
 	}
 
 	for pubsubTopic, contentTopicsMap := range pubsubTopicMap {
