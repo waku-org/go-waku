@@ -162,6 +162,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 // Client send a successful message using lightpush
 // Node2 receive the message and broadcast it
 // Node1 receive the message
+
 func TestWakuLightPushAutoSharding(t *testing.T) {
 	contentTopic := "0/test/1/testTopic/proto"
 	cTopic1, err := protocol.StringToContentTopic(contentTopic)
@@ -219,6 +220,7 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		<-sub2.Ch
+
 	}()
 
 	// Verifying successful request
