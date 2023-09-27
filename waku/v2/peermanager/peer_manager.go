@@ -189,9 +189,9 @@ func (pm *PeerManager) connectToRelayPeers() {
 	pm.ensureMinRelayConnsPerTopic()
 
 	inRelayPeers, outRelayPeers := pm.getRelayPeers(nil)
-	pm.logger.Info("Number of Relay peers connected",
-		zap.Int("inRelayPeers", inRelayPeers.Len()),
-		zap.Int("outRelayPeers", outRelayPeers.Len()))
+	pm.logger.Info("number of relay peers connected",
+		zap.Int("in", inRelayPeers.Len()),
+		zap.Int("out", outRelayPeers.Len()))
 	if inRelayPeers.Len() > 0 &&
 		inRelayPeers.Len() > pm.InRelayPeersTarget {
 		pm.pruneInRelayConns(inRelayPeers)
@@ -235,8 +235,8 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 	//For now, just disconnect most recently connected peers
 	//TODO: Need to have more intelligent way of doing this, maybe peer scores.
 	//TODO: Keep optimalPeersRequired for a pubSubTopic in mind while pruning connections to peers.
-	pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning",
-		zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
+	pm.logger.Info("peer connections exceed target relay peers, hence pruning",
+		zap.Int("cnt", inRelayPeers.Len()), zap.Int("target", pm.InRelayPeersTarget))
 	for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < inRelayPeers.Len(); pruningStartIndex++ {
 		p := inRelayPeers[pruningStartIndex]
 		err := pm.host.Network().ClosePeer(p)

@@ -16,10 +16,7 @@ import (
 func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
 	var err error
 	pm.sub, err = bus.Subscribe([]interface{}{new(relay.EvtPeerTopic), new(relay.EvtRelaySubscribed), new(relay.EvtRelayUnsubscribed)})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topicInst *pubsub.Topic) {
@@ -107,6 +104,7 @@ func (pm *PeerManager) handleNewRelayTopicUnSubscription(pubsubTopic string) {
 				if err != nil {
 					pm.logger.Warn("Failed to disconnect connection towards peer",
 						logging.HostID("peerID", peer))
+					continue
 				}
 				pm.logger.Debug("Successfully disconnected connection towards peer",
 					logging.HostID("peerID", peer))
@@ -157,7 +155,7 @@ func (pm *PeerManager) peerEventLoop(ctx context.Context) {
 					pm.handleNewRelayTopicUnSubscription(eventDetails.Topic)
 				}
 			default:
-				pm.logger.Error("Received an unsupported event type", zap.Any("eventType", e))
+				pm.logger.Error("unsupported event type", zap.Any("eventType", e))
 			}
 
 		case <-ctx.Done():
