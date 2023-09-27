@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 
 	"go.uber.org/zap"
 
@@ -116,7 +117,7 @@ func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
 				triggerImmediateConnection := false
 				//Not connecting to peer as soon as it is discovered,
 				// rather expecting this to be pushed from PeerManager based on the need.
-				if len(c.host.Network().Peers()) < relayOptimalPeersPerShard {
+				if len(c.host.Network().Peers()) < waku_proto.GossipSubOptimalFullMeshSize {
 					triggerImmediateConnection = true
 				}
 				c.pm.AddDiscoveredPeer(p, triggerImmediateConnection)
