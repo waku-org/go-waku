@@ -16,6 +16,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -44,8 +45,8 @@ type PeerManager struct {
 }
 
 const peerConnectivityLoopSecs = 15
-const relayOptimalPeersPerShard = 6
 const maxConnsToPeerRatio = 5
+
 
 // 80% relay peers 20% service peers
 func relayAndServicePeers(maxConnections int) (int, int) {
@@ -172,10 +173,10 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 	for topicStr, topicInst := range pm.subRelayTopics {
 		curPeers := topicInst.topic.ListPeers()
 		curPeerLen := len(curPeers)
-		if curPeerLen < relayOptimalPeersPerShard {
+		if curPeerLen < waku_proto.GossipSubOptimalFullMeshSize {
 			pm.logger.Info("Subscribed topic is unhealthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
-				zap.Int("optimumPeers", relayOptimalPeersPerShard))
+				zap.Int("optimumPeers", waku_proto.GossipSubOptimalFullMeshSize))
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
@@ -183,7 +184,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 				continue
 			}
 			//Connect to eligible peers.
-			numPeersToConnect := relayOptimalPeersPerShard - curPeerLen
+			numPeersToConnect := waku_proto.GossipSubOptimalFullMeshSize - curPeerLen
 
 			if numPeersToConnect > notConnectedPeers.Len() {
 				numPeersToConnect = notConnectedPeers.Len()
@@ -198,9 +199,9 @@ func (pm *PeerManager) connectToRelayPeers() {
 	pm.ensureMinRelayConnsPerTopic()
 
 	inRelayPeers, outRelayPeers := pm.getRelayPeers(nil)
-	pm.logger.Info("Number of Relay peers connected",
-		zap.Int("inRelayPeers", inRelayPeers.Len()),
-		zap.Int("outRelayPeers", outRelayPeers.Len()))
+	pm.logger.Info("number of relay peers connected",
+		zap.Int("in", inRelayPeers.Len()),
+		zap.Int("out", outRelayPeers.Len()))
 	if inRelayPeers.Len() > 0 &&
 		inRelayPeers.Len() > pm.InRelayPeersTarget {
 		pm.pruneInRelayConns(inRelayPeers)
@@ -244,8 +245,8 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 	//For now, just disconnect most recently connected peers
 	//TODO: Need to have more intelligent way of doing this, maybe peer scores.
 	//TODO: Keep optimalPeersRequired for a pubSubTopic in mind while pruning connections to peers.
-	pm.logger.Info("Number of in peer connections exceed targer relay peers, hence pruning",
-		zap.Int("inRelayPeers", inRelayPeers.Len()), zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget))
+	pm.logger.Info("peer connections exceed target relay peers, hence pruning",
+		zap.Int("cnt", inRelayPeers.Len()), zap.Int("target", pm.InRelayPeersTarget))
 	for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < inRelayPeers.Len(); pruningStartIndex++ {
 		p := inRelayPeers[pruningStartIndex]
 		err := pm.host.Network().ClosePeer(p)
@@ -268,7 +269,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
 	}
 	//Check if the peer is already present, if so skip adding
 	_, err := pm.host.Peerstore().(wps.WakuPeerstore).Origin(p.AddrInfo.ID)
-	if err == nil || err != peerstore.ErrNotFound {
+	if err == nil {
 		pm.logger.Debug("Found discovered peer already in peerStore", logging.HostID("peer", p.AddrInfo.ID))
 		return
 	}

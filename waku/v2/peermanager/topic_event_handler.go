@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
@@ -16,10 +17,7 @@ import (
 func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
 	var err error
 	pm.sub, err = bus.Subscribe([]interface{}{new(relay.EvtPeerTopic), new(relay.EvtRelaySubscribed), new(relay.EvtRelayUnsubscribed)})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topicInst *pubsub.Topic) {
@@ -46,7 +44,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		}
 	}
 
-	if connectedPeers >= relayOptimalPeersPerShard { //TODO: Use a config rather than hard-coding.
+	if connectedPeers >= waku_proto.GossipSubOptimalFullMeshSize { //TODO: Use a config rather than hard-coding.
 		// Should we use optimal number or define some sort of a config for the node to choose from?
 		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
 		// or bandwidth it can support.
@@ -60,10 +58,10 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		numPeersToConnect := notConnectedPeers.Len() - connectedPeers
 		if numPeersToConnect < 0 {
 			numPeersToConnect = notConnectedPeers.Len()
-		} else if numPeersToConnect-connectedPeers > relayOptimalPeersPerShard {
-			numPeersToConnect = relayOptimalPeersPerShard - connectedPeers
+		} else if numPeersToConnect-connectedPeers > waku_proto.GossipSubOptimalFullMeshSize {
+			numPeersToConnect = waku_proto.GossipSubOptimalFullMeshSize - connectedPeers
 		}
-		if numPeersToConnect+connectedPeers < relayOptimalPeersPerShard {
+		if numPeersToConnect+connectedPeers < waku_proto.GossipSubOptimalFullMeshSize {
 			triggerDiscovery = true
 		}
 		//For now all peers are being given same priority,
@@ -107,6 +105,7 @@ func (pm *PeerManager) handleNewRelayTopicUnSubscription(pubsubTopic string) {
 				if err != nil {
 					pm.logger.Warn("Failed to disconnect connection towards peer",
 						logging.HostID("peerID", peer))
+					continue
 				}
 				pm.logger.Debug("Successfully disconnected connection towards peer",
 					logging.HostID("peerID", peer))
@@ -157,7 +156,7 @@ func (pm *PeerManager) peerEventLoop(ctx context.Context) {
 					pm.handleNewRelayTopicUnSubscription(eventDetails.Topic)
 				}
 			default:
-				pm.logger.Error("Received an unsupported event type", zap.Any("eventType", e))
+				pm.logger.Error("unsupported event type", zap.Any("eventType", e))
 			}
 
 		case <-ctx.Done():

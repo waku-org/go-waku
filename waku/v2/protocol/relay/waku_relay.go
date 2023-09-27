@@ -116,11 +116,11 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	cfg.PruneBackoff = time.Minute
 	cfg.UnsubscribeBackoff = 5 * time.Second
 	cfg.GossipFactor = 0.25
-	cfg.D = 6
+	cfg.D = waku_proto.GossipSubOptimalFullMeshSize
 	cfg.Dlo = 4
 	cfg.Dhi = 12
 	cfg.Dout = 3
-	cfg.Dlazy = 6
+	cfg.Dlazy = waku_proto.GossipSubOptimalFullMeshSize
 	cfg.HeartbeatInterval = time.Second
 	cfg.HistoryLength = 6
 	cfg.HistoryGossip = 3
