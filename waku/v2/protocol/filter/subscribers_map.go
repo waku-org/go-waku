@@ -8,23 +8,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
 var ErrNotFound = errors.New("not found")
 
-type ContentTopicSet map[string]struct{}
-
-func NewContentTopicSet(contentTopics ...string) ContentTopicSet {
-	s := make(ContentTopicSet, len(contentTopics))
-	for _, ct := range contentTopics {
-		s[ct] = struct{}{}
-	}
-	return s
-}
-
 type PeerSet map[peer.ID]struct{}
 
-type PubsubTopics map[string]ContentTopicSet // pubsubTopic => contentTopics
+type PubsubTopics map[string]protocol.ContentTopicSet // pubsubTopic => contentTopics
 
 type SubscribersMap struct {
 	sync.RWMutex
@@ -65,7 +56,7 @@ func (sub *SubscribersMap) Set(peerID peer.ID, pubsubTopic string, contentTopics
 
 	contentTopicsMap, ok := pubsubTopicMap[pubsubTopic]
 	if !ok {
-		contentTopicsMap = make(ContentTopicSet)
+		contentTopicsMap = make(protocol.ContentTopicSet)
 	}
 
 	for _, c := range contentTopics {

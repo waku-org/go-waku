@@ -20,7 +20,7 @@ type SubscriptionDetails struct {
 	once   sync.Once
 
 	PeerID        peer.ID
-	ContentFilter ContentFilter
+	ContentFilter protocol.ContentFilter
 	C             chan *protocol.Envelope
 }
 
@@ -45,7 +45,7 @@ func NewSubscriptionMap(logger *zap.Logger) *SubscriptionsMap {
 	}
 }
 
-func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf ContentFilter) *SubscriptionDetails {
+func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf protocol.ContentFilter) *SubscriptionDetails {
 	sub.Lock()
 	defer sub.Unlock()
 
@@ -68,7 +68,7 @@ func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf ContentFilter) *
 		mapRef:        sub,
 		PeerID:        peerID,
 		C:             make(chan *protocol.Envelope, 1024),
-		ContentFilter: ContentFilter{cf.PubsubTopic, maps.Clone(cf.ContentTopics)},
+		ContentFilter: protocol.ContentFilter{PubsubTopic: cf.PubsubTopic, ContentTopics: maps.Clone(cf.ContentTopics)},
 	}
 
 	sub.items[peerID].subsPerPubsubTopic[cf.PubsubTopic][details.ID] = details
@@ -85,7 +85,7 @@ func (sub *SubscriptionsMap) IsSubscribedTo(peerID peer.ID) bool {
 }
 
 // Check if we have subscriptions for all (pubsubTopic, contentTopics[i]) pairs provided
-func (sub *SubscriptionsMap) Has(peerID peer.ID, cf ContentFilter) bool {
+func (sub *SubscriptionsMap) Has(peerID peer.ID, cf protocol.ContentFilter) bool {
 	sub.RLock()
 	defer sub.RUnlock()
 
@@ -174,7 +174,7 @@ func (s *SubscriptionDetails) Clone() *SubscriptionDetails {
 		mapRef:        s.mapRef,
 		Closed:        false,
 		PeerID:        s.PeerID,
-		ContentFilter: ContentFilter{s.ContentFilter.PubsubTopic, maps.Clone(s.ContentFilter.ContentTopics)},
+		ContentFilter: protocol.ContentFilter{PubsubTopic: s.ContentFilter.PubsubTopic, ContentTopics: maps.Clone(s.ContentFilter.ContentTopics)},
 		C:             make(chan *protocol.Envelope),
 	}
 

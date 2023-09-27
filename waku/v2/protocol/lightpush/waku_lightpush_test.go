@@ -151,6 +151,17 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	require.Errorf(t, err, "no suitable remote peers")
 }
 
+// Node1: Relay
+// Node2: Relay+Lightpush
+// Client that will lightpush a message
+//
+// Node1 and Node 2 are peers
+// Client and Node 2 are peers
+// Client will use lightpush request, sending the message to Node2
+//
+// Client send a successful message using lightpush
+// Node2 receive the message and broadcast it
+// Node1 receive the message
 func TestWakuLightPushAutoSharding(t *testing.T) {
 	contentTopic := "0/test/1/testTopic/proto"
 	cTopic1, err := protocol.StringToContentTopic(contentTopic)
@@ -198,12 +209,15 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	// Wait for the mesh connection to happen between node1 and node2
 	time.Sleep(2 * time.Second)
 	var wg sync.WaitGroup
+	t.Log("host2 peers ", host2.Network().Peers())
+	t.Log("host1 peers ", host1.Network().Peers())
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-sub1.Ch
 		<-sub1.Ch
+		t.Logf("Received msgs on relay1")
 	}()
 
 	wg.Add(1)
@@ -211,6 +225,7 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 		defer wg.Done()
 		<-sub2.Ch
 		<-sub2.Ch
+		t.Logf("Received msgs on relay2")
 	}()
 
 	// Verifying successful request

@@ -40,7 +40,7 @@ type FilterTestSuite struct {
 	fullNode         *WakuFilterFullNode
 	fullNodeHost     host.Host
 	wg               *sync.WaitGroup
-	contentFilter    ContentFilter
+	contentFilter    protocol.ContentFilter
 	subDetails       []*SubscriptionDetails
 	log              *zap.Logger
 }
@@ -146,7 +146,7 @@ func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) 
 }
 
 func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*SubscriptionDetails {
-	s.contentFilter = ContentFilter{pubsubTopic, NewContentTopicSet(contentTopic)}
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
 
 	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
 	s.Require().NoError(err)
@@ -378,7 +378,7 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 	s.lightNode.Stop()
 
-	contentFilter := ContentFilter{"test", NewContentTopicSet("test")}
+	contentFilter := protocol.ContentFilter{PubsubTopic: "test", ContentTopics: protocol.NewContentTopicSet("test")}
 
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 
@@ -394,7 +394,7 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 
-	contentFilter := ContentFilter{"test", NewContentTopicSet("test")}
+	contentFilter := protocol.ContentFilter{PubsubTopic: "test", ContentTopics: protocol.NewContentTopicSet("test")}
 
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
@@ -508,9 +508,9 @@ func (s *FilterTestSuite) TestAutoShard() {
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
-	_, err = s.lightNode.Unsubscribe(s.ctx, ContentFilter{
+	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
 		PubsubTopic:   s.testTopic,
-		ContentTopics: NewContentTopicSet(newContentTopic),
+		ContentTopics: protocol.NewContentTopicSet(newContentTopic),
 	})
 	s.Require().NoError(err)
 

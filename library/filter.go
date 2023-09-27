@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 )
 
@@ -15,16 +16,16 @@ type filterArgument struct {
 	ContentTopics []string `json:"contentTopics,omitempty"`
 }
 
-func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
+func toContentFilter(filterJSON string) (protocol.ContentFilter, error) {
 	var f filterArgument
 	err := json.Unmarshal([]byte(filterJSON), &f)
 	if err != nil {
-		return filter.ContentFilter{}, err
+		return protocol.ContentFilter{}, err
 	}
 
-	return filter.ContentFilter{
+	return protocol.ContentFilter{
 		PubsubTopic:   f.PubsubTopic,
-		ContentTopics: filter.NewContentTopicSet(f.ContentTopics...),
+		ContentTopics: protocol.NewContentTopicSet(f.ContentTopics...),
 	}, nil
 }
 
