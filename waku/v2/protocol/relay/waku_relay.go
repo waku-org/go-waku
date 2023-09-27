@@ -71,7 +71,8 @@ type WakuRelay struct {
 
 // EvtRelaySubscribed is an event emitted when a new subscription to a pubsub topic is created
 type EvtRelaySubscribed struct {
-	Topic string
+	Topic     string
+	TopicInst *pubsub.Topic
 }
 
 // EvtRelayUnsubscribed is an event emitted when a subscription to a pubsub topic is closed
@@ -87,9 +88,9 @@ const (
 )
 
 type EvtPeerTopic struct {
-	Topic  string
-	PeerID peer.ID
-	State  PeerTopicState
+	PubsubTopic string
+	PeerID      peer.ID
+	State       PeerTopicState
 }
 
 func msgIDFn(pmsg *pubsub_pb.Message) string {
@@ -115,11 +116,11 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	cfg.PruneBackoff = time.Minute
 	cfg.UnsubscribeBackoff = 5 * time.Second
 	cfg.GossipFactor = 0.25
-	cfg.D = 6
+	cfg.D = waku_proto.GossipSubOptimalFullMeshSize
 	cfg.Dlo = 4
 	cfg.Dhi = 12
 	cfg.Dout = 3
-	cfg.Dlazy = 6
+	cfg.Dlazy = waku_proto.GossipSubOptimalFullMeshSize
 	cfg.HeartbeatInterval = time.Second
 	cfg.HistoryLength = 6
 	cfg.HistoryGossip = 3
@@ -331,7 +332,7 @@ func (w *WakuRelay) subscribe(topic string) (subs *pubsub.Subscription, err erro
 		w.topicEvtHanders[topic] = evtHandler
 		w.relaySubs[topic] = sub
 
-		err = w.emitters.EvtRelaySubscribed.Emit(EvtRelaySubscribed{topic})
+		err = w.emitters.EvtRelaySubscribed.Emit(EvtRelaySubscribed{topic, pubSubTopic})
 		if err != nil {
 			return nil, err
 		}
@@ -554,13 +555,13 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 		}
 		if evt.Type == pubsub.PeerJoin {
 			w.log.Debug("received a PeerJoin event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
-			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_JOINED})
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{PubsubTopic: topic, PeerID: evt.Peer, State: PEER_JOINED})
 			if err != nil {
 				w.log.Error("failed to emit PeerJoin", zap.String("topic", topic), zap.Error(err))
 			}
 		} else if evt.Type == pubsub.PeerLeave {
 			w.log.Debug("received a PeerLeave event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
-			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{Topic: topic, PeerID: evt.Peer, State: PEER_LEFT})
+			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{PubsubTopic: topic, PeerID: evt.Peer, State: PEER_LEFT})
 			if err != nil {
 				w.log.Error("failed to emit PeerLeave", zap.String("topic", topic), zap.Error(err))
 			}

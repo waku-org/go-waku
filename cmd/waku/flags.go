@@ -32,6 +32,12 @@ var (
 		Destination: &options.MaxPeerConnections,
 		EnvVars:     []string{"WAKUNODE2_MAX_CONNECTIONS"},
 	})
+	PeerStoreCapacity = altsrc.NewIntFlag(&cli.IntFlag{
+		Name:        "peer-store-capacity",
+		Usage:       "Maximum stored peers in the peerstore.",
+		Destination: &options.PeerStoreCapacity,
+		EnvVars:     []string{"WAKUNODE2_PEERSTORE_CAPACITY"},
+	})
 	WebsocketSupport = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "websocket-support",
 		Aliases:     []string{"ws"},
