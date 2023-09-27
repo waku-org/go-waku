@@ -31,7 +31,7 @@ func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	defer h1.Close()
 
 	// host 1 is used by peer manager
-	pm := NewPeerManager(10, utils.Logger())
+	pm := NewPeerManager(10, 20, utils.Logger())
 	pm.SetHost(h1)
 
 	return ctx, pm, func() {

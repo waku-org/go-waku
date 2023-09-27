@@ -253,7 +253,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	}
 
 	//Initialize peer manager.
-	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.log)
+	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.opts.peerStoreCapacity, w.log)
 
 	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(w.peermanager, discoveryConnectTimeout, w.log)
 	if err != nil {
@@ -701,7 +701,7 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics
 }
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
-func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string) {
+func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string, connectNow bool) {
 	p := peermanager.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
@@ -710,7 +710,7 @@ func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wp
 		},
 		PubSubTopics: pubsubTopics,
 	}
-	w.peermanager.AddDiscoveredPeer(p)
+	w.peermanager.AddDiscoveredPeer(p, connectNow)
 }
 
 // DialPeerWithMultiAddress is used to connect to a peer using a multiaddress
