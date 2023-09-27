@@ -377,5 +377,21 @@ func Peers() ([]*node.Peer, error) {
 		return nil, errWakuNodeNotReady
 	}
 
-	return wakuState.node.Peers()
+	peers, err := wakuState.node.Peers()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range peers {
+		addrs := []multiaddr.Multiaddr{}
+		for i := range p.Addrs {
+			_, err := p.Addrs[i].ValueForProtocol(multiaddr.P_SNI)
+			if err != nil {
+				addrs = append(addrs, p.Addrs[i])
+			}
+		}
+		p.Addrs = addrs
+	}
+
+	return peers, nil
 }
