@@ -169,10 +169,18 @@ func Execute(options NodeOptions) {
 		libp2pOpts = append(libp2pOpts, libp2p.EnableRelayService())
 	}
 
-	if options.ForceUnreachable {
-		logger.Warn("node forced to be unreachable!")
-		libp2pOpts = append(libp2pOpts, libp2p.EnableRelay(), libp2p.ForceReachabilityPrivate())
+	if options.ForceReachability != "" {
+		libp2pOpts = append(libp2pOpts, libp2p.EnableRelay())
 		nodeOpts = append(nodeOpts, node.WithCircuitRelayParams(2*time.Second, 2*time.Second))
+		if options.ForceReachability == "private" {
+			logger.Warn("node forced to be unreachable!")
+			libp2pOpts = append(libp2pOpts, libp2p.ForceReachabilityPrivate())
+		} else if options.ForceReachability == "public" {
+			logger.Warn("node forced to be publicly reachable!")
+			libp2pOpts = append(libp2pOpts, libp2p.ForceReachabilityPublic())
+		} else {
+			failOnErr(errors.New("invalid reachability value"), "Reachability")
+		}
 	}
 
 	if options.UserAgent != "" {

@@ -157,7 +157,7 @@ type NodeOptions struct {
 	AdvertiseAddresses           []multiaddr.Multiaddr
 	ShowAddresses                bool
 	CircuitRelay                 bool
-	ForceUnreachable             bool
+	ForceReachability            string
 	ResourceScalingMemoryPercent float64
 	ResourceScalingFDPercent     float64
 	LogLevel                     string
