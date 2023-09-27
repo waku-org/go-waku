@@ -172,7 +172,7 @@ var (
 		EnvVars:     []string{"WAKUNODE2_CIRCUIT_RELAY"},
 	})
 	ForceReachability = altsrc.NewStringFlag(&cli.StringFlag{
-		Name:        "reachability",
+		Name:        "force-reachability",
 		Usage:       "Force the node reachability. WARNING: This flag is created for testing circuit relay and is not meant to be used in production. Use 'public' or 'private'",
 		Value:       "",
 		Hidden:      true,
