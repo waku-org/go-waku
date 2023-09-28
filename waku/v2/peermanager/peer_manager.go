@@ -456,14 +456,15 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, pubSubTopic string, specifi
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers []peer.ID) *peer.ID {
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers []peer.ID) (peerIDPtr *peer.ID) {
+	peerIDPtr = nil
+
 	//Try to fetch from serviceSlot
 	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
 		if pubSubTopic == "" {
 			if peerID, err := slot.getRandom(); err == nil {
-				return &peerID
+				peerIDPtr = &peerID
 			}
-			return nil
 		} else { //PubsubTopic based selection
 			var keys peer.IDSlice
 			keys = make([]peer.ID, 0, len(slot.m))
@@ -472,11 +473,10 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 			}
 			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys)
 			peerID, err := utils.SelectRandomPeer(selectedPeers, pm.logger)
-			if err != nil {
-				return nil
+			if err == nil {
+				peerIDPtr = &peerID
 			}
-			return &peerID
 		}
 	}
-	return nil
+	return
 }
