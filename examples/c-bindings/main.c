@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
   WAKU_CALL(waku_connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS", 0, handle_error)); // Connect to a node
 
   // To use dns discovery, and retrieve nodes from a enrtree url
- WAKU_CALL( waku_dns_discovery("enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im", "", 0, handle_ok, handle_error)); // Discover Nodes
+ WAKU_CALL( waku_dns_discovery("enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im", "", 0, handle_ok, handle_error)); // Discover Nodes
   printf("Discovered nodes: %s\n", result);
   
   WAKU_CALL(waku_default_pubsub_topic(handle_ok));
