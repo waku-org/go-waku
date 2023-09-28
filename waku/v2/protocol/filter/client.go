@@ -58,6 +58,10 @@ func (cf ContentFilter) ContentTopicsList() []string {
 	return maps.Keys(cf.ContentTopics)
 }
 
+func NewContentFilter(pubsubTopic string, contentTopics ...string) ContentFilter {
+	return ContentFilter{pubsubTopic, NewContentTopicSet(contentTopics...)}
+}
+
 type WakuFilterPushResult struct {
 	Err    error
 	PeerID peer.ID
@@ -149,7 +153,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(s network.Str
 		} else {
 			pubSubTopic = *messagePush.PubsubTopic
 		}
-		if !wf.subscriptions.Has(s.Conn().RemotePeer(), pubSubTopic, messagePush.WakuMessage.ContentTopic) {
+		if !wf.subscriptions.Has(s.Conn().RemotePeer(), NewContentFilter(pubSubTopic, messagePush.WakuMessage.ContentTopic)) {
 			logger.Warn("received messagepush with invalid subscription parameters",
 				logging.HostID("peerID", s.Conn().RemotePeer()), zap.String("topic", pubSubTopic),
 				zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
@@ -304,20 +308,13 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter Cont
 		var cFilter ContentFilter
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = NewContentTopicSet(cTopics...)
-		existingSub := wf.subscriptions.Get(params.selectedPeer, contentFilter)
-		if existingSub != nil {
-			subscriptions = append(subscriptions, existingSub)
-		} else {
-			//TO OPTIMIZE: Should we parallelize these, if so till how many batches?
-			err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
-			if err != nil {
-				wf.log.Error("Failed to subscribe for conentTopics ",
-					zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
-					zap.Error(err))
-				failedContentTopics = append(failedContentTopics, cTopics...)
-			}
-			subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(params.selectedPeer, cFilter))
+		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
+		if err != nil {
+			wf.log.Error("Failed to subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
+				zap.Error(err))
+			failedContentTopics = append(failedContentTopics, cTopics...)
 		}
+		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(params.selectedPeer, cFilter))
 	}
 
 	if len(failedContentTopics) > 0 {
@@ -335,15 +332,15 @@ func (wf *WakuFilterLightNode) FilterSubscription(peerID peer.ID, contentFilter 
 		return nil, err
 	}
 
-	if !wf.subscriptions.Has(peerID, contentFilter.PubsubTopic, contentFilter.ContentTopicsList()...) {
+	if !wf.subscriptions.Has(peerID, contentFilter) {
 		return nil, errors.New("subscription does not exist")
 	}
 
 	return wf.subscriptions.NewSubscription(peerID, contentFilter), nil
 }
 
-func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterUnsubscribeOption) (*FilterUnsubscribeParameters, error) {
-	params := new(FilterUnsubscribeParameters)
+func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterSubscribeOption) (*FilterSubscribeParameters, error) {
+	params := new(FilterSubscribeParameters)
 	params.log = wf.log
 	opts = append(DefaultUnsubscribeOptions(), opts...)
 	for _, opt := range opts {
@@ -362,7 +359,7 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID) error {
 
 	return wf.request(
 		ctx,
-		&FilterSubscribeParameters{selectedPeer: peerID},
+		&FilterSubscribeParameters{selectedPeer: peerID, requestID: protocol.GenerateRequestID()},
 		pb.FilterSubscribeRequest_SUBSCRIBER_PING,
 		ContentFilter{})
 }
@@ -418,21 +415,18 @@ func (wf *WakuFilterLightNode) cleanupSubscriptions(peerID peer.ID, contentFilte
 		subscriptionDetail.Remove(contentFilter.ContentTopicsList()...)
 		if len(subscriptionDetail.ContentFilter.ContentTopics) == 0 {
 			delete(subscriptionDetailList, subscriptionDetailID)
-		} else {
-			subscriptionDetailList[subscriptionDetailID] = subscriptionDetail
+			subscriptionDetail.closeC()
 		}
 	}
 
 	if len(subscriptionDetailList) == 0 {
 		delete(wf.subscriptions.items[peerID].subsPerPubsubTopic, contentFilter.PubsubTopic)
-	} else {
-		wf.subscriptions.items[peerID].subsPerPubsubTopic[contentFilter.PubsubTopic] = subscriptionDetailList
 	}
 
 }
 
 // Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter ContentFilter, opts ...FilterSubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
@@ -456,12 +450,9 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 	if err != nil {
 		return nil, err
 	}
-
 	resultChan := make(chan WakuFilterPushResult, len(wf.subscriptions.items))
 	for pTopic, cTopics := range pubSubTopicMap {
-		var cFilter ContentFilter
-		cFilter.PubsubTopic = pTopic
-		cFilter.ContentTopics = NewContentTopicSet(cTopics...)
+		cFilter := NewContentFilter(pTopic, cTopics...)
 		for peerID := range wf.subscriptions.items {
 			if params.selectedPeer != "" && peerID != params.selectedPeer {
 				continue
@@ -487,21 +478,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 						params.wg.Done()
 					}
 				}()
-
-				err := wf.request(
-					ctx,
-					&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
-					pb.FilterSubscribeRequest_UNSUBSCRIBE,
-					cFilter)
-				if err != nil {
-					ferr, ok := err.(*FilterError)
-					if ok && ferr.Code == http.StatusNotFound {
-						wf.log.Warn("peer does not have a subscription", logging.HostID("peerID", peerID), zap.Error(err))
-					} else {
-						wf.log.Error("could not unsubscribe from peer", logging.HostID("peerID", peerID), zap.Error(err))
-						return
-					}
-				}
+				err := wf.unsubscribeFromServer(ctx, &FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID}, cFilter)
 
 				if params.wg != nil {
 					resultChan <- WakuFilterPushResult{
@@ -521,20 +498,54 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter Co
 	return resultChan, nil
 }
 
-// Unsubscribe is used to stop receiving messages from a peer that match a content filter
-func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+// UnsubscribeWithSubscription is used to close a particular subscription
+// If there are no more subscriptions matching the passed [peer, contentFilter] pair,
+// server unsubscribe is also performed
+func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *SubscriptionDetails, opts ...FilterSubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
 		return nil, err
 	}
 
-	opts = append(opts, Peer(sub.PeerID))
+	params, err := wf.getUnsubscribeParameters(opts...)
+	if err != nil {
+		return nil, err
+	}
 
-	return wf.Unsubscribe(ctx, sub.ContentFilter, opts...)
+	// Close this sub
+	sub.Close()
+
+	resultChan := make(chan WakuFilterPushResult, 1)
+
+	if !wf.subscriptions.Has(sub.PeerID, sub.ContentFilter) {
+		// Last sub for this [peer, contentFilter] pair
+		err = wf.unsubscribeFromServer(ctx, &FilterSubscribeParameters{selectedPeer: sub.PeerID, requestID: params.requestID}, sub.ContentFilter)
+		resultChan <- WakuFilterPushResult{
+			Err:    err,
+			PeerID: sub.PeerID,
+		}
+	}
+	close(resultChan)
+	return resultChan, err
+
 }
 
-func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) unsubscribeFromServer(ctx context.Context, params *FilterSubscribeParameters, cFilter ContentFilter) error {
+	err := wf.request(ctx, params, pb.FilterSubscribeRequest_UNSUBSCRIBE, cFilter)
+	if err != nil {
+		ferr, ok := err.(*FilterError)
+		if ok && ferr.Code == http.StatusNotFound {
+			wf.log.Warn("peer does not have a subscription", logging.HostID("peerID", params.selectedPeer), zap.Error(err))
+		} else {
+			wf.log.Error("could not unsubscribe from peer", logging.HostID("peerID", params.selectedPeer), zap.Error(err))
+		}
+	}
+
+	return err
+}
+
+func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...FilterSubscribeOption) (<-chan WakuFilterPushResult, error) {
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
 		return nil, err
@@ -590,7 +601,7 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 }
 
 // UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions
-func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...FilterUnsubscribeOption) (<-chan WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...FilterSubscribeOption) (<-chan WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {

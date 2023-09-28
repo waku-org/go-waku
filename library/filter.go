@@ -134,13 +134,13 @@ func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
 		ctx = context.Background()
 	}
 
-	var fOptions []filter.FilterUnsubscribeOption
+	var fOptions []filter.FilterSubscribeOption
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
 			return err
 		}
-		fOptions = append(fOptions, filter.Peer(p))
+		fOptions = append(fOptions, filter.WithPeer(p))
 	} else {
 		return errors.New("peerID is required")
 	}
@@ -176,13 +176,13 @@ func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 		ctx = context.Background()
 	}
 
-	var fOptions []filter.FilterUnsubscribeOption
+	var fOptions []filter.FilterSubscribeOption
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
 			return "", err
 		}
-		fOptions = append(fOptions, filter.Peer(p))
+		fOptions = append(fOptions, filter.WithPeer(p))
 	} else {
 		fOptions = append(fOptions, filter.UnsubscribeAll())
 	}

@@ -22,6 +22,7 @@ func main() {
 		TcpPort,
 		Address,
 		MaxPeerConnections,
+		PeerStoreCapacity,
 		WebsocketSupport,
 		WebsocketPort,
 		WebsocketSecurePort,

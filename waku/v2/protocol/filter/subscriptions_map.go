@@ -84,34 +84,8 @@ func (sub *SubscriptionsMap) IsSubscribedTo(peerID peer.ID) bool {
 	return ok
 }
 
-func (sub *SubscriptionsMap) Get(peerID peer.ID, cf ContentFilter) *SubscriptionDetails {
-	sub.RLock()
-	defer sub.RUnlock()
-
-	// Check if peer exits
-	peerSubscription, ok := sub.items[peerID]
-	if !ok {
-		return nil
-	}
-
-	// Check if pubsub topic exists
-	subscriptions, ok := peerSubscription.subsPerPubsubTopic[cf.PubsubTopic]
-	if !ok {
-		return nil
-	}
-
-	// Check if the content topic exists within the list of subscriptions for this peer
-	for _, subscription := range subscriptions {
-		if maps.Equal(subscription.ContentFilter.ContentTopics, cf.ContentTopics) {
-			return subscription
-		}
-	}
-
-	return nil
-}
-
 // Check if we have subscriptions for all (pubsubTopic, contentTopics[i]) pairs provided
-func (sub *SubscriptionsMap) Has(peerID peer.ID, pubsubTopic string, contentTopics ...string) bool {
+func (sub *SubscriptionsMap) Has(peerID peer.ID, cf ContentFilter) bool {
 	sub.RLock()
 	defer sub.RUnlock()
 
@@ -122,13 +96,13 @@ func (sub *SubscriptionsMap) Has(peerID peer.ID, pubsubTopic string, contentTopi
 	}
 	//TODO: Handle pubsubTopic as null
 	// Check if pubsub topic exists
-	subscriptions, ok := peerSubscription.subsPerPubsubTopic[pubsubTopic]
+	subscriptions, ok := peerSubscription.subsPerPubsubTopic[cf.PubsubTopic]
 	if !ok {
 		return false
 	}
 
 	// Check if the content topic exists within the list of subscriptions for this peer
-	for _, ct := range contentTopics {
+	for _, ct := range cf.ContentTopicsList() {
 		found := false
 		for _, subscription := range subscriptions {
 			_, exists := subscription.ContentFilter.ContentTopics[ct]
