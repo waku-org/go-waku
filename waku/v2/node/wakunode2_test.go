@@ -53,6 +53,13 @@ func TestWakuNode2(t *testing.T) {
 	err = wakuNode.Start(ctx)
 	require.NoError(t, err)
 
+	_, err = wakuNode.Relay().SubscribeToTopic(ctx, "waku/rs/1/1")
+	require.NoError(t, err)
+	time.Sleep(time.Second * 1)
+
+	err = wakuNode.Relay().Unsubscribe(ctx, "waku/rs/1/1")
+	require.NoError(t, err)
+
 	defer wakuNode.Stop()
 }
 
