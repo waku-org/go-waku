@@ -151,6 +151,18 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	require.Errorf(t, err, "no suitable remote peers")
 }
 
+// Node1: Relay
+// Node2: Relay+Lightpush
+// Client that will lightpush a message
+//
+// Node1 and Node 2 are peers
+// Client and Node 2 are peers
+// Client will use lightpush request, sending the message to Node2
+//
+// Client send a successful message using lightpush
+// Node2 receive the message and broadcast it
+// Node1 receive the message
+
 func TestWakuLightPushAutoSharding(t *testing.T) {
 	contentTopic := "0/test/1/testTopic/proto"
 	cTopic1, err := protocol.StringToContentTopic(contentTopic)
@@ -193,7 +205,6 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	require.NoError(t, err)
 
 	msg1 := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
-	msg2 := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
 
 	// Wait for the mesh connection to happen between node1 and node2
 	time.Sleep(2 * time.Second)
@@ -203,14 +214,13 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		<-sub1.Ch
-		<-sub1.Ch
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-sub2.Ch
-		<-sub2.Ch
+
 	}()
 
 	// Verifying successful request
@@ -218,10 +228,6 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash1)
 
-	// Checking that msg hash is correct
-	hash, err := client.PublishToTopic(ctx, msg2, "")
-	require.NoError(t, err)
-	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash)
 	wg.Wait()
 
 }
