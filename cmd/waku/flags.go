@@ -177,13 +177,13 @@ var (
 		Destination: &options.CircuitRelay,
 		EnvVars:     []string{"WAKUNODE2_CIRCUIT_RELAY"},
 	})
-	ForceUnreachable = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "unreachable",
-		Usage:       "Force the node to be unreachable. WARNING: This flag is created for testing circuit relay and is not meant to be used in production",
-		Value:       false,
+	ForceReachability = altsrc.NewStringFlag(&cli.StringFlag{
+		Name:        "force-reachability",
+		Usage:       "Force the node reachability. WARNING: This flag is created for testing circuit relay and is not meant to be used in production. Use 'public' or 'private'",
+		Value:       "",
 		Hidden:      true,
-		Destination: &options.ForceUnreachable,
-		EnvVars:     []string{"WAKUNODE2_UNREACHABLE"},
+		Destination: &options.ForceReachability,
+		EnvVars:     []string{"WAKUNODE2_REACHABILITY"},
 	})
 	ResourceScalingMemoryPercent = altsrc.NewFloat64Flag(&cli.Float64Flag{
 		Name:        "resource-scaling-memory-percentage",
