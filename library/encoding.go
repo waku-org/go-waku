@@ -128,6 +128,18 @@ func extractPubKeyAndSignature(payload *payload.DecodedPayload) (pubkey string, 
 	return
 }
 
+type v0Response struct {
+	Data    []byte `json:"data"`
+	Padding []byte `json:"padding"`
+}
+
+type v1Response struct {
+	PubKey    string `json:"pubkey,omitempty"`
+	Signature string `json:"signature,omitempty"`
+	Data      []byte `json:"data"`
+	Padding   []byte `json:"padding"`
+}
+
 // DecodeSymmetric decodes a waku message using a 32 bytes symmetric key. The key must be a hex encoded string with "0x" prefix
 func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 	var msg pb.WakuMessage
@@ -137,7 +149,9 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 	}
 
 	if msg.Version == 0 {
-		return marshalJSON(msg.Payload)
+		return marshalJSON(v0Response{
+			Data: msg.Payload,
+		})
 	} else if msg.Version > 1 {
 		return "", errors.New("unsupported wakumessage version")
 	}
@@ -158,12 +172,7 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 
 	pubkey, signature := extractPubKeyAndSignature(payload)
 
-	response := struct {
-		PubKey    string `json:"pubkey,omitempty"`
-		Signature string `json:"signature,omitempty"`
-		Data      []byte `json:"data"`
-		Padding   []byte `json:"padding"`
-	}{
+	response := v1Response{
 		PubKey:    pubkey,
 		Signature: signature,
 		Data:      payload.Data,
@@ -182,7 +191,9 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 	}
 
 	if msg.Version == 0 {
-		return marshalJSON(msg.Payload)
+		return marshalJSON(v0Response{
+			Data: msg.Payload,
+		})
 	} else if msg.Version > 1 {
 		return "", errors.New("unsupported wakumessage version")
 	}
@@ -208,12 +219,7 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 
 	pubkey, signature := extractPubKeyAndSignature(payload)
 
-	response := struct {
-		PubKey    string `json:"pubkey,omitempty"`
-		Signature string `json:"signature,omitempty"`
-		Data      []byte `json:"data"`
-		Padding   []byte `json:"padding"`
-	}{
+	response := v1Response{
 		PubKey:    pubkey,
 		Signature: signature,
 		Data:      payload.Data,

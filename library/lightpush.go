@@ -52,5 +52,5 @@ func LightpushPublish(messageJSON string, pubsubTopic string, peerID string, ms 
 		return "", err
 	}
 
-	return lightpushPublish(msg, getTopic(pubsubTopic), peerID, ms)
+	return lightpushPublish(msg, pubsubTopic, peerID, ms)
 }
