@@ -251,7 +251,7 @@ func (pm *PeerManager) getNotConnectedPers(pubsubTopic string) (notConnectedPeer
 	if pubsubTopic == "" {
 		peerList = pm.host.Peerstore().Peers()
 	} else {
-		peerList = pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
+		peerList = pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic, nil)
 	}
 	for _, peerID := range peerList {
 		if pm.host.Network().Connectedness(peerID) != network.Connected {
@@ -417,22 +417,32 @@ func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	pm.serviceSlots.getPeers(proto).add(peerID)
 }
 
+// SelectPeerByContentTopic is used to return a random peer that supports a given protocol for given contentTopic.
+// If a list of specific peers is passed, the peer will be chosen from that list assuming
+// it supports the chosen protocol and contentTopic, otherwise it will chose a peer from the service slot.
+// If a peer cannot be found in the service slot, a peer will be selected from node peerstore
+func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic string, specificPeers []peer.ID) (peer.ID, error) {
+	pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
+	if err != nil {
+		return "", err
+	}
+	return pm.SelectPeer(proto, pubsubTopic, specificPeers)
+}
+
 // SelectPeer is used to return a random peer that supports a given protocol.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID) (peer.ID, error) {
+// if pubSubTopic is specified, peer is selected from list that support the pubSubTopic
+func (pm *PeerManager) SelectPeer(proto protocol.ID, pubSubTopic string, specificPeers []peer.ID) (peer.ID, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
 	//  - which topics they track
 	//  - latency?
 
-	//Try to fetch from serviceSlot
-	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
-		if peerID, err := slot.getRandom(); err == nil {
-			return peerID, nil
-		}
+	if peerID := pm.selectServicePeer(proto, pubSubTopic, specificPeers); peerID != nil {
+		return *peerID, nil
 	}
 
 	// if not found in serviceSlots or proto == WakuRelayIDv200
@@ -440,6 +450,33 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, specificPeers []peer.ID) (p
 	if err != nil {
 		return "", err
 	}
-
+	if pubSubTopic != "" {
+		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, filteredPeers)
+	}
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
+}
+
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers []peer.ID) *peer.ID {
+	//Try to fetch from serviceSlot
+	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
+		if pubSubTopic == "" {
+			if peerID, err := slot.getRandom(); err == nil {
+				return &peerID
+			}
+			return nil
+		} else { //PubsubTopic based selection
+			var keys peer.IDSlice
+			keys = make([]peer.ID, 0, len(slot.m))
+			for i := range slot.m {
+				keys = append(keys, i)
+			}
+			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys)
+			peerID, err := utils.SelectRandomPeer(selectedPeers, pm.logger)
+			if err != nil {
+				return nil
+			}
+			return &peerID
+		}
+	}
+	return nil
 }

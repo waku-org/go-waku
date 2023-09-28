@@ -60,7 +60,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 		if params.pm == nil {
 			p, err = utils.SelectPeer(params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
 		} else {
-			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, fromThesePeers)
+			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, "", fromThesePeers)
 		}
 		if err == nil {
 			params.selectedPeer = p
