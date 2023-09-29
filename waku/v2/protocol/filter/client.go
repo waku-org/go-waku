@@ -23,6 +23,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -266,11 +267,6 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		opt(params)
 	}
 
-	if params.selectedPeer == "" {
-		wf.metrics.RecordError(peerNotFoundFailure)
-		return nil, ErrNoPeersAvailable
-	}
-
 	pubSubTopicMap, err := contentFilterToPubSubTopicMap(contentFilter)
 	if err != nil {
 		return nil, err
@@ -278,14 +274,34 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	failedContentTopics := []string{}
 	subscriptions := make([]*subscription.SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
+
+		//This condition is hacky and will be fixed later,
+		// once RTT based monitoring is also available in peer-manager
+		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
+		if params.pm == nil || params.peerSelectionType == utils.LowestRTT {
+			params.selectedPeer, err = utils.HandlePeerSelection(params.peerSelectionType, params.host, FilterSubscribeID_v20beta1, params.preferredPeers, params.log)
+		} else {
+			params.selectedPeer, err = wf.pm.HandlePeerSelection(params.peerSelectionType, FilterSubscribeID_v20beta1, pubSubTopic, params.preferredPeers...)
+		}
+
+		if params.selectedPeer == "" {
+			wf.metrics.RecordError(peerNotFoundFailure)
+			wf.log.Error("Failed to find peer for Filter subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
+				zap.Error(err))
+			failedContentTopics = append(failedContentTopics, cTopics...)
+			continue
+		}
+
 		var cFilter protocol.ContentFilter
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = protocol.NewContentTopicSet(cTopics...)
+
 		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
 		if err != nil {
 			wf.log.Error("Failed to subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
 				zap.Error(err))
 			failedContentTopics = append(failedContentTopics, cTopics...)
+			continue
 		}
 		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(params.selectedPeer, cFilter))
 	}

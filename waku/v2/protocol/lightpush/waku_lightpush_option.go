@@ -14,12 +14,12 @@ import (
 type lightPushParameters struct {
 	host              host.Host
 	selectedPeer      peer.ID
+	peerSelectionType utils.PeerSelection
+	preferredPeers    peer.IDSlice
 	requestID         []byte
 	pm                *peermanager.PeerManager
 	log               *zap.Logger
 	pubsubTopic       string
-	peerSelectionType utils.PeerSelection
-	preferredPeers    peer.IDSlice
 }
 
 // Option is the type of options accepted when performing LightPush protocol requests

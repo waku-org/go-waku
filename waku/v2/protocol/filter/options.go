@@ -15,9 +15,11 @@ import (
 
 type (
 	FilterSubscribeParameters struct {
-		selectedPeer peer.ID
-		requestID    []byte
-		log          *zap.Logger
+		selectedPeer      peer.ID
+		peerSelectionType utils.PeerSelection
+		preferredPeers    peer.IDSlice
+		requestID         []byte
+		log               *zap.Logger
 
 		// Subscribe-specific
 		host host.Host
@@ -55,18 +57,8 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 // supports the chosen protocol, otherwise it will chose a peer from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		var p peer.ID
-		var err error
-		if params.pm == nil {
-			p, err = utils.SelectPeer(params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
-		} else {
-			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, "", fromThesePeers...)
-		}
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.log.Info("selecting peer", zap.Error(err))
-		}
+		params.peerSelectionType = utils.Automatic
+		params.preferredPeers = fromThesePeers
 	}
 }
 
@@ -76,12 +68,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // peer from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.log.Info("selecting peer", zap.Error(err))
-		}
+		params.peerSelectionType = utils.LowestRTT
 	}
 }
 
