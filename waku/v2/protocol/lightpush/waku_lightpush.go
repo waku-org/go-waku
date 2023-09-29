@@ -144,15 +144,10 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(s network.Strea
 	}
 }
 
-func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, opts ...Option) (*pb.PushResponse, error) {
-	params := new(lightPushParameters)
-	params.host = wakuLP.h
-	params.log = wakuLP.log
-	params.pm = wakuLP.pm
-
-	optList := append(DefaultOptions(wakuLP.h), opts...)
-	for _, opt := range optList {
-		opt(params)
+// request sends a message via lightPush protocol to either a specified peer or peer that is selected.
+func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, params *lightPushParameters) (*pb.PushResponse, error) {
+	if params == nil {
+		return nil, errors.New("lightpush params are mandatory")
 	}
 
 	if params.selectedPeer == "" {
@@ -215,23 +210,40 @@ func (wakuLP *WakuLightPush) Stop() {
 	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
 }
 
-// PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
-func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, topic string, opts ...Option) ([]byte, error) {
+// Optional PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
+// If pubSubTopic is not provided, then contentTopic is use to derive the relevant pubSubTopic via autosharding.
+func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}
+	params := new(lightPushParameters)
+	params.host = wakuLP.h
+	params.log = wakuLP.log
+	params.pm = wakuLP.pm
 
+	optList := append(DefaultOptions(wakuLP.h), opts...)
+	for _, opt := range optList {
+		opt(params)
+	}
+
+	if params.pubsubTopic == "" {
+		var err error
+		params.pubsubTopic, err = protocol.GetPubSubTopicFromContentTopic(message.ContentTopic)
+		if err != nil {
+			return nil, err
+		}
+	}
 	req := new(pb.PushRequest)
 	req.Message = message
-	req.PubsubTopic = topic
+	req.PubsubTopic = params.pubsubTopic
 
-	response, err := wakuLP.request(ctx, req, opts...)
+	response, err := wakuLP.request(ctx, req, params)
 	if err != nil {
 		return nil, err
 	}
 
 	if response.IsSuccess {
-		hash := message.Hash(topic)
+		hash := message.Hash(params.pubsubTopic)
 		wakuLP.log.Info("waku.lightpush published", logging.HexString("hash", hash))
 		return hash, nil
 	}
@@ -239,7 +251,8 @@ func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.Wa
 	return nil, errors.New(response.Info)
 }
 
-// Publish is used to broadcast a WakuMessage to the default waku pubsub topic via lightpush protocol
+// Publish is used to broadcast a WakuMessage to the pubSubTopic (which is derived from the contentTopic) via lightpush protocol
+// If auto-sharding is not to be used, then PublishToTopic API should be used
 func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
-	return wakuLP.PublishToTopic(ctx, message, relay.DefaultWakuTopic, opts...)
+	return wakuLP.PublishToTopic(ctx, message, opts...)
 }

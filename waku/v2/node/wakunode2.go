@@ -847,8 +847,18 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 	return peers, nil
 }
 
-func (w *WakuNode) PeersByShard(cluster uint16, shard uint16) peer.IDSlice {
+// PeersByShard filters peers based on shard information following static sharding
+func (w *WakuNode) PeersByStaticShard(cluster uint16, shard uint16) peer.IDSlice {
 	pTopic := wakuprotocol.NewStaticShardingPubsubTopic(cluster, shard).String()
+	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
+}
+
+// PeersByContentTopics filters peers based on contentTopic
+func (w *WakuNode) PeersByContentTopic(contentTopic string) peer.IDSlice {
+	pTopic, err := wakuprotocol.GetPubSubTopicFromContentTopic(contentTopic)
+	if err != nil {
+		return nil
+	}
 	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
 }
 

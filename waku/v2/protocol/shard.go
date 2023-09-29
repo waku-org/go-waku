@@ -230,3 +230,13 @@ func GetShardFromContentTopic(topic ContentTopic, shardCount int) StaticSharding
 
 	return NewStaticShardingPubsubTopic(ClusterIndex, uint16(shard))
 }
+
+func GetPubSubTopicFromContentTopic(cTopicString string) (string, error) {
+	cTopic, err := StringToContentTopic(cTopicString)
+	if err != nil {
+		return "", fmt.Errorf("%s : %s", err.Error(), cTopicString)
+	}
+	pTopic := GetShardFromContentTopic(cTopic, GenerationZeroShardsCount)
+
+	return pTopic.String(), nil
+}
