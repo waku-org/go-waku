@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -87,12 +86,7 @@ func TestWakuLightPush(t *testing.T) {
 	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
 	require.NoError(t, err)
 
-	msg1 := tests.CreateWakuMessage("test1", utils.GetUnixEpoch())
 	msg2 := tests.CreateWakuMessage("test2", utils.GetUnixEpoch())
-
-	req := new(pb.PushRequest)
-	req.Message = msg1
-	req.PubsubTopic = string(testTopic)
 
 	// Wait for the mesh connection to happen between node1 and node2
 	time.Sleep(2 * time.Second)
@@ -102,23 +96,19 @@ func TestWakuLightPush(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		<-sub1.Ch
-		<-sub1.Ch
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-sub2.Ch
-		<-sub2.Ch
 	}()
 
-	// Verifying successful request
-	resp, err := client.request(ctx, req)
-	require.NoError(t, err)
-	require.True(t, resp.IsSuccess)
+	var lpOptions []Option
+	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 
 	// Checking that msg hash is correct
-	hash, err := client.PublishToTopic(ctx, msg2, testTopic)
+	hash, err := client.PublishToTopic(ctx, msg2, lpOptions...)
 	require.NoError(t, err)
 	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(testTopic)).Hash(), hash)
 	wg.Wait()
@@ -147,7 +137,10 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	require.NoError(t, err)
 	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
 	client.SetHost(clientHost)
-	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), testTopic)
+	var lpOptions []Option
+	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
+
+	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), lpOptions...)
 	require.Errorf(t, err, "no suitable remote peers")
 }
 
