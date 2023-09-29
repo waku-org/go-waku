@@ -127,7 +127,7 @@ func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 }
 
 // GroupPeersByDirection returns all the connected peers in peer store grouped by Inbound or outBound direction
-func (pm *PeerManager) GroupPeersByDirection(specificPeers []peer.ID) (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
+func (pm *PeerManager) GroupPeersByDirection(specificPeers ...peer.ID) (inPeers peer.IDSlice, outPeers peer.IDSlice, err error) {
 	if len(specificPeers) == 0 {
 		specificPeers = pm.host.Network().Peers()
 	}
@@ -150,9 +150,9 @@ func (pm *PeerManager) GroupPeersByDirection(specificPeers []peer.ID) (inPeers p
 
 // getRelayPeers - Returns list of in and out peers supporting WakuRelayProtocol within specifiedPeers.
 // If specifiedPeers is empty, it checks within all peers in peerStore.
-func (pm *PeerManager) getRelayPeers(specificPeers []peer.ID) (inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
+func (pm *PeerManager) getRelayPeers(specificPeers ...peer.ID) (inRelayPeers peer.IDSlice, outRelayPeers peer.IDSlice) {
 	//Group peers by their connected direction inbound or outbound.
-	inPeers, outPeers, err := pm.GroupPeersByDirection(specificPeers)
+	inPeers, outPeers, err := pm.GroupPeersByDirection(specificPeers...)
 	if err != nil {
 		return
 	}
@@ -206,7 +206,7 @@ func (pm *PeerManager) connectToRelayPeers() {
 	//Check for out peer connections and connect to more peers.
 	pm.ensureMinRelayConnsPerTopic()
 
-	inRelayPeers, outRelayPeers := pm.getRelayPeers(nil)
+	inRelayPeers, outRelayPeers := pm.getRelayPeers()
 	pm.logger.Info("number of relay peers connected",
 		zap.Int("in", inRelayPeers.Len()),
 		zap.Int("out", outRelayPeers.Len()))
@@ -421,12 +421,12 @@ func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol and contentTopic, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic string, specificPeers []peer.ID) (peer.ID, error) {
+func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic string, specificPeers ...peer.ID) (peer.ID, error) {
 	pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
 	if err != nil {
 		return "", err
 	}
-	return pm.SelectPeer(proto, pubsubTopic, specificPeers)
+	return pm.SelectPeer(proto, pubsubTopic, specificPeers...)
 }
 
 // SelectPeer is used to return a random peer that supports a given protocol.
@@ -434,14 +434,14 @@ func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic 
 // it supports the chosen protocol, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
 // if pubSubTopic is specified, peer is selected from list that support the pubSubTopic
-func (pm *PeerManager) SelectPeer(proto protocol.ID, pubSubTopic string, specificPeers []peer.ID) (peer.ID, error) {
+func (pm *PeerManager) SelectPeer(proto protocol.ID, pubSubTopic string, specificPeers ...peer.ID) (peer.ID, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
 	//  - which topics they track
 	//  - latency?
 
-	if peerID := pm.selectServicePeer(proto, pubSubTopic, specificPeers); peerID != nil {
+	if peerID := pm.selectServicePeer(proto, pubSubTopic, specificPeers...); peerID != nil {
 		return *peerID, nil
 	}
 
@@ -456,7 +456,7 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, pubSubTopic string, specifi
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers []peer.ID) (peerIDPtr *peer.ID) {
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers ...peer.ID) (peerIDPtr *peer.ID) {
 	peerIDPtr = nil
 
 	//Try to fetch from serviceSlot
