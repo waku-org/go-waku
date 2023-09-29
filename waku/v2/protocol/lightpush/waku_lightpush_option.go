@@ -40,7 +40,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) Option {
 		if params.pm == nil {
 			p, err = utils.SelectPeer(params.host, LightPushID_v20beta1, fromThesePeers, params.log)
 		} else {
-			p, err = params.pm.SelectPeer(LightPushID_v20beta1, fromThesePeers)
+			p, err = params.pm.SelectPeer(LightPushID_v20beta1, "", fromThesePeers...)
 		}
 		if err == nil {
 			params.selectedPeer = p

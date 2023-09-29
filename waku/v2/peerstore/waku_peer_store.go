@@ -59,7 +59,7 @@ type WakuPeerstore interface {
 	RemovePubSubTopic(p peer.ID, topic string) error
 	PubSubTopics(p peer.ID) ([]string, error)
 	SetPubSubTopics(p peer.ID, topics []string) error
-	PeersByPubSubTopic(pubSubTopic string) peer.IDSlice
+	PeersByPubSubTopic(pubSubTopic string, specificPeers ...peer.ID) peer.IDSlice
 }
 
 // NewWakuPeerstore creates a new WakuPeerStore object
@@ -208,9 +208,13 @@ func (ps *WakuPeerstoreImpl) PubSubTopics(p peer.ID) ([]string, error) {
 }
 
 // PeersByPubSubTopic Returns list of peers by pubSubTopic
-func (ps *WakuPeerstoreImpl) PeersByPubSubTopic(pubSubTopic string) peer.IDSlice {
+// If specifiPeers are listed, filtering is done from them otherwise from all peers in peerstore
+func (ps *WakuPeerstoreImpl) PeersByPubSubTopic(pubSubTopic string, specificPeers ...peer.ID) peer.IDSlice {
+	if specificPeers == nil {
+		specificPeers = ps.Peers()
+	}
 	var result peer.IDSlice
-	for _, p := range ps.Peers() {
+	for _, p := range specificPeers {
 		topics, err := ps.PubSubTopics(p)
 		if err == nil {
 			for _, topic := range topics {
