@@ -12,12 +12,14 @@ import (
 )
 
 type lightPushParameters struct {
-	host         host.Host
-	selectedPeer peer.ID
-	requestID    []byte
-	pm           *peermanager.PeerManager
-	log          *zap.Logger
-	pubsubTopic  string
+	host              host.Host
+	selectedPeer      peer.ID
+	requestID         []byte
+	pm                *peermanager.PeerManager
+	log               *zap.Logger
+	pubsubTopic       string
+	peerSelectionType utils.PeerSelection
+	preferredPeers    peer.IDSlice
 }
 
 // Option is the type of options accepted when performing LightPush protocol requests
@@ -36,18 +38,8 @@ func WithPeer(p peer.ID) Option {
 // from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
-		var p peer.ID
-		var err error
-		if params.pm == nil {
-			p, err = utils.SelectPeer(params.host, LightPushID_v20beta1, fromThesePeers, params.log)
-		} else {
-			p, err = params.pm.SelectPeer(LightPushID_v20beta1, "", fromThesePeers...)
-		}
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.log.Info("selecting peer", zap.Error(err))
-		}
+		params.peerSelectionType = utils.Automatic
+		params.preferredPeers = fromThesePeers
 	}
 }
 
@@ -63,12 +55,7 @@ func WithPubSubTopic(pubsubTopic string) Option {
 // from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, LightPushID_v20beta1, fromThesePeers, params.log)
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.log.Info("selecting peer", zap.Error(err))
-		}
+		params.peerSelectionType = utils.LowestRTT
 	}
 }
 

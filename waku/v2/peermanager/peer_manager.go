@@ -483,3 +483,17 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 	}
 	return
 }
+
+func (pm *PeerManager) HandlePeerSelection(selectionType utils.PeerSelection, proto protocol.ID,
+	pubSubTopic string, specificPeers ...peer.ID) (peer.ID, error) {
+
+	switch selectionType {
+	case utils.Automatic:
+		return pm.SelectPeer(proto, pubSubTopic, specificPeers...)
+	case utils.LowestRTT:
+		//TODO: Move this to peer-manager
+		return utils.SelectPeerWithLowestRTT(context.Background(), pm.host, proto, specificPeers, pm.logger)
+	default:
+		return "", errors.New("unknown peer selection type specified")
+	}
+}

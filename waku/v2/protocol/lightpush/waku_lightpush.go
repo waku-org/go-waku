@@ -17,6 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -150,11 +151,6 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 		return nil, errors.New("lightpush params are mandatory")
 	}
 
-	if params.selectedPeer == "" {
-		wakuLP.metrics.RecordError(peerNotFoundFailure)
-		return nil, ErrNoPeersAvailable
-	}
-
 	if len(params.requestID) == 0 {
 		return nil, ErrInvalidID
 	}
@@ -210,16 +206,12 @@ func (wakuLP *WakuLightPush) Stop() {
 	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
 }
 
-// Optional PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
-// If pubSubTopic is not provided, then contentTopic is use to derive the relevant pubSubTopic via autosharding.
-func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
-	if message == nil {
-		return nil, errors.New("message can't be null")
-	}
+func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMessage, opts ...Option) (*lightPushParameters, error) {
 	params := new(lightPushParameters)
 	params.host = wakuLP.h
 	params.log = wakuLP.log
 	params.pm = wakuLP.pm
+	var err error
 
 	optList := append(DefaultOptions(wakuLP.h), opts...)
 	for _, opt := range optList {
@@ -227,11 +219,37 @@ func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.Wa
 	}
 
 	if params.pubsubTopic == "" {
-		var err error
 		params.pubsubTopic, err = protocol.GetPubSubTopicFromContentTopic(message.ContentTopic)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	//This condition is hacky and will be fixed later,
+	// once RTT based monitoring is also available in peer-manager
+	if params.pm == nil || params.peerSelectionType == utils.LowestRTT {
+		params.selectedPeer, err = utils.HandlePeerSelection(params.peerSelectionType, params.host, LightPushID_v20beta1, params.preferredPeers, params.log)
+	} else {
+		params.selectedPeer, err = wakuLP.pm.HandlePeerSelection(params.peerSelectionType, LightPushID_v20beta1, params.pubsubTopic, params.preferredPeers...)
+	}
+	if err != nil {
+		params.log.Error("selecting peer", zap.Error(err))
+		wakuLP.metrics.RecordError(peerNotFoundFailure)
+		return nil, ErrNoPeersAvailable
+	}
+	return params, nil
+}
+
+// Optional PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
+// If pubSubTopic is not provided, then contentTopic is use to derive the relevant pubSubTopic via autosharding.
+func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
+	if message == nil {
+		return nil, errors.New("message can't be null")
+	}
+
+	params, err := wakuLP.handleOpts(ctx, message, opts...)
+	if err != nil {
+		return nil, err
 	}
 	req := new(pb.PushRequest)
 	req.Message = message

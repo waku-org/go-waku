@@ -15,6 +15,14 @@ import (
 	"go.uber.org/zap"
 )
 
+type PeerSelection int
+
+const (
+	Unknown PeerSelection = iota
+	Automatic
+	LowestRTT
+)
+
 // ErrNoPeersAvailable is emitted when no suitable peers are found for
 // some protocol
 var ErrNoPeersAvailable = errors.New("no suitable peers found")
@@ -159,5 +167,17 @@ func SelectPeerWithLowestRTT(ctx context.Context, host host.Host, protocolID pro
 		return min.p, nil
 	case <-ctx.Done():
 		return "", ErrNoPeersAvailable
+	}
+}
+
+func HandlePeerSelection(selectionType PeerSelection, host host.Host, proto protocol.ID, specificPeers []peer.ID, log *zap.Logger) (peer.ID, error) {
+	switch selectionType {
+	case Automatic:
+		return SelectPeer(host, proto, specificPeers, log)
+	case LowestRTT:
+		//TODO: Move this to peer-manager
+		return SelectPeerWithLowestRTT(context.Background(), host, proto, specificPeers, log)
+	default:
+		return "", errors.New("unknown peer selection type specified")
 	}
 }
