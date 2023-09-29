@@ -33,7 +33,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 	pm.subRelayTopics[pubsubTopic] = &NodeTopicDetails{topicInst}
 	//Check how many relay peers we are connected to that subscribe to this topic, if less than D find peers in peerstore and connect.
 	//If no peers in peerStore, trigger discovery for this topic?
-	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic, nil)
+	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
 	var notConnectedPeers peer.IDSlice
 	connectedPeers := 0
 	for _, peer := range relevantPeersForPubSubTopic {
@@ -91,7 +91,7 @@ func (pm *PeerManager) handleNewRelayTopicUnSubscription(pubsubTopic string) {
 	delete(pm.subRelayTopics, pubsubTopic)
 
 	//If there are peers only subscribed to this topic, disconnect them.
-	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic, nil)
+	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
 	for _, peer := range relevantPeersForPubSubTopic {
 		if pm.host.Network().Connectedness(peer) == network.Connected {
 			peerTopics, err := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PubSubTopics(peer)

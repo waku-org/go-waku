@@ -850,7 +850,7 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 // PeersByShard filters peers based on shard information following static sharding
 func (w *WakuNode) PeersByStaticShard(cluster uint16, shard uint16) peer.IDSlice {
 	pTopic := wakuprotocol.NewStaticShardingPubsubTopic(cluster, shard).String()
-	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic, nil)
+	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
 }
 
 // PeersByContentTopics filters peers based on contentTopic
@@ -859,7 +859,7 @@ func (w *WakuNode) PeersByContentTopic(contentTopic string) peer.IDSlice {
 	if err != nil {
 		return nil
 	}
-	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic, nil)
+	return w.peerstore.(wps.WakuPeerstore).PeersByPubSubTopic(pTopic)
 }
 
 func (w *WakuNode) findRelayNodes(ctx context.Context) {

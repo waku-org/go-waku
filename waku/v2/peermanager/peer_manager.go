@@ -251,7 +251,7 @@ func (pm *PeerManager) getNotConnectedPers(pubsubTopic string) (notConnectedPeer
 	if pubsubTopic == "" {
 		peerList = pm.host.Peerstore().Peers()
 	} else {
-		peerList = pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic, nil)
+		peerList = pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
 	}
 	for _, peerID := range peerList {
 		if pm.host.Network().Connectedness(peerID) != network.Connected {
@@ -451,7 +451,7 @@ func (pm *PeerManager) SelectPeer(proto protocol.ID, pubSubTopic string, specifi
 		return "", err
 	}
 	if pubSubTopic != "" {
-		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, filteredPeers)
+		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, filteredPeers...)
 	}
 	return utils.SelectRandomPeer(filteredPeers, pm.logger)
 }
@@ -464,17 +464,20 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 		if pubSubTopic == "" {
 			if peerID, err := slot.getRandom(); err == nil {
 				peerIDPtr = &peerID
+			} else {
+				pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
 			}
 		} else { //PubsubTopic based selection
-			var keys peer.IDSlice
-			keys = make([]peer.ID, 0, len(slot.m))
+			keys := make([]peer.ID, 0, len(slot.m))
 			for i := range slot.m {
 				keys = append(keys, i)
 			}
-			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys)
+			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
 			peerID, err := utils.SelectRandomPeer(selectedPeers, pm.logger)
 			if err == nil {
 				peerIDPtr = &peerID
+			} else {
+				pm.logger.Debug("could not select random peer", zap.Error(err))
 			}
 		}
 	}
