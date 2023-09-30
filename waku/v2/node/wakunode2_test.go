@@ -53,6 +53,13 @@ func TestWakuNode2(t *testing.T) {
 	err = wakuNode.Start(ctx)
 	require.NoError(t, err)
 
+	_, err = wakuNode.Relay().SubscribeToTopic(ctx, "waku/rs/1/1")
+	require.NoError(t, err)
+	time.Sleep(time.Second * 1)
+
+	err = wakuNode.Relay().Unsubscribe(ctx, "waku/rs/1/1")
+	require.NoError(t, err)
+
 	defer wakuNode.Stop()
 }
 
@@ -71,7 +78,7 @@ func TestUpAndDown(t *testing.T) {
 	key1, _ := tests.RandomHex(32)
 	prvKey1, _ := crypto.HexToECDSA(key1)
 
-	nodes, err := dnsdisc.RetrieveNodes(context.Background(), "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im")
+	nodes, err := dnsdisc.RetrieveNodes(context.Background(), "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im")
 	require.NoError(t, err)
 
 	var bootnodes []*enode.Node

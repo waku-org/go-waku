@@ -63,9 +63,9 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 	}
 
 	if options.Filter.Enable {
-		cf := filter.ContentFilter{
+		cf := protocol.ContentFilter{
 			PubsubTopic:   relay.DefaultWakuTopic,
-			ContentTopics: filter.NewContentTopicSet(options.ContentTopic),
+			ContentTopics: protocol.NewContentTopicSet(options.ContentTopic),
 		}
 		var filterOpt filter.FilterSubscribeOption
 		peerID, err := options.Filter.NodePeerID()
@@ -269,7 +269,7 @@ func (c *Chat) SendMessage(line string) {
 	err := c.publish(tCtx, line)
 	if err != nil {
 		if err.Error() == "validation failed" {
-			err = errors.New("message rate violation!")
+			err = errors.New("message rate violation")
 		}
 		c.ui.ErrorMessage(err)
 	}
@@ -494,10 +494,10 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	var dnsDiscoveryUrl string
 	if options.Fleet != fleetNone {
 		if options.Fleet == fleetTest {
-			dnsDiscoveryUrl = "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@test.waku.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im"
 		} else {
 			// Connect to prod by default
-			dnsDiscoveryUrl = "enrtree://AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV6SAYBM@prod.waku.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im"
 		}
 	}
 
@@ -524,7 +524,7 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 
 					ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
 					defer cancel()
-					err = c.node.DialPeerWithInfo(ctx, n)
+					err = c.node.DialPeerWithInfo(ctx, info)
 					if err != nil {
 
 						c.ui.ErrorMessage(fmt.Errorf("co!!uld not connect to %s: %w", info.ID.Pretty(), err))

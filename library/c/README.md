@@ -1083,7 +1083,7 @@ Publish a message using Waku Lightpush.
 
 1. `char* messageJson`: JSON string containing the [Waku Message](https://rfc.vac.dev/spec/14/) as [`JsonMessage`](#jsonmessage-type).
 2. `char* pubsubTopic`: pubsub topic on which to publish the message.
-   If `NULL`, it uses the default pubsub topic.
+   If `NULL`, it derives the pubsub topic from content-topic based on autosharding.
 3. `char* peerID`: Peer ID supporting the lightpush protocol.
    The peer must be already known.
    It must have been added before with [`waku_add_peer`](#extern-char-waku_add_peerchar-address-char-protocolid)

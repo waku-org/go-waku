@@ -97,8 +97,8 @@ func main() {
 	}
 
 	// Send FilterRequest from light node to full node
-	cf := filter.ContentFilter{
-		ContentTopics: filter.NewContentTopicSet(contentTopic),
+	cf := protocol.ContentFilter{
+		ContentTopics: protocol.NewContentTopicSet(contentTopic),
 	}
 
 	theFilter, err := lightNode.FilterLightnode().Subscribe(ctx, cf)

@@ -37,16 +37,20 @@ func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms
 		lpOptions = append(lpOptions, lightpush.WithAutomaticPeerSelection())
 	}
 
-	hash, err := wakuState.node.Lightpush().PublishToTopic(ctx, msg, pubsubTopic, lpOptions...)
+	if pubsubTopic != "" {
+		lpOptions = append(lpOptions, lightpush.WithPubSubTopic(pubsubTopic))
+	}
+
+	hash, err := wakuState.node.Lightpush().PublishToTopic(ctx, msg, lpOptions...)
 	return hexutil.Encode(hash), err
 }
 
 // LightpushPublish is used to publish a WakuMessage in a pubsub topic using Lightpush protocol
-func LightpushPublish(messageJSON string, topic string, peerID string, ms int) (string, error) {
+func LightpushPublish(messageJSON string, pubsubTopic string, peerID string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return "", err
 	}
 
-	return lightpushPublish(msg, getTopic(topic), peerID, ms)
+	return lightpushPublish(msg, getTopic(pubsubTopic), peerID, ms)
 }

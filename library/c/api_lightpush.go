@@ -6,7 +6,7 @@ package main
 import "C"
 import "github.com/waku-org/go-waku/library"
 
-// Publish a message using waku lightpush. Use NULL for topic to use the default pubsub topic..
+// Publish a message using waku lightpush. Use NULL for topic to derive the pubsub topic from the contentTopic.
 // peerID should contain the ID of a peer supporting the lightpush protocol. Use NULL to automatically select a node
 // If ms is greater than 0, the broadcast of the message must happen before the timeout
 // (in milliseconds) is reached, or an error will be returned

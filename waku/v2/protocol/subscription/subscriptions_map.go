@@ -1,7 +1,8 @@
-package filter
+package subscription
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ type SubscriptionDetails struct {
 	once   sync.Once
 
 	PeerID        peer.ID
-	ContentFilter ContentFilter
+	ContentFilter protocol.ContentFilter
 	C             chan *protocol.Envelope
 }
 
@@ -28,39 +29,41 @@ type SubscriptionDetails struct {
 type SubscriptionSet map[string]*SubscriptionDetails
 
 type PeerSubscription struct {
-	peerID             peer.ID
-	subsPerPubsubTopic map[string]SubscriptionSet
+	PeerID             peer.ID
+	SubsPerPubsubTopic map[string]SubscriptionSet
 }
 
 type SubscriptionsMap struct {
 	sync.RWMutex
 	logger *zap.Logger
-	items  map[peer.ID]*PeerSubscription
+	Items  map[peer.ID]*PeerSubscription
 }
+
+var ErrNotFound = errors.New("not found")
 
 func NewSubscriptionMap(logger *zap.Logger) *SubscriptionsMap {
 	return &SubscriptionsMap{
 		logger: logger.Named("subscription-map"),
-		items:  make(map[peer.ID]*PeerSubscription),
+		Items:  make(map[peer.ID]*PeerSubscription),
 	}
 }
 
-func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf ContentFilter) *SubscriptionDetails {
+func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf protocol.ContentFilter) *SubscriptionDetails {
 	sub.Lock()
 	defer sub.Unlock()
 
-	peerSubscription, ok := sub.items[peerID]
+	peerSubscription, ok := sub.Items[peerID]
 	if !ok {
 		peerSubscription = &PeerSubscription{
-			peerID:             peerID,
-			subsPerPubsubTopic: make(map[string]SubscriptionSet),
+			PeerID:             peerID,
+			SubsPerPubsubTopic: make(map[string]SubscriptionSet),
 		}
-		sub.items[peerID] = peerSubscription
+		sub.Items[peerID] = peerSubscription
 	}
 
-	_, ok = peerSubscription.subsPerPubsubTopic[cf.PubsubTopic]
+	_, ok = peerSubscription.SubsPerPubsubTopic[cf.PubsubTopic]
 	if !ok {
-		peerSubscription.subsPerPubsubTopic[cf.PubsubTopic] = make(SubscriptionSet)
+		peerSubscription.SubsPerPubsubTopic[cf.PubsubTopic] = make(SubscriptionSet)
 	}
 
 	details := &SubscriptionDetails{
@@ -68,10 +71,10 @@ func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf ContentFilter) *
 		mapRef:        sub,
 		PeerID:        peerID,
 		C:             make(chan *protocol.Envelope, 1024),
-		ContentFilter: ContentFilter{cf.PubsubTopic, maps.Clone(cf.ContentTopics)},
+		ContentFilter: protocol.ContentFilter{PubsubTopic: cf.PubsubTopic, ContentTopics: maps.Clone(cf.ContentTopics)},
 	}
 
-	sub.items[peerID].subsPerPubsubTopic[cf.PubsubTopic][details.ID] = details
+	sub.Items[peerID].SubsPerPubsubTopic[cf.PubsubTopic][details.ID] = details
 
 	return details
 }
@@ -80,23 +83,23 @@ func (sub *SubscriptionsMap) IsSubscribedTo(peerID peer.ID) bool {
 	sub.RLock()
 	defer sub.RUnlock()
 
-	_, ok := sub.items[peerID]
+	_, ok := sub.Items[peerID]
 	return ok
 }
 
 // Check if we have subscriptions for all (pubsubTopic, contentTopics[i]) pairs provided
-func (sub *SubscriptionsMap) Has(peerID peer.ID, cf ContentFilter) bool {
+func (sub *SubscriptionsMap) Has(peerID peer.ID, cf protocol.ContentFilter) bool {
 	sub.RLock()
 	defer sub.RUnlock()
 
 	// Check if peer exits
-	peerSubscription, ok := sub.items[peerID]
+	peerSubscription, ok := sub.Items[peerID]
 	if !ok {
 		return false
 	}
 	//TODO: Handle pubsubTopic as null
 	// Check if pubsub topic exists
-	subscriptions, ok := peerSubscription.subsPerPubsubTopic[cf.PubsubTopic]
+	subscriptions, ok := peerSubscription.SubsPerPubsubTopic[cf.PubsubTopic]
 	if !ok {
 		return false
 	}
@@ -122,12 +125,12 @@ func (sub *SubscriptionsMap) Delete(subscription *SubscriptionDetails) error {
 	sub.Lock()
 	defer sub.Unlock()
 
-	peerSubscription, ok := sub.items[subscription.PeerID]
+	peerSubscription, ok := sub.Items[subscription.PeerID]
 	if !ok {
 		return ErrNotFound
 	}
 
-	delete(peerSubscription.subsPerPubsubTopic[subscription.ContentFilter.PubsubTopic], subscription.ID)
+	delete(peerSubscription.SubsPerPubsubTopic[subscription.ContentFilter.PubsubTopic], subscription.ID)
 
 	return nil
 }
@@ -150,7 +153,7 @@ func (s *SubscriptionDetails) Remove(contentTopics ...string) {
 	}
 }
 
-func (s *SubscriptionDetails) closeC() {
+func (s *SubscriptionDetails) CloseC() {
 	s.once.Do(func() {
 		s.Lock()
 		defer s.Unlock()
@@ -161,7 +164,7 @@ func (s *SubscriptionDetails) closeC() {
 }
 
 func (s *SubscriptionDetails) Close() error {
-	s.closeC()
+	s.CloseC()
 	return s.mapRef.Delete(s)
 }
 
@@ -174,7 +177,7 @@ func (s *SubscriptionDetails) Clone() *SubscriptionDetails {
 		mapRef:        s.mapRef,
 		Closed:        false,
 		PeerID:        s.PeerID,
-		ContentFilter: ContentFilter{s.ContentFilter.PubsubTopic, maps.Clone(s.ContentFilter.ContentTopics)},
+		ContentFilter: protocol.ContentFilter{PubsubTopic: s.ContentFilter.PubsubTopic, ContentTopics: maps.Clone(s.ContentFilter.ContentTopics)},
 		C:             make(chan *protocol.Envelope),
 	}
 
@@ -182,15 +185,15 @@ func (s *SubscriptionDetails) Clone() *SubscriptionDetails {
 }
 
 func (sub *SubscriptionsMap) clear() {
-	for _, peerSubscription := range sub.items {
-		for _, subscriptionSet := range peerSubscription.subsPerPubsubTopic {
+	for _, peerSubscription := range sub.Items {
+		for _, subscriptionSet := range peerSubscription.SubsPerPubsubTopic {
 			for _, subscription := range subscriptionSet {
-				subscription.closeC()
+				subscription.CloseC()
 			}
 		}
 	}
 
-	sub.items = make(map[peer.ID]*PeerSubscription)
+	sub.Items = make(map[peer.ID]*PeerSubscription)
 }
 
 func (sub *SubscriptionsMap) Clear() {
@@ -203,7 +206,7 @@ func (sub *SubscriptionsMap) Notify(peerID peer.ID, envelope *protocol.Envelope)
 	sub.RLock()
 	defer sub.RUnlock()
 
-	subscriptions, ok := sub.items[peerID].subsPerPubsubTopic[envelope.PubsubTopic()]
+	subscriptions, ok := sub.Items[peerID].SubsPerPubsubTopic[envelope.PubsubTopic()]
 	if ok {
 		iterateSubscriptionSet(sub.logger, subscriptions, envelope)
 	}

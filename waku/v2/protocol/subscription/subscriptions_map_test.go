@@ -1,4 +1,4 @@
-package filter
+package subscription
 
 import (
 	"context"
@@ -6,18 +6,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
+const PUBSUB_TOPIC = "/test/topic"
+
+func createPeerID(t *testing.T) peer.ID {
+	peerId, err := test.RandPeerID()
+	assert.NoError(t, err)
+	return peerId
+}
+
 func TestSubscriptionMapAppend(t *testing.T) {
 	fmap := NewSubscriptionMap(utils.Logger())
 	peerID := createPeerID(t)
-	contentTopics := NewContentTopicSet("ct1", "ct2")
+	contentTopics := protocol.NewContentTopicSet("ct1", "ct2")
 
-	sub := fmap.NewSubscription(peerID, ContentFilter{PUBSUB_TOPIC, contentTopics})
+	sub := fmap.NewSubscription(peerID, protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC, ContentTopics: contentTopics})
 	_, found := sub.ContentFilter.ContentTopics["ct1"]
 	require.True(t, found)
 	_, found = sub.ContentFilter.ContentTopics["ct2"]
@@ -44,12 +55,12 @@ func TestSubscriptionMapAppend(t *testing.T) {
 
 func TestSubscriptionClear(t *testing.T) {
 	fmap := NewSubscriptionMap(utils.Logger())
-	contentTopics := NewContentTopicSet("ct1", "ct2")
+	contentTopics := protocol.NewContentTopicSet("ct1", "ct2")
 
 	var subscriptions = []*SubscriptionDetails{
-		fmap.NewSubscription(createPeerID(t), ContentFilter{PUBSUB_TOPIC + "1", contentTopics}),
-		fmap.NewSubscription(createPeerID(t), ContentFilter{PUBSUB_TOPIC + "2", contentTopics}),
-		fmap.NewSubscription(createPeerID(t), ContentFilter{PUBSUB_TOPIC + "3", contentTopics}),
+		fmap.NewSubscription(createPeerID(t), protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC + "1", ContentTopics: contentTopics}),
+		fmap.NewSubscription(createPeerID(t), protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC + "2", ContentTopics: contentTopics}),
+		fmap.NewSubscription(createPeerID(t), protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC + "3", ContentTopics: contentTopics}),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -84,9 +95,9 @@ func TestSubscriptionsNotify(t *testing.T) {
 	p1 := createPeerID(t)
 	p2 := createPeerID(t)
 	var subscriptions = []*SubscriptionDetails{
-		fmap.NewSubscription(p1, ContentFilter{PUBSUB_TOPIC + "1", NewContentTopicSet("ct1", "ct2")}),
-		fmap.NewSubscription(p2, ContentFilter{PUBSUB_TOPIC + "1", NewContentTopicSet("ct1")}),
-		fmap.NewSubscription(p1, ContentFilter{PUBSUB_TOPIC + "2", NewContentTopicSet("ct1", "ct2")}),
+		fmap.NewSubscription(p1, protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC + "1", ContentTopics: protocol.NewContentTopicSet("ct1", "ct2")}),
+		fmap.NewSubscription(p2, protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC + "1", ContentTopics: protocol.NewContentTopicSet("ct1")}),
+		fmap.NewSubscription(p1, protocol.ContentFilter{PubsubTopic: PUBSUB_TOPIC + "2", ContentTopics: protocol.NewContentTopicSet("ct1", "ct2")}),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

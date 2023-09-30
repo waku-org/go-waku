@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 )
 
 type filterArgument struct {
@@ -15,22 +17,22 @@ type filterArgument struct {
 	ContentTopics []string `json:"contentTopics,omitempty"`
 }
 
-func toContentFilter(filterJSON string) (filter.ContentFilter, error) {
+func toContentFilter(filterJSON string) (protocol.ContentFilter, error) {
 	var f filterArgument
 	err := json.Unmarshal([]byte(filterJSON), &f)
 	if err != nil {
-		return filter.ContentFilter{}, err
+		return protocol.ContentFilter{}, err
 	}
 
-	return filter.ContentFilter{
+	return protocol.ContentFilter{
 		PubsubTopic:   f.PubsubTopic,
-		ContentTopics: filter.NewContentTopicSet(f.ContentTopics...),
+		ContentTopics: protocol.NewContentTopicSet(f.ContentTopics...),
 	}, nil
 }
 
 type subscribeResult struct {
-	Subscriptions []*filter.SubscriptionDetails `json:"subscriptions"`
-	Error         string                        `json:"error,omitempty"`
+	Subscriptions []*subscription.SubscriptionDetails `json:"subscriptions"`
+	Error         string                              `json:"error,omitempty"`
 }
 
 // FilterSubscribe is used to create a subscription to a filter node to receive messages
@@ -71,7 +73,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	}
 
 	for _, subscriptionDetails := range subscriptions {
-		go func(subscriptionDetails *filter.SubscriptionDetails) {
+		go func(subscriptionDetails *subscription.SubscriptionDetails) {
 			for envelope := range subscriptionDetails.C {
 				send("message", toSubscriptionMessage(envelope))
 			}

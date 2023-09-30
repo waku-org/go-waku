@@ -8,23 +8,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
-
-var ErrNotFound = errors.New("not found")
-
-type ContentTopicSet map[string]struct{}
-
-func NewContentTopicSet(contentTopics ...string) ContentTopicSet {
-	s := make(ContentTopicSet, len(contentTopics))
-	for _, ct := range contentTopics {
-		s[ct] = struct{}{}
-	}
-	return s
-}
 
 type PeerSet map[peer.ID]struct{}
 
-type PubsubTopics map[string]ContentTopicSet // pubsubTopic => contentTopics
+type PubsubTopics map[string]protocol.ContentTopicSet // pubsubTopic => contentTopics
+
+var errNotFound = errors.New("not found")
 
 type SubscribersMap struct {
 	sync.RWMutex
@@ -65,7 +56,7 @@ func (sub *SubscribersMap) Set(peerID peer.ID, pubsubTopic string, contentTopics
 
 	contentTopicsMap, ok := pubsubTopicMap[pubsubTopic]
 	if !ok {
-		contentTopicsMap = make(ContentTopicSet)
+		contentTopicsMap = make(protocol.ContentTopicSet)
 	}
 
 	for _, c := range contentTopics {
@@ -106,12 +97,12 @@ func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTop
 
 	pubsubTopicMap, ok := sub.items[peerID]
 	if !ok {
-		return ErrNotFound
+		return errNotFound
 	}
 
 	contentTopicsMap, ok := pubsubTopicMap[pubsubTopic]
 	if !ok {
-		return ErrNotFound
+		return errNotFound
 	}
 
 	// Removing content topics individually
@@ -140,7 +131,7 @@ func (sub *SubscribersMap) Delete(peerID peer.ID, pubsubTopic string, contentTop
 func (sub *SubscribersMap) deleteAll(peerID peer.ID) error {
 	pubsubTopicMap, ok := sub.items[peerID]
 	if !ok {
-		return ErrNotFound
+		return errNotFound
 	}
 
 	for pubsubTopic, contentTopicsMap := range pubsubTopicMap {
