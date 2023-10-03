@@ -444,12 +444,12 @@ func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic 
 	return pm.SelectPeer(PeerSelectionCriteria{PubsubTopic: pubsubTopic, Proto: proto, SpecificPeers: specificPeers})
 }
 
-// SelectPeer is used to return a random peer that supports a given protocol.
+// SelectRandomPeer is used to return a random peer that supports a given protocol.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
 // if pubSubTopic is specified, peer is selected from list that support the pubSubTopic
-func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
+func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
@@ -508,13 +508,13 @@ type PeerSelectionCriteria struct {
 	Ctx           context.Context
 }
 
-// HandlePeerSelection selects a peer based on selectionType specified.
+// SelectPeer selects a peer based on selectionType specified.
 // Context is required only in case of selectionType set to LowestRTT
-func (pm *PeerManager) HandlePeerSelection(criteria PeerSelectionCriteria) (peer.ID, error) {
+func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
 
 	switch criteria.SelectionType {
 	case Automatic:
-		return pm.SelectPeer(criteria)
+		return pm.SelectRandomPeer(criteria)
 	case LowestRTT:
 		if criteria.Ctx == nil {
 			criteria.Ctx = context.Background()

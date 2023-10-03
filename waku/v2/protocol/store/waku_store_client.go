@@ -266,7 +266,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	}
 
 	if store.pm != nil {
-		params.selectedPeer, _ = store.pm.HandlePeerSelection(peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
+		params.selectedPeer, _ = store.pm.SelectPeer(peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
 			Proto: StoreID_v20beta4, PubsubTopic: query.Topic, SpecificPeers: params.preferredPeers, Ctx: ctx})
 	}
 
