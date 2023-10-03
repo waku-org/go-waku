@@ -9,14 +9,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
 type (
 	FilterSubscribeParameters struct {
 		selectedPeer      peer.ID
-		peerSelectionType utils.PeerSelection
+		peerSelectionType peermanager.PeerSelection
 		preferredPeers    peer.IDSlice
 		requestID         []byte
 		log               *zap.Logger
@@ -57,7 +56,7 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 // supports the chosen protocol, otherwise it will chose a peer from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		params.peerSelectionType = utils.Automatic
+		params.peerSelectionType = peermanager.Automatic
 		params.preferredPeers = fromThesePeers
 	}
 }
@@ -68,7 +67,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // peer from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
-		params.peerSelectionType = utils.LowestRTT
+		params.peerSelectionType = peermanager.LowestRTT
 	}
 }
 

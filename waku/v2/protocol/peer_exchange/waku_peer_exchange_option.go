@@ -6,7 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -26,23 +25,23 @@ func WithPeer(p peer.ID) PeerExchangeOption {
 	}
 }
 
-// WithAutomaticPeerSelection is an option used to randomly select a peer from the peer store
+// WithAutomaticPeerSelection is an option used to randomly select a peer from the Waku peer store
 // to obtains peers from. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
+// Note: this option can only be used if WakuNode is initialized which internally intializes the peerManager
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) PeerExchangeOption {
 	return func(params *PeerExchangeParameters) {
-		var p peer.ID
-		var err error
 		if params.pm == nil {
-			p, err = utils.SelectPeer(params.host, PeerExchangeID_v20alpha1, fromThesePeers, params.log)
+			params.log.Info("automatic selection is not avaiable since peerManager is not initialized")
 		} else {
-			p, err = params.pm.SelectPeer(PeerExchangeID_v20alpha1, "", fromThesePeers...)
-		}
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.log.Info("selecting peer", zap.Error(err))
+			p, err := params.pm.SelectPeer(peermanager.PeerSelectionCriteria{Proto: PeerExchangeID_v20alpha1,
+				SpecificPeers: fromThesePeers})
+			if err == nil {
+				params.selectedPeer = p
+			} else {
+				params.log.Info("selecting peer", zap.Error(err))
+			}
 		}
 	}
 }
@@ -53,11 +52,17 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) PeerExchangeOption {
 // from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) PeerExchangeOption {
 	return func(params *PeerExchangeParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, PeerExchangeID_v20alpha1, fromThesePeers, params.log)
-		if err == nil {
-			params.selectedPeer = p
+		if params.pm == nil {
+			params.log.Info("automatic selection is not avaiable since peerManager is not initialized")
 		} else {
-			params.log.Info("selecting peer", zap.Error(err))
+			p, err := params.pm.SelectPeerWithLowestRTT(
+				peermanager.PeerSelectionCriteria{Proto: PeerExchangeID_v20alpha1,
+					SpecificPeers: fromThesePeers, Ctx: ctx})
+			if err == nil {
+				params.selectedPeer = p
+			} else {
+				params.log.Info("selecting peer", zap.Error(err))
+			}
 		}
 	}
 }

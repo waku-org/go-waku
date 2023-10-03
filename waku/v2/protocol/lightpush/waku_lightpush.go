@@ -17,7 +17,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -225,17 +224,16 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 		}
 	}
 
-	//This condition is hacky and will be fixed later,
-	// once RTT based monitoring is also available in peer-manager
-	if params.pm == nil || params.peerSelectionType == utils.LowestRTT {
-		params.selectedPeer, err = utils.HandlePeerSelection(params.peerSelectionType, params.host, LightPushID_v20beta1, params.preferredPeers, params.log)
-	} else {
-		params.selectedPeer, err = wakuLP.pm.HandlePeerSelection(params.peerSelectionType, LightPushID_v20beta1, params.pubsubTopic, params.preferredPeers...)
-	}
-	if err != nil {
-		params.log.Error("selecting peer", zap.Error(err))
-		wakuLP.metrics.RecordError(peerNotFoundFailure)
-		return nil, ErrNoPeersAvailable
+	if params.pm != nil {
+		params.selectedPeer, err = wakuLP.pm.HandlePeerSelection(
+			peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
+				Proto: LightPushID_v20beta1, PubsubTopic: params.pubsubTopic,
+				SpecificPeers: params.preferredPeers, Ctx: ctx})
+		if err != nil {
+			params.log.Error("selecting peer", zap.Error(err))
+			wakuLP.metrics.RecordError(peerNotFoundFailure)
+			return nil, ErrNoPeersAvailable
+		}
 	}
 	return params, nil
 }

@@ -7,14 +7,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
 type lightPushParameters struct {
 	host              host.Host
 	selectedPeer      peer.ID
-	peerSelectionType utils.PeerSelection
+	peerSelectionType peermanager.PeerSelection
 	preferredPeers    peer.IDSlice
 	requestID         []byte
 	pm                *peermanager.PeerManager
@@ -38,7 +37,7 @@ func WithPeer(p peer.ID) Option {
 // from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
-		params.peerSelectionType = utils.Automatic
+		params.peerSelectionType = peermanager.Automatic
 		params.preferredPeers = fromThesePeers
 	}
 }
@@ -55,7 +54,7 @@ func WithPubSubTopic(pubsubTopic string) Option {
 // from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
-		params.peerSelectionType = utils.LowestRTT
+		params.peerSelectionType = peermanager.LowestRTT
 	}
 }
 

@@ -23,7 +23,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -275,13 +274,10 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	subscriptions := make([]*subscription.SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 
-		//This condition is hacky and will be fixed later,
-		// once RTT based monitoring is also available in peer-manager
 		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
-		if params.pm == nil || params.peerSelectionType == utils.LowestRTT {
-			params.selectedPeer, err = utils.HandlePeerSelection(params.peerSelectionType, params.host, FilterSubscribeID_v20beta1, params.preferredPeers, params.log)
-		} else {
-			params.selectedPeer, err = wf.pm.HandlePeerSelection(params.peerSelectionType, FilterSubscribeID_v20beta1, pubSubTopic, params.preferredPeers...)
+		if params.pm != nil {
+			params.selectedPeer, err = wf.pm.HandlePeerSelection(peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
+				Proto: FilterSubscribeID_v20beta1, PubsubTopic: pubSubTopic, SpecificPeers: params.preferredPeers, Ctx: ctx})
 		}
 
 		if params.selectedPeer == "" {

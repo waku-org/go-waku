@@ -263,7 +263,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	_, filter, err := wakuNode2.LegacyFilter().Subscribe(ctx, legacy_filter.ContentFilter{
 		Topic: string(relay.DefaultWakuTopic),
-	})
+	}, legacy_filter.WithPeer(wakuNode1.host.ID()))
 	require.NoError(t, err)
 
 	// Sleep to make sure the filter is subscribed
