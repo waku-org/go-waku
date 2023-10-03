@@ -1,24 +1,13 @@
 package sqlite
 
 import (
-	"database/sql"
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func NewMock() *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		log.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-
-	return db
-}
-
 func TestQueries(t *testing.T) {
-	db := NewMock()
+	db := NewMockSqliteDB()
 	queries, err := NewQueries("test_queries", db)
 	require.NoError(t, err)
 
@@ -51,7 +40,7 @@ func TestQueries(t *testing.T) {
 }
 
 func TestCreateTable(t *testing.T) {
-	db := NewMock()
+	db := NewMockSqliteDB()
 
 	err := CreateTable(db, "test_create_table")
 	require.NoError(t, err)
