@@ -14,11 +14,6 @@ jobs:
     uses: waku-org/go-waku/.github/workflows/container-image.yml@test-container-image-workflow
     secrets: inherit
 
-  dummy-job:
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Print something
-        run: echo "1234"
 
 
 
