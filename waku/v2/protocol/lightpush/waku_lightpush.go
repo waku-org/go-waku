@@ -229,6 +229,8 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 			peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
 				Proto: LightPushID_v20beta1, PubsubTopic: params.pubsubTopic,
 				SpecificPeers: params.preferredPeers, Ctx: ctx})
+	}
+	if params.selectedPeer == "" {
 		if err != nil {
 			params.log.Error("selecting peer", zap.Error(err))
 			wakuLP.metrics.RecordError(peerNotFoundFailure)

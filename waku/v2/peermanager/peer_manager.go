@@ -46,6 +46,7 @@ type PeerManager struct {
 	subRelayTopics      map[string]*NodeTopicDetails
 }
 
+// PeerSelection provides various options based on which Peer is selected from a list of peers.
 type PeerSelection int
 
 const (
@@ -497,6 +498,7 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 	return
 }
 
+// PeerSelectionCriteria is the selection Criteria that is used by PeerManager to select peers.
 type PeerSelectionCriteria struct {
 	SelectionType PeerSelection
 	Proto         protocol.ID
@@ -538,22 +540,11 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 	if criteria.Ctx == nil {
 		criteria.Ctx = context.Background()
 	}
-	peerSet := criteria.SpecificPeers
-	if len(peerSet) == 0 {
-		peerSet = pm.host.Peerstore().Peers()
+
+	peers, err := pm.FilterPeersByProto(criteria.SpecificPeers, criteria.Proto)
+	if err != nil {
+		return "", err
 	}
-
-	for _, peer := range peerSet {
-		protocols, err := pm.host.Peerstore().SupportsProtocols(peer, criteria.Proto)
-		if err != nil {
-			return "", err
-		}
-
-		if len(protocols) > 0 {
-			peers = append(peers, peer)
-		}
-	}
-
 	wg := sync.WaitGroup{}
 	waitCh := make(chan struct{})
 	pingCh := make(chan pingResult, 1000)
