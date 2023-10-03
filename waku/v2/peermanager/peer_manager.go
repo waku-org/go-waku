@@ -3,6 +3,7 @@ package peermanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -537,11 +538,16 @@ type pingResult struct {
 // to maintain the RTT as part of peer-scoring and just select based on that.
 func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (peer.ID, error) {
 	var peers peer.IDSlice
+	var err error
 	if criteria.Ctx == nil {
 		criteria.Ctx = context.Background()
 	}
 
-	peers, err := pm.FilterPeersByProto(criteria.SpecificPeers, criteria.Proto)
+	if criteria.PubsubTopic != "" {
+		peers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(criteria.PubsubTopic, criteria.SpecificPeers...)
+	}
+
+	peers, err = pm.FilterPeersByProto(peers, criteria.Proto)
 	if err != nil {
 		return "", err
 	}
@@ -563,6 +569,8 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 						p:   p,
 						rtt: result.RTT,
 					}
+				} else {
+					fmt.Println("Error in Ping", result)
 				}
 			}(p)
 		}
@@ -575,6 +583,7 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 	case <-waitCh:
 		var min *pingResult
 		for p := range pingCh {
+			fmt.Println("ping result", p)
 			if min == nil {
 				min = &p
 			} else {
@@ -584,6 +593,7 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 			}
 		}
 		if min == nil {
+			pm.logger.Info("Could not find min")
 			return "", ErrNoPeersAvailable
 		}
 

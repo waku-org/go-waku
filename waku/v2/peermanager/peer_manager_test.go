@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,16 +21,22 @@ import (
 
 func getAddr(h host.Host) multiaddr.Multiaddr {
 	id, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
-	return h.Network().ListenAddresses()[0].Encapsulate(id)
+	var selectedAddr multiaddr.Multiaddr
+	//For now skipping circuit relay addresses as libp2p seems to be returning empty p2p-circuit addresses.
+	for _, addr := range h.Network().ListenAddresses() {
+		if strings.Contains(addr.String(), "p2p-circuit") {
+			continue
+		}
+		selectedAddr = addr
+	}
+	return selectedAddr.Encapsulate(id)
 }
 
 func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	// hosts
 	h1, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
-	defer h1.Close()
 
 	// host 1 is used by peer manager
 	pm := NewPeerManager(10, 20, utils.Logger())
