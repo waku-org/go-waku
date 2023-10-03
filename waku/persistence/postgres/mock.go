@@ -1,19 +1,17 @@
-package persistence
+package postgres
 
 import (
 	"database/sql"
 	"fmt"
 	"log"
 	"os"
-
-	_ "github.com/jackc/pgx/v5/stdlib" // Blank import to register the postgres driver
 )
 
 // var dbUrlTemplate = "postgres://postgres@localhost:%s/%s?sslmode=disable"
 var dbUrlTemplate = "postgres://harshjain@localhost:%s/%s?sslmode=disable"
 
 func ResetDefaultTestPostgresDB(dropDBUrl string) error {
-	db, err := sql.Open("postgres", dropDBUrl)
+	db, err := sql.Open("pgx", dropDBUrl)
 	if err != nil {
 		return err
 	}
@@ -41,9 +39,8 @@ func NewMockPgDB() *sql.DB {
 
 	//
 	dropDBUrl := fmt.Sprintf(dbUrlTemplate, mockPgDBPort, "template1")
-	fmt.Println(dropDBUrl)
 	if err := ResetDefaultTestPostgresDB(dropDBUrl); err != nil {
-		log.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		log.Fatalf("an error '%s' while reseting the db", err)
 	}
 	mockDBUrl := fmt.Sprintf(dbUrlTemplate, mockPgDBPort, "postgres")
 	db, err := sql.Open("pgx", mockDBUrl)
