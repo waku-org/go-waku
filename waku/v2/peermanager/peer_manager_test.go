@@ -141,7 +141,7 @@ func TestPeerSelection(t *testing.T) {
 	require.NoError(t, err)
 
 	//Test for selectWithLowestRTT
-	pm.SelectPeerWithLowestRTT(PeerSelectionCriteria{Proto: protocol, PubsubTopic: "/waku/rs/2/1"})
+	_, err = pm.SelectPeerWithLowestRTT(PeerSelectionCriteria{Proto: protocol, PubsubTopic: "/waku/rs/2/1"})
 	require.NoError(t, err)
 }
 
