@@ -7,8 +7,7 @@ import (
 	"os"
 )
 
-// var dbUrlTemplate = "postgres://postgres@localhost:%s/%s?sslmode=disable"
-var dbUrlTemplate = "postgres://harshjain@localhost:%s/%s?sslmode=disable"
+var dbUrlTemplate = "postgres://postgres@localhost:%s/%s?sslmode=disable"
 
 func ResetDefaultTestPostgresDB(dropDBUrl string) error {
 	db, err := sql.Open("pgx", dropDBUrl)
