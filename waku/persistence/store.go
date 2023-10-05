@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -239,12 +238,13 @@ func (d *DBStore) cleanOlderRecords(ctx context.Context) error {
 
 	return nil
 }
+
 func (d *DBStore) getDeleteOldRowsQuery() string {
 	sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC %s OFFSET $1)`
-	switch reflect.TypeOf(d.db.Driver()).String() {
-	case "*sqlite3.SQLiteDriver":
+	switch GetDriverType(d.db) {
+	case SQLiteDriver:
 		sqlStmt = fmt.Sprintf(sqlStmt, "LIMIT -1")
-	case "*stdlib.Driver":
+	case PostgresDriver:
 		sqlStmt = fmt.Sprintf(sqlStmt, "")
 	}
 	return sqlStmt
