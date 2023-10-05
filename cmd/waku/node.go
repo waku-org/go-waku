@@ -18,7 +18,6 @@ import (
 	"github.com/pbnjay/memory"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -203,7 +202,7 @@ func Execute(options NodeOptions) {
 
 	if options.Store.Enable && options.PersistPeers {
 		// Create persistent peerstore
-		queries, err := sqlite.NewQueries("peerstore", db)
+		queries, err := dbutils.NewQueries("peerstore", db)
 		failOnErr(err, "Peerstore")
 
 		datastore := dssql.NewDatastore(db, queries)
