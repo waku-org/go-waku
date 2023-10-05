@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"net/http"
 	"sync"
 	"testing"
@@ -517,6 +518,40 @@ func (s *FilterTestSuite) TestAutoShard() {
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TestIncorrectProtoIdentifiers() {
+	log := utils.Logger()
+	s.log = log
+	s.wg = &sync.WaitGroup{}
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	s.testTopic = "/waku/2/go/filter/test"
+	s.testContentTopic = "TopicA"
+
+	s.lightNode = s.makeWakuFilterLightNode(true, true)
+
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+
+	const FilterSubscribeID_Incorrect1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/abcd")
+
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_Incorrect1)
+	s.Require().NoError(err)
+
+	// Subscribe
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+
+	// Error "filter/options.go:68	selecting peer	{"error": "no suitable peers found"}" is expected to bubble up ?
+
+	s.Require().Error(err)
 
 }
 
