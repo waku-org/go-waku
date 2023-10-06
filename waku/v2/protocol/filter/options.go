@@ -55,10 +55,19 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 // If a list of specific peers is passed, the peer will be chosen from that list assuming it
 // supports the chosen protocol, otherwise it will chose a peer from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
-	return func(params *FilterSubscribeParameters) error {
-		params.peerSelectionType = peermanager.Automatic
-		params.preferredPeers = fromThesePeers
-		return nil
+	return func(params *FilterSubscribeParameters) {
+		var p peer.ID
+		var err error
+		if params.pm == nil {
+			p, err = utils.SelectPeer(params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
+		} else {
+			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, "", fromThesePeers...)
+		}
+		if err == nil {
+			params.selectedPeer = p
+		} else {
+			params.log.Info("selecting peer", zap.Error(err))
+		}
 	}
 }
 
@@ -66,10 +75,14 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // with the lowest ping If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a
 // peer from the node peerstore
-func WithFastestPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
-	return func(params *FilterSubscribeParameters) error {
-		params.peerSelectionType = peermanager.LowestRTT
-		return nil
+func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) {
+		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
+		if err == nil {
+			params.selectedPeer = p
+		} else {
+			params.log.Info("selecting peer", zap.Error(err))
+		}
 	}
 }
 
