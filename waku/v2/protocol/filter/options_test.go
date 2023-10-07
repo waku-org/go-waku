@@ -29,7 +29,7 @@ func TestFilterOption(t *testing.T) {
 	params.log = utils.Logger()
 
 	for _, opt := range options {
-		opt(params)
+		_ = opt(params)
 	}
 
 	require.Equal(t, host, params.host)
@@ -45,7 +45,8 @@ func TestFilterOption(t *testing.T) {
 	params2 := new(FilterSubscribeParameters)
 
 	for _, opt := range options2 {
-		opt(params2)
+		err := opt(params2)
+		require.NoError(t, err)
 	}
 
 	require.NotNil(t, params2.selectedPeer)
