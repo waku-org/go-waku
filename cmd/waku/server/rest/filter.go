@@ -1,0 +1,254 @@
+package rest
+
+import (
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"go.uber.org/zap"
+)
+
+type filterRequestId []byte
+
+func (r *filterRequestId) UnmarshalJSON(body []byte) error {
+	reqId, err := hex.DecodeString(string(body))
+	if err != nil {
+		return err
+	}
+	*r = reqId
+	return nil
+}
+
+func (r filterRequestId) MarshalJSON() ([]byte, error) {
+	return r, nil
+}
+
+const filterv2Ping = "/filter/v2/subscriptions/{requestId}"
+const filterv2Subscribe = "/filter/v2/subscriptions"
+const filterv2SubscribeAll = "/filter/v2/subscriptions/all"
+
+// RelayService represents the REST service for WakuRelay
+type FilterService struct {
+	node *node.WakuNode
+
+	log *zap.Logger
+}
+
+// NewFilterService returns an instance of FilterService
+func NewFilterService(node *node.WakuNode, m *chi.Mux, log *zap.Logger) *FilterService {
+	s := &FilterService{
+		node: node,
+		log:  log.Named("filter"),
+	}
+
+	m.Get(filterv2Ping, s.ping)
+	m.Post(filterv2Subscribe, s.subscribe)
+	m.Delete(filterv2Subscribe, s.unsubscribe)
+	m.Delete(filterv2SubscribeAll, s.unsubscribeAll)
+
+	return s
+}
+
+// 400 for bad requestId
+// 404 when request failed or no suitable peers
+// 200 when ping successful
+func (s *FilterService) ping(w http.ResponseWriter, req *http.Request) {
+	var requestId filterRequestId
+	if err := requestId.UnmarshalJSON([]byte(chi.URLParam(req, "requestId"))); err != nil {
+		s.log.Error("bad request id", zap.Error(err))
+		writeResponse(w, filterSubscriptionResponse{
+			RequestId:  requestId,
+			StatusDesc: "bad request id",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// selecting random peer that supports filter protocol
+	peerId := s.getRandomFilterPeer(req.Context(), requestId, w)
+	if peerId == "" {
+		return
+	}
+
+	if err := s.node.FilterLightnode().Ping(req.Context(), peerId, filter.WithPingRequestId(requestId)); err != nil {
+		s.log.Error("ping request failed", zap.Error(err))
+		writeResponse(w, &filterSubscriptionResponse{
+			RequestId:  requestId,
+			StatusDesc: "ping request failed",
+		}, http.StatusServiceUnavailable)
+		return
+	}
+
+	// success
+	writeResponse(w, &filterSubscriptionResponse{
+		RequestId:  requestId,
+		StatusDesc: http.StatusText(http.StatusOK),
+	}, http.StatusOK)
+}
+
+///////////////////////
+///////////////////////
+
+// same for FilterUnsubscribeRequest
+type filterSubscriptionRequest struct {
+	RequestId      filterRequestId `json:"requestId"`
+	ContentFilters []string        `json:"contentFilters"`
+	PubsubTopic    string          `json:"pubsubTopic"`
+}
+
+type filterSubscriptionResponse struct {
+	RequestId  filterRequestId `json:"requestId"`
+	StatusDesc string          `json:"statusDesc"`
+}
+
+func toProtocolContentFilter(req filterSubscriptionRequest) protocol.ContentFilter {
+	contentTopics := map[string]struct{}{}
+	for _, topic := range req.ContentFilters {
+		contentTopics[topic] = struct{}{}
+	}
+	return protocol.ContentFilter{
+		PubsubTopic:   req.PubsubTopic,
+		ContentTopics: contentTopics,
+	}
+}
+
+// 400 on invalid request
+// 404 on failed subscription
+// 200 on single returned successful subscription
+// NOTE: subscribe on filter client randomly selects a peer if missing for given pubSubTopic
+func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
+	message := filterSubscriptionRequest{}
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&message); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	//
+	_, err := s.node.FilterLightnode().Subscribe(req.Context(), toProtocolContentFilter(message),
+		filter.WithRequestID(message.RequestId))
+	if err != nil {
+		writeResponse(w, filterSubscriptionResponse{
+			RequestId:  message.RequestId,
+			StatusDesc: "subscription failed",
+		}, http.StatusServiceUnavailable)
+		return
+	}
+
+	// on success
+	writeResponse(w, filterSubscriptionResponse{
+		RequestId:  message.RequestId,
+		StatusDesc: http.StatusText(http.StatusOK),
+	}, http.StatusOK)
+}
+
+// 400 on invalid request
+// 500 on failed subscription
+// 200 on successful unsubscribe
+// NOTE: unsubscribe on filter client will remove subscription from all peers with matching pubSubTopic, if peerId is not provided
+// to match functionality in nwaku, we will randomly select a peer that supports filter protocol.
+func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
+	message := filterSubscriptionRequest{} // as pubSubTopics can also be present
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&message); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	peerId := s.getRandomFilterPeer(req.Context(), message.RequestId, w)
+	if peerId == "" {
+		return
+	}
+
+	// unsubscribe on filter
+	_, err := s.node.FilterLightnode().Unsubscribe(
+		req.Context(),
+		toProtocolContentFilter(message),
+		filter.WithRequestID(message.RequestId),
+		filter.WithPeer(peerId),
+	)
+	if err != nil {
+		writeResponse(w, filterSubscriptionResponse{
+			RequestId:  message.RequestId,
+			StatusDesc: err.Error(),
+		}, http.StatusServiceUnavailable)
+		return
+	}
+
+	// on success
+	writeResponse(w, filterSubscriptionResponse{
+		RequestId:  message.RequestId,
+		StatusDesc: http.StatusText(http.StatusOK),
+	}, http.StatusOK)
+}
+
+// ///////////////////////
+// ///////////////////////
+type filterUnsubscribeAllRequest struct {
+	RequestId filterRequestId `json:"requestId"`
+}
+
+// 400 on invalid request
+// 500 on failed subscription
+// 200 on all successful unsubscribe
+// unsubscribe all subscriptions for a given peer
+func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request) {
+	message := filterUnsubscribeAllRequest{}
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&message); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	peerId := s.getRandomFilterPeer(req.Context(), message.RequestId, w)
+	if peerId == "" {
+		return
+	}
+
+	// unsubscribe all subscriptions for a given peer
+	_, err := s.node.FilterLightnode().UnsubscribeAll(
+		req.Context(),
+		filter.WithRequestID(message.RequestId),
+		filter.WithPeer(peerId),
+	)
+	if err != nil {
+		writeResponse(w, filterSubscriptionResponse{
+			RequestId:  message.RequestId,
+			StatusDesc: err.Error(),
+		}, http.StatusServiceUnavailable)
+		return
+	}
+
+	// on success
+	writeResponse(w, filterSubscriptionResponse{
+		RequestId:  message.RequestId,
+		StatusDesc: http.StatusText(http.StatusOK),
+	}, http.StatusOK)
+}
+
+func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId []byte, w http.ResponseWriter) peer.ID {
+	// selecting random peer that supports filter protocol
+	peerId, err := s.node.PeerManager().SelectPeer(peermanager.PeerSelectionCriteria{
+		SelectionType: peermanager.Automatic,
+		Proto:         filter.FilterSubscribeID_v20beta1,
+		Ctx:           ctx,
+	})
+	if err != nil {
+		s.log.Error("selecting peer", zap.Error(err))
+		writeResponse(w, filterSubscriptionResponse{
+			RequestId:  requestId,
+			StatusDesc: "No suitable peers",
+		}, http.StatusServiceUnavailable)
+		return ""
+	}
+	return peerId
+}

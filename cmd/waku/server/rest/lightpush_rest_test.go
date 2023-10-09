@@ -2,7 +2,6 @@ package rest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,20 +18,10 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-func createLightPushNode(t *testing.T) *node.WakuNode {
-	node, err := node.New(node.WithLightPush(), node.WithWakuRelay())
-	require.NoError(t, err)
-
-	err = node.Start(context.Background())
-	require.NoError(t, err)
-
-	return node
-}
-
 // node2 connects to node1
 func twoLightPushConnectedNodes(t *testing.T, pubSubTopic string) (*node.WakuNode, *node.WakuNode) {
-	node1 := createLightPushNode(t)
-	node2 := createLightPushNode(t)
+	node1 := createNode(t, node.WithLightPush(), node.WithWakuRelay())
+	node2 := createNode(t, node.WithLightPush(), node.WithWakuRelay())
 
 	node2.Host().Peerstore().AddAddr(node1.Host().ID(), tests.GetHostAddress(node1.Host()), peerstore.PermanentAddrTTL)
 	err := node2.Host().Peerstore().AddProtocols(node1.Host().ID(), lightpush.LightPushID_v20beta1)
