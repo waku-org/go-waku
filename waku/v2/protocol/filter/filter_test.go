@@ -521,7 +521,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 
 }
 
-func (s *FilterTestSuite) TestIncorrectProtoIdentifiers() {
+func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	log := utils.Logger()
 	s.log = log
 	s.wg = &sync.WaitGroup{}
@@ -545,13 +545,69 @@ func (s *FilterTestSuite) TestIncorrectProtoIdentifiers() {
 	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_Incorrect1)
 	s.Require().NoError(err)
 
-	// Subscribe
+	// Subscribe with incorrect SubscribeID
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
 	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
-
-	// Error "filter/options.go:68	selecting peer	{"error": "no suitable peers found"}" is expected to bubble up ?
-
 	s.Require().Error(err)
+
+}
+
+func (wf *WakuFilterLightNode) startWithIncorrectPushProto() error {
+	const FilterPushID_Incorrect1 = libp2pProtocol.ID("/vac/waku/filter-push/abcd")
+
+	wf.subscriptions = subscription.NewSubscriptionMap(wf.log)
+	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_Incorrect1)), wf.onRequest(wf.Context()))
+
+	wf.log.Info("filter-push incorrect protocol started")
+	return nil
+}
+
+func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
+	log := utils.Logger()
+	s.log = log
+	s.wg = &sync.WaitGroup{}
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	s.testTopic = "/waku/2/go/filter/test"
+	s.testContentTopic = "TopicA"
+
+	s.lightNode = s.makeWakuFilterLightNode(false, true)
+
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+
+	// Re-start light node with unsupported prefix for match func
+	s.lightNode.Stop()
+	err := s.lightNode.CommonService.Start(s.ctx, s.lightNode.startWithIncorrectPushProto)
+	s.Require().NoError(err)
+
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	// Subscribe
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+	s.subDetails, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	time.Sleep(1 * time.Second)
+
+	// Send message
+	_, err = s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), s.testTopic)
+	s.Require().NoError(err)
+
+	// Message should never arrive -> exit after timeout
+	select {
+	case msg := <-s.subDetails[0].C:
+		s.log.Info("Light node received a msg")
+		s.Require().Nil(msg)
+	case <-time.After(1 * time.Second):
+		s.Require().True(true)
+	}
 
 }
 
