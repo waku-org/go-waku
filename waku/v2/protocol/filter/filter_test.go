@@ -159,6 +159,18 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 	return subDetails
 }
 
+func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) <-chan WakuFilterPushResult {
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
+
+	filterPushResult, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(peer))
+	s.Require().NoError(err)
+
+	// Sleep to make sure the filter is unsubscribed
+	time.Sleep(2 * time.Second)
+
+	return filterPushResult
+}
+
 func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload ...string) {
 	var payload string
 	if len(optionalPayload) > 0 {
@@ -281,6 +293,21 @@ func (s *FilterTestSuite) TestSubscriptionPing() {
 
 	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
 	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) TestUnSubscriptionPing() {
+
+	contentTopic := "abc"
+
+	s.subDetails = s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
+
+	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	s.Require().NoError(err)
+
+	_ = s.unsubscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
+
+	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	s.Require().Error(err)
 }
 
 func (s *FilterTestSuite) TestPeerFailure() {
