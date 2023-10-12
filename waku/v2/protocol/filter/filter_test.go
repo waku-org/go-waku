@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -45,6 +47,12 @@ type FilterTestSuite struct {
 	contentFilter    protocol.ContentFilter
 	subDetails       []*subscription.SubscriptionDetails
 	log              *zap.Logger
+}
+
+type WakuMsg struct {
+	pubSubTopic  string
+	contentTopic string
+	payload      string
 }
 
 func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.Subscription, host.Host, relay.Broadcaster) {
@@ -126,6 +134,55 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 	s.wg.Wait()
 }
 
+func matchOneOfManyMsg(one WakuMsg, many []WakuMsg) bool {
+	for _, m := range many {
+		if m.pubSubTopic == one.pubSubTopic &&
+			m.contentTopic == one.contentTopic &&
+			m.payload == one.payload {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.SubscriptionDetails, expected []WakuMsg) {
+	s.wg.Add(1)
+	msgCount := len(expected)
+	found := 0
+	s.log.Info("Expected messages ", zap.String("count:", strconv.Itoa(msgCount)))
+	s.log.Info("Existing subscriptions ", zap.String("count:", strconv.Itoa(len(subs))))
+	go func() {
+		defer s.wg.Done()
+		for _, sub := range subs {
+			for i := 0; i < msgCount; i++ {
+				select {
+				case env := <-sub.C:
+					received := WakuMsg{
+						pubSubTopic:  env.PubsubTopic(),
+						contentTopic: env.Message().GetContentTopic(),
+						payload:      string(env.Message().GetPayload()),
+					}
+					if matchOneOfManyMsg(received, expected) {
+						found++
+					}
+				case <-time.After(1 * time.Second):
+					break
+				case <-s.ctx.Done():
+					s.Require().Fail("test exceeded allocated time")
+				}
+			}
+		}
+	}()
+
+	if fn != nil {
+		fn()
+	}
+
+	s.wg.Wait()
+	s.Require().True(msgCount == found)
+}
+
 func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) {
 	s.wg.Add(1)
 	go func() {
@@ -154,7 +211,7 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 	s.Require().NoError(err)
 
 	// Sleep to make sure the filter is subscribed
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	return subDetails
 }
@@ -166,7 +223,7 @@ func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, p
 	s.Require().NoError(err)
 
 	// Sleep to make sure the filter is unsubscribed
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	return filterPushResult
 }
@@ -181,6 +238,13 @@ func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload
 
 	_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch(), payload), topic)
 	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
+	for _, m := range msgs {
+		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), m.pubSubTopic)
+		s.Require().NoError(err)
+	}
 }
 
 func (s *FilterTestSuite) SetupTest() {
@@ -646,6 +710,45 @@ func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg")
 	}, s.subDetails[0].C)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
+	var (
+		testTopic        = "/waku/2/go/filter/test"
+		testContentTopic = "Topic"
+		testPayload      = "test_msg"
+		suffix           string
+		messages         []WakuMsg
+	)
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	// Prepare data
+	for i := 0; i < 3; i++ {
+		suffix = fmt.Sprintf("%02d", i)
+		messages = append(messages, WakuMsg{
+			pubSubTopic:  testTopic,
+			contentTopic: testContentTopic + suffix,
+			payload:      testPayload,
+		})
+	}
+
+	// Subscribe
+	for _, m := range messages {
+		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
+	}
+
+	// All message should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
