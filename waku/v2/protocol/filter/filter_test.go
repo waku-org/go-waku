@@ -150,11 +150,13 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 	s.wg.Add(1)
 	msgCount := len(expected)
 	found := 0
-	s.log.Info("Expected messages ", zap.String("count:", strconv.Itoa(msgCount)))
-	s.log.Info("Existing subscriptions ", zap.String("count:", strconv.Itoa(len(subs))))
+	s.log.Info("Expected messages ", zap.String("count", strconv.Itoa(msgCount)))
+	s.log.Info("Existing subscriptions ", zap.String("count", strconv.Itoa(len(subs))))
+
 	go func() {
 		defer s.wg.Done()
 		for _, sub := range subs {
+			s.log.Info("Looking at ", zap.String("pubSubTopic", sub.ContentFilter.PubsubTopic))
 			for i := 0; i < msgCount; i++ {
 				select {
 				case env := <-sub.C:
@@ -163,10 +165,13 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						contentTopic: env.Message().GetContentTopic(),
 						payload:      string(env.Message().GetPayload()),
 					}
+					s.log.Info("Received message ", zap.String("pubSubTopic", received.pubSubTopic))
+					s.log.Info("Received message ", zap.String("contentTopic", received.contentTopic))
+					s.log.Info("Received message ", zap.String("payload", received.payload))
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
-				case <-time.After(1 * time.Second):
+				case <-time.After(2 * time.Second):
 					break
 				case <-s.ctx.Done():
 					s.Require().Fail("test exceeded allocated time")
@@ -205,6 +210,16 @@ func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) 
 }
 
 func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
+
+	for _, sub := range s.subDetails {
+		if sub.ContentFilter.PubsubTopic == pubsubTopic {
+			sub.Add(contentTopic)
+			subDetails, err := s.lightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
+			s.Require().NoError(err)
+			return subDetails
+		}
+	}
+
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
 
 	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
@@ -244,6 +259,9 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	for _, m := range msgs {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), m.pubSubTopic)
 		s.Require().NoError(err)
+		//dst := make([]byte, hex.EncodedLen(len(hash)))
+		//hex.Encode(dst, hash)
+		//s.log.Info("Published message ", zap.String("hash:", string(dst)))
 	}
 }
 
@@ -742,10 +760,56 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 
 	// Subscribe
 	for _, m := range messages {
-		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
+		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
-	// All message should be received
+	// All messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
+	var (
+		testTopic        = "/waku/2/go/filter/test"
+		testContentTopic = "Topic"
+		testPayload      = "test_msg"
+		suffix           string
+		messages         []WakuMsg
+	)
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	// Prepare data
+	for i := 0; i < 2; i++ {
+		suffix = fmt.Sprintf("%02d", i)
+		messages = append(messages, WakuMsg{
+			pubSubTopic:  testTopic + suffix,
+			contentTopic: testContentTopic + suffix,
+			payload:      testPayload,
+		})
+	}
+
+	// Subscribe
+	for _, m := range messages {
+		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
+		s.log.Info("Subscribing ", zap.String("PubSubTopic", m.pubSubTopic))
+	}
+
+	// Debug to see subscriptions in light node
+	for _, sub := range s.subDetails {
+		s.log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic))
+		s.log.Info("Light Node subscription ", zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
+	}
+
+	// All messages should be received
 	s.waitForMessages(func() {
 		s.publishMessages(messages)
 	}, s.subDetails, messages)
