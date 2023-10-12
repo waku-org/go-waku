@@ -285,7 +285,7 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 
 		if params.selectedPeer == "" {
 			wf.metrics.RecordError(peerNotFoundFailure)
-			wf.log.Error("Failed to find peer for Filter subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
+			wf.log.Error("selecting peer", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
 				zap.Error(err))
 			failedContentTopics = append(failedContentTopics, cTopics...)
 			continue
