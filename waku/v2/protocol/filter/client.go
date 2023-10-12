@@ -263,7 +263,10 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	optList := DefaultSubscriptionOptions()
 	optList = append(optList, opts...)
 	for _, opt := range optList {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pubSubTopicMap, err := contentFilterToPubSubTopicMap(contentFilter)
@@ -329,7 +332,10 @@ func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterSubscribeO
 	params.log = wf.log
 	opts = append(DefaultUnsubscribeOptions(), opts...)
 	for _, opt := range opts {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return params, nil
