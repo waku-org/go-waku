@@ -18,7 +18,7 @@ import (
 const StoreID_v20beta4 = libp2pProtocol.ID("/vac/waku/store/2.0.0-beta4")
 
 // MaxPageSize is the maximum number of waku messages to return per page
-const MaxPageSize = 100
+const MaxPageSize = 20
 
 // MaxContentFilters is the maximum number of allowed content filters in a query
 const MaxContentFilters = 10
