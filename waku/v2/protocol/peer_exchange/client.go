@@ -26,7 +26,10 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	optList := DefaultOptions(wakuPX.h)
 	optList = append(optList, opts...)
 	for _, opt := range optList {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return err
+		}
 	}
 
 	if params.selectedPeer == "" {
