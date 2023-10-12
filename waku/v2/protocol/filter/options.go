@@ -56,9 +56,10 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 // If a list of specific peers is passed, the peer will be chosen from that list assuming it
 // supports the chosen protocol, otherwise it will chose a peer from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
-	return func(params *FilterSubscribeParameters) {
+	return func(params *FilterSubscribeParameters) error {
 		params.peerSelectionType = peermanager.Automatic
 		params.preferredPeers = fromThesePeers
+		return nil
 	}
 }
 
@@ -67,8 +68,9 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // from that list assuming it supports the chosen protocol, otherwise it will chose a
 // peer from the node peerstore
 func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
-	return func(params *FilterSubscribeParameters) {
+	return func(params *FilterSubscribeParameters) error {
 		params.peerSelectionType = peermanager.LowestRTT
+		return nil
 	}
 }
 
