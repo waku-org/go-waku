@@ -639,39 +639,15 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 }
 
 func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
-	log := utils.Logger()
-	s.log = log
-	s.wg = &sync.WaitGroup{}
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
-	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
-	s.ctx = ctx
-	s.ctxCancel = cancel
-
-	s.testTopic = "/waku/2/go/filter/test"
-	s.testContentTopic = "TopicA"
-
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
-
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
-
-	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
-	s.Require().NoError(err)
-
-	// Subscribe
-	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
-	s.subDetails, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
-	s.Require().NoError(err)
-
+	// Message should be received
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "test_msg"), s.testTopic)
-		s.Require().NoError(err)
-
+		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg")
 	}, s.subDetails[0].C)
 
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 
 }
