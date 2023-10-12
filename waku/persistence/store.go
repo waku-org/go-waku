@@ -346,7 +346,7 @@ func (d *DBStore) handleQueryCursor(query *pb.HistoryQuery, paramCnt *int, condi
 	handleTimeParam := func(time int64, op string) {
 		*paramCnt++
 		conditions = append(conditions, fmt.Sprintf("id %s $%d", op, *paramCnt))
-		timeDBKey := NewDBKey(uint64(time), uint64(time), "", []byte{})
+		timeDBKey := NewDBKey(uint64(time), 0, "", []byte{})
 		parameters = append(parameters, timeDBKey.Bytes())
 	}
 
@@ -358,7 +358,7 @@ func (d *DBStore) handleQueryCursor(query *pb.HistoryQuery, paramCnt *int, condi
 
 	if query.EndTime != 0 {
 		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_FORWARD {
-			handleTimeParam(query.EndTime, "<=")
+			handleTimeParam(query.EndTime+1, "<")
 		}
 	}
 	return conditions, parameters, nil

@@ -127,11 +127,11 @@ func TestQuery(t *testing.T) {
 			{ContentTopic: "test3"},
 		},
 		PagingInfo: &pb.PagingInfo{PageSize: 10},
-		StartTime:  insertTime.Add(-41 * time.Second).UnixNano(),
-		EndTime:    insertTime.Add(-21 * time.Second).UnixNano(),
+		StartTime:  insertTime.Add(-40 * time.Second).UnixNano(),
+		EndTime:    insertTime.Add(-20 * time.Second).UnixNano(),
 	})
 	require.NoError(t, err)
-	require.Len(t, msgs, 2)
+	require.Len(t, msgs, 3)
 
 	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", insertTime.UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
 
