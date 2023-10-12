@@ -3,7 +3,6 @@ package peermanager
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -51,8 +50,7 @@ type PeerManager struct {
 type PeerSelection int
 
 const (
-	Unknown PeerSelection = iota
-	Automatic
+	Automatic PeerSelection = iota
 	LowestRTT
 )
 
@@ -570,7 +568,7 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 						rtt: result.RTT,
 					}
 				} else {
-					fmt.Println("Error in Ping", result)
+					pm.logger.Debug("could not ping", logging.HostID("peer", p), zap.Error(result.Error))
 				}
 			}(p)
 		}
@@ -583,7 +581,6 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 	case <-waitCh:
 		var min *pingResult
 		for p := range pingCh {
-			fmt.Println("ping result", p)
 			if min == nil {
 				min = &p
 			} else {
@@ -593,7 +590,6 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 			}
 		}
 		if min == nil {
-			pm.logger.Info("Could not find min")
 			return "", ErrNoPeersAvailable
 		}
 

@@ -279,8 +279,15 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 
 		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
 		if params.pm != nil {
-			params.selectedPeer, err = wf.pm.SelectPeer(peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
-				Proto: FilterSubscribeID_v20beta1, PubsubTopic: pubSubTopic, SpecificPeers: params.preferredPeers, Ctx: ctx})
+			params.selectedPeer, err = wf.pm.SelectPeer(
+				peermanager.PeerSelectionCriteria{
+					SelectionType: params.peerSelectionType,
+					Proto:         FilterSubscribeID_v20beta1,
+					PubsubTopic:   pubSubTopic,
+					SpecificPeers: params.preferredPeers,
+					Ctx:           ctx,
+				},
+			)
 		}
 
 		if params.selectedPeer == "" {

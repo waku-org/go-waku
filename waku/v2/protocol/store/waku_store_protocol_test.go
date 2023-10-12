@@ -60,9 +60,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 		ContentTopics: []string{topic1},
 	}
 
-	var hrOptions []HistoryRequestOption
-	hrOptions = append(hrOptions, WithPeer(host1.ID()))
-	response, err := s2.Query(ctx, q, hrOptions...)
+	response, err := s2.Query(ctx, q, WithPeer(host1.ID()))
 
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 1)

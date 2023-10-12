@@ -240,8 +240,15 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 		opt(params)
 	}
 	if wf.pm != nil {
-		params.selectedPeer, _ = wf.pm.SelectPeer(peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
-			Proto: FilterID_v20beta1, PubsubTopic: filter.Topic, SpecificPeers: params.preferredPeers, Ctx: ctx})
+		params.selectedPeer, _ = wf.pm.SelectPeer(
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         FilterID_v20beta1,
+				PubsubTopic:   filter.Topic,
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
 	}
 	if params.selectedPeer == "" {
 		wf.metrics.RecordError(peerNotFoundFailure)
