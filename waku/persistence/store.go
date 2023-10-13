@@ -224,8 +224,8 @@ func (d *DBStore) cleanOlderRecords(ctx context.Context) error {
 	// Limit number of records to a max N
 	if d.maxMessages > 0 {
 		start := time.Now()
-		sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC LIMIT -1 OFFSET $1)`
-		_, err := d.db.Exec(sqlStmt, d.maxMessages)
+
+		_, err := d.db.Exec(d.getDeleteOldRowsQuery(), d.maxMessages)
 		if err != nil {
 			d.metrics.RecordError(retPolicyFailure)
 			return err
@@ -237,6 +237,17 @@ func (d *DBStore) cleanOlderRecords(ctx context.Context) error {
 	d.log.Info("Older records removed")
 
 	return nil
+}
+
+func (d *DBStore) getDeleteOldRowsQuery() string {
+	sqlStmt := `DELETE FROM message WHERE id IN (SELECT id FROM message ORDER BY receiverTimestamp DESC %s OFFSET $1)`
+	switch GetDriverType(d.db) {
+	case SQLiteDriver:
+		sqlStmt = fmt.Sprintf(sqlStmt, "LIMIT -1")
+	case PostgresDriver:
+		sqlStmt = fmt.Sprintf(sqlStmt, "")
+	}
+	return sqlStmt
 }
 
 func (d *DBStore) checkForOlderRecords(ctx context.Context, t time.Duration) {

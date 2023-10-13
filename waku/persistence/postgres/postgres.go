@@ -71,5 +71,5 @@ func NewQueries(tbl string, db *sql.DB) (*persistence.Queries, error) {
 	if err != nil {
 		return nil, err
 	}
-	return persistence.CreateQueries(tbl, db), nil
+	return persistence.CreateQueries(tbl), nil
 }

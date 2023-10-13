@@ -1,4 +1,7 @@
-package persistence
+//go:build include_postgres_tests
+// +build include_postgres_tests
+
+package utils
 
 import (
 	"context"
@@ -7,42 +10,49 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	_ "github.com/mattn/go-sqlite3" // Blank import to register the sqlite3 driver
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
-	"github.com/waku-org/go-waku/waku/persistence/migrate"
-	sqlitemigrations "github.com/waku-org/go-waku/waku/persistence/sqlite/migrations"
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/postgres"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
-	"go.uber.org/zap"
 )
 
-func Migrate(db *sql.DB) error {
-	migrationDriver, err := sqlite3.WithInstance(db, &sqlite3.Config{
-		MigrationsTable: "gowaku_" + sqlite3.DefaultMigrationsTable,
-	})
-	if err != nil {
-		return err
+func TestStore(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error)
+	}{
+		{"testDbStore", testDbStore},
+		{"testStoreRetention", testStoreRetention},
+		{"testQuery", testQuery},
 	}
-	return migrate.Migrate(db, migrationDriver, sqlitemigrations.AssetNames(), sqlitemigrations.Asset)
+	for _, driverName := range []string{"postgres", "sqlite"} {
+		// all tests are run for each db
+		for _, tc := range tests {
+			db, migrationFn := getDB(driverName)
+			t.Run(driverName+"_"+tc.name, func(t *testing.T) {
+				tc.fn(t, db, migrationFn)
+			})
+		}
+	}
 }
 
-func NewMock() *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		utils.Logger().Fatal("opening a stub database connection", zap.Error(err))
+func getDB(driver string) (*sql.DB, func(*sql.DB) error) {
+	switch driver {
+	case "postgres":
+		return postgres.NewMockPgDB(), postgres.Migrations
+	case "sqlite":
+		return sqlite.NewMockSqliteDB(), sqlite.Migrations
 	}
-
-	return db
+	return nil, nil
 }
-
-func TestDbStore(t *testing.T) {
-	db := NewMock()
-	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate))
+func testDbStore(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
+	store, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migrationFn))
 	require.NoError(t, err)
 
 	err = store.Start(context.Background(), timesource.NewDefaultClock())
@@ -60,9 +70,8 @@ func TestDbStore(t *testing.T) {
 	require.NotEmpty(t, res)
 }
 
-func TestStoreRetention(t *testing.T) {
-	db := NewMock()
-	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
+func testStoreRetention(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
+	store, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migrationFn), persistence.WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
 	err = store.Start(context.Background(), timesource.NewDefaultClock())
@@ -85,7 +94,7 @@ func TestStoreRetention(t *testing.T) {
 
 	// This step simulates starting go-waku again from scratch
 
-	store, err = NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithRetentionPolicy(5, 40*time.Second))
+	store, err = persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithRetentionPolicy(5, 40*time.Second))
 	require.NoError(t, err)
 
 	err = store.Start(context.Background(), timesource.NewDefaultClock())
@@ -103,9 +112,8 @@ func TestStoreRetention(t *testing.T) {
 	require.Equal(t, msgCount, 3)
 }
 
-func TestQuery(t *testing.T) {
-	db := NewMock()
-	store, err := NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), WithDB(db), WithMigrations(Migrate), WithRetentionPolicy(5, 20*time.Second))
+func testQuery(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
+	store, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(migrationFn), persistence.WithRetentionPolicy(5, 20*time.Second))
 	require.NoError(t, err)
 
 	insertTime := time.Now()
