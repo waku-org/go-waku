@@ -20,7 +20,7 @@ func TestLightPushOption(t *testing.T) {
 	options := []Option{
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 		WithAutomaticPeerSelection(),
-		WithFastestPeerSelection(context.Background()),
+		WithFastestPeerSelection(),
 		WithRequestID([]byte("requestID")),
 		WithAutomaticRequestID(),
 	}

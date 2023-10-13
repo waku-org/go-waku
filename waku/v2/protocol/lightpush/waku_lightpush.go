@@ -224,11 +224,16 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 		}
 	}
 
-	if params.pm != nil {
+	if params.pm != nil && params.selectedPeer == "" {
 		params.selectedPeer, err = wakuLP.pm.SelectPeer(
-			peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
-				Proto: LightPushID_v20beta1, PubsubTopic: params.pubsubTopic,
-				SpecificPeers: params.preferredPeers, Ctx: ctx})
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         LightPushID_v20beta1,
+				PubsubTopic:   params.pubsubTopic,
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
 	}
 	if params.selectedPeer == "" {
 		if err != nil {

@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -67,7 +66,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // with the lowest ping If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a
 // peer from the node peerstore
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) error {
 		params.peerSelectionType = peermanager.LowestRTT
 		return nil

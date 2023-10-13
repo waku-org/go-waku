@@ -1,7 +1,6 @@
 package legacy_filter
 
 import (
-	"context"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -61,7 +60,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // with the lowest ping If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a
 // peer from the node peerstore
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) {
 		params.peerSelectionType = peermanager.LowestRTT
 	}

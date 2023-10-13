@@ -119,7 +119,7 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption 
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
 // Note: This option is avaiable only with peerManager
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) HistoryRequestOption {
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
 		params.peerSelectionType = peermanager.LowestRTT
 	}
@@ -264,10 +264,20 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	for _, opt := range optList {
 		opt(params)
 	}
-
-	if store.pm != nil {
-		params.selectedPeer, _ = store.pm.SelectPeer(peermanager.PeerSelectionCriteria{SelectionType: params.peerSelectionType,
-			Proto: StoreID_v20beta4, PubsubTopic: query.Topic, SpecificPeers: params.preferredPeers, Ctx: ctx})
+	if store.pm != nil && params.selectedPeer == "" {
+		var err error
+		params.selectedPeer, err = store.pm.SelectPeer(
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         StoreID_v20beta4,
+				PubsubTopic:   query.Topic,
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !params.localQuery && params.selectedPeer == "" {

@@ -1,8 +1,6 @@
 package lightpush
 
 import (
-	"context"
-
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
@@ -52,7 +50,7 @@ func WithPubSubTopic(pubsubTopic string) Option {
 // with the lowest ping. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) Option {
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
 		params.peerSelectionType = peermanager.LowestRTT
 	}

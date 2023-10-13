@@ -276,10 +276,10 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	failedContentTopics := []string{}
 	subscriptions := make([]*subscription.SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
-
+		var selectedPeer peer.ID
 		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
-		if params.pm != nil {
-			params.selectedPeer, err = wf.pm.SelectPeer(
+		if params.pm != nil && params.selectedPeer == "" {
+			selectedPeer, err = wf.pm.SelectPeer(
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
 					Proto:         FilterSubscribeID_v20beta1,
@@ -288,9 +288,11 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 					Ctx:           ctx,
 				},
 			)
+		} else {
+			selectedPeer = params.selectedPeer
 		}
 
-		if params.selectedPeer == "" {
+		if selectedPeer == "" {
 			wf.metrics.RecordError(peerNotFoundFailure)
 			wf.log.Error("selecting peer", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
 				zap.Error(err))
@@ -309,7 +311,7 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 			failedContentTopics = append(failedContentTopics, cTopics...)
 			continue
 		}
-		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(params.selectedPeer, cFilter))
+		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(selectedPeer, cFilter))
 	}
 
 	if len(failedContentTopics) > 0 {

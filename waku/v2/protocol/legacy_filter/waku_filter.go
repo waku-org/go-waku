@@ -239,7 +239,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	for _, opt := range optList {
 		opt(params)
 	}
-	if wf.pm != nil {
+	if wf.pm != nil && params.selectedPeer == "" {
 		params.selectedPeer, _ = wf.pm.SelectPeer(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
