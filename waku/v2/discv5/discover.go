@@ -397,10 +397,8 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 		}
 
 		if nodeRS == nil {
-			// TODO: Node has no shard registered.
-			// Since for now, status-go uses both mixed static and named shards, we assume the node is valid
-			// Once status-go uses only static shards, we can't return true anymore.
-			return true
+			// Node has no shards registered.
+			return false
 		}
 
 		if nodeRS.Cluster != localRS.Cluster {
