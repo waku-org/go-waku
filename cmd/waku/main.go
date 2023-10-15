@@ -36,6 +36,7 @@ func main() {
 		NodeKey,
 		KeyFile,
 		KeyPassword,
+		ClusterID,
 		StaticNode,
 		KeepAlive,
 		PersistPeers,
