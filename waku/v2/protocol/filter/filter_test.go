@@ -819,6 +819,102 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 
 }
 
+func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
+	var (
+		testTopic        = "/waku/2/go/filter/test"
+		testContentTopic = "Topic"
+		testPayload      = "test_msg"
+		suffix           string
+		messages         []WakuMsg
+	)
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	// Prepare data
+	for i := 0; i < 10; i++ {
+		suffix = fmt.Sprintf("%02d", i)
+		messages = append(messages, WakuMsg{
+			pubSubTopic:  testTopic,
+			contentTopic: testContentTopic + suffix,
+			payload:      testPayload + suffix,
+		})
+	}
+
+	// Subscribe
+	for _, m := range messages {
+		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+	}
+
+	// All messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TestContentTopicsLimit() {
+	var (
+		testTopic        = "/waku/2/go/filter/test"
+		testContentTopic = "Topic"
+		testPayload      = "test_msg"
+		suffix           string
+		maxContentTopics = 30
+		messages         []WakuMsg
+	)
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	// Prepare data
+	for i := 0; i < maxContentTopics; i++ {
+		suffix = fmt.Sprintf("%02d", i)
+		messages = append(messages, WakuMsg{
+			pubSubTopic:  testTopic,
+			contentTopic: testContentTopic + suffix,
+			payload:      testPayload + suffix,
+		})
+	}
+
+	// Subscribe
+	for _, m := range messages {
+		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+	}
+
+	// All messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	// Prepare over the limit message
+	suffix = fmt.Sprintf("%02d", maxContentTopics)
+	msgOverLimit := WakuMsg{
+		pubSubTopic:  testTopic,
+		contentTopic: testContentTopic + suffix,
+		payload:      testPayload + suffix,
+	}
+
+	// Adding over the limit contentTopic should fail
+	for _, sub := range s.subDetails {
+		if sub.ContentFilter.PubsubTopic == msgOverLimit.pubSubTopic {
+			sub.Add(msgOverLimit.contentTopic)
+			_, err := s.lightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(s.fullNodeHost.ID()))
+			s.Require().Error(err)
+		}
+	}
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
+
 func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {
 	s.log.Info("Executing ", zap.String("testName", testName))
 }
