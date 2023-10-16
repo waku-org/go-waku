@@ -613,7 +613,7 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 	for {
 		evt, err := handler.NextPeerEvent(w.Context())
 		if err != nil {
-			if err == context.Canceled {
+			if err == context.Canceled || err == context.DeadlineExceeded {
 				break
 			}
 			w.log.Error("failed to get next peer event", zap.String("topic", topic), zap.Error(err))
