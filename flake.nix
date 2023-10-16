@@ -18,7 +18,7 @@
           pkgs = nixpkgsFor.${system};
           commit = builtins.substring 0 7 (self.rev or "dirty");
           version = builtins.readFile ./VERSION;
-        in pkgs.buildGo119Module {
+        in pkgs.buildGo120Module {
           name = "go-waku";
           src = self;
           inherit subPackages;
