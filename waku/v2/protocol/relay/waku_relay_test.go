@@ -81,7 +81,9 @@ func createRelayNode(t *testing.T) (host.Host, *WakuRelay) {
 	bcaster := NewBroadcaster(10)
 	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
-	bcaster.Start(context.Background())
+	err = bcaster.Start(context.Background())
+	require.NoError(t, err)
+
 	return host, relay
 }
 
