@@ -16,6 +16,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -116,13 +117,13 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
-	sub, err := wakuNode.Relay().Subscribe(ctx)
+	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	if err != nil {
 		log.Error("Could not subscribe", zap.Error(err))
 		return
 	}
 
-	for envelope := range sub.Ch {
+	for envelope := range sub[0].Ch {
 		if envelope.Message().ContentTopic != contentTopic {
 			continue
 		}
