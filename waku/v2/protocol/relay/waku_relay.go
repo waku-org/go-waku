@@ -14,7 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/eventbus"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-	"golang.org/x/exp/slices"
 	proto "google.golang.org/protobuf/proto"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -584,18 +583,6 @@ func (w *WakuRelay) topicMsgHandler(pubsubTopic string, sub *pubsub.Subscription
 			w.metrics.RecordMessage(envelope)
 
 			w.bcaster.Submit(envelope)
-
-			//Notify to all subscriptions for this topic
-			sub, ok := w.contentSubs[pubsubTopic]
-			if ok {
-				//Filter and notify only
-				// - if contentFilter doesn't have a contentTopic
-				// - if contentFilter has contentTopics and it matches with message
-				if len(sub.contentFilter.ContentTopicsList()) == 0 || (len(sub.contentFilter.ContentTopicsList()) > 0 &&
-					slices.Contains[string](sub.contentFilter.ContentTopicsList(), wakuMessage.ContentTopic)) {
-					sub.Ch <- envelope
-				}
-			}
 		}
 	}
 
