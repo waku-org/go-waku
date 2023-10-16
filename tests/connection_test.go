@@ -10,7 +10,9 @@ import (
 
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -39,10 +41,10 @@ func TestBasicSendingReceiving(t *testing.T) {
 
 	require.NoError(t, write(ctx, wakuNode, "test"))
 
-	sub, err := wakuNode.Relay().Subscribe(ctx)
+	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
 
-	value := <-sub.Ch
+	value := <-sub[0].Ch
 	payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
 	require.NoError(t, err)
 

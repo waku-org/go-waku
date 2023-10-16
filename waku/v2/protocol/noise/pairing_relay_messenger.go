@@ -4,6 +4,7 @@ import (
 	"context"
 
 	n "github.com/waku-org/go-noise"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -39,16 +40,19 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 		topic = relay.DefaultWakuTopic
 	}
 
-	subs, err := r.SubscribeToTopic(ctx, topic)
+	subs, err := r.Subscribe(ctx, protocol.NewContentFilter(topic))
 	if err != nil {
 		return nil, err
 	}
-
+	//Note: Safely assuming 0th index as subscription is based on pubSubTopic.
+	// Once this API is changed to support subscription based on contentTopics, this logic should also be changed.
+	sub := subs[0]
 	ctx, cancel := context.WithCancel(ctx)
 
 	wr := &NoiseWakuRelay{
-		relay:                         r,
-		relaySub:                      subs,
+		relay: r,
+
+		relaySub:                      sub,
 		cancel:                        cancel,
 		timesource:                    timesource,
 		broadcaster:                   relay.NewBroadcaster(1024),
@@ -65,10 +69,10 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 		for {
 			select {
 			case <-ctx.Done():
-				subs.Unsubscribe()
+				sub.Unsubscribe()
 				wr.broadcaster.Stop()
 				return
-			case envelope := <-subs.Ch:
+			case envelope := <-sub.Ch:
 				if envelope != nil {
 					wr.broadcaster.Submit(envelope)
 				}

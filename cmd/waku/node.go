@@ -344,9 +344,10 @@ func Execute(options NodeOptions) {
 	if options.Relay.Enable {
 		for nodeTopic := range pubSubTopicMap {
 			nodeTopic := nodeTopic
-			sub, err := wakuNode.Relay().SubscribeToTopic(ctx, nodeTopic)
+			sub, err := wakuNode.Relay().Subscribe(ctx, wprotocol.NewContentFilter(nodeTopic))
 			failOnErr(err, "Error subscring to topic")
-			sub.Unsubscribe()
+			//TODO: Should we call relay unsubscribe???
+			sub[0].Unsubscribe()
 
 			if len(options.Rendezvous.Nodes) != 0 {
 				// Register the node in rendezvous point

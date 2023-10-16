@@ -17,6 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -53,11 +54,11 @@ func TestWakuNode2(t *testing.T) {
 	err = wakuNode.Start(ctx)
 	require.NoError(t, err)
 
-	_, err = wakuNode.Relay().SubscribeToTopic(ctx, "waku/rs/1/1")
+	_, err = wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter("waku/rs/1/1"))
 	require.NoError(t, err)
 	time.Sleep(time.Second * 1)
 
-	err = wakuNode.Relay().Unsubscribe(ctx, "waku/rs/1/1")
+	err = wakuNode.Relay().Unsubscribe(ctx, protocol.NewContentFilter("waku/rs/1/1"))
 	require.NoError(t, err)
 
 	defer wakuNode.Stop()
@@ -150,9 +151,9 @@ func Test500(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	sub1, err := wakuNode1.Relay().Subscribe(ctx)
+	sub1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
-	sub2, err := wakuNode1.Relay().Subscribe(ctx)
+	sub2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
 
 	wg := sync.WaitGroup{}
@@ -167,7 +168,7 @@ func Test500(t *testing.T) {
 			select {
 			case <-ticker.C:
 				require.Fail(t, "Timeout Sub1")
-			case msg := <-sub1.Ch:
+			case msg := <-sub1[0].Ch:
 				if msg == nil {
 					return
 				}
@@ -188,7 +189,7 @@ func Test500(t *testing.T) {
 			select {
 			case <-ticker.C:
 				require.Fail(t, "Timeout Sub2")
-			case msg := <-sub2.Ch:
+			case msg := <-sub2[0].Ch:
 				if msg == nil {
 					return
 				}
@@ -233,9 +234,9 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
 
-	subs, err := wakuNode1.Relay().Subscribe(ctx)
+	subs, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
-	subs.Unsubscribe()
+	subs[0].Unsubscribe()
 
 	// NODE2: Filter Client/Store
 	db, err := sqlite.NewDB(":memory:", false, utils.Logger())

@@ -63,10 +63,10 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 	err = relay.Start(context.Background())
 	s.Require().NoError(err)
 
-	sub, err := relay.SubscribeToTopic(context.Background(), topic)
+	sub, err := relay.Subscribe(context.Background(), protocol.NewContentFilter(topic))
 	s.Require().NoError(err)
 
-	return relay, sub, host, broadcaster
+	return relay, sub[0], host, broadcaster
 }
 
 func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bool) *WakuFilterLightNode {

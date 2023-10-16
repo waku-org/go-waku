@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -26,19 +27,19 @@ func TestWakuRelay(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	bcaster := NewBroadcaster(10)
-	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	//bcaster := NewBroadcaster(10)
+	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
-	err = bcaster.Start(context.Background())
+	//err = bcaster.Start(context.Background())
 	require.NoError(t, err)
 	defer relay.Stop()
 
-	_, err = relay.subscribe(testTopic)
-	sub := bcaster.Register(testTopic)
-	defer sub.Unsubscribe()
+	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+	//sub := bcaster.Register(testTopic)
+	//defer subs[0].Unsubscribe()
 	require.NoError(t, err)
 
 	require.Equal(t, relay.IsSubscribed(testTopic), true)
@@ -52,8 +53,8 @@ func TestWakuRelay(t *testing.T) {
 	go func() {
 		defer cancel()
 
-		<-sub.Ch
-
+		msg := <-subs[0].Ch
+		fmt.Println("msg received ", msg)
 	}()
 
 	msg := &pb.WakuMessage{
@@ -67,7 +68,7 @@ func TestWakuRelay(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	err = relay.Unsubscribe(ctx, testTopic)
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(testTopic))
 	require.NoError(t, err)
 
 	<-ctx.Done()
@@ -106,7 +107,7 @@ func TestGossipsubScore(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		sub, err := relay[i].subscribe(testTopic)
+		sub, err := relay[i].subscribeToPubsubTopic(testTopic)
 		require.NoError(t, err)
 		go func() {
 			for {

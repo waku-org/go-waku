@@ -28,3 +28,26 @@ func (cf ContentFilter) ContentTopicsList() []string {
 func NewContentFilter(pubsubTopic string, contentTopics ...string) ContentFilter {
 	return ContentFilter{pubsubTopic, NewContentTopicSet(contentTopics...)}
 }
+
+// This function converts a contentFilter into a map of pubSubTopics and corresponding contentTopics
+func ContentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]string, error) {
+	pubSubTopicMap := make(map[string][]string)
+
+	if contentFilter.PubsubTopic != "" {
+		pubSubTopicMap[contentFilter.PubsubTopic] = contentFilter.ContentTopicsList()
+	} else {
+		//Parse the content-Topics to figure out shards.
+		for _, cTopicString := range contentFilter.ContentTopicsList() {
+			pTopicStr, err := GetPubSubTopicFromContentTopic(cTopicString)
+			if err != nil {
+				return nil, err
+			}
+			_, ok := pubSubTopicMap[pTopicStr]
+			if !ok {
+				pubSubTopicMap[pTopicStr] = []string{}
+			}
+			pubSubTopicMap[pTopicStr] = append(pubSubTopicMap[pTopicStr], cTopicString)
+		}
+	}
+	return pubSubTopicMap, nil
+}

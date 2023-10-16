@@ -127,15 +127,21 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 		var err error
 		if topic == "" {
 			var sub *relay.Subscription
-			sub, err = r.node.Relay().Subscribe(ctx)
-			sub.Unsubscribe()
-		} else {
-			var sub *relay.Subscription
-			sub, err = r.node.Relay().SubscribeToTopic(ctx, topic)
+			subs, err := r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 			if err != nil {
 				r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
 				return err
 			}
+			sub = subs[0]
+			sub.Unsubscribe()
+		} else {
+			var sub *relay.Subscription
+			subs, err := r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
+			if err != nil {
+				r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
+				return err
+			}
+			sub = subs[0]
 			sub.Unsubscribe()
 		}
 		if err != nil {
@@ -155,7 +161,7 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
 	ctx := req.Context()
 	for _, topic := range args.Topics {
-		err := r.node.Relay().Unsubscribe(ctx, topic)
+		err := r.node.Relay().Unsubscribe(ctx, protocol.NewContentFilter(topic))
 		if err != nil {
 			r.log.Error("unsubscribing from topic", zap.String("topic", topic), zap.Error(err))
 			return err
