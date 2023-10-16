@@ -240,17 +240,17 @@ func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, 
 		return nil, nil, err
 	}
 
-	multiaddr = append(multiaddr, wssAddrs...)
+	circuitAddrs, err := selectCircuitRelayListenAddresses(addrs)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	// to use WSS, you should have a valid certificate with a domain name.
-	// that means you're reachable. So circuit relay addresses are ignored
-	if len(wssAddrs) == 0 {
-		circuitAddrs, err := selectCircuitRelayListenAddresses(addrs)
-		if err != nil {
-			return nil, nil, err
-		}
-
+	if len(circuitAddrs) != 0 {
+		// Node is unreachable, hence why we have circuit relay multiaddr
+		// We prefer these instead of any ws/s address
 		multiaddr = append(multiaddr, circuitAddrs...)
+	} else {
+		multiaddr = append(multiaddr, wssAddrs...)
 	}
 
 	return
