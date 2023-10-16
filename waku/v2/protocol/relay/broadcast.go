@@ -7,31 +7,32 @@ import (
 	"sync/atomic"
 
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"golang.org/x/exp/slices"
 )
 
-type chStore struct {
+type subscriptions struct {
 	mu           sync.RWMutex
-	topicToChans map[string]map[int]chan *protocol.Envelope
+	topicsToSubs map[string]map[int]*Subscription //map of pubSubTopic to subscriptions
 	id           int
 }
 
-func newChStore() chStore {
-	return chStore{
-		topicToChans: make(map[string]map[int]chan *protocol.Envelope),
+func newSubStore() subscriptions {
+	return subscriptions{
+		topicsToSubs: make(map[string]map[int]*Subscription),
 	}
 }
-func (s *chStore) getNewCh(topic string, chLen int) Subscription {
+func (s *subscriptions) getNewSubscription(contentFilter protocol.ContentFilter, chLen int) Subscription {
 	ch := make(chan *protocol.Envelope, chLen)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.id++
-	//
-	if s.topicToChans[topic] == nil {
-		s.topicToChans[topic] = make(map[int]chan *protocol.Envelope)
+	pubsubTopic := contentFilter.PubsubTopic
+	if s.topicsToSubs[pubsubTopic] == nil {
+		s.topicsToSubs[pubsubTopic] = make(map[int]*Subscription)
 	}
 	id := s.id
-	s.topicToChans[topic][id] = ch
-	return Subscription{
+	sub := Subscription{
+		ID: id,
 		// read only channel,will not block forever, returns once closed.
 		Ch: ch,
 		// Unsubscribe function is safe, can be called multiple times
@@ -39,21 +40,25 @@ func (s *chStore) getNewCh(topic string, chLen int) Subscription {
 		Unsubscribe: func() {
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			if s.topicToChans[topic] == nil {
+			if s.topicsToSubs[pubsubTopic] == nil {
 				return
 			}
-			if ch := s.topicToChans[topic][id]; ch != nil {
-				close(ch)
-				delete(s.topicToChans[topic], id)
+			if sub := s.topicsToSubs[pubsubTopic][id]; sub != nil {
+				close(sub.Ch)
+				delete(s.topicsToSubs[pubsubTopic], id)
 			}
 		},
+		contentFilter: contentFilter,
 	}
+	s.topicsToSubs[pubsubTopic][id] = &sub
+	return sub
 }
 
-func (s *chStore) broadcast(ctx context.Context, m *protocol.Envelope) {
+func (s *subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, ch := range s.topicToChans[m.PubsubTopic()] {
+	for _, sub := range s.topicsToSubs[m.PubsubTopic()] {
+
 		select {
 		// using ctx.Done for returning on cancellation is needed
 		// reason:
@@ -62,35 +67,43 @@ func (s *chStore) broadcast(ctx context.Context, m *protocol.Envelope) {
 		// this will also block the chStore close function as it uses same mutex
 		case <-ctx.Done():
 			return
-		case ch <- m:
+		default:
+			//Filter and notify only
+			// - if contentFilter doesn't have a contentTopic
+			// - if contentFilter has contentTopics and it matches with message
+			if len(sub.contentFilter.ContentTopicsList()) == 0 || (len(sub.contentFilter.ContentTopicsList()) > 0 &&
+				slices.Contains[string](sub.contentFilter.ContentTopicsList(), m.Message().ContentTopic)) {
+				sub.Ch <- m
+			}
 		}
 	}
-	// send to all registered subscribers
-	for _, ch := range s.topicToChans[""] {
+
+	// send to all wildcard subscribers
+	for _, sub := range s.topicsToSubs[""] {
 		select {
 		case <-ctx.Done():
 			return
-		case ch <- m:
+		case sub.Ch <- m:
 		}
 	}
 }
 
-func (s *chStore) close() {
+func (s *subscriptions) close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, chans := range s.topicToChans {
-		for _, ch := range chans {
-			close(ch)
+	for _, subs := range s.topicsToSubs {
+		for _, sub := range subs {
+			close(sub.Ch)
 		}
 	}
-	s.topicToChans = nil
+	s.topicsToSubs = nil
 }
 
 // Broadcaster is used to create a fanout for an envelope that will be received by any subscriber interested in the topic of the message
 type Broadcaster interface {
 	Start(ctx context.Context) error
 	Stop()
-	Register(topic string, chLen ...int) Subscription
+	Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription
 	RegisterForAll(chLen ...int) Subscription
 	Submit(*protocol.Envelope)
 }
@@ -106,7 +119,7 @@ type broadcaster struct {
 	cancel context.CancelFunc
 	input  chan *protocol.Envelope
 	//
-	chStore chStore
+	chStore subscriptions
 	running atomic.Bool
 }
 
@@ -124,7 +137,7 @@ func (b *broadcaster) Start(ctx context.Context) error {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	b.cancel = cancel
-	b.chStore = newChStore()
+	b.chStore = newSubStore()
 	b.input = make(chan *protocol.Envelope, b.bufLen)
 	go b.run(ctx)
 	return nil
@@ -154,15 +167,14 @@ func (b *broadcaster) Stop() {
 	close(b.input)    // close input channel
 }
 
-// Register returns a subscription for an specific topic
-func (b *broadcaster) Register(topic string, chLen ...int) Subscription {
-	return b.chStore.getNewCh(topic, getChLen(chLen))
+// Register returns a subscription for an specific pubsub topic and/or list of contentTopics
+func (b *broadcaster) Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription {
+	return b.chStore.getNewSubscription(contentFilter, getChLen(chLen))
 }
 
 // RegisterForAll returns a subscription for all topics
 func (b *broadcaster) RegisterForAll(chLen ...int) Subscription {
-
-	return b.chStore.getNewCh("", getChLen(chLen))
+	return b.chStore.getNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
 }
 
 func getChLen(chLen []int) int {

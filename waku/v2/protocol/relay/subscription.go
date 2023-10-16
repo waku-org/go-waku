@@ -4,6 +4,7 @@ import "github.com/waku-org/go-waku/waku/v2/protocol"
 
 // Subscription handles the details of a particular Topic subscription. There may be many subscriptions for a given topic.
 type Subscription struct {
+	ID            int
 	Unsubscribe   func()
 	Ch            chan *protocol.Envelope
 	contentFilter protocol.ContentFilter

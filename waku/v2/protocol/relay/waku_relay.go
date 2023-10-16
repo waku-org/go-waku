@@ -99,7 +99,8 @@ func msgIDFn(pmsg *pubsub_pb.Message) string {
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
-func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesource.Timesource, reg prometheus.Registerer, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
+func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesource.Timesource,
+	reg prometheus.Registerer, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
 	w := new(WakuRelay)
 	w.timesource = timesource
 	w.wakuRelayTopics = make(map[string]*pubsub.Topic)
@@ -232,6 +233,9 @@ func (w *WakuRelay) Start(ctx context.Context) error {
 }
 
 func (w *WakuRelay) start() error {
+	if w.bcaster == nil {
+		return fmt.Errorf("broadcaster not specified for relay")
+	}
 	ps, err := pubsub.NewGossipSub(w.Context(), w.host, w.opts...)
 	if err != nil {
 		return err
@@ -429,16 +433,14 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			if err != nil {
 				return nil, err
 			}
-			/* TODO: Analyze what to do with this
-						if w.bcaster != nil {
-				_ = w.bcaster.Register(contentFilter.PubsubTopic, 1024)
-			} */
+
+			subscription := w.bcaster.Register(contentFilter, 1024)
+
 			// Create Content subscription
-			subscription := NewSubscription(contentFilter)
 			w.topicsMutex.RLock()
-			w.contentSubs[pubSubTopic] = subscription
+			w.contentSubs[pubSubTopic] = &subscription
 			w.topicsMutex.RUnlock()
-			subscriptions = append(subscriptions, subscription)
+			subscriptions = append(subscriptions, &subscription)
 			go func() {
 				<-ctx.Done()
 				subscription.Unsubscribe()
@@ -511,7 +513,9 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 			w.relaySubs[pubSubTopic].Cancel()
 			delete(w.relaySubs, pubSubTopic)
 
-			//TODO: Any cancellation to be done?
+			//TODO: Unregister all subs from broadcaster
+			//cSub.Unsubscribe()
+
 			delete(w.contentSubs, pubSubTopic)
 
 			evtHandler, ok := w.topicEvtHanders[pubSubTopic]
@@ -579,9 +583,8 @@ func (w *WakuRelay) topicMsgHandler(pubsubTopic string, sub *pubsub.Subscription
 
 			w.metrics.RecordMessage(envelope)
 
-			if w.bcaster != nil {
-				w.bcaster.Submit(envelope)
-			}
+			w.bcaster.Submit(envelope)
+
 			//Notify to all subscriptions for this topic
 			sub, ok := w.contentSubs[pubsubTopic]
 			if ok {

@@ -97,7 +97,7 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	node2Filter.SetHost(host)
-	sub := broadcaster.Register(topic)
+	sub := broadcaster.Register(protocol.NewContentFilter(topic))
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 

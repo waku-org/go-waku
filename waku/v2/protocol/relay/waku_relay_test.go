@@ -27,15 +27,15 @@ func TestWakuRelay(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	//bcaster := NewBroadcaster(10)
-	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	bcaster := NewBroadcaster(10)
+	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
-	//err = bcaster.Start(context.Background())
+	err = bcaster.Start(context.Background())
 	require.NoError(t, err)
-	defer relay.Stop()
+	//defer relay.Stop()
 
 	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
 	//sub := bcaster.Register(testTopic)
@@ -70,7 +70,6 @@ func TestWakuRelay(t *testing.T) {
 
 	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(testTopic))
 	require.NoError(t, err)
-
 	<-ctx.Done()
 }
 
@@ -79,9 +78,10 @@ func createRelayNode(t *testing.T) (host.Host, *WakuRelay) {
 	require.NoError(t, err)
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-
-	relay := NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	bcaster := NewBroadcaster(10)
+	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
+	bcaster.Start(context.Background())
 	return host, relay
 }
 

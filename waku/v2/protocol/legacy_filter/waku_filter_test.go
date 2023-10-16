@@ -82,7 +82,7 @@ func TestWakuFilter(t *testing.T) {
 
 	node2Filter := NewWakuFilter(broadcaster, true, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	node2Filter.SetHost(host2)
-	sub := broadcaster.Register(testTopic)
+	sub := broadcaster.Register(protocol.NewContentFilter(testTopic))
 	err := node2Filter.Start(ctx, sub)
 	require.NoError(t, err)
 
@@ -170,7 +170,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	require.NoError(t, broadcaster2.Start(context.Background()))
 	node2Filter := NewWakuFilter(broadcaster2, true, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger(), WithTimeout(3*time.Second))
 	node2Filter.SetHost(host2)
-	sub := broadcaster.Register(testTopic)
+	sub := broadcaster.Register(protocol.NewContentFilter(testTopic))
 	err := node2Filter.Start(ctx, sub)
 	require.NoError(t, err)
 
