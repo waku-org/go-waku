@@ -17,8 +17,8 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -237,7 +237,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	subs, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
-	subs[0].Unsubscribe()
+	defer subs[0].Unsubscribe()
 
 	// NODE2: Filter Client/Store
 	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
