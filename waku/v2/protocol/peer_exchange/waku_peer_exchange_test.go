@@ -163,7 +163,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	err = host3.Peerstore().AddProtocols(host1.ID(), PeerExchangeID_v20alpha1)
 	require.NoError(t, err)
 
-	err = px3.Request(context.Background(), 1)
+	err = px3.Request(context.Background(), 1, WithPeer(host1.ID()))
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second) //  Give the algorithm some time to work its magic

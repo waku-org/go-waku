@@ -6,7 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestServiceSlot(t *testing.T) {
@@ -27,7 +26,7 @@ func TestServiceSlot(t *testing.T) {
 	slots.getPeers(protocol).remove(peerID)
 	//
 	_, err = slots.getPeers(protocol).getRandom()
-	require.Equal(t, err, utils.ErrNoPeersAvailable)
+	require.Equal(t, err, ErrNoPeersAvailable)
 }
 
 func TestServiceSlotRemovePeerFromAll(t *testing.T) {
@@ -50,7 +49,7 @@ func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	slots.removePeer(peerID)
 	//
 	_, err = slots.getPeers(protocol).getRandom()
-	require.Equal(t, err, utils.ErrNoPeersAvailable)
+	require.Equal(t, err, ErrNoPeersAvailable)
 	_, err = slots.getPeers(protocol1).getRandom()
-	require.Equal(t, err, utils.ErrNoPeersAvailable)
+	require.Equal(t, err, ErrNoPeersAvailable)
 }

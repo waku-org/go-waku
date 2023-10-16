@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -48,6 +49,7 @@ type (
 	WakuFilter struct {
 		*protocol.CommonService
 		h          host.Host
+		pm         *peermanager.PeerManager
 		isFullNode bool
 		msgSub     relay.Subscription
 		metrics    Metrics
@@ -237,7 +239,17 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	for _, opt := range optList {
 		opt(params)
 	}
-
+	if wf.pm != nil && params.selectedPeer == "" {
+		params.selectedPeer, _ = wf.pm.SelectPeer(
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         FilterID_v20beta1,
+				PubsubTopic:   filter.Topic,
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
+	}
 	if params.selectedPeer == "" {
 		wf.metrics.RecordError(peerNotFoundFailure)
 		return nil, ErrNoPeersAvailable
