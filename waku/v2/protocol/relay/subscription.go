@@ -1,6 +1,9 @@
 package relay
 
-import "github.com/waku-org/go-waku/waku/v2/protocol"
+import (
+	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"golang.org/x/exp/slices"
+)
 
 // Subscription handles the details of a particular Topic subscription. There may be many subscriptions for a given topic.
 type Subscription struct {
@@ -17,6 +20,17 @@ const (
 	SpecificContentTopics SubsciptionType = iota
 	AllContentTopics
 )
+
+// Submit allows a message to be submitted for a subscription
+func (s *Subscription) Submit(msg *protocol.Envelope) {
+	//Filter and notify
+	// - if contentFilter doesn't have a contentTopic
+	// - if contentFilter has contentTopics and it matches with message
+	if len(s.contentFilter.ContentTopicsList()) == 0 || (len(s.contentFilter.ContentTopicsList()) > 0 &&
+		slices.Contains[string](s.contentFilter.ContentTopicsList(), msg.Message().ContentTopic)) {
+		s.Ch <- msg
+	}
+}
 
 // NewSubscription creates a subscription that will only receive messages based on the contentFilter
 func NewSubscription(contentFilter protocol.ContentFilter) *Subscription {

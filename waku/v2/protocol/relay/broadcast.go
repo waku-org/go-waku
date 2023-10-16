@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"golang.org/x/exp/slices"
 )
 
 type subscriptions struct {
@@ -21,7 +20,7 @@ func newSubStore() subscriptions {
 		topicsToSubs: make(map[string]map[int]*Subscription),
 	}
 }
-func (s *subscriptions) getNewSubscription(contentFilter protocol.ContentFilter, chLen int) Subscription {
+func (s *subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, chLen int) Subscription {
 	ch := make(chan *protocol.Envelope, chLen)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -58,7 +57,6 @@ func (s *subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, sub := range s.topicsToSubs[m.PubsubTopic()] {
-
 		select {
 		// using ctx.Done for returning on cancellation is needed
 		// reason:
@@ -68,13 +66,7 @@ func (s *subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 		case <-ctx.Done():
 			return
 		default:
-			//Filter and notify only
-			// - if contentFilter doesn't have a contentTopic
-			// - if contentFilter has contentTopics and it matches with message
-			if len(sub.contentFilter.ContentTopicsList()) == 0 || (len(sub.contentFilter.ContentTopicsList()) > 0 &&
-				slices.Contains[string](sub.contentFilter.ContentTopicsList(), m.Message().ContentTopic)) {
-				sub.Ch <- m
-			}
+			sub.Submit(m)
 		}
 	}
 
@@ -169,12 +161,12 @@ func (b *broadcaster) Stop() {
 
 // Register returns a subscription for an specific pubsub topic and/or list of contentTopics
 func (b *broadcaster) Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription {
-	return b.chStore.getNewSubscription(contentFilter, getChLen(chLen))
+	return b.chStore.createNewSubscription(contentFilter, getChLen(chLen))
 }
 
 // RegisterForAll returns a subscription for all topics
 func (b *broadcaster) RegisterForAll(chLen ...int) Subscription {
-	return b.chStore.getNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
+	return b.chStore.createNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
 }
 
 func getChLen(chLen []int) int {
