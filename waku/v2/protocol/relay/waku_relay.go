@@ -512,8 +512,7 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 			w.relaySubs[pubSubTopic].Cancel()
 			delete(w.relaySubs, pubSubTopic)
 
-			//TODO: Unregister all subs from broadcaster
-			//cSub.Unsubscribe()
+			w.bcaster.UnRegister(pubSubTopic)
 
 			delete(w.contentSubs, pubSubTopic)
 

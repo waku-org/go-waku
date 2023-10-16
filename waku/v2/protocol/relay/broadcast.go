@@ -9,18 +9,18 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
-type subscriptions struct {
+type Subscriptions struct {
 	mu           sync.RWMutex
 	topicsToSubs map[string]map[int]*Subscription //map of pubSubTopic to subscriptions
 	id           int
 }
 
-func newSubStore() subscriptions {
-	return subscriptions{
+func newSubStore() Subscriptions {
+	return Subscriptions{
 		topicsToSubs: make(map[string]map[int]*Subscription),
 	}
 }
-func (s *subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, chLen int) Subscription {
+func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, chLen int) Subscription {
 	ch := make(chan *protocol.Envelope, chLen)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -53,7 +53,7 @@ func (s *subscriptions) createNewSubscription(contentFilter protocol.ContentFilt
 	return sub
 }
 
-func (s *subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
+func (s *Subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, sub := range s.topicsToSubs[m.PubsubTopic()] {
@@ -80,7 +80,7 @@ func (s *subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 	}
 }
 
-func (s *subscriptions) close() {
+func (s *Subscriptions) close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, subs := range s.topicsToSubs {
@@ -97,6 +97,7 @@ type Broadcaster interface {
 	Stop()
 	Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription
 	RegisterForAll(chLen ...int) Subscription
+	UnRegister(pubsubTopic string)
 	Submit(*protocol.Envelope)
 }
 
@@ -111,8 +112,8 @@ type broadcaster struct {
 	cancel context.CancelFunc
 	input  chan *protocol.Envelope
 	//
-	chStore subscriptions
-	running atomic.Bool
+	subscriptions Subscriptions
+	running       atomic.Bool
 }
 
 // NewBroadcaster creates a new instance of a broadcaster
@@ -129,7 +130,7 @@ func (b *broadcaster) Start(ctx context.Context) error {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	b.cancel = cancel
-	b.chStore = newSubStore()
+	b.subscriptions = newSubStore()
 	b.input = make(chan *protocol.Envelope, b.bufLen)
 	go b.run(ctx)
 	return nil
@@ -142,7 +143,7 @@ func (b *broadcaster) run(ctx context.Context) {
 			return
 		case msg, ok := <-b.input:
 			if ok {
-				b.chStore.broadcast(ctx, msg)
+				b.subscriptions.broadcast(ctx, msg)
 			}
 		}
 	}
@@ -154,19 +155,29 @@ func (b *broadcaster) Stop() {
 		return
 	}
 	// cancel must be before chStore.close(), so that broadcast releases lock before chStore.close() acquires it.
-	b.cancel()        // exit the run loop,
-	b.chStore.close() // close all channels that we send to
-	close(b.input)    // close input channel
+	b.cancel()              // exit the run loop,
+	b.subscriptions.close() // close all channels that we send to
+	close(b.input)          // close input channel
 }
 
 // Register returns a subscription for an specific pubsub topic and/or list of contentTopics
 func (b *broadcaster) Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription {
-	return b.chStore.createNewSubscription(contentFilter, getChLen(chLen))
+	return b.subscriptions.createNewSubscription(contentFilter, getChLen(chLen))
+}
+
+// UnRegister removes all subscriptions for an specific pubsub topic
+func (b *broadcaster) UnRegister(pubsubTopic string) {
+	subs := b.subscriptions.topicsToSubs[pubsubTopic]
+	if len(subs) > 0 {
+		for _, sub := range subs {
+			sub.Unsubscribe()
+		}
+	}
 }
 
 // RegisterForAll returns a subscription for all topics
 func (b *broadcaster) RegisterForAll(chLen ...int) Subscription {
-	return b.chStore.createNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
+	return b.subscriptions.createNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
 }
 
 func getChLen(chLen []int) int {
