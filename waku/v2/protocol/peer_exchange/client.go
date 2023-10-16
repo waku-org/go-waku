@@ -28,7 +28,20 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	for _, opt := range optList {
 		opt(params)
 	}
-
+	if params.pm != nil && params.selectedPeer == "" {
+		var err error
+		params.selectedPeer, err = wakuPX.pm.SelectPeer(
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         PeerExchangeID_v20alpha1,
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
 	if params.selectedPeer == "" {
 		wakuPX.metrics.RecordError(dialFailure)
 		return ErrNoPeersAvailable

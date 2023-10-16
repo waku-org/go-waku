@@ -106,6 +106,7 @@ func TestWakuLightPush(t *testing.T) {
 
 	var lpOptions []Option
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
+	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 
 	// Checking that msg hash is correct
 	hash, err := client.PublishToTopic(ctx, msg2, lpOptions...)
@@ -215,9 +216,10 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 		<-sub2.Ch
 
 	}()
-
+	var lpOptions []Option
+	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 	// Verifying successful request
-	hash1, err := client.Publish(ctx, msg1)
+	hash1, err := client.Publish(ctx, msg1, lpOptions...)
 	require.NoError(t, err)
 	require.Equal(t, protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash1)
 
