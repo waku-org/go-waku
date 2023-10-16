@@ -304,7 +304,6 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer wakuNode3.Stop()
 
-	//err = wakuNode3.DialPeerWithMultiAddress(ctx, wakuNode2.ListenAddresses()[0])
 	_, err = wakuNode3.AddPeer(wakuNode2.ListenAddresses()[0], peerstore.Static, []string{relay.DefaultWakuTopic}, store.StoreID_v20beta4)
 	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
