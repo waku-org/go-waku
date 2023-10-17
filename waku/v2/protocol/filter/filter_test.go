@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
@@ -1004,6 +1005,43 @@ func (s *FilterTestSuite) TestSubscribeErrorHandling() {
 	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().Error(err)
 
+}
+
+func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
+	log := utils.Logger()
+	s.log = log
+	s.wg = &sync.WaitGroup{}
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	fullNodeIDHex := make([]byte, hex.EncodedLen(len([]byte(s.fullNodeHost.ID()))))
+	_ = hex.Encode(fullNodeIDHex, []byte(s.fullNodeHost.ID()))
+
+	s.log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
+
+	// This will overwrite values with the second node info
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+
+	// Connect to second full and relay node
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	fullNodeIDHex = make([]byte, hex.EncodedLen(len([]byte(s.fullNodeHost.ID()))))
+	_ = hex.Encode(fullNodeIDHex, []byte(s.fullNodeHost.ID()))
+
+	s.log.Info("Subscribing to second", zap.String("fullNode", string(fullNodeIDHex)))
+
+	// Subscribe to the second full node
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {
