@@ -43,11 +43,13 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 		ip4 := ipAddr.IP.To4()
 		ip6 := ipAddr.IP.To16()
 		if ip4 != nil && !ip4.IsUnspecified() {
+			localnode.SetFallbackIP(ip4)
 			localnode.Set(enr.IPv4(ip4))
 			localnode.Set(enr.TCP(uint16(ipAddr.Port)))
 		} else {
 			localnode.Delete(enr.IPv4{})
 			localnode.Delete(enr.TCP(0))
+			localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 		}
 
 		if ip4 == nil && ip6 != nil && !ip6.IsUnspecified() {
@@ -58,8 +60,6 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 			localnode.Delete(enr.TCP6(0))
 		}
 	}
-
-	localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 
 	return wenr.Update(localnode, options...)
 }
