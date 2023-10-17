@@ -24,6 +24,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
 
 // FilterPushID_v20beta1 is the current Waku Filter protocol identifier used to allow
@@ -249,6 +250,9 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 
 	if len(contentFilter.ContentTopics) == 0 {
 		return nil, errors.New("at least one content topic is required")
+	}
+	if slices.Contains[string](contentFilter.ContentTopicsList(), "") {
+		return nil, errors.New("one or more content topics specified is empty")
 	}
 
 	if len(contentFilter.ContentTopics) > MaxContentTopicsPerRequest {
