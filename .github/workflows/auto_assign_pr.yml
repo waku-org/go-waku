@@ -9,8 +9,4 @@ jobs:
   assign_creator:
     runs-on: ubuntu-latest
     steps:
-    - name: Assign PR to author
-      run: |
-        gh pr edit ${{ github.event.pull_request.number }} --add-assignee "${{ github.event.pull_request.user.login }}"
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: toshimaru/auto-author-assign@v1.6.2

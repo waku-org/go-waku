@@ -16,3 +16,11 @@ func EncapsulatePeerID(peerID peer.ID, addrs ...multiaddr.Multiaddr) []multiaddr
 	}
 	return result
 }
+
+func MultiAddrSet(addr ...multiaddr.Multiaddr) map[multiaddr.Multiaddr]struct{} {
+	r := make(map[multiaddr.Multiaddr]struct{})
+	for _, a := range addr {
+		r[a] = struct{}{}
+	}
+	return r
+}
