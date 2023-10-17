@@ -346,9 +346,8 @@ func Execute(options NodeOptions) {
 			nodeTopic := nodeTopic
 			sub, err := wakuNode.Relay().Subscribe(ctx, wprotocol.NewContentFilter(nodeTopic))
 			failOnErr(err, "Error subscring to topic")
-			//TODO: Should we call relay unsubscribe???
+			//Calling unsubscribe only closes broadcaster sub and not the underlying pubSub subscription.
 			sub[0].Unsubscribe()
-
 			if len(options.Rendezvous.Nodes) != 0 {
 				// Register the node in rendezvous point
 				iter := rendezvous.NewRendezvousPointIterator(options.Rendezvous.Nodes)

@@ -38,7 +38,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := relay.SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s1.Stop()
@@ -90,7 +90,7 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := relay.SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s1.Stop()
@@ -129,7 +129,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, now+4)
 	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
-	sub := relay.ArraySubscription([]*protocol.Envelope{
+	sub := relay.SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
@@ -206,7 +206,7 @@ func TestWakuStoreResult(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, now+4)
 	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
-	sub := relay.ArraySubscription([]*protocol.Envelope{
+	sub := relay.SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
@@ -302,7 +302,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	msg8 := tests.CreateWakuMessage(topic1, now+8)
 	msg9 := tests.CreateWakuMessage(topic1, now+9)
 
-	sub := relay.ArraySubscription([]*protocol.Envelope{
+	sub := relay.SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),

@@ -8,7 +8,7 @@ import (
 // Subscription handles the details of a particular Topic subscription. There may be many subscriptions for a given topic.
 type Subscription struct {
 	ID            int
-	Unsubscribe   func()
+	Unsubscribe   func() //for internal use only. For relay Subscription use relay protocol's unsubscribe
 	Ch            chan *protocol.Envelope
 	contentFilter protocol.ContentFilter
 	subType       SubsciptionType
@@ -42,16 +42,16 @@ func NewSubscription(contentFilter protocol.ContentFilter) *Subscription {
 	return &Subscription{
 		Unsubscribe: func() {
 			close(ch)
-		}, //TODO: Need to analyze how to link this to underlying pubsub
+		},
 		Ch:            ch,
 		contentFilter: contentFilter,
 		subType:       subType,
 	}
 }
 
-// TODO: Analyze where this is used and how to address/modify this.
-// ArraySubscription creates a subscription for a list of envelopes
-func ArraySubscription(msgs []*protocol.Envelope) Subscription {
+// SimulateSubscription creates a subscription for a list of envelopes
+// This is used only for internal testing purposes.
+func SimulateSubscription(msgs []*protocol.Envelope) Subscription {
 	ch := make(chan *protocol.Envelope, len(msgs))
 	for _, msg := range msgs {
 		ch <- msg
