@@ -978,6 +978,34 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 
 }
 
+func (s *FilterTestSuite) TestSubscribeErrorHandling() {
+	var messages []WakuMsg
+
+	// Prepare data
+	messages = append(messages, WakuMsg{
+		pubSubTopic:  "",
+		contentTopic: s.testContentTopic,
+		payload:      "N/A",
+	})
+
+	messages = append(messages, WakuMsg{
+		pubSubTopic:  s.testTopic,
+		contentTopic: "",
+		payload:      "N/A",
+	})
+
+	// Subscribe with empty pubsub
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: messages[0].pubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[0].contentTopic)}
+	_, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().Error(err)
+
+	// Subscribe with empty content topic
+	s.contentFilter = protocol.ContentFilter{PubsubTopic: messages[1].pubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[1].contentTopic)}
+	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().Error(err)
+
+}
+
 func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {
 	s.log.Info("Executing ", zap.String("testName", testName))
 }
