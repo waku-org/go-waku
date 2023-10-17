@@ -115,11 +115,17 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay
 
 func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 	s.wg.Add(1)
+	var msgFound = false
 	go func() {
 		defer s.wg.Done()
 		select {
 		case env := <-ch:
-			s.Require().Equal(s.contentFilter.ContentTopicsList()[0], env.Message().GetContentTopic())
+			for _, topic := range s.contentFilter.ContentTopicsList() {
+				if topic == env.Message().GetContentTopic() {
+					msgFound = true
+				}
+			}
+			s.Require().True(msgFound)
 		case <-time.After(5 * time.Second):
 			s.Require().Fail("Message timeout")
 		case <-s.ctx.Done():
@@ -214,7 +220,8 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 	for _, sub := range s.subDetails {
 		if sub.ContentFilter.PubsubTopic == pubsubTopic {
 			sub.Add(contentTopic)
-			subDetails, err := s.lightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
+			s.contentFilter = sub.ContentFilter
+			subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
 			s.Require().NoError(err)
 			return subDetails
 		}
@@ -232,15 +239,22 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 }
 
 func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) <-chan WakuFilterPushResult {
-	s.contentFilter = protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
 
-	filterPushResult, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(peer))
-	s.Require().NoError(err)
+	for _, sub := range s.subDetails {
+		if sub.ContentFilter.PubsubTopic == pubsubTopic {
+			topicsCount := len(s.contentFilter.ContentTopicsList())
+			if topicsCount == 1 {
+				_, err := s.lightNode.Unsubscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
+				s.Require().NoError(err)
+			} else {
+				sub.Remove(contentTopic)
+			}
+			s.contentFilter = sub.ContentFilter
+			return nil
+		}
+	}
 
-	// Sleep to make sure the filter is unsubscribed
-	time.Sleep(1 * time.Second)
-
-	return filterPushResult
+	return nil
 }
 
 func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload ...string) {
@@ -379,14 +393,13 @@ func (s *FilterTestSuite) TestSubscriptionPing() {
 
 func (s *FilterTestSuite) TestUnSubscriptionPing() {
 
-	contentTopic := "abc"
-
-	s.subDetails = s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
 	s.Require().NoError(err)
 
-	_ = s.unsubscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
+	_, err = s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
 
 	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
 	s.Require().Error(err)
@@ -659,6 +672,8 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().Error(err)
 
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
 }
 
 func (wf *WakuFilterLightNode) startWithIncorrectPushProto() error {
@@ -718,6 +733,8 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 		s.Require().True(true)
 	}
 
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
@@ -873,6 +890,14 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
+	// Detect existing content topics from previous test
+	if len(s.contentFilter.PubsubTopic) > 0 {
+		existingTopics := len(s.contentFilter.ContentTopicsList())
+		if existingTopics > 0 {
+			maxContentTopics = maxContentTopics - existingTopics
+		}
+	}
+
 	// Prepare data
 	for i := 0; i < maxContentTopics; i++ {
 		suffix = fmt.Sprintf("%02d", i)
@@ -908,6 +933,11 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 			_, err := s.lightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(s.fullNodeHost.ID()))
 			s.Require().Error(err)
 		}
+	}
+
+	// Unsubscribe for cleanup
+	for _, m := range messages {
+		_ = s.unsubscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
