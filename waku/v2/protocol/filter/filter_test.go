@@ -875,6 +875,39 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 
 }
 
+func (s *FilterTestSuite) TestSubscriptionRefresh() {
+	var (
+		testPayload = "test_msg"
+		suffix      string
+		messages    []WakuMsg
+	)
+
+	// Prepare data
+	for i := 0; i < 2; i++ {
+		suffix = fmt.Sprintf("%02d", i)
+		messages = append(messages, WakuMsg{
+			pubSubTopic:  s.testTopic,
+			contentTopic: s.testContentTopic,
+			payload:      testPayload + suffix,
+		})
+	}
+
+	// Initial subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// Repeat the same subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// Both messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
+
 func (s *FilterTestSuite) TestContentTopicsLimit() {
 	var (
 		testTopic        = "/waku/2/go/filter/test"
