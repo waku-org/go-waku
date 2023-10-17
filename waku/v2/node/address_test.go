@@ -20,21 +20,20 @@ func TestExternalAddressSelection(t *testing.T) {
 	a9, _ := ma.NewMultiaddr("/dns4/node-02.gc-us-central1-a.status.prod.statusim.net/tcp/443/wss/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")   // VALID
 	a10, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/8000/wss/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f") // VALID
 	a11, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")    // VALID
+	a12, _ := ma.NewMultiaddr("/ip4/188.23.1.8/tcp/30303/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                                  // VALID
 
-	addrs := []ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11}
+	addrs := []ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7}
 
 	w := &WakuNode{}
-	extAddr, multiaddr, err := w.getENRAddresses([]ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7, a8})
-
-	a5NoP2P, _ := decapsulateP2P(a5)
+	extAddr, multiaddr, err := w.getENRAddresses([]ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7})
+	a4NoP2P, _ := decapsulateP2P(a4)
 	require.NoError(t, err)
 	require.Equal(t, extAddr.IP, net.IPv4(192, 168, 0, 106))
 	require.Equal(t, extAddr.Port, 60000)
-	require.Equal(t, multiaddr[0].String(), a5NoP2P.String())
-	require.Len(t, multiaddr, 1) // Should only have 1, without circuit relay
+	require.Equal(t, multiaddr[0].String(), a4NoP2P.String())
+	require.Len(t, multiaddr, 4)
 
-	a12, _ := ma.NewMultiaddr("/ip4/188.23.1.8/tcp/30303/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f") // VALID
-	addrs = append(addrs, a12)
+	addrs = append(addrs, a8, a9, a10, a11, a12)
 	extAddr, _, err = w.getENRAddresses(addrs)
 	require.NoError(t, err)
 	require.Equal(t, extAddr.IP, net.IPv4(188, 23, 1, 8))

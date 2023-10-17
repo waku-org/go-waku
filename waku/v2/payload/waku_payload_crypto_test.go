@@ -3,6 +3,7 @@ package payload
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	crand "crypto/rand"
 	mrand "math/rand"
 	"testing"
 
@@ -84,7 +85,7 @@ func singlePaddingTest(t *testing.T, padSize int) {
 		Key:     keyInfo,
 	}
 
-	_, err = mrand.Read(p.Padding) // nolint: gosec
+	_, err = crand.Read(p.Padding) // nolint: gosec
 	require.NoError(t, err)
 
 	encodedPayload, err := p.Encode(1)

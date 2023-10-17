@@ -5,7 +5,7 @@ A Go implementation of the [Waku v2 protocol](https://rfc.vac.dev/spec/10).
 <p align="left">
   <a href="https://goreportcard.com/report/github.com/waku-org/go-waku"><img src="https://goreportcard.com/badge/github.com/waku-org/go-waku" /></a>
   <a href="https://godoc.org/github.com/waku-org/go-waku"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" /></a>
-  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.19.0-orange.svg?style=flat-square" /></a>
+  <a href=""><img src="https://img.shields.io/badge/golang-%3E%3D1.20.0-orange.svg?style=flat-square" /></a>
   <a href="https://codeclimate.com/github/waku-org/go-waku/maintainability"><img src="https://api.codeclimate.com/v1/badges/426bdff6a339ff4d536b/maintainability" /></a>
   <br>
 </p>
@@ -106,7 +106,7 @@ Thank you for considering to help out with the source code! We welcome contribut
 If you'd like to contribute to go-waku, please fork, fix, commit and send a pull request. If you wish to submit more complex changes though, please check up with the core devs first to ensure those changes are in line with the general philosophy of the project and/or get some early feedback which can make both your efforts much lighter as well as our review and merge procedures quick and simple.
 
 To build and test this repository, you need:
-  - [Go](https://golang.org/) (version 1.19 or 1.20)
+  - [Go](https://golang.org/) (version 1.20)
   - [protoc](https://grpc.io/docs/protoc-installation/) 
   - [protoc-gen-go](https://protobuf.dev/getting-started/gotutorial/#compiling-protocol-buffers)
 
