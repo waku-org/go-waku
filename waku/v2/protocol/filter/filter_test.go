@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"net/http"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -107,7 +108,7 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	node2Filter.SetHost(host)
-	sub := broadcaster.Register(topic)
+	sub := broadcaster.RegisterForAll()
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 
@@ -179,7 +180,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						found++
 					}
 				case <-time.After(2 * time.Second):
-					break
+
 				case <-s.ctx.Done():
 					s.Require().Fail("test exceeded allocated time")
 				}
@@ -819,6 +820,8 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	for _, m := range messages {
 		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
 		s.log.Info("Subscribing ", zap.String("PubSubTopic", m.pubSubTopic))
+		_, err := s.relayNode.SubscribeToTopic(context.Background(), m.pubSubTopic)
+		s.Require().NoError(err)
 	}
 
 	// Debug to see subscriptions in light node
