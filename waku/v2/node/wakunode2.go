@@ -679,7 +679,7 @@ func (w *WakuNode) mountDiscV5() error {
 	return err
 }
 
-func (w *WakuNode) startStore(ctx context.Context, sub relay.Subscription) error {
+func (w *WakuNode) startStore(ctx context.Context, sub *relay.Subscription) error {
 	err := w.store.Start(ctx, sub)
 	if err != nil {
 		w.log.Error("starting store", zap.Error(err))

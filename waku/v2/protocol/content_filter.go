@@ -2,6 +2,9 @@ package protocol
 
 import "golang.org/x/exp/maps"
 
+type PubsubTopicStr = string
+type ContentTopicStr = string
+
 type ContentTopicSet map[string]struct{}
 
 func NewContentTopicSet(contentTopics ...string) ContentTopicSet {
@@ -30,7 +33,7 @@ func NewContentFilter(pubsubTopic string, contentTopics ...string) ContentFilter
 }
 
 // This function converts a contentFilter into a map of pubSubTopics and corresponding contentTopics
-func ContentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[string][]string, error) {
+func ContentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[PubsubTopicStr][]ContentTopicStr, error) {
 	pubSubTopicMap := make(map[string][]string)
 
 	if contentFilter.PubsubTopic != "" {

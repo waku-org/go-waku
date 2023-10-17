@@ -11,13 +11,13 @@ type Subscription struct {
 	Unsubscribe   func() //for internal use only. For relay Subscription use relay protocol's unsubscribe
 	Ch            chan *protocol.Envelope
 	contentFilter protocol.ContentFilter
-	subType       SubsciptionType
+	subType       SubscriptionType
 }
 
-type SubsciptionType int
+type SubscriptionType int
 
 const (
-	SpecificContentTopics SubsciptionType = iota
+	SpecificContentTopics SubscriptionType = iota
 	AllContentTopics
 )
 
@@ -35,7 +35,7 @@ func (s *Subscription) Submit(msg *protocol.Envelope) {
 // NewSubscription creates a subscription that will only receive messages based on the contentFilter
 func NewSubscription(contentFilter protocol.ContentFilter) *Subscription {
 	ch := make(chan *protocol.Envelope)
-	var subType SubsciptionType
+	var subType SubscriptionType
 	if len(contentFilter.ContentTopicsList()) == 0 {
 		subType = AllContentTopics
 	}
@@ -46,19 +46,5 @@ func NewSubscription(contentFilter protocol.ContentFilter) *Subscription {
 		Ch:            ch,
 		contentFilter: contentFilter,
 		subType:       subType,
-	}
-}
-
-// SimulateSubscription creates a subscription for a list of envelopes
-// This is used only for internal testing purposes.
-func SimulateSubscription(msgs []*protocol.Envelope) Subscription {
-	ch := make(chan *protocol.Envelope, len(msgs))
-	for _, msg := range msgs {
-		ch <- msg
-	}
-	close(ch)
-	return Subscription{
-		Unsubscribe: func() {},
-		Ch:          ch,
 	}
 }

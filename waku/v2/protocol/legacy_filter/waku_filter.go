@@ -51,7 +51,7 @@ type (
 		h          host.Host
 		pm         *peermanager.PeerManager
 		isFullNode bool
-		msgSub     relay.Subscription
+		msgSub     *relay.Subscription
 		metrics    Metrics
 		log        *zap.Logger
 
@@ -89,13 +89,13 @@ func (wf *WakuFilter) SetHost(h host.Host) {
 	wf.h = h
 }
 
-func (wf *WakuFilter) Start(ctx context.Context, sub relay.Subscription) error {
+func (wf *WakuFilter) Start(ctx context.Context, sub *relay.Subscription) error {
 	return wf.CommonService.Start(ctx, func() error {
 		return wf.start(sub)
 	})
 }
 
-func (wf *WakuFilter) start(sub relay.Subscription) error {
+func (wf *WakuFilter) start(sub *relay.Subscription) error {
 	wf.h.SetStreamHandlerMatch(FilterID_v20beta1, protocol.PrefixTextMatch(string(FilterID_v20beta1)), wf.onRequest(wf.Context()))
 	wf.msgSub = sub
 	wf.WaitGroup().Add(1)

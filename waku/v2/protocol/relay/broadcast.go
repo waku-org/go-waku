@@ -20,7 +20,7 @@ func newSubStore() Subscriptions {
 		topicsToSubs: make(map[string]map[int]*Subscription),
 	}
 }
-func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, chLen int) Subscription {
+func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, chLen int) *Subscription {
 	ch := make(chan *protocol.Envelope, chLen)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -50,7 +50,7 @@ func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilt
 		contentFilter: contentFilter,
 	}
 	s.topicsToSubs[pubsubTopic][id] = &sub
-	return sub
+	return &sub
 }
 
 func (s *Subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
@@ -75,7 +75,8 @@ func (s *Subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 		select {
 		case <-ctx.Done():
 			return
-		case sub.Ch <- m:
+		default:
+			sub.Submit(m)
 		}
 	}
 }
@@ -95,8 +96,8 @@ func (s *Subscriptions) close() {
 type Broadcaster interface {
 	Start(ctx context.Context) error
 	Stop()
-	Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription
-	RegisterForAll(chLen ...int) Subscription
+	Register(contentFilter protocol.ContentFilter, chLen ...int) *Subscription
+	RegisterForAll(chLen ...int) *Subscription
 	UnRegister(pubsubTopic string)
 	Submit(*protocol.Envelope)
 }
@@ -161,7 +162,7 @@ func (b *broadcaster) Stop() {
 }
 
 // Register returns a subscription for an specific pubsub topic and/or list of contentTopics
-func (b *broadcaster) Register(contentFilter protocol.ContentFilter, chLen ...int) Subscription {
+func (b *broadcaster) Register(contentFilter protocol.ContentFilter, chLen ...int) *Subscription {
 	return b.subscriptions.createNewSubscription(contentFilter, getChLen(chLen))
 }
 
@@ -176,7 +177,7 @@ func (b *broadcaster) UnRegister(pubsubTopic string) {
 }
 
 // RegisterForAll returns a subscription for all topics
-func (b *broadcaster) RegisterForAll(chLen ...int) Subscription {
+func (b *broadcaster) RegisterForAll(chLen ...int) *Subscription {
 	return b.subscriptions.createNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
 }
 

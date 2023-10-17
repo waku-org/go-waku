@@ -17,7 +17,7 @@ type NoiseMessenger interface {
 }
 
 type contentTopicSubscription struct {
-	broadcastSub relay.Subscription
+	broadcastSub *relay.Subscription
 	msgChan      chan *pb.WakuMessage
 }
 

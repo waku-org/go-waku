@@ -51,7 +51,7 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	filter := NewWakuFilter(b, false, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	filter.SetHost(host)
 	sub := relay.NewSubscription(protocol.NewContentFilter(testTopic, testContentTopic))
-	err = filter.Start(context.Background(), *sub)
+	err = filter.Start(context.Background(), sub)
 	require.NoError(t, err)
 
 	return filter, host

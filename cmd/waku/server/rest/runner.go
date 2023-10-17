@@ -11,7 +11,7 @@ type Adder func(msg *protocol.Envelope)
 
 type runnerService struct {
 	broadcaster relay.Broadcaster
-	sub         relay.Subscription
+	sub         *relay.Subscription
 	cancel      context.CancelFunc
 	adder       Adder
 }

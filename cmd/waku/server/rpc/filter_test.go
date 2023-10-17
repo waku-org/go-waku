@@ -71,7 +71,7 @@ func TestFilterSubscription(t *testing.T) {
 	f := legacy_filter.NewWakuFilter(b2, false, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	f.SetHost(host)
 	sub := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
-	err = f.Start(context.Background(), *sub)
+	err = f.Start(context.Background(), sub)
 	require.NoError(t, err)
 
 	d := makeFilterService(t, true)

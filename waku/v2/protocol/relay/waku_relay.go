@@ -437,9 +437,9 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 
 			// Create Content subscription
 			w.topicsMutex.RLock()
-			w.contentSubs[pubSubTopic] = &subscription
+			w.contentSubs[pubSubTopic] = subscription
 			w.topicsMutex.RUnlock()
-			subscriptions = append(subscriptions, &subscription)
+			subscriptions = append(subscriptions, subscription)
 			go func() {
 				<-ctx.Done()
 				subscription.Unsubscribe()
@@ -612,7 +612,7 @@ func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandl
 	for {
 		evt, err := handler.NextPeerEvent(w.Context())
 		if err != nil {
-			if err == context.Canceled || err == context.DeadlineExceeded {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				break
 			}
 			w.log.Error("failed to get next peer event", zap.String("topic", topic), zap.Error(err))

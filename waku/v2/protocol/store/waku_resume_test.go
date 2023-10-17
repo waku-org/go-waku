@@ -48,7 +48,7 @@ func TestResume(t *testing.T) {
 	s1 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s1.SetHost(host1)
 	sub := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
-	err = s1.Start(ctx, *sub)
+	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 
 	defer s1.Stop()
@@ -72,7 +72,7 @@ func TestResume(t *testing.T) {
 	s2.SetHost(host2)
 	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
 
-	err = s2.Start(ctx, *sub1)
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -112,7 +112,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	s1.SetHost(host1)
 	sub := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
 
-	err = s1.Start(ctx, *sub)
+	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 
 	defer s1.Stop()
@@ -128,7 +128,7 @@ func TestResumeWithListOfPeers(t *testing.T) {
 	s2.SetHost(host2)
 	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
 
-	err = s2.Start(ctx, *sub1)
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -157,7 +157,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	s1.SetHost(host1)
 	sub := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
 
-	err = s1.Start(ctx, *sub)
+	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 
 	defer s1.Stop()
@@ -173,7 +173,7 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 	s2.SetHost(host2)
 	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
 
-	err = s2.Start(ctx, *sub1)
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 
 	defer s2.Stop()
