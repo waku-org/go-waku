@@ -388,9 +388,14 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 	return hash, nil
 }
 
-// Publish is used to broadcast a WakuMessage to the default waku pubsub topic
+// Publish is used to broadcast a WakuMessage, the pubsubTopic is derived from contentTopic specified in the message via autosharding.
+// To publish to a specific pubsubTopic, please use PublishToTopic
 func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byte, error) {
-	return w.PublishToTopic(ctx, message, DefaultWakuTopic)
+	pubSubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(message.ContentTopic)
+	if err != nil {
+		return nil, err
+	}
+	return w.PublishToTopic(ctx, message, pubSubTopic)
 }
 
 // Stop unmounts the relay protocol and stops all subscriptions
@@ -427,7 +432,7 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 		cFilter.ContentTopics = waku_proto.NewContentTopicSet(cTopics...)
 
 		//Check if gossipsub subscription already exists for pubSubTopic
-		if !w.IsSubscribed(cFilter.PubsubTopic) {
+		if !w.IsSubscribed(pubSubTopic) {
 			_, err := w.subscribeToPubsubTopic(contentFilter.PubsubTopic)
 			if err != nil {
 				//TODO: Handle partial errors.
@@ -435,7 +440,7 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			}
 		}
 
-		subscription := w.bcaster.Register(contentFilter, 1024)
+		subscription := w.bcaster.Register(cFilter, 1024)
 
 		// Create Content subscription
 		w.topicsMutex.RLock()
