@@ -568,7 +568,7 @@ func (w *WakuRelay) pubsubTopicMsgHandler(pubsubTopic string, sub *pubsub.Subscr
 			return
 		}
 		envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
-
+		w.log.Info("Received message", zap.String("pubsubTopic", pubsubTopic), zap.String("contentTopic", wakuMessage.ContentTopic))
 		w.metrics.RecordMessage(envelope)
 
 		w.bcaster.Submit(envelope)

@@ -342,12 +342,10 @@ func Execute(options NodeOptions) {
 	var wg sync.WaitGroup
 
 	if options.Relay.Enable {
-		for nodeTopic := range pubSubTopicMap {
+		for nodeTopic, cTopics := range pubSubTopicMap {
 			nodeTopic := nodeTopic
-			sub, err := wakuNode.Relay().Subscribe(ctx, wprotocol.NewContentFilter(nodeTopic))
+			_, err := wakuNode.Relay().Subscribe(ctx, wprotocol.NewContentFilter(nodeTopic, cTopics...))
 			failOnErr(err, "Error subscring to topic")
-			//Calling unsubscribe only closes broadcaster sub and not the underlying pubSub subscription.
-			sub[0].Unsubscribe()
 			if len(options.Rendezvous.Nodes) != 0 {
 				// Register the node in rendezvous point
 				iter := rendezvous.NewRendezvousPointIterator(options.Rendezvous.Nodes)
@@ -499,17 +497,17 @@ func Execute(options NodeOptions) {
 	}
 }
 
-func processTopics(options NodeOptions) map[string]struct{} {
+func processTopics(options NodeOptions) map[string][]string {
 	//Using a map to avoid duplicate pub-sub topics that can result from autosharding
 	// or same-topic being passed twice.
-	pubSubTopicMap := make(map[string]struct{})
+	pubSubTopicMap := make(map[string][]string)
 
 	for _, topic := range options.Relay.Topics.Value() {
-		pubSubTopicMap[topic] = struct{}{}
+		pubSubTopicMap[topic] = []string{}
 	}
 
 	for _, topic := range options.Relay.PubSubTopics.Value() {
-		pubSubTopicMap[topic] = struct{}{}
+		pubSubTopicMap[topic] = []string{}
 	}
 
 	//Get pubSub topics from contentTopics if they are as per autosharding
@@ -519,11 +517,14 @@ func processTopics(options NodeOptions) map[string]struct{} {
 			failOnErr(err, "failed to parse content topic")
 		}
 		pTopic := wprotocol.GetShardFromContentTopic(contentTopic, wprotocol.GenerationZeroShardsCount)
-		pubSubTopicMap[pTopic.String()] = struct{}{}
+		if _, ok := pubSubTopicMap[pTopic.String()]; !ok {
+			pubSubTopicMap[pTopic.String()] = []string{}
+		}
+		pubSubTopicMap[pTopic.String()] = append(pubSubTopicMap[pTopic.String()], cTopic)
 	}
 	//If no topics are passed, then use default waku topic.
 	if len(pubSubTopicMap) == 0 {
-		pubSubTopicMap[relay.DefaultWakuTopic] = struct{}{}
+		pubSubTopicMap[relay.DefaultWakuTopic] = []string{}
 	}
 
 	return pubSubTopicMap
