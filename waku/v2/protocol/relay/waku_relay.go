@@ -398,6 +398,21 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byt
 	return w.PublishToTopic(ctx, message, pubSubTopic)
 }
 
+func (w *WakuRelay) GetSubscription(contentTopic string) (*Subscription, error) {
+	pubSubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
+	if err != nil {
+		return nil, err
+	}
+	contentFilter := waku_proto.NewContentFilter(pubSubTopic, contentTopic)
+	cSubs := w.contentSubs[pubSubTopic]
+	for _, sub := range cSubs {
+		if sub.contentFilter.Equals(contentFilter) {
+			return sub, nil
+		}
+	}
+	return nil, fmt.Errorf("no subscription found for content topic")
+}
+
 // Stop unmounts the relay protocol and stops all subscriptions
 func (w *WakuRelay) Stop() {
 	w.CommonService.Stop(func() {
@@ -417,7 +432,7 @@ func (w *WakuRelay) EnoughPeersToPublishToTopic(topic string) bool {
 	return len(w.PubSub().ListPeers(topic)) >= w.minPeersToPublish
 }
 
-// SubscribeToTopic returns a Subscription to receive messages from a pubsub topic
+// subscribe returns list of Subscription to receive messages based on content filter
 func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.ContentFilter) ([]*Subscription, error) {
 
 	var subscriptions []*Subscription

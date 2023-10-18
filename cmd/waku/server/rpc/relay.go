@@ -120,34 +120,94 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	return nil
 }
 
+// PostV1AutoSubscription is invoked when the json rpc request uses the post_waku_v2_relay_v1_auto_subscription
+// Note that this method takes contentTopics as an argument instead of pubsubtopics and uses autosharding to derive pubsubTopics.
+func (r *RelayService) PostV1AutoSubscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
+	ctx := req.Context()
+
+	var err error
+	_, err = r.node.Relay().Subscribe(ctx, protocol.NewContentFilter("", args.Topics...))
+	if err != nil {
+		r.log.Error("subscribing to topics", zap.Strings("topics", args.Topics), zap.Error(err))
+		return err
+	}
+	//TODO: Handle partial errors.
+
+	*reply = true
+	return nil
+}
+
+// DeleteV1AutoSubscription is invoked when the json rpc request uses the delete_waku_v2_relay_v1_auto_subscription
+// Note that this method takes contentTopics as an argument instead of pubsubtopics and uses autosharding to derive pubsubTopics.
+func (r *RelayService) DeleteV1AutoSubscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
+	ctx := req.Context()
+
+	err := r.node.Relay().Unsubscribe(ctx, protocol.NewContentFilter("", args.Topics...))
+	if err != nil {
+		r.log.Error("unsubscribing from topics", zap.Strings("topic", args.Topics), zap.Error(err))
+		return err
+	}
+	//TODO: Handle partial errors.
+	return nil
+}
+
+// PostV1AutoMessage is invoked when the json rpc request uses the post_waku_v2_relay_v1_auto_message
+func (r *RelayService) PostV1AutoMessage(req *http.Request, args *RelayMessageArgs, reply *SuccessReply) error {
+	var err error
+
+	msg := args.Message.toProto()
+	if msg.ContentTopic == "" {
+		err := fmt.Errorf("content-topic cannot be empty")
+		r.log.Error("publishing message", zap.Error(err))
+		return err
+	}
+	if err = server.AppendRLNProof(r.node, msg); err != nil {
+		return err
+	}
+
+	_, err = r.node.Relay().Publish(req.Context(), msg)
+	if err != nil {
+		r.log.Error("publishing message", zap.Error(err))
+		return err
+	}
+
+	*reply = true
+	return nil
+}
+
+// GetV1AutoMessages is invoked when the json rpc request uses the get_waku_v2_relay_v1_auto_messages method
+// Note that this method takes contentTopic as an argument instead of pubSubtopic and uses autosharding.
+func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, reply *MessagesReply) error {
+	sub, err := r.node.Relay().GetSubscription(args.Topic)
+	if err != nil {
+		return err
+	}
+	select {
+	case msg := <-sub.Ch:
+		*reply = append(*reply, ProtoToRPC(msg.Message()))
+	default:
+		break
+	}
+	return nil
+}
+
 // PostV1Subscription is invoked when the json rpc request uses the post_waku_v2_relay_v1_subscription method
 func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
 	ctx := req.Context()
+
 	for _, topic := range args.Topics {
 		var err error
 		if topic == "" {
-			var sub *relay.Subscription
-			subs, err := r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
-			if err != nil {
-				r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
-				return err
-			}
-			sub = subs[0]
-			sub.Unsubscribe()
-		} else {
-			var sub *relay.Subscription
-			subs, err := r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
-			if err != nil {
-				r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
-				return err
-			}
-			sub = subs[0]
-			sub.Unsubscribe()
+			topic = relay.DefaultWakuTopic
 		}
+		var sub *relay.Subscription
+		subs, err := r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
 			return err
 		}
+		sub = subs[0]
+		sub.Unsubscribe()
 		r.messagesMutex.Lock()
 		r.messages[topic] = make([]*pb.WakuMessage, 0)
 		r.messagesMutex.Unlock()
