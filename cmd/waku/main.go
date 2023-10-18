@@ -8,6 +8,8 @@ import (
 	"github.com/waku-org/go-waku/cmd/waku/keygen"
 	"github.com/waku-org/go-waku/cmd/waku/rlngenerate"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/utils"
+	"go.uber.org/zap"
 )
 
 var options NodeOptions
@@ -113,7 +115,16 @@ func main() {
 		Before:  altsrc.InitInputSourceWithContext(cliFlags, altsrc.NewTomlSourceFromFlagFunc("config-file")),
 		Flags:   cliFlags,
 		Action: func(c *cli.Context) error {
-			Execute(options)
+			err := Execute(options)
+			if err != nil {
+				utils.Logger().Error("failure while executing wakunode", zap.Error(err))
+				switch e := err.(type) {
+				case cli.ExitCoder:
+					return e
+				case error:
+					return cli.Exit(err.Error(), 1)
+				}
+			}
 			return nil
 		},
 		Commands: []*cli.Command{
