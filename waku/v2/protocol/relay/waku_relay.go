@@ -324,10 +324,13 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (subs *pubsub.Subscript
 			return nil, err
 		}
 
-		sub, err = pubSubTopic.Subscribe()
+		sub, err = pubSubTopic.Subscribe(pubsub.WithBufferSize(1024))
 		if err != nil {
 			return nil, err
 		}
+
+		w.WaitGroup().Add(1)
+		go w.pubsubTopicMsgHandler(topic, sub)
 
 		evtHandler, err := w.addPeerTopicEventListener(pubSubTopic)
 		if err != nil {
@@ -340,9 +343,6 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (subs *pubsub.Subscript
 		if err != nil {
 			return nil, err
 		}
-
-		w.WaitGroup().Add(1)
-		go w.topicMsgHandler(topic, sub)
 
 		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
 	}
@@ -442,13 +442,14 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 	}
 
 	for pubSubTopic, cTopics := range pubSubTopicMap {
+		w.log.Info("subscribing to ", zap.String("pubsubTopic", pubSubTopic), zap.Strings("content-topics", cTopics))
 		var cFilter waku_proto.ContentFilter
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = waku_proto.NewContentTopicSet(cTopics...)
 
 		//Check if gossipsub subscription already exists for pubSubTopic
 		if !w.IsSubscribed(pubSubTopic) {
-			_, err := w.subscribeToPubsubTopic(contentFilter.PubsubTopic)
+			_, err := w.subscribeToPubsubTopic(cFilter.PubsubTopic)
 			if err != nil {
 				//TODO: Handle partial errors.
 				return nil, err
@@ -549,50 +550,28 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 	return nil
 }
 
-func (w *WakuRelay) nextMessage(ctx context.Context, sub *pubsub.Subscription) <-chan *pubsub.Message {
-	msgChannel := make(chan *pubsub.Message, 1024)
-	go func() {
-		defer close(msgChannel)
-		for {
-			msg, err := sub.Next(ctx)
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					w.log.Error("getting message from subscription", zap.Error(err))
-				}
-				sub.Cancel()
-				return
-			}
-			msgChannel <- msg
-		}
-	}()
-	return msgChannel
-}
-
-func (w *WakuRelay) topicMsgHandler(pubsubTopic string, sub *pubsub.Subscription) {
+func (w *WakuRelay) pubsubTopicMsgHandler(pubsubTopic string, sub *pubsub.Subscription) {
 	defer w.WaitGroup().Done()
 
-	subChannel := w.nextMessage(w.Context(), sub)
 	for {
-		select {
-		case <-w.Context().Done():
+		msg, err := sub.Next(w.Context())
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				w.log.Error("getting message from subscription", zap.Error(err))
+			}
+			sub.Cancel()
 			return
-			// TODO: if there are no more relay subscriptions, close the pubsub subscription
-		case msg, ok := <-subChannel:
-			if !ok {
-				return
-			}
-			wakuMessage := &pb.WakuMessage{}
-			if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
-				w.log.Error("decoding message", zap.Error(err))
-				return
-			}
-
-			envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
-
-			w.metrics.RecordMessage(envelope)
-
-			w.bcaster.Submit(envelope)
 		}
+		wakuMessage := &pb.WakuMessage{}
+		if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
+			w.log.Error("decoding message", zap.Error(err))
+			return
+		}
+		envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
+
+		w.metrics.RecordMessage(envelope)
+
+		w.bcaster.Submit(envelope)
 	}
 
 }
