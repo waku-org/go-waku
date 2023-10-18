@@ -24,6 +24,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
 
 // FilterPushID_v20beta1 is the current Waku Filter protocol identifier used to allow
@@ -250,6 +251,9 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	if len(contentFilter.ContentTopics) == 0 {
 		return nil, errors.New("at least one content topic is required")
 	}
+	if slices.Contains[string](contentFilter.ContentTopicsList(), "") {
+		return nil, errors.New("one or more content topics specified is empty")
+	}
 
 	if len(contentFilter.ContentTopics) > MaxContentTopicsPerRequest {
 		return nil, fmt.Errorf("exceeds maximum content topics: %d", MaxContentTopicsPerRequest)
@@ -269,11 +273,6 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		}
 	}
 
-	if params.selectedPeer == "" {
-		wf.metrics.RecordError(peerNotFoundFailure)
-		return nil, ErrNoPeersAvailable
-	}
-
 	pubSubTopicMap, err := contentFilterToPubSubTopicMap(contentFilter)
 	if err != nil {
 		return nil, err
@@ -281,16 +280,42 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	failedContentTopics := []string{}
 	subscriptions := make([]*subscription.SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
+		var selectedPeer peer.ID
+		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
+		if params.pm != nil && params.selectedPeer == "" {
+			selectedPeer, err = wf.pm.SelectPeer(
+				peermanager.PeerSelectionCriteria{
+					SelectionType: params.peerSelectionType,
+					Proto:         FilterSubscribeID_v20beta1,
+					PubsubTopic:   pubSubTopic,
+					SpecificPeers: params.preferredPeers,
+					Ctx:           ctx,
+				},
+			)
+		} else {
+			selectedPeer = params.selectedPeer
+		}
+
+		if selectedPeer == "" {
+			wf.metrics.RecordError(peerNotFoundFailure)
+			wf.log.Error("selecting peer", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
+				zap.Error(err))
+			failedContentTopics = append(failedContentTopics, cTopics...)
+			continue
+		}
+
 		var cFilter protocol.ContentFilter
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = protocol.NewContentTopicSet(cTopics...)
+
 		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
 		if err != nil {
 			wf.log.Error("Failed to subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
 				zap.Error(err))
 			failedContentTopics = append(failedContentTopics, cTopics...)
+			continue
 		}
-		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(params.selectedPeer, cFilter))
+		subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(selectedPeer, cFilter))
 	}
 
 	if len(failedContentTopics) > 0 {
@@ -414,6 +439,10 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 
 	if len(contentFilter.ContentTopics) == 0 {
 		return nil, errors.New("at least one content topic is required")
+	}
+
+	if slices.Contains[string](contentFilter.ContentTopicsList(), "") {
+		return nil, errors.New("one or more content topics specified is empty")
 	}
 
 	if len(contentFilter.ContentTopics) > MaxContentTopicsPerRequest {

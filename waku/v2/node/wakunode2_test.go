@@ -17,6 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -263,7 +264,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	_, filter, err := wakuNode2.LegacyFilter().Subscribe(ctx, legacy_filter.ContentFilter{
 		Topic: string(relay.DefaultWakuTopic),
-	})
+	}, legacy_filter.WithPeer(wakuNode1.host.ID()))
 	require.NoError(t, err)
 
 	// Sleep to make sure the filter is subscribed
@@ -303,9 +304,9 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer wakuNode3.Stop()
 
-	err = wakuNode3.DialPeerWithMultiAddress(ctx, wakuNode2.ListenAddresses()[0])
+	_, err = wakuNode3.AddPeer(wakuNode2.ListenAddresses()[0], peerstore.Static, []string{relay.DefaultWakuTopic}, store.StoreID_v20beta4)
 	require.NoError(t, err)
-
+	time.Sleep(2 * time.Second)
 	// NODE2 should have returned the message received via filter
 	result, err := wakuNode3.Store().Query(ctx, store.Query{})
 	require.NoError(t, err)

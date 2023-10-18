@@ -20,7 +20,7 @@ func TestFilterOption(t *testing.T) {
 	options := []FilterSubscribeOption{
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 		WithAutomaticPeerSelection(),
-		WithFastestPeerSelection(context.Background()),
+		WithFastestPeerSelection(),
 	}
 
 	params := new(FilterSubscribeParameters)

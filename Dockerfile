@@ -1,5 +1,5 @@
 # BUILD IMAGE --------------------------------------------------------
-FROM golang:1.19 as builder
+FROM golang:1.20 as builder
 
 WORKDIR /app
 COPY . .

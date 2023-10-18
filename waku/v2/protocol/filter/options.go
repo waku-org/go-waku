@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -9,15 +8,16 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
 type (
 	FilterSubscribeParameters struct {
-		selectedPeer peer.ID
-		requestID    []byte
-		log          *zap.Logger
+		selectedPeer      peer.ID
+		peerSelectionType peermanager.PeerSelection
+		preferredPeers    peer.IDSlice
+		requestID         []byte
+		log               *zap.Logger
 
 		// Subscribe-specific
 		host host.Host
@@ -56,19 +56,8 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 // supports the chosen protocol, otherwise it will chose a peer from the node peerstore
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) error {
-		var p peer.ID
-		var err error
-		if params.pm == nil {
-			p, err = utils.SelectPeer(params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
-		} else {
-			p, err = params.pm.SelectPeer(FilterSubscribeID_v20beta1, "", fromThesePeers...)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		params.selectedPeer = p
+		params.peerSelectionType = peermanager.Automatic
+		params.preferredPeers = fromThesePeers
 		return nil
 	}
 }
@@ -77,14 +66,9 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption
 // with the lowest ping If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a
 // peer from the node peerstore
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) FilterSubscribeOption {
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
 	return func(params *FilterSubscribeParameters) error {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.host, FilterSubscribeID_v20beta1, fromThesePeers, params.log)
-		if err != nil {
-			return err
-		}
-
-		params.selectedPeer = p
+		params.peerSelectionType = peermanager.LowestRTT
 		return nil
 	}
 }

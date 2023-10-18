@@ -30,6 +30,8 @@ pipeline {
 
   environment {
     TARGET  = 'tests'
+    DB_CONT  = "go-waku-test-db-${env.EXECUTOR_NUMBER.toInteger() + 1}"
+    DB_PORT  = "${5432 + env.EXECUTOR_NUMBER.toInteger()}"
     REPO    = "${env.WORKSPACE}/src/github.com/waku-org/go-waku"
     GOCACHE = "${env.WORKSPACE_TMP}/go-build"
     GOPATH  = "${env.WORKSPACE}/go"
@@ -56,6 +58,28 @@ pipeline {
           nix.develop('make test-ci', pure: false)
         }
       } } }
+    }
+
+    stage('PostgresSQL') {
+      environment {
+        TEST_DB_PORT = "${env.DB_PORT}"
+      }
+      steps { script { dir(env.REPO) {
+        db = docker.image('postgres:9.6-alpine').withRun([
+          "--name=${DB_CONT}",
+          "--env=POSTGRES_HOST_AUTH_METHOD=trust",
+          "--publish=${DB_PORT}:${DB_PORT}",
+        ].join(' '), "-p ${DB_PORT}") { c ->
+          if (params.RACE) {
+            nix.develop('make test-postgres-with-race', pure: false)
+          }else {
+            nix.develop('make test-postgres', pure: false)
+          }
+        }
+      } } }
+      post { cleanup { /* Leftover DB containers. */
+        sh "docker rm ${DB_CONT} || true"
+      } }
     }
 
     stage('Ganache') {

@@ -1,13 +1,18 @@
-package sqlite
+//go:build include_postgres_tests
+// +build include_postgres_tests
+
+package postgres
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/persistence"
 )
 
 func TestQueries(t *testing.T) {
-	db := NewMockSqliteDB()
+	db := persistence.NewMockPgDB()
+
 	queries, err := NewQueries("test_queries", db)
 	require.NoError(t, err)
 
@@ -40,7 +45,7 @@ func TestQueries(t *testing.T) {
 }
 
 func TestCreateTable(t *testing.T) {
-	db := NewMockSqliteDB()
+	db := persistence.NewMockPgDB()
 
 	err := CreateTable(db, "test_create_table")
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/postgres"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"go.uber.org/zap"
@@ -64,4 +65,14 @@ func ExtractDBAndMigration(databaseURL string, dbSettings DBSettings, logger *za
 
 	return db, migrationFn, nil
 
+}
+
+func NewQueries(tbl string, db *sql.DB) (*persistence.Queries, error) {
+	switch persistence.GetDriverType(db) {
+	case persistence.SQLiteDriver:
+		return sqlite.NewQueries(tbl, db)
+	case persistence.PostgresDriver:
+		return postgres.NewQueries(tbl, db)
+	}
+	return nil, errors.New("unsupported database engine")
 }

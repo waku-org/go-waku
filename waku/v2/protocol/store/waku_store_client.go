@@ -11,10 +11,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type Query struct {
@@ -81,12 +81,14 @@ func (r *Result) GetMessages() []*wpb.WakuMessage {
 type criteriaFN = func(msg *wpb.WakuMessage) (bool, error)
 
 type HistoryRequestParameters struct {
-	selectedPeer peer.ID
-	localQuery   bool
-	requestID    []byte
-	cursor       *pb.Index
-	pageSize     uint64
-	asc          bool
+	selectedPeer      peer.ID
+	peerSelectionType peermanager.PeerSelection
+	preferredPeers    peer.IDSlice
+	localQuery        bool
+	requestID         []byte
+	cursor            *pb.Index
+	pageSize          uint64
+	asc               bool
 
 	s *WakuStore
 }
@@ -104,20 +106,11 @@ func WithPeer(p peer.ID) HistoryRequestOption {
 // to request the message history. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
+// Note: This option is avaiable only with peerManager
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		var p peer.ID
-		var err error
-		if params.s.pm == nil {
-			p, err = utils.SelectPeer(params.s.h, StoreID_v20beta4, fromThesePeers, params.s.log)
-		} else {
-			p, err = params.s.pm.SelectPeer(StoreID_v20beta4, "", fromThesePeers...)
-		}
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.s.log.Info("selecting peer", zap.Error(err))
-		}
+		params.peerSelectionType = peermanager.Automatic
+		params.preferredPeers = fromThesePeers
 	}
 }
 
@@ -125,14 +118,10 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption 
 // with the lowest ping. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
 // from the node peerstore
-func WithFastestPeerSelection(ctx context.Context, fromThesePeers ...peer.ID) HistoryRequestOption {
+// Note: This option is avaiable only with peerManager
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
-		p, err := utils.SelectPeerWithLowestRTT(ctx, params.s.h, StoreID_v20beta4, fromThesePeers, params.s.log)
-		if err == nil {
-			params.selectedPeer = p
-		} else {
-			params.s.log.Info("selecting peer", zap.Error(err))
-		}
+		params.peerSelectionType = peermanager.LowestRTT
 	}
 }
 
@@ -274,6 +263,21 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	optList = append(optList, opts...)
 	for _, opt := range optList {
 		opt(params)
+	}
+	if store.pm != nil && params.selectedPeer == "" {
+		var err error
+		params.selectedPeer, err = store.pm.SelectPeer(
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         StoreID_v20beta4,
+				PubsubTopic:   query.Topic,
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !params.localQuery && params.selectedPeer == "" {
