@@ -33,6 +33,11 @@ type RelayMessageArgs struct {
 	Message *RPCWakuMessage `json:"message,omitempty"`
 }
 
+// RelayAutoMessageArgs represents the requests used for posting messages
+type RelayAutoMessageArgs struct {
+	Message *RPCWakuMessage `json:"message,omitempty"`
+}
+
 // TopicsArgs represents the lists of topics to use when subscribing / unsubscribing
 type TopicsArgs struct {
 	Topics []string `json:"topics,omitempty"`
@@ -123,10 +128,9 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 // PostV1AutoSubscription is invoked when the json rpc request uses the post_waku_v2_relay_v1_auto_subscription
 // Note that this method takes contentTopics as an argument instead of pubsubtopics and uses autosharding to derive pubsubTopics.
 func (r *RelayService) PostV1AutoSubscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
-	ctx := req.Context()
 
 	var err error
-	_, err = r.node.Relay().Subscribe(ctx, protocol.NewContentFilter("", args.Topics...))
+	_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", args.Topics...))
 	if err != nil {
 		r.log.Error("subscribing to topics", zap.Strings("topics", args.Topics), zap.Error(err))
 		return err
@@ -148,14 +152,19 @@ func (r *RelayService) DeleteV1AutoSubscription(req *http.Request, args *TopicsA
 		return err
 	}
 	//TODO: Handle partial errors.
+	*reply = true
 	return nil
 }
 
 // PostV1AutoMessage is invoked when the json rpc request uses the post_waku_v2_relay_v1_auto_message
-func (r *RelayService) PostV1AutoMessage(req *http.Request, args *RelayMessageArgs, reply *SuccessReply) error {
+func (r *RelayService) PostV1AutoMessage(req *http.Request, args *RelayAutoMessageArgs, reply *SuccessReply) error {
 	var err error
-
 	msg := args.Message.toProto()
+	if msg == nil {
+		err := fmt.Errorf("invalid message format received")
+		r.log.Error("publishing message", zap.Error(err))
+		return err
+	}
 	if msg.ContentTopic == "" {
 		err := fmt.Errorf("content-topic cannot be empty")
 		r.log.Error("publishing message", zap.Error(err))
