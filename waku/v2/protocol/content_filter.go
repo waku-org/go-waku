@@ -32,6 +32,20 @@ func NewContentFilter(pubsubTopic string, contentTopics ...string) ContentFilter
 	return ContentFilter{pubsubTopic, NewContentTopicSet(contentTopics...)}
 }
 
+func (cf ContentFilter) Equals(cf1 ContentFilter) bool {
+	if cf.PubsubTopic != cf1.PubsubTopic ||
+		len(cf.ContentTopics) != len(cf1.ContentTopics) {
+		return false
+	}
+	for topic := range cf.ContentTopics {
+		_, ok := cf1.ContentTopics[topic]
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // This function converts a contentFilter into a map of pubSubTopics and corresponding contentTopics
 func ContentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[PubsubTopicStr][]ContentTopicStr, error) {
 	pubSubTopicMap := make(map[string][]string)
