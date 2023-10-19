@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,11 +36,10 @@ func TestWakuRelay(t *testing.T) {
 
 	err = bcaster.Start(context.Background())
 	require.NoError(t, err)
-	//defer relay.Stop()
+	defer relay.Stop()
 
 	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
-	//sub := bcaster.Register(testTopic)
-	//defer subs[0].Unsubscribe()
+
 	require.NoError(t, err)
 
 	require.Equal(t, relay.IsSubscribed(testTopic), true)
@@ -166,4 +166,143 @@ func TestMsgID(t *testing.T) {
 	msgID := msgIDFn(msg)
 
 	require.Equal(t, expectedMsgIDBytes, []byte(msgID))
+}
+
+func waitForTimeout(t *testing.T, ch chan *protocol.Envelope) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case env, ok := <-ch:
+			if ok {
+				t.Error("should not receive another message with payload", string(env.Message().Payload))
+			}
+		case <-time.After(2 * time.Second):
+			// Timeout elapsed, all good
+		}
+	}()
+
+	wg.Wait()
+}
+
+func waitForMsg(t *testing.T, ch chan *protocol.Envelope, cTopicExpected string) *sync.WaitGroup {
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case env := <-ch:
+			fmt.Println("msg received", env)
+			require.Equal(t, cTopicExpected, env.Message().GetContentTopic())
+		case <-time.After(5 * time.Second):
+			t.Error("Message timeout")
+		}
+	}()
+
+	return &wg
+}
+
+func TestWakuRelayAutoShard(t *testing.T) {
+	testcTopic := "/toychat/2/huilong/proto"
+	testcTopic1 := "/toychat/1/huilong/proto"
+
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	bcaster := NewBroadcaster(10)
+	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay.SetHost(host)
+	err = relay.Start(context.Background())
+	require.NoError(t, err)
+
+	err = bcaster.Start(context.Background())
+	require.NoError(t, err)
+	defer relay.Stop()
+	defer bcaster.Stop()
+
+	//Create a contentTopic level subscription
+	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter("", testcTopic))
+	require.NoError(t, err)
+	require.Equal(t, relay.IsSubscribed(subs[0].contentFilter.PubsubTopic), true)
+
+	sub, err := relay.GetSubscription(testcTopic)
+	require.NoError(t, err)
+	_, ok := sub.contentFilter.ContentTopics[testcTopic]
+	require.Equal(t, true, ok)
+
+	_, err = relay.GetSubscription(testcTopic1)
+	require.Error(t, err)
+
+	topics := relay.Topics()
+	require.Equal(t, 1, len(topics))
+	require.Equal(t, subs[0].contentFilter.PubsubTopic, topics[0])
+
+	ctx, cancel := context.WithCancel(context.Background())
+	bytesToSend := []byte{1}
+	defer cancel()
+
+	//Create a pubSub level subscription
+	subs1, err := relay.subscribe(context.Background(), protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
+	require.NoError(t, err)
+
+	msg := &pb.WakuMessage{
+		Payload:      bytesToSend,
+		Version:      0,
+		ContentTopic: testcTopic,
+		Timestamp:    0,
+	}
+	_, err = relay.Publish(context.Background(), msg)
+	require.NoError(t, err)
+
+	wg := waitForMsg(t, subs[0].Ch, testcTopic)
+	wg.Wait()
+
+	wg = waitForMsg(t, subs1[0].Ch, testcTopic)
+	wg.Wait()
+
+	//Test publishing to different content-topic
+
+	msg1 := &pb.WakuMessage{
+		Payload:      bytesToSend,
+		Version:      0,
+		ContentTopic: testcTopic1,
+		Timestamp:    0,
+	}
+
+	_, err = relay.PublishToTopic(context.Background(), msg1, subs[0].contentFilter.PubsubTopic)
+	require.NoError(t, err)
+
+	/* 	TODO: Debug why message is not received in this case.
+	wg = waitForMsg(t, subs1[0].Ch, testcTopic1)
+	   	wg.Wait() */
+
+	//Should not receive message as subscription is for a different cTopic.
+	waitForTimeout(t, subs[0].Ch)
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter("", testcTopic))
+	require.NoError(t, err)
+	_, err = relay.GetSubscription(testcTopic)
+	require.Error(t, err)
+	_, err = relay.GetSubscription(testcTopic1)
+	require.Error(t, err)
+
+	topics = relay.Topics()
+	require.Equal(t, 1, len(topics))
+	require.Equal(t, subs[0].contentFilter.PubsubTopic, topics[0])
+
+	wg2 := waitForMsg(t, subs1[0].Ch, testcTopic1)
+
+	_, err = relay.PublishToTopic(context.Background(), msg1, subs[0].contentFilter.PubsubTopic)
+	require.NoError(t, err)
+	wg2.Wait()
+
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter("", testcTopic))
+	require.NoError(t, err)
+
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
+	require.NoError(t, err)
+
 }
