@@ -36,6 +36,7 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 	_ = NewDebugService(node, mux)
 	_ = NewHealthService(node, mux)
 	_ = NewStoreService(node, mux)
+	_ = NewLightpushService(node, mux, log)
 
 	listenAddr := fmt.Sprintf("%s:%d", address, port)
 
