@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -18,7 +17,6 @@ const routeLightPushV1Messages = "/lightpush/v1/message"
 type LightpushService struct {
 	node *node.WakuNode
 	log  *zap.Logger
-	id   peer.ID
 }
 
 func NewLightpushService(node *node.WakuNode, m *chi.Mux, log *zap.Logger) *LightpushService {
@@ -53,6 +51,11 @@ func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Req
 		return
 	}
 	defer req.Body.Close()
+
+	if err := msg.Check(); err != nil {
+		writeErrOrResponse(w, err, http.StatusBadRequest)
+		return
+	}
 	//
 
 	if serv.node.Lightpush() == nil {
@@ -60,7 +63,6 @@ func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	serv.log.Info("", zap.String("", serv.id.String()))
-	_, err := serv.node.Lightpush().Publish(req.Context(), msg.Message, lightpush.WithPubSubTopic(msg.PubSubTopic), lightpush.WithPeer(serv.id))
+	_, err := serv.node.Lightpush().Publish(req.Context(), msg.Message, lightpush.WithPubSubTopic(msg.PubSubTopic))
 	writeErrOrResponse(w, err, true)
 }

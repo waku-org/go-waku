@@ -53,7 +53,6 @@ func TestLightpushMessagev1(t *testing.T) {
 
 	router := chi.NewRouter()
 	serv := NewLightpushService(node2, router, utils.Logger())
-	// serv.id = node1.Host().ID()
 	_ = serv
 
 	msg := lightpushRequest{
