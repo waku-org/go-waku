@@ -1,6 +1,8 @@
 package relay
 
 import (
+	"context"
+
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"golang.org/x/exp/slices"
 )
@@ -12,6 +14,7 @@ type Subscription struct {
 	Ch            chan *protocol.Envelope
 	contentFilter protocol.ContentFilter
 	subType       SubscriptionType
+	noConsume     bool
 }
 
 type SubscriptionType int
@@ -22,13 +25,17 @@ const (
 )
 
 // Submit allows a message to be submitted for a subscription
-func (s *Subscription) Submit(msg *protocol.Envelope) {
+func (s *Subscription) Submit(ctx context.Context, msg *protocol.Envelope) {
 	//Filter and notify
 	// - if contentFilter doesn't have a contentTopic
 	// - if contentFilter has contentTopics and it matches with message
-	if len(s.contentFilter.ContentTopicsList()) == 0 || (len(s.contentFilter.ContentTopicsList()) > 0 &&
+	if !s.noConsume && len(s.contentFilter.ContentTopicsList()) == 0 || (len(s.contentFilter.ContentTopicsList()) > 0 &&
 		slices.Contains[string](s.contentFilter.ContentTopicsList(), msg.Message().ContentTopic)) {
-		s.Ch <- msg
+		select {
+		case <-ctx.Done():
+			return
+		case s.Ch <- msg:
+		}
 	}
 }
 

@@ -384,7 +384,7 @@ func Execute(options NodeOptions) error {
 	if options.Relay.Enable {
 		for nodeTopic, cTopics := range pubSubTopicMap {
 			nodeTopic := nodeTopic
-			_, err := wakuNode.Relay().Subscribe(ctx, wprotocol.NewContentFilter(nodeTopic, cTopics...))
+			_, err := wakuNode.Relay().Subscribe(ctx, wprotocol.NewContentFilter(nodeTopic, cTopics...), relay.WithoutConsumer())
 			if err != nil {
 				return err
 			}

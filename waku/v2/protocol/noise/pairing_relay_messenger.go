@@ -88,7 +88,7 @@ func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-c
 		msgChan: make(chan *pb.WakuMessage, 1024),
 	}
 
-	broadcastSub := r.broadcaster.RegisterForAll(1024)
+	broadcastSub := r.broadcaster.RegisterForAll(relay.WithBufferSize(relay.DefaultRelaySubscriptionBufferSize))
 	sub.broadcastSub = broadcastSub
 
 	subscriptionCh := r.subscriptionChPerContentTopic[contentTopic]

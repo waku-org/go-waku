@@ -9,6 +9,35 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
+type BroadcasterParameters struct {
+	dontConsume bool //Indicates whether to consume messages from subscription or drop
+	chLen       int
+}
+
+type BroadcasterOption func(*BroadcasterParameters)
+
+// WithoutConsumer option let's a user subscribe to a broadcaster without consuming messages received.
+// This is useful for a relayNode where only a subscribe is required in order to relay messages in gossipsub network.
+func DontConsume() BroadcasterOption {
+	return func(params *BroadcasterParameters) {
+		params.dontConsume = true
+	}
+}
+
+// WithBufferSize option let's a user set channel buffer to be set.
+func WithBufferSize(size int) BroadcasterOption {
+	return func(params *BroadcasterParameters) {
+		params.chLen = size
+	}
+}
+
+// DefaultBroadcasterOptions specifies default options for broadcaster
+func DefaultBroadcasterOptions() []BroadcasterOption {
+	return []BroadcasterOption{
+		WithBufferSize(0),
+	}
+}
+
 type Subscriptions struct {
 	mu           sync.RWMutex
 	topicsToSubs map[string]map[int]*Subscription //map of pubSubTopic to subscriptions
@@ -20,7 +49,7 @@ func newSubStore() Subscriptions {
 		topicsToSubs: make(map[string]map[int]*Subscription),
 	}
 }
-func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, chLen int) *Subscription {
+func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilter, dontConsume bool, chLen int) *Subscription {
 	ch := make(chan *protocol.Envelope, chLen)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -48,6 +77,7 @@ func (s *Subscriptions) createNewSubscription(contentFilter protocol.ContentFilt
 			}
 		},
 		contentFilter: contentFilter,
+		noConsume:     dontConsume,
 	}
 	s.topicsToSubs[pubsubTopic][id] = &sub
 	return &sub
@@ -66,7 +96,7 @@ func (s *Subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 		case <-ctx.Done():
 			return
 		default:
-			sub.Submit(m)
+			sub.Submit(ctx, m)
 		}
 	}
 
@@ -76,7 +106,7 @@ func (s *Subscriptions) broadcast(ctx context.Context, m *protocol.Envelope) {
 		case <-ctx.Done():
 			return
 		default:
-			sub.Submit(m)
+			sub.Submit(ctx, m)
 		}
 	}
 }
@@ -96,8 +126,8 @@ func (s *Subscriptions) close() {
 type Broadcaster interface {
 	Start(ctx context.Context) error
 	Stop()
-	Register(contentFilter protocol.ContentFilter, chLen ...int) *Subscription
-	RegisterForAll(chLen ...int) *Subscription
+	Register(contentFilter protocol.ContentFilter, opts ...BroadcasterOption) *Subscription
+	RegisterForAll(opts ...BroadcasterOption) *Subscription
 	UnRegister(pubsubTopic string)
 	Submit(*protocol.Envelope)
 }
@@ -162,8 +192,19 @@ func (b *broadcaster) Stop() {
 }
 
 // Register returns a subscription for an specific pubsub topic and/or list of contentTopics
-func (b *broadcaster) Register(contentFilter protocol.ContentFilter, chLen ...int) *Subscription {
-	return b.subscriptions.createNewSubscription(contentFilter, getChLen(chLen))
+func (b *broadcaster) Register(contentFilter protocol.ContentFilter, opts ...BroadcasterOption) *Subscription {
+	params := b.ProcessOpts(opts...)
+	return b.subscriptions.createNewSubscription(contentFilter, params.dontConsume, params.chLen)
+}
+
+func (b *broadcaster) ProcessOpts(opts ...BroadcasterOption) *BroadcasterParameters {
+	params := new(BroadcasterParameters)
+	optList := DefaultBroadcasterOptions()
+	optList = append(optList, opts...)
+	for _, opt := range optList {
+		opt(params)
+	}
+	return params
 }
 
 // UnRegister removes all subscriptions for an specific pubsub topic
@@ -177,16 +218,9 @@ func (b *broadcaster) UnRegister(pubsubTopic string) {
 }
 
 // RegisterForAll returns a subscription for all topics
-func (b *broadcaster) RegisterForAll(chLen ...int) *Subscription {
-	return b.subscriptions.createNewSubscription(protocol.NewContentFilter(""), getChLen(chLen))
-}
-
-func getChLen(chLen []int) int {
-	l := 0
-	if len(chLen) > 0 {
-		l = chLen[0]
-	}
-	return l
+func (b *broadcaster) RegisterForAll(opts ...BroadcasterOption) *Subscription {
+	params := b.ProcessOpts(opts...)
+	return b.subscriptions.createNewSubscription(protocol.NewContentFilter(""), params.dontConsume, params.chLen)
 }
 
 // Submit is used to broadcast messages to subscribers. It only accepts value when running.

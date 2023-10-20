@@ -3,7 +3,6 @@ package relay
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -30,6 +29,23 @@ const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic().String()
+
+var DefaultRelaySubscriptionBufferSize int = 1024
+
+type RelaySubscribeParameters struct {
+	dontConsume bool
+}
+
+type RelaySubscribeOption func(*RelaySubscribeParameters) error
+
+// WithoutConsumer option let's a user subscribe to relay without consuming messages received.
+// This is useful for a relayNode where only a subscribe is required in order to relay messages in gossipsub network.
+func WithoutConsumer() RelaySubscribeOption {
+	return func(params *RelaySubscribeParameters) error {
+		params.dontConsume = true
+		return nil
+	}
+}
 
 // WakuRelay is the implementation of the Waku Relay protocol
 type WakuRelay struct {
@@ -433,12 +449,22 @@ func (w *WakuRelay) EnoughPeersToPublishToTopic(topic string) bool {
 }
 
 // subscribe returns list of Subscription to receive messages based on content filter
-func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.ContentFilter) ([]*Subscription, error) {
+func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.ContentFilter, opts ...RelaySubscribeOption) ([]*Subscription, error) {
 
 	var subscriptions []*Subscription
 	pubSubTopicMap, err := waku_proto.ContentFilterToPubSubTopicMap(contentFilter)
 	if err != nil {
 		return nil, err
+	}
+	params := new(RelaySubscribeParameters)
+
+	var optList []RelaySubscribeOption
+	optList = append(optList, opts...)
+	for _, opt := range optList {
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for pubSubTopic, cTopics := range pubSubTopicMap {
@@ -456,7 +482,7 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			}
 		}
 
-		subscription := w.bcaster.Register(cFilter, 1024)
+		subscription := w.bcaster.Register(cFilter, WithBufferSize(DefaultRelaySubscriptionBufferSize))
 
 		// Create Content subscription
 		w.topicsMutex.RLock()
@@ -478,8 +504,8 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 
 // Subscribe returns a Subscription to receive messages as per contentFilter
 // contentFilter can contain pubSubTopic and contentTopics or only contentTopics(in case of autosharding)
-func (w *WakuRelay) Subscribe(ctx context.Context, contentFilter waku_proto.ContentFilter) ([]*Subscription, error) {
-	return w.subscribe(ctx, contentFilter)
+func (w *WakuRelay) Subscribe(ctx context.Context, contentFilter waku_proto.ContentFilter, opts ...RelaySubscribeOption) ([]*Subscription, error) {
+	return w.subscribe(ctx, contentFilter, opts...)
 }
 
 // Unsubscribe closes a subscription to a pubsub topic

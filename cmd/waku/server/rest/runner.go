@@ -26,7 +26,7 @@ func newRunnerService(broadcaster relay.Broadcaster, adder Adder) *runnerService
 func (r *runnerService) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
-	r.sub = r.broadcaster.RegisterForAll(1024)
+	r.sub = r.broadcaster.RegisterForAll(relay.WithBufferSize(relay.DefaultRelaySubscriptionBufferSize))
 	for {
 		select {
 		case <-ctx.Done():
