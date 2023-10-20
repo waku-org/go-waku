@@ -852,8 +852,8 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 		suffix = fmt.Sprintf("%02d", i)
 		messages = append(messages, WakuMsg{
 			pubSubTopic:  testTopic,
-			contentTopic: testContentTopic + suffix,
-			payload:      testPayload + suffix,
+			contentTopic:  fmt.Sprintf("%s%02d", testContentTopic, i),
+			payload:       fmt.Sprintf("%s%02d", testPayload, i),
 		})
 	}
 
