@@ -820,8 +820,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 
 	// Debug to see subscriptions in light node
 	for _, sub := range s.subDetails {
-		s.log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic))
-		s.log.Info("Light Node subscription ", zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
+		s.log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic), zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
 	}
 
 	// All messages should be received
