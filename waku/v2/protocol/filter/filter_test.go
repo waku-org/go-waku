@@ -764,10 +764,9 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 
 	// Prepare data
 	for i := 0; i < 3; i++ {
-		suffix = fmt.Sprintf("%02d", i)
 		messages = append(messages, WakuMsg{
 			pubSubTopic:  testTopic,
-			contentTopic: testContentTopic + suffix,
+			contentTopic: fmt.Sprintf("%s%02d", testContentTopic, i),
 			payload:      testPayload,
 		})
 	}
