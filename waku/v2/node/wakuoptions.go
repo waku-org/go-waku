@@ -24,7 +24,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	libp2pwebtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/multiformats/go-multiaddr"
-	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
@@ -232,7 +231,7 @@ func WithHostAddress(hostAddr *net.TCPAddr) WakuNodeOption {
 }
 
 // WithAdvertiseAddresses is a WakuNodeOption that allows overriding the address used in the waku node with custom value
-func WithAdvertiseAddresses(advertiseAddrs ...ma.Multiaddr) WakuNodeOption {
+func WithAdvertiseAddresses(advertiseAddrs ...multiaddr.Multiaddr) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.advertiseAddrs = advertiseAddrs
 		return WithMultiaddress(advertiseAddrs...)(params)

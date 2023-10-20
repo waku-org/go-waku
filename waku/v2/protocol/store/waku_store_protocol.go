@@ -85,7 +85,7 @@ type MessageProvider interface {
 
 type Store interface {
 	SetHost(h host.Host)
-	Start(context.Context, relay.Subscription) error
+	Start(context.Context, *relay.Subscription) error
 	Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error)
 	Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error)
 	Next(ctx context.Context, r *Result) (*Result, error)
@@ -104,7 +104,7 @@ func (store *WakuStore) SetHost(h host.Host) {
 }
 
 // Start initializes the WakuStore by enabling the protocol and fetching records from a message provider
-func (store *WakuStore) Start(ctx context.Context, sub relay.Subscription) error {
+func (store *WakuStore) Start(ctx context.Context, sub *relay.Subscription) error {
 	if store.started {
 		return nil
 	}

@@ -107,7 +107,7 @@ func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Re
 
 	var err error
 	for _, topic := range topics {
-		err = r.node.Relay().Unsubscribe(req.Context(), topic)
+		err = r.node.Relay().Unsubscribe(req.Context(), protocol.NewContentFilter(topic))
 		if err != nil {
 			r.log.Error("unsubscribing from topic", zap.String("topic", strings.Replace(strings.Replace(topic, "\n", "", -1), "\r", "", -1)), zap.Error(err))
 		} else {
@@ -129,18 +129,20 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 
 	var err error
 	var sub *relay.Subscription
+	var subs []*relay.Subscription
 	var topicToSubscribe string
 	for _, topic := range topics {
 		if topic == "" {
-			sub, err = r.node.Relay().Subscribe(req.Context())
+			subs, err = r.node.Relay().Subscribe(req.Context(), protocol.NewContentFilter(relay.DefaultWakuTopic))
 			topicToSubscribe = relay.DefaultWakuTopic
 		} else {
-			sub, err = r.node.Relay().SubscribeToTopic(req.Context(), topic)
+			subs, err = r.node.Relay().Subscribe(req.Context(), protocol.NewContentFilter(topic))
 			topicToSubscribe = topic
 		}
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
 		} else {
+			sub = subs[0]
 			sub.Unsubscribe()
 			r.messagesMutex.Lock()
 			r.messages[topic] = []*pb.WakuMessage{}
