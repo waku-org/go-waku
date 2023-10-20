@@ -53,7 +53,8 @@ func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Req
 	defer req.Body.Close()
 
 	if err := msg.Check(); err != nil {
-		writeErrOrResponse(w, err, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 	//
@@ -64,5 +65,10 @@ func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Req
 	}
 
 	_, err := serv.node.Lightpush().Publish(req.Context(), msg.Message, lightpush.WithPubSubTopic(msg.PubSubTopic))
-	writeErrOrResponse(w, err, true)
+	if err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(err.Error()))
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }
