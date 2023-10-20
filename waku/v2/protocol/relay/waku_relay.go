@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -16,9 +15,7 @@ import (
 	proto "google.golang.org/protobuf/proto"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/hash"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -29,23 +26,6 @@ const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic().String()
-
-var DefaultRelaySubscriptionBufferSize int = 1024
-
-type RelaySubscribeParameters struct {
-	dontConsume bool
-}
-
-type RelaySubscribeOption func(*RelaySubscribeParameters) error
-
-// WithoutConsumer option let's a user subscribe to relay without consuming messages received.
-// This is useful for a relayNode where only a subscribe is required in order to relay messages in gossipsub network.
-func WithoutConsumer() RelaySubscribeOption {
-	return func(params *RelaySubscribeParameters) error {
-		params.dontConsume = true
-		return nil
-	}
-}
 
 // WakuRelay is the implementation of the Waku Relay protocol
 type WakuRelay struct {
@@ -85,34 +65,6 @@ type WakuRelay struct {
 	*waku_proto.CommonService
 }
 
-// EvtRelaySubscribed is an event emitted when a new subscription to a pubsub topic is created
-type EvtRelaySubscribed struct {
-	Topic     string
-	TopicInst *pubsub.Topic
-}
-
-// EvtRelayUnsubscribed is an event emitted when a subscription to a pubsub topic is closed
-type EvtRelayUnsubscribed struct {
-	Topic string
-}
-
-type PeerTopicState int
-
-const (
-	PEER_JOINED = iota
-	PEER_LEFT
-)
-
-type EvtPeerTopic struct {
-	PubsubTopic string
-	PeerID      peer.ID
-	State       PeerTopicState
-}
-
-func msgIDFn(pmsg *pubsub_pb.Message) string {
-	return string(hash.SHA256(pmsg.Data))
-}
-
 // NewWakuRelay returns a new instance of a WakuRelay struct
 func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesource.Timesource,
 	reg prometheus.Registerer, log *zap.Logger, opts ...pubsub.Option) *WakuRelay {
@@ -129,94 +81,8 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.events = eventbus.NewBus()
 	w.metrics = newMetrics(reg, w.log)
 
-	cfg := pubsub.DefaultGossipSubParams()
-	cfg.PruneBackoff = time.Minute
-	cfg.UnsubscribeBackoff = 5 * time.Second
-	cfg.GossipFactor = 0.25
-	cfg.D = waku_proto.GossipSubOptimalFullMeshSize
-	cfg.Dlo = 4
-	cfg.Dhi = 12
-	cfg.Dout = 3
-	cfg.Dlazy = waku_proto.GossipSubOptimalFullMeshSize
-	cfg.HeartbeatInterval = time.Second
-	cfg.HistoryLength = 6
-	cfg.HistoryGossip = 3
-	cfg.FanoutTTL = time.Minute
-
-	w.peerScoreParams = &pubsub.PeerScoreParams{
-		Topics:        make(map[string]*pubsub.TopicScoreParams),
-		DecayInterval: 12 * time.Second, // how often peer scoring is updated
-		DecayToZero:   0.01,             // below this we consider the parameter to be zero
-		RetainScore:   10 * time.Minute, // remember peer score during x after it disconnects
-		// p5: application specific, unset
-		AppSpecificScore: func(p peer.ID) float64 {
-			return 0
-		},
-		AppSpecificWeight: 0.0,
-		// p6: penalizes peers sharing more than threshold ips
-		IPColocationFactorWeight:    -50,
-		IPColocationFactorThreshold: 5.0,
-		// p7: penalizes bad behaviour (weight and decay)
-		BehaviourPenaltyWeight: -10,
-		BehaviourPenaltyDecay:  0.986,
-	}
-
-	w.peerScoreThresholds = &pubsub.PeerScoreThresholds{
-		GossipThreshold:             -100,   // no gossip is sent to peers below this score
-		PublishThreshold:            -1000,  // no self-published msgs are sent to peers below this score
-		GraylistThreshold:           -10000, // used to trigger disconnections + ignore peer if below this score
-		OpportunisticGraftThreshold: 0,      // grafts better peers if the mesh median score drops below this. unset.
-	}
-
-	w.topicParams = &pubsub.TopicScoreParams{
-		TopicWeight: 1,
-		// p1: favours peers already in the mesh
-		TimeInMeshWeight:  0.01,
-		TimeInMeshQuantum: time.Second,
-		TimeInMeshCap:     10.0,
-		// p2: rewards fast peers
-		FirstMessageDeliveriesWeight: 1.0,
-		FirstMessageDeliveriesDecay:  0.5,
-		FirstMessageDeliveriesCap:    10.0,
-		// p3: penalizes lazy peers. safe low value
-		MeshMessageDeliveriesWeight:     0,
-		MeshMessageDeliveriesDecay:      0,
-		MeshMessageDeliveriesCap:        0,
-		MeshMessageDeliveriesThreshold:  0,
-		MeshMessageDeliveriesWindow:     0,
-		MeshMessageDeliveriesActivation: 0,
-		// p3b: tracks history of prunes
-		MeshFailurePenaltyWeight: 0,
-		MeshFailurePenaltyDecay:  0,
-		// p4: penalizes invalid messages. highly penalize peers sending wrong messages
-		InvalidMessageDeliveriesWeight: -100.0,
-		InvalidMessageDeliveriesDecay:  0.5,
-	}
-
 	// default options required by WakuRelay
-	w.opts = append([]pubsub.Option{
-		pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign),
-		pubsub.WithNoAuthor(),
-		pubsub.WithMessageIdFn(msgIDFn),
-		pubsub.WithGossipSubProtocols(
-			[]protocol.ID{WakuRelayID_v200, pubsub.GossipSubID_v11, pubsub.GossipSubID_v10, pubsub.FloodSubID},
-			func(feat pubsub.GossipSubFeature, proto protocol.ID) bool {
-				switch feat {
-				case pubsub.GossipSubFeatureMesh:
-					return proto == pubsub.GossipSubID_v11 || proto == pubsub.GossipSubID_v10 || proto == WakuRelayID_v200
-				case pubsub.GossipSubFeaturePX:
-					return proto == pubsub.GossipSubID_v11 || proto == WakuRelayID_v200
-				default:
-					return false
-				}
-			},
-		),
-		pubsub.WithGossipSubParams(cfg),
-		pubsub.WithFloodPublish(true),
-		pubsub.WithSeenMessagesTTL(2 * time.Minute),
-		pubsub.WithPeerScore(w.peerScoreParams, w.peerScoreThresholds),
-		pubsub.WithPeerScoreInspect(w.peerScoreInspector, 6*time.Second),
-	}, opts...)
+	w.opts = append(w.defaultPubsubOptions(), opts...)
 	w.contentSubs = make(map[string]map[int]*Subscription)
 	return w
 }
@@ -257,16 +123,7 @@ func (w *WakuRelay) start() error {
 	}
 	w.pubsub = ps
 
-	w.emitters.EvtRelaySubscribed, err = w.events.Emitter(new(EvtRelaySubscribed))
-	if err != nil {
-		return err
-	}
-	w.emitters.EvtRelayUnsubscribed, err = w.events.Emitter(new(EvtRelayUnsubscribed))
-	if err != nil {
-		return err
-	}
-
-	w.emitters.EvtPeerTopic, err = w.events.Emitter(new(EvtPeerTopic))
+	err = w.CreateEventEmitters()
 	if err != nil {
 		return err
 	}
@@ -604,52 +461,4 @@ func (w *WakuRelay) pubsubTopicMsgHandler(pubsubTopic string, sub *pubsub.Subscr
 // Params returns the gossipsub configuration parameters used by WakuRelay
 func (w *WakuRelay) Params() pubsub.GossipSubParams {
 	return w.params
-}
-
-// Events returns the event bus on which WakuRelay events will be emitted
-func (w *WakuRelay) Events() event.Bus {
-	return w.events
-}
-
-func (w *WakuRelay) addPeerTopicEventListener(topic *pubsub.Topic) (*pubsub.TopicEventHandler, error) {
-	handler, err := topic.EventHandler()
-	if err != nil {
-		return nil, err
-	}
-	w.WaitGroup().Add(1)
-	go w.topicEventPoll(topic.String(), handler)
-	return handler, nil
-}
-
-func (w *WakuRelay) topicEventPoll(topic string, handler *pubsub.TopicEventHandler) {
-	defer w.WaitGroup().Done()
-	for {
-		evt, err := handler.NextPeerEvent(w.Context())
-		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				break
-			}
-			w.log.Error("failed to get next peer event", zap.String("topic", topic), zap.Error(err))
-			continue
-		}
-		if evt.Peer.Validate() != nil { //Empty peerEvent is returned when context passed in done.
-			break
-		}
-		if evt.Type == pubsub.PeerJoin {
-			w.log.Debug("received a PeerJoin event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
-			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{PubsubTopic: topic, PeerID: evt.Peer, State: PEER_JOINED})
-			if err != nil {
-				w.log.Error("failed to emit PeerJoin", zap.String("topic", topic), zap.Error(err))
-			}
-		} else if evt.Type == pubsub.PeerLeave {
-			w.log.Debug("received a PeerLeave event", zap.String("topic", topic), logging.HostID("peerID", evt.Peer))
-			err = w.emitters.EvtPeerTopic.Emit(EvtPeerTopic{PubsubTopic: topic, PeerID: evt.Peer, State: PEER_LEFT})
-			if err != nil {
-				w.log.Error("failed to emit PeerLeave", zap.String("topic", topic), zap.Error(err))
-			}
-		} else {
-			w.log.Error("unknown event type received", zap.String("topic", topic),
-				zap.Int("eventType", int(evt.Type)))
-		}
-	}
 }
