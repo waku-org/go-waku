@@ -233,7 +233,7 @@ func (w *WakuRelay) Start(ctx context.Context) error {
 
 func (w *WakuRelay) start() error {
 	if w.bcaster == nil {
-		return fmt.Errorf("broadcaster not specified for relay")
+		return errors.New("broadcaster not specified for relay")
 	}
 	ps, err := pubsub.NewGossipSub(w.Context(), w.host, w.opts...)
 	if err != nil {
@@ -410,7 +410,7 @@ func (w *WakuRelay) GetSubscription(contentTopic string) (*Subscription, error) 
 			return sub, nil
 		}
 	}
-	return nil, fmt.Errorf("no subscription found for content topic")
+	return nil, errors.New("no subscription found for content topic")
 }
 
 // Stop unmounts the relay protocol and stops all subscriptions
@@ -442,7 +442,7 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 	}
 
 	for pubSubTopic, cTopics := range pubSubTopicMap {
-		w.log.Info("subscribing to ", zap.String("pubsubTopic", pubSubTopic), zap.Strings("content-topics", cTopics))
+		w.log.Info("subscribing to", zap.String("pubsubTopic", pubSubTopic), zap.Strings("contenTopics", cTopics))
 		var cFilter waku_proto.ContentFilter
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = waku_proto.NewContentTopicSet(cTopics...)
@@ -497,7 +497,7 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 		pubsubUnsubscribe := false
 		sub, ok := w.relaySubs[pubSubTopic]
 		if !ok {
-			return fmt.Errorf("not subscribed to topic")
+			return errors.New("not subscribed to topic")
 		}
 		cSubs := w.contentSubs[pubSubTopic]
 		if cSubs != nil {
@@ -515,7 +515,7 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 			//Should not land here ideally
 			w.log.Error("pubsub subscriptions exists, but contentSubscription doesn't for contentFilter",
 				zap.String("pubsubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics))
-			return fmt.Errorf("unexpected error in unsubscribe")
+			return errors.New("unexpected error in unsubscribe")
 		}
 		if pubsubUnsubscribe {
 			w.log.Info("unsubscribing from topic", zap.String("topic", sub.Topic()))

@@ -129,8 +129,7 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 // Note that this method takes contentTopics as an argument instead of pubsubtopics and uses autosharding to derive pubsubTopics.
 func (r *RelayService) PostV1AutoSubscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
 
-	var err error
-	_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", args.Topics...))
+	_, err := r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", args.Topics...))
 	if err != nil {
 		r.log.Error("subscribing to topics", zap.Strings("topics", args.Topics), zap.Error(err))
 		return err
