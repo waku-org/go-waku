@@ -53,19 +53,19 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 		},
 	}
 
-	connOpt, err := wakuPX.h.NewStream(ctx, params.selectedPeer, PeerExchangeID_v20alpha1)
+	stream, err := wakuPX.h.NewStream(ctx, params.selectedPeer, PeerExchangeID_v20alpha1)
 	if err != nil {
 		return err
 	}
-	defer connOpt.Close()
+	defer stream.Close()
 
-	writer := pbio.NewDelimitedWriter(connOpt)
+	writer := pbio.NewDelimitedWriter(stream)
 	err = writer.WriteMsg(requestRPC)
 	if err != nil {
 		return err
 	}
 
-	reader := pbio.NewDelimitedReader(connOpt, math.MaxInt32)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 	responseRPC := &pb.PeerExchangeRPC{}
 	err = reader.ReadMsg(responseRPC)
 	if err != nil {
