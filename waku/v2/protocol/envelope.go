@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"github.com/waku-org/go-waku/waku/v2/hash"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
@@ -20,12 +19,11 @@ type Envelope struct {
 // as well as generating a hash based on the bytes that compose the message
 func NewEnvelope(msg *wpb.WakuMessage, receiverTime int64, pubSubTopic string) *Envelope {
 	messageHash := msg.Hash(pubSubTopic)
-	digest := hash.SHA256([]byte(msg.ContentTopic), msg.Payload)
 	return &Envelope{
 		msg:  msg,
 		hash: messageHash,
 		index: &pb.Index{
-			Digest:       digest[:],
+			Digest:       messageHash,
 			ReceiverTime: receiverTime,
 			SenderTime:   msg.Timestamp,
 			PubsubTopic:  pubSubTopic,
