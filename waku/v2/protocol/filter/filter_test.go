@@ -173,9 +173,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						contentTopic: env.Message().GetContentTopic(),
 						payload:      string(env.Message().GetPayload()),
 					}
-					s.log.Info("Received message ", zap.String("pubSubTopic", received.pubSubTopic))
-					s.log.Info("Received message ", zap.String("contentTopic", received.contentTopic))
-					s.log.Info("Received message ", zap.String("payload", received.payload))
+					s.log.Info("received message ", zap.String("pubSubTopic", received.pubSubTopic),  zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
@@ -275,9 +273,6 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	for _, m := range msgs {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), m.pubSubTopic)
 		s.Require().NoError(err)
-		//dst := make([]byte, hex.EncodedLen(len(hash)))
-		//hex.Encode(dst, hash)
-		//s.log.Info("Published message ", zap.String("hash:", string(dst)))
 	}
 }
 
@@ -769,10 +764,9 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 
 	// Prepare data
 	for i := 0; i < 3; i++ {
-		suffix = fmt.Sprintf("%02d", i)
 		messages = append(messages, WakuMsg{
 			pubSubTopic:  testTopic,
-			contentTopic: testContentTopic + suffix,
+			contentTopic: fmt.Sprintf("%s%02d", testContentTopic, i),
 			payload:      testPayload,
 		})
 	}
@@ -802,7 +796,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	)
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
@@ -826,8 +820,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 
 	// Debug to see subscriptions in light node
 	for _, sub := range s.subDetails {
-		s.log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic))
-		s.log.Info("Light Node subscription ", zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
+		s.log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic), zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
 	}
 
 	// All messages should be received
@@ -850,7 +843,7 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 	)
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
@@ -859,8 +852,8 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 		suffix = fmt.Sprintf("%02d", i)
 		messages = append(messages, WakuMsg{
 			pubSubTopic:  testTopic,
-			contentTopic: testContentTopic + suffix,
-			payload:      testPayload + suffix,
+			contentTopic:  fmt.Sprintf("%s%02d", testContentTopic, i),
+			payload:       fmt.Sprintf("%s%02d", testPayload, i),
 		})
 	}
 
