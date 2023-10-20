@@ -276,9 +276,8 @@ func TestWakuRelayAutoShard(t *testing.T) {
 	_, err = relay.PublishToTopic(context.Background(), msg1, subs[0].contentFilter.PubsubTopic)
 	require.NoError(t, err)
 
-	/* 	TODO: Debug why message is not received in this case.
 	wg = waitForMsg(t, subs1[0].Ch, testcTopic1)
-	   	wg.Wait() */
+	wg.Wait()
 
 	//Should not receive message as subscription is for a different cTopic.
 	waitForTimeout(t, subs[0].Ch)
@@ -292,10 +291,16 @@ func TestWakuRelayAutoShard(t *testing.T) {
 	topics = relay.Topics()
 	require.Equal(t, 1, len(topics))
 	require.Equal(t, subs[0].contentFilter.PubsubTopic, topics[0])
-
 	wg2 := waitForMsg(t, subs1[0].Ch, testcTopic1)
 
-	_, err = relay.PublishToTopic(context.Background(), msg1, subs[0].contentFilter.PubsubTopic)
+	msg2 := &pb.WakuMessage{
+		Payload:      bytesToSend,
+		Version:      0,
+		ContentTopic: testcTopic1,
+		Timestamp:    1,
+	}
+
+	_, err = relay.PublishToTopic(context.Background(), msg2, subs[0].contentFilter.PubsubTopic)
 	require.NoError(t, err)
 	wg2.Wait()
 

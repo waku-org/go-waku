@@ -29,8 +29,8 @@ func (s *Subscription) Submit(ctx context.Context, msg *protocol.Envelope) {
 	//Filter and notify
 	// - if contentFilter doesn't have a contentTopic
 	// - if contentFilter has contentTopics and it matches with message
-	if !s.noConsume && len(s.contentFilter.ContentTopicsList()) == 0 || (len(s.contentFilter.ContentTopicsList()) > 0 &&
-		slices.Contains[string](s.contentFilter.ContentTopicsList(), msg.Message().ContentTopic)) {
+	if !s.noConsume && (len(s.contentFilter.ContentTopicsList()) == 0 ||
+		(len(s.contentFilter.ContentTopicsList()) > 0 && slices.Contains[string](s.contentFilter.ContentTopicsList(), msg.Message().ContentTopic))) {
 		select {
 		case <-ctx.Done():
 			return
