@@ -273,9 +273,6 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	for _, m := range msgs {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), m.pubSubTopic)
 		s.Require().NoError(err)
-		//dst := make([]byte, hex.EncodedLen(len(hash)))
-		//hex.Encode(dst, hash)
-		//s.log.Info("Published message ", zap.String("hash:", string(dst)))
 	}
 }
 
