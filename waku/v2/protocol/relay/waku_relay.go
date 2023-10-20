@@ -367,13 +367,14 @@ func (w *WakuRelay) Subscribe(ctx context.Context, contentFilter waku_proto.Cont
 
 // Unsubscribe closes a subscription to a pubsub topic
 func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.ContentFilter) error {
-	w.topicsMutex.Lock()
-	defer w.topicsMutex.Unlock()
 
 	pubSubTopicMap, err := waku_proto.ContentFilterToPubSubTopicMap(contentFilter)
 	if err != nil {
 		return err
 	}
+
+	w.topicsMutex.Lock()
+	defer w.topicsMutex.Unlock()
 
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		cfTemp := waku_proto.NewContentFilter(pubSubTopic, cTopics...)
@@ -398,37 +399,51 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 			//Should not land here ideally
 			w.log.Error("pubsub subscriptions exists, but contentSubscription doesn't for contentFilter",
 				zap.String("pubsubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics))
+
 			return errors.New("unexpected error in unsubscribe")
 		}
+
 		if pubsubUnsubscribe {
-			w.log.Info("unsubscribing from topic", zap.String("topic", sub.Topic()))
-
-			w.relaySubs[pubSubTopic].Cancel()
-			delete(w.relaySubs, pubSubTopic)
-
-			w.bcaster.UnRegister(pubSubTopic)
-
-			delete(w.contentSubs, pubSubTopic)
-
-			evtHandler, ok := w.topicEvtHanders[pubSubTopic]
-			if ok {
-				evtHandler.Cancel()
-				delete(w.topicEvtHanders, pubSubTopic)
-			}
-
-			err := w.wakuRelayTopics[pubSubTopic].Close()
-			if err != nil {
-				return err
-			}
-			delete(w.wakuRelayTopics, pubSubTopic)
-
-			w.RemoveTopicValidator(pubSubTopic)
-
-			err = w.emitters.EvtRelayUnsubscribed.Emit(EvtRelayUnsubscribed{pubSubTopic})
+			err = w.unsubscribeFromPubsubTopic(sub)
 			if err != nil {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// unsubscribeFromPubsubTopic unsubscribes subscription from underlying pubsub.
+// Note: caller has to acquire topicsMutex in order to avoid race conditions
+func (w *WakuRelay) unsubscribeFromPubsubTopic(sub *pubsub.Subscription) error {
+
+	pubSubTopic := sub.Topic()
+	w.log.Info("unsubscribing from topic", zap.String("topic", pubSubTopic))
+
+	sub.Cancel()
+	delete(w.relaySubs, pubSubTopic)
+
+	w.bcaster.UnRegister(pubSubTopic)
+
+	delete(w.contentSubs, pubSubTopic)
+
+	evtHandler, ok := w.topicEvtHanders[pubSubTopic]
+	if ok {
+		evtHandler.Cancel()
+		delete(w.topicEvtHanders, pubSubTopic)
+	}
+
+	err := w.wakuRelayTopics[pubSubTopic].Close()
+	if err != nil {
+		return err
+	}
+	delete(w.wakuRelayTopics, pubSubTopic)
+
+	w.RemoveTopicValidator(pubSubTopic)
+
+	err = w.emitters.EvtRelayUnsubscribed.Emit(EvtRelayUnsubscribed{pubSubTopic})
+	if err != nil {
+		return err
 	}
 	return nil
 }
