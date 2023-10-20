@@ -164,11 +164,7 @@ func (r *RelayService) PostV1AutoMessage(req *http.Request, args *RelayAutoMessa
 		r.log.Error("publishing message", zap.Error(err))
 		return err
 	}
-	if msg.ContentTopic == "" {
-		err := fmt.Errorf("content-topic cannot be empty")
-		r.log.Error("publishing message", zap.Error(err))
-		return err
-	}
+
 	if err = server.AppendRLNProof(r.node, msg); err != nil {
 		return err
 	}
