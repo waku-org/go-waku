@@ -843,7 +843,7 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 	)
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
