@@ -102,13 +102,20 @@ func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bo
 	return filterPush
 }
 
-func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay, *WakuFilterFullNode) {
+func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll bool) (*relay.WakuRelay, *WakuFilterFullNode) {
+	var sub relay.Subscription
 	node, relaySub, host, broadcaster := s.makeWakuRelay(topic)
 	s.relaySub = relaySub
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	node2Filter.SetHost(host)
-	sub := broadcaster.RegisterForAll()
+
+	if withRegisterAll {
+		sub = broadcaster.RegisterForAll()
+	} else {
+		sub = broadcaster.Register(topic)
+	}
+
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 
@@ -173,7 +180,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						contentTopic: env.Message().GetContentTopic(),
 						payload:      string(env.Message().GetPayload()),
 					}
-					s.log.Info("received message ", zap.String("pubSubTopic", received.pubSubTopic),  zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
+					s.log.Info("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
@@ -276,6 +283,39 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	}
 }
 
+func prepareData(quantity int, topics, contentTopics, payloads bool) []WakuMsg {
+	var (
+		pubsubTopic  = "/waku/2/go/filter/test"
+		contentTopic = "TopicA"
+		payload      = "test_msg"
+		messages     []WakuMsg
+	)
+
+	for i := 0; i < quantity; i++ {
+		msg := WakuMsg{
+			pubSubTopic:  pubsubTopic,
+			contentTopic: contentTopic,
+			payload:      payload,
+		}
+
+		if topics {
+			msg.pubSubTopic = fmt.Sprintf("%s%02d", pubsubTopic, i)
+		}
+
+		if contentTopics {
+			msg.contentTopic = fmt.Sprintf("%s%02d", contentTopic, i)
+		}
+
+		if payloads {
+			msg.payload = fmt.Sprintf("%s%02d", payload, i)
+		}
+
+		messages = append(messages, msg)
+	}
+
+	return messages
+}
+
 func (s *FilterTestSuite) SetupTest() {
 	log := utils.Logger() //.Named("filterv2-test")
 	s.log = log
@@ -295,7 +335,7 @@ func (s *FilterTestSuite) SetupTest() {
 
 	//TODO: Add tests to verify broadcaster.
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -583,7 +623,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.testTopic = pubSubTopic.String()
 
 	s.lightNode = s.makeWakuFilterLightNode(true, false)
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String())
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String(), false)
 
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
 	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
@@ -655,7 +695,7 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false)
 
 	const FilterSubscribeID_Incorrect1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/abcd")
 
@@ -698,7 +738,7 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 
 	s.lightNode = s.makeWakuFilterLightNode(false, true)
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false)
 
 	// Re-start light node with unsupported prefix for match func
 	s.lightNode.Stop()
@@ -749,27 +789,13 @@ func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 }
 
 func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
-	var (
-		testTopic        = "/waku/2/go/filter/test"
-		testContentTopic = "Topic"
-		testPayload      = "test_msg"
-		suffix           string
-		messages         []WakuMsg
-	)
 
 	// Create test context
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
-	// Prepare data
-	for i := 0; i < 3; i++ {
-		messages = append(messages, WakuMsg{
-			pubSubTopic:  testTopic,
-			contentTopic: fmt.Sprintf("%s%02d", testContentTopic, i),
-			payload:      testPayload,
-		})
-	}
+	messages := prepareData(3, false, true, false)
 
 	// Subscribe
 	for _, m := range messages {
@@ -787,28 +813,22 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 }
 
 func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
-	var (
-		testTopic        = "/waku/2/go/filter/test"
-		testContentTopic = "Topic"
-		testPayload      = "test_msg"
-		suffix           string
-		messages         []WakuMsg
-	)
 
 	// Create test context
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
-	// Prepare data
-	for i := 0; i < 2; i++ {
-		suffix = fmt.Sprintf("%02d", i)
-		messages = append(messages, WakuMsg{
-			pubSubTopic:  testTopic + suffix,
-			contentTopic: testContentTopic + suffix,
-			payload:      testPayload,
-		})
-	}
+	s.lightNode = s.makeWakuFilterLightNode(true, true)
+
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true)
+
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	messages := prepareData(2, true, true, false)
 
 	// Subscribe
 	for _, m := range messages {
@@ -828,34 +848,19 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 		s.publishMessages(messages)
 	}, s.subDetails, messages)
 
-	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 
 }
 
 func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
-	var (
-		testTopic        = "/waku/2/go/filter/test"
-		testContentTopic = "Topic"
-		testPayload      = "test_msg"
-		suffix           string
-		messages         []WakuMsg
-	)
 
 	// Create test context
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
-	// Prepare data
-	for i := 0; i < 10; i++ {
-		suffix = fmt.Sprintf("%02d", i)
-		messages = append(messages, WakuMsg{
-			pubSubTopic:  testTopic,
-			contentTopic:  fmt.Sprintf("%s%02d", testContentTopic, i),
-			payload:       fmt.Sprintf("%s%02d", testPayload, i),
-		})
-	}
+	messages := prepareData(10, false, true, true)
 
 	// Subscribe
 	for _, m := range messages {
@@ -873,21 +878,8 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 }
 
 func (s *FilterTestSuite) TestSubscriptionRefresh() {
-	var (
-		testPayload = "test_msg"
-		suffix      string
-		messages    []WakuMsg
-	)
 
-	// Prepare data
-	for i := 0; i < 2; i++ {
-		suffix = fmt.Sprintf("%02d", i)
-		messages = append(messages, WakuMsg{
-			pubSubTopic:  s.testTopic,
-			contentTopic: s.testContentTopic,
-			payload:      testPayload + suffix,
-		})
-	}
+	messages := prepareData(2, false, false, true)
 
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -906,14 +898,7 @@ func (s *FilterTestSuite) TestSubscriptionRefresh() {
 }
 
 func (s *FilterTestSuite) TestContentTopicsLimit() {
-	var (
-		testTopic        = "/waku/2/go/filter/test"
-		testContentTopic = "Topic"
-		testPayload      = "test_msg"
-		suffix           string
-		maxContentTopics = 30
-		messages         []WakuMsg
-	)
+	var maxContentTopics = 30
 
 	// Create test context
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
@@ -928,38 +913,22 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 		}
 	}
 
-	// Prepare data
-	for i := 0; i < maxContentTopics; i++ {
-		suffix = fmt.Sprintf("%02d", i)
-		messages = append(messages, WakuMsg{
-			pubSubTopic:  testTopic,
-			contentTopic: testContentTopic + suffix,
-			payload:      testPayload + suffix,
-		})
-	}
+	messages := prepareData(maxContentTopics+1, false, true, true)
 
 	// Subscribe
-	for _, m := range messages {
+	for _, m := range messages[:len(messages)-1] {
 		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
-	// All messages should be received
+	// All messages within limit should get received
 	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
-
-	// Prepare over the limit message
-	suffix = fmt.Sprintf("%02d", maxContentTopics)
-	msgOverLimit := WakuMsg{
-		pubSubTopic:  testTopic,
-		contentTopic: testContentTopic + suffix,
-		payload:      testPayload + suffix,
-	}
+		s.publishMessages(messages[:len(messages)-1])
+	}, s.subDetails, messages[:len(messages)-1])
 
 	// Adding over the limit contentTopic should fail
 	for _, sub := range s.subDetails {
-		if sub.ContentFilter.PubsubTopic == msgOverLimit.pubSubTopic {
-			sub.Add(msgOverLimit.contentTopic)
+		if sub.ContentFilter.PubsubTopic == messages[len(messages)-1].pubSubTopic {
+			sub.Add(messages[len(messages)-1].contentTopic)
 			_, err := s.lightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(s.fullNodeHost.ID()))
 			s.Require().Error(err)
 		}
@@ -1019,7 +988,7 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	s.log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
 
 	// This will overwrite values with the second node info
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false)
 
 	// Connect to second full and relay node
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
