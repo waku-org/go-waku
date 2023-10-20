@@ -69,18 +69,18 @@ func relaySubscribe(topic string) error {
 		return nil
 	}
 
-	subscription, err := wakuState.node.Relay().SubscribeToTopic(context.Background(), topicToSubscribe)
+	subscription, err := wakuState.node.Relay().Subscribe(context.Background(), protocol.NewContentFilter(topicToSubscribe))
 	if err != nil {
 		return err
 	}
 
-	relaySubscriptions[topicToSubscribe] = subscription
+	relaySubscriptions[topicToSubscribe] = subscription[0]
 
 	go func(subscription *relay.Subscription) {
 		for envelope := range subscription.Ch {
 			send("message", toSubscriptionMessage(envelope))
 		}
-	}(subscription)
+	}(subscription[0])
 
 	return nil
 }
@@ -123,5 +123,5 @@ func RelayUnsubscribe(topic string) error {
 
 	delete(relaySubscriptions, topicToUnsubscribe)
 
-	return wakuState.node.Relay().Unsubscribe(context.Background(), topicToUnsubscribe)
+	return wakuState.node.Relay().Unsubscribe(context.Background(), protocol.NewContentFilter(topicToUnsubscribe))
 }

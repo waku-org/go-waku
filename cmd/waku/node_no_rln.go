@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuNodeOption) {
+func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuNodeOption) error {
 	// Do nothing
+	return nil
 }

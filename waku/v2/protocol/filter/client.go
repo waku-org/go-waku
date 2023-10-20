@@ -214,29 +214,6 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	return nil
 }
 
-// This function converts a contentFilter into a map of pubSubTopics and corresponding contentTopics
-func contentFilterToPubSubTopicMap(contentFilter protocol.ContentFilter) (map[string][]string, error) {
-	pubSubTopicMap := make(map[string][]string)
-
-	if contentFilter.PubsubTopic != "" {
-		pubSubTopicMap[contentFilter.PubsubTopic] = contentFilter.ContentTopicsList()
-	} else {
-		//Parse the content-Topics to figure out shards.
-		for _, cTopicString := range contentFilter.ContentTopicsList() {
-			pTopicStr, err := protocol.GetPubSubTopicFromContentTopic(cTopicString)
-			if err != nil {
-				return nil, err
-			}
-			_, ok := pubSubTopicMap[pTopicStr]
-			if !ok {
-				pubSubTopicMap[pTopicStr] = []string{}
-			}
-			pubSubTopicMap[pTopicStr] = append(pubSubTopicMap[pTopicStr], cTopicString)
-		}
-	}
-	return pubSubTopicMap, nil
-}
-
 // Subscribe setups a subscription to receive messages that match a specific content filter
 // If contentTopics passed result in different pubSub topics (due to Auto/Static sharding), then multiple subscription requests are sent to the peer.
 // This may change if Filterv2 protocol is updated to handle such a scenario in a single request.
@@ -273,7 +250,8 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		}
 	}
 
-	pubSubTopicMap, err := contentFilterToPubSubTopicMap(contentFilter)
+	pubSubTopicMap, err := protocol.ContentFilterToPubSubTopicMap(contentFilter)
+
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +432,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 		return nil, err
 	}
 
-	pubSubTopicMap, err := contentFilterToPubSubTopicMap(contentFilter)
+	pubSubTopicMap, err := protocol.ContentFilterToPubSubTopicMap(contentFilter)
 	if err != nil {
 		return nil, err
 	}

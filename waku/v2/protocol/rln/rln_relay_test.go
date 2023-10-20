@@ -32,9 +32,11 @@ func (s *WakuRLNRelaySuite) TestOffchainMode() {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
-
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	bcaster := relay.NewBroadcaster(1024)
+	relay := relay.NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
+	err = bcaster.Start(context.Background())
+	s.Require().NoError(err)
 	err = relay.Start(context.Background())
 	s.Require().NoError(err)
 	defer relay.Stop()

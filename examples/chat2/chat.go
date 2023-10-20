@@ -3,7 +3,6 @@ package main
 import (
 	"chat2/pb"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -24,7 +23,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"github.com/waku-org/go-zerokit-rln/rln"
-	"golang.org/x/crypto/pbkdf2"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -84,13 +82,13 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 	} else {
 
 		for _, topic := range topics {
-			sub, err := node.Relay().SubscribeToTopic(ctx, topic)
+			sub, err := node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
 			if err != nil {
 				chat.ui.ErrorMessage(err)
 			} else {
 				chat.C = make(chan *protocol.Envelope)
 				go func() {
-					for e := range sub.Ch {
+					for e := range sub[0].Ch {
 						chat.C <- e
 					}
 				}()
@@ -354,12 +352,6 @@ func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Mess
 	}
 
 	return msg, nil
-}
-
-func generateSymKey(password string) []byte {
-	// AesKeyLength represents the length (in bytes) of an private key
-	AESKeyLength := 256 / 8
-	return pbkdf2.Key([]byte(password), nil, 65356, AESKeyLength, sha256.New)
 }
 
 func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {

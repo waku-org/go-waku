@@ -46,7 +46,7 @@ func TestBroadcastSpecificTopic(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 
-		sub := b.Register("abc")
+		sub := b.Register(protocol.NewContentFilter("abc"))
 
 		go func() {
 			defer wg.Done()
@@ -66,7 +66,7 @@ func TestBroadcastSpecificTopic(t *testing.T) {
 func TestBroadcastCleanup(t *testing.T) {
 	b := NewBroadcaster(100)
 	require.NoError(t, b.Start(context.Background()))
-	sub := b.Register("test")
+	sub := b.Register(protocol.NewContentFilter("test"))
 	b.Stop()
 	<-sub.Ch
 	sub.Unsubscribe()
@@ -78,7 +78,7 @@ func TestBroadcastUnregisterSub(t *testing.T) {
 	require.NoError(t, b.Start(context.Background()))
 	subForAll := b.RegisterForAll()
 	// unregister before submit
-	specificSub := b.Register("abc")
+	specificSub := b.Register(protocol.NewContentFilter("abc"))
 	specificSub.Unsubscribe()
 	//
 	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
