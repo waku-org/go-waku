@@ -21,7 +21,7 @@ type InfoReply struct {
 }
 
 const routeDebugInfoV1 = "/debug/v1/info"
-const routeDebugVersionV1 = "/debug/v1/info"
+const routeDebugVersionV1 = "/debug/v1/version"
 
 func NewDebugService(node *node.WakuNode, m *chi.Mux) *DebugService {
 	d := &DebugService{
