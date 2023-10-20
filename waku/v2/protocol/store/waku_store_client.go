@@ -174,22 +174,22 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	logger := store.log.With(logging.HostID("peer", selectedPeer))
 	logger.Info("querying message history")
 
-	connOpt, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta4)
+	stream, err := store.h.NewStream(ctx, selectedPeer, StoreID_v20beta4)
 	if err != nil {
 		logger.Error("creating stream to peer", zap.Error(err))
 		store.metrics.RecordError(dialFailure)
 		return nil, err
 	}
 
-	defer connOpt.Close()
+	defer stream.Close()
 	defer func() {
-		_ = connOpt.Reset()
+		_ = stream.Reset()
 	}()
 
 	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(requestID)}
 
-	writer := pbio.NewDelimitedWriter(connOpt)
-	reader := pbio.NewDelimitedReader(connOpt, math.MaxInt32)
+	writer := pbio.NewDelimitedWriter(stream)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 	err = writer.WriteMsg(historyRequest)
 	if err != nil {

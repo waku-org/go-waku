@@ -92,15 +92,15 @@ func (wakuM *WakuMetadata) getClusterAndShards() (*uint32, []uint32, error) {
 func (wakuM *WakuMetadata) Request(ctx context.Context, peerID peer.ID) (*protocol.RelayShards, error) {
 	logger := wakuM.log.With(logging.HostID("peer", peerID))
 
-	connOpt, err := wakuM.h.NewStream(ctx, peerID, MetadataID_v1)
+	stream, err := wakuM.h.NewStream(ctx, peerID, MetadataID_v1)
 	if err != nil {
 		logger.Error("creating stream to peer", zap.Error(err))
 		return nil, err
 	}
 
-	defer connOpt.Close()
+	defer stream.Close()
 	defer func() {
-		err := connOpt.Reset()
+		err := stream.Reset()
 		if err != nil {
 			logger.Error("resetting connection", zap.Error(err))
 		}
@@ -115,8 +115,8 @@ func (wakuM *WakuMetadata) Request(ctx context.Context, peerID peer.ID) (*protoc
 	request.ClusterId = clusterID
 	request.Shards = shards
 
-	writer := pbio.NewDelimitedWriter(connOpt)
-	reader := pbio.NewDelimitedReader(connOpt, math.MaxInt32)
+	writer := pbio.NewDelimitedWriter(stream)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 	err = writer.WriteMsg(request)
 	if err != nil {
