@@ -164,18 +164,20 @@ func (store *WakuStore) storeIncomingMessages(ctx context.Context) {
 	}
 }
 
-func (store *WakuStore) onRequest(s network.Stream) {
-	defer s.Close()
-	logger := store.log.With(logging.HostID("peer", s.Conn().RemotePeer()))
+func (store *WakuStore) onRequest(stream network.Stream) {
+	logger := store.log.With(logging.HostID("peer", stream.Conn().RemotePeer()))
 	historyRPCRequest := &pb.HistoryRPC{}
 
-	writer := pbio.NewDelimitedWriter(s)
-	reader := pbio.NewDelimitedReader(s, math.MaxInt32)
+	writer := pbio.NewDelimitedWriter(stream)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 	err := reader.ReadMsg(historyRPCRequest)
 	if err != nil {
 		logger.Error("reading request", zap.Error(err))
 		store.metrics.RecordError(decodeRPCFailure)
+		if err := stream.Reset(); err != nil {
+			store.log.Error("resetting connection", zap.Error(err))
+		}
 		return
 	}
 
@@ -185,6 +187,9 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	} else {
 		logger.Error("reading request", zap.Error(err))
 		store.metrics.RecordError(emptyRPCQueryFailure)
+		if err := stream.Reset(); err != nil {
+			store.log.Error("resetting connection", zap.Error(err))
+		}
 		return
 	}
 
@@ -200,13 +205,15 @@ func (store *WakuStore) onRequest(s network.Stream) {
 	if err != nil {
 		logger.Error("writing response", zap.Error(err), logging.PagingInfo(historyResponseRPC.Response.PagingInfo))
 		store.metrics.RecordError(writeResponseFailure)
-		_ = s.Reset()
-	} else {
-		logger.Info("response sent")
+		if err := stream.Reset(); err != nil {
+			store.log.Error("resetting connection", zap.Error(err))
+		}
+		return
 	}
-}
 
-// TODO: queryWithAccounting
+	logger.Info("response sent")
+	stream.Close()
+}
 
 // Stop closes the store message channel and removes the protocol stream handler
 func (store *WakuStore) Stop() {
