@@ -237,9 +237,6 @@ func (r *RelayService) deleteV1AutoSubscriptions(w http.ResponseWriter, req *htt
 	}
 	defer req.Body.Close()
 
-	r.messagesMutex.Lock()
-	defer r.messagesMutex.Unlock()
-
 	err := r.node.Relay().Unsubscribe(req.Context(), protocol.NewContentFilter("", cTopics...))
 	if err != nil {
 		r.log.Error("unsubscribing from topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
@@ -274,7 +271,7 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 	}
 	cTopic, err := url.QueryUnescape(cTopic)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusBadRequest)
 		_, err = w.Write([]byte("invalid contentTopic format"))
 		r.log.Error("writing response", zap.Error(err))
 		return
