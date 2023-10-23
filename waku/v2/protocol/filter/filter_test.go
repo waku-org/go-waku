@@ -74,10 +74,10 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 	err = relay.Start(context.Background())
 	s.Require().NoError(err)
 
-	sub, err := relay.SubscribeToTopic(context.Background(), topic)
+	sub, err := relay.Subscribe(context.Background(), protocol.NewContentFilter(topic))
 	s.Require().NoError(err)
 
-	return relay, sub, host, broadcaster
+	return relay, sub[0], host, broadcaster
 }
 
 func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bool) *WakuFilterLightNode {
@@ -103,7 +103,7 @@ func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bo
 }
 
 func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll bool) (*relay.WakuRelay, *WakuFilterFullNode) {
-	var sub relay.Subscription
+	var sub *relay.Subscription
 	node, relaySub, host, broadcaster := s.makeWakuRelay(topic)
 	s.relaySub = relaySub
 
@@ -113,7 +113,7 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll b
 	if withRegisterAll {
 		sub = broadcaster.RegisterForAll()
 	} else {
-		sub = broadcaster.Register(topic)
+		sub = broadcaster.Register(protocol.NewContentFilter(topic))
 	}
 
 	err := node2Filter.Start(s.ctx, sub)
@@ -704,9 +704,17 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_Incorrect1)
 	s.Require().NoError(err)
 
+	protocols, err := s.lightNodeHost.Peerstore().GetProtocols(s.fullNodeHost.ID())
+	if err != nil {
+		return
+	}
+
+	s.log.Info("Existing protocols ", zap.String("ID", string(protocols[0])))
+
 	// Subscribe with incorrect SubscribeID
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
-	_, err = s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.log.Info("Subscribe result ", zap.String("count", strconv.Itoa(len(subDetails))))
 	s.Require().Error(err)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
@@ -834,7 +842,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	for _, m := range messages {
 		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
 		s.log.Info("Subscribing ", zap.String("PubSubTopic", m.pubSubTopic))
-		_, err := s.relayNode.SubscribeToTopic(context.Background(), m.pubSubTopic)
+		_, err := s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.pubSubTopic))
 		s.Require().NoError(err)
 	}
 
