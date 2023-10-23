@@ -260,7 +260,14 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 		r.log.Error("subscribing to topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
 	}
 
-	writeErrOrResponse(w, err, true)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(err.Error()))
+		r.log.Error("writing response", zap.Error(err))
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
 }
 
 func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Request) {
@@ -316,5 +323,12 @@ func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Reques
 		r.log.Error("publishing message", zap.Error(err))
 	}
 
-	writeErrOrResponse(w, err, true)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(err.Error()))
+		r.log.Error("writing response", zap.Error(err))
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
 }
