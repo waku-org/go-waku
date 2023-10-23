@@ -31,7 +31,7 @@ const peerHasNoSubscription = "peer has no subscriptions"
 type (
 	WakuFilterFullNode struct {
 		h       host.Host
-		msgSub  relay.Subscription
+		msgSub  *relay.Subscription
 		metrics Metrics
 		log     *zap.Logger
 		*protocol.CommonService
@@ -66,13 +66,13 @@ func (wf *WakuFilterFullNode) SetHost(h host.Host) {
 	wf.h = h
 }
 
-func (wf *WakuFilterFullNode) Start(ctx context.Context, sub relay.Subscription) error {
+func (wf *WakuFilterFullNode) Start(ctx context.Context, sub *relay.Subscription) error {
 	return wf.CommonService.Start(ctx, func() error {
 		return wf.start(sub)
 	})
 }
 
-func (wf *WakuFilterFullNode) start(sub relay.Subscription) error {
+func (wf *WakuFilterFullNode) start(sub *relay.Subscription) error {
 	wf.h.SetStreamHandlerMatch(FilterSubscribeID_v20beta1, protocol.PrefixTextMatch(string(FilterSubscribeID_v20beta1)), wf.onRequest(wf.Context()))
 
 	wf.msgSub = sub

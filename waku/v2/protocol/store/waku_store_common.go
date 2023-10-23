@@ -52,7 +52,7 @@ type WakuStore struct {
 	cancel     context.CancelFunc
 	timesource timesource.Timesource
 	metrics    Metrics
-	MsgC       relay.Subscription
+	MsgC       *relay.Subscription
 	wg         *sync.WaitGroup
 
 	log *zap.Logger

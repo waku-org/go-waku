@@ -148,6 +148,7 @@ type RendezvousOptions struct {
 type NodeOptions struct {
 	Port                         int
 	Address                      string
+	ClusterID                    uint
 	DNS4DomainName               string
 	NodeKey                      *ecdsa.PrivateKey
 	KeyFile                      string

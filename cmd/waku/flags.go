@@ -121,6 +121,13 @@ var (
 		Destination: &options.KeyPasswd,
 		EnvVars:     []string{"WAKUNODE2_KEY_PASSWORD"},
 	})
+	ClusterID = altsrc.NewUintFlag(&cli.UintFlag{
+		Name:        "cluster-id",
+		Value:       0,
+		Usage:       "Cluster id that the node is running in. Node in a different cluster id is disconnected.",
+		Destination: &options.ClusterID,
+		EnvVars:     []string{"WAKUNODE2_CLUSTER_ID"},
+	})
 	StaticNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "staticnode",
 		Usage: "Multiaddr of peer to directly connect with. Option may be repeated",

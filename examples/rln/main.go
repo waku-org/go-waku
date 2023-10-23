@@ -142,13 +142,13 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
-	sub, err := wakuNode.Relay().SubscribeToTopic(ctx, pubsubTopic.String())
+	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(pubsubTopic.String()))
 	if err != nil {
 		log.Error("Could not subscribe", zap.Error(err))
 		return
 	}
 
-	for envelope := range sub.Ch {
+	for envelope := range sub[0].Ch {
 		if envelope.Message().ContentTopic != contentTopic.String() {
 			continue
 		}

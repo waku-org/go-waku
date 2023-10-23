@@ -13,6 +13,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -37,9 +38,9 @@ func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
 	require.NoError(t, err)
 
 	if isFullNode {
-		sub, err := n.Relay().SubscribeToTopic(context.Background(), testTopic)
+		sub, err := n.Relay().Subscribe(context.Background(), protocol.NewContentFilter(testTopic))
 		go func() {
-			for range sub.Ch {
+			for range sub[0].Ch {
 			}
 		}()
 		require.NoError(t, err)
@@ -62,14 +63,15 @@ func TestFilterSubscription(t *testing.T) {
 	err = node.Start(context.Background())
 	require.NoError(t, err)
 
-	_, err = node.SubscribeToTopic(context.Background(), testTopic)
+	_, err = node.Subscribe(context.Background(), protocol.NewContentFilter(testTopic))
 	require.NoError(t, err)
 
 	b2 := relay.NewBroadcaster(10)
 	require.NoError(t, b2.Start(context.Background()))
 	f := legacy_filter.NewWakuFilter(b2, false, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	f.SetHost(host)
-	err = f.Start(context.Background(), relay.NoopSubscription())
+	sub := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
+	err = f.Start(context.Background(), sub)
 	require.NoError(t, err)
 
 	d := makeFilterService(t, true)

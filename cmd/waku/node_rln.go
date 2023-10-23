@@ -11,11 +11,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuNodeOption) {
+func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuNodeOption) error {
 	if options.RLNRelay.Enable {
 		if !options.Relay.Enable {
-			failOnErr(errors.New("relay not available"), "Could not enable RLN Relay")
+			return errors.New("waku relay is required to enable RLN relay")
 		}
+
 		if !options.RLNRelay.Dynamic {
 			*nodeOpts = append(*nodeOpts, node.WithStaticRLNRelay((*rln.MembershipIndex)(options.RLNRelay.MembershipIndex), nil))
 		} else {
@@ -32,4 +33,6 @@ func checkForRLN(logger *zap.Logger, options NodeOptions, nodeOpts *[]node.WakuN
 			))
 		}
 	}
+
+	return nil
 }

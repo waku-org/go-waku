@@ -12,10 +12,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
+
+var testTopic = "/waku/2/go/filter/test"
+var testContentTopic = "TopicA"
 
 func makeWakuRelay(t *testing.T, topic string, broadcaster relay.Broadcaster) (*relay.WakuRelay, *relay.Subscription, host.Host) {
 	port, err := tests.FindFreePort(t, "", 5)
@@ -29,10 +33,10 @@ func makeWakuRelay(t *testing.T, topic string, broadcaster relay.Broadcaster) (*
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
-	sub, err := relay.SubscribeToTopic(context.Background(), topic)
+	sub, err := relay.Subscribe(context.Background(), protocol.NewContentFilter(topic))
 	require.NoError(t, err)
 
-	return relay, sub, host
+	return relay, sub[0], host
 }
 
 func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
@@ -46,7 +50,8 @@ func makeWakuFilter(t *testing.T) (*WakuFilter, host.Host) {
 	require.NoError(t, b.Start(context.Background()))
 	filter := NewWakuFilter(b, false, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	filter.SetHost(host)
-	err = filter.Start(context.Background(), relay.NoopSubscription())
+	sub := relay.NewSubscription(protocol.NewContentFilter(testTopic, testContentTopic))
+	err = filter.Start(context.Background(), sub)
 	require.NoError(t, err)
 
 	return filter, host
@@ -66,9 +71,6 @@ func TestWakuFilter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 	defer cancel()
 
-	testTopic := "/waku/2/go/filter/test"
-	testContentTopic := "TopicA"
-
 	node1, host1 := makeWakuFilter(t)
 	defer node1.Stop()
 
@@ -80,7 +82,7 @@ func TestWakuFilter(t *testing.T) {
 
 	node2Filter := NewWakuFilter(broadcaster, true, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	node2Filter.SetHost(host2)
-	sub := broadcaster.Register(testTopic)
+	sub := broadcaster.Register(protocol.NewContentFilter(testTopic))
 	err := node2Filter.Start(ctx, sub)
 	require.NoError(t, err)
 
@@ -156,9 +158,6 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 	defer cancel()
 
-	testTopic := "/waku/2/go/filter/test"
-	testContentTopic := "TopicA"
-
 	node1, host1 := makeWakuFilter(t)
 
 	broadcaster := relay.NewBroadcaster(10)
@@ -171,7 +170,7 @@ func TestWakuFilterPeerFailure(t *testing.T) {
 	require.NoError(t, broadcaster2.Start(context.Background()))
 	node2Filter := NewWakuFilter(broadcaster2, true, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger(), WithTimeout(3*time.Second))
 	node2Filter.SetHost(host2)
-	sub := broadcaster.Register(testTopic)
+	sub := broadcaster.Register(protocol.NewContentFilter(testTopic))
 	err := node2Filter.Start(ctx, sub)
 	require.NoError(t, err)
 

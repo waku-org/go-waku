@@ -33,10 +33,10 @@ func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Su
 	err = relay.Start(context.Background())
 	require.NoError(t, err)
 
-	sub, err := relay.SubscribeToTopic(context.Background(), pusubTopic)
+	sub, err := relay.Subscribe(context.Background(), protocol.NewContentFilter(pusubTopic))
 	require.NoError(t, err)
 
-	return relay, sub, host
+	return relay, sub[0], host
 }
 
 // Node1: Relay

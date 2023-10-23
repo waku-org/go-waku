@@ -172,13 +172,13 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	pubsubTopic := pubSubTopic.String()
-	sub, err := wakuNode.Relay().SubscribeToTopic(ctx, pubsubTopic)
+	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(pubsubTopic))
 	if err != nil {
 		log.Error("Could not subscribe: ", err)
 		return
 	}
 
-	for value := range sub.Ch {
+	for value := range sub[0].Ch {
 		payload, err := payload.DecodePayload(value.Message(), &payload.KeyInfo{Kind: payload.None})
 		if err != nil {
 			fmt.Println(err)

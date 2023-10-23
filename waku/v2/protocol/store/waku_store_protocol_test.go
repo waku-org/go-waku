@@ -17,6 +17,19 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
+// SimulateSubscription creates a subscription for a list of envelopes
+func SimulateSubscription(msgs []*protocol.Envelope) *relay.Subscription {
+	ch := make(chan *protocol.Envelope, len(msgs))
+	for _, msg := range msgs {
+		ch <- msg
+	}
+	close(ch)
+	return &relay.Subscription{
+		Unsubscribe: func() {},
+		Ch:          ch,
+	}
+}
+
 func TestWakuStoreProtocolQuery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -38,7 +51,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s1.Stop()
@@ -47,7 +60,9 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
 	s2.SetHost(host2)
-	err = s2.Start(ctx, relay.NoopSubscription())
+	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
+
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -88,7 +103,7 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := relay.ArraySubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s1.Stop()
@@ -127,7 +142,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, now+4)
 	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
-	sub := relay.ArraySubscription([]*protocol.Envelope{
+	sub := SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
@@ -146,7 +161,9 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx, relay.NoopSubscription())
+	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
+
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -202,7 +219,7 @@ func TestWakuStoreResult(t *testing.T) {
 	msg4 := tests.CreateWakuMessage(topic1, now+4)
 	msg5 := tests.CreateWakuMessage(topic1, now+5)
 
-	sub := relay.ArraySubscription([]*protocol.Envelope{
+	sub := SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
@@ -221,7 +238,9 @@ func TestWakuStoreResult(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx, relay.NoopSubscription())
+	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
+
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 	defer s2.Stop()
 
@@ -296,7 +315,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	msg8 := tests.CreateWakuMessage(topic1, now+8)
 	msg9 := tests.CreateWakuMessage(topic1, now+9)
 
-	sub := relay.ArraySubscription([]*protocol.Envelope{
+	sub := SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
 		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
@@ -320,7 +339,10 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 
 	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
-	err = s2.Start(ctx, relay.NoopSubscription())
+
+	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
+
+	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
 	defer s2.Stop()
 
