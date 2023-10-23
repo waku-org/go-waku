@@ -274,6 +274,8 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 	cTopic := chi.URLParam(req, "contentTopic")
 	if cTopic == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte("contentTopic is required"))
+		r.log.Error("writing response", zap.Error(err))
 		return
 	}
 	cTopic, err := url.QueryUnescape(cTopic)
