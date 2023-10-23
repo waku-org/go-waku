@@ -7,8 +7,8 @@ var (
 	errMissingQuery       = errors.New("missing Query field")
 	errMissingMessage     = errors.New("missing Message field")
 	errMissingPubsubTopic = errors.New("missing PubsubTopic field")
-	errRequestIDMismatch  = errors.New("request_id in response does not match request")
-	errMissingResponse    = errors.New("missing response field")
+	errRequestIDMismatch  = errors.New("RequestID in response does not match request")
+	errMissingResponse    = errors.New("missing Response field")
 )
 
 func (x *PushRPC) ValidateRequest() error {
