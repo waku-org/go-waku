@@ -45,6 +45,7 @@ const defaultMinRelayPeersToPublish = 0
 
 type WakuNodeParameters struct {
 	hostAddr       *net.TCPAddr
+	clusterID      uint16
 	dns4Domain     string
 	advertiseAddrs []multiaddr.Multiaddr
 	multiAddr      []multiaddr.Multiaddr
@@ -290,6 +291,14 @@ func WithMultiaddress(addresses ...multiaddr.Multiaddr) WakuNodeOption {
 func WithPrivateKey(privKey *ecdsa.PrivateKey) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.privKey = privKey
+		return nil
+	}
+}
+
+// WithClusterID is used to set the node's ClusterID
+func WithClusterID(clusterID uint16) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.clusterID = clusterID
 		return nil
 	}
 }

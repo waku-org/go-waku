@@ -156,16 +156,16 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 
 	logger := wakuLP.log.With(logging.HostID("peer", params.selectedPeer))
 
-	connOpt, err := wakuLP.h.NewStream(ctx, params.selectedPeer, LightPushID_v20beta1)
+	stream, err := wakuLP.h.NewStream(ctx, params.selectedPeer, LightPushID_v20beta1)
 	if err != nil {
 		logger.Error("creating stream to peer", zap.Error(err))
 		wakuLP.metrics.RecordError(dialFailure)
 		return nil, err
 	}
 
-	defer connOpt.Close()
+	defer stream.Close()
 	defer func() {
-		err := connOpt.Reset()
+		err := stream.Reset()
 		if err != nil {
 			wakuLP.metrics.RecordError(dialFailure)
 			logger.Error("resetting connection", zap.Error(err))
@@ -174,8 +174,8 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 
 	pushRequestRPC := &pb.PushRPC{RequestId: hex.EncodeToString(params.requestID), Query: req}
 
-	writer := pbio.NewDelimitedWriter(connOpt)
-	reader := pbio.NewDelimitedReader(connOpt, math.MaxInt32)
+	writer := pbio.NewDelimitedWriter(stream)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 	err = writer.WriteMsg(pushRequestRPC)
 	if err != nil {
