@@ -686,9 +686,7 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	s.wg = &sync.WaitGroup{}
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
-	s.ctx = ctx
-	s.ctxCancel = cancel
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 
 	s.testTopic = "/waku/2/go/filter/test"
 	s.testContentTopic = "TopicA"
@@ -799,9 +797,7 @@ func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
-	s.ctx = ctx
-	s.ctxCancel = cancel
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
 
 	messages := prepareData(3, false, true, false)
 
@@ -823,9 +819,7 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
-	s.ctx = ctx
-	s.ctxCancel = cancel
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
 
