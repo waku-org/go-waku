@@ -56,7 +56,7 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 	}
 
 	if enableAdmin {
-		_ = NewAdminService(node, mux)
+		_ = NewAdminService(node, mux, wrpc.log)
 	}
 
 	return wrpc

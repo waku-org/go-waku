@@ -39,9 +39,9 @@ paths:
         content:
           application/json:
             schema:
-              type: array
+              type: object
               items:
-                type: string
+                $ref: '#/components/schemas/WakuPeerInfo'
       responses:
         '200':
           description: Ok
@@ -52,6 +52,20 @@ paths:
 
 components:
   schemas:
+    WakuPeerInfo:
+      type: object
+      required:
+        - multiaddr
+        - shards
+        - protocols
+        protocols:
+          type: array
+          items:
+            type: string
+        shards:
+          type: array
+          items:
+            type: integer
     WakuPeer:
       type: object
       required:
