@@ -339,7 +339,8 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			}
 		}
 
-		subscription := w.bcaster.Register(cFilter, WithBufferSize(DefaultRelaySubscriptionBufferSize))
+		subscription := w.bcaster.Register(cFilter, WithBufferSize(DefaultRelaySubscriptionBufferSize),
+			WithConsumerOption(params.dontConsume))
 
 		// Create Content subscription
 		w.topicsMutex.RLock()
