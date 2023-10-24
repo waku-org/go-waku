@@ -43,6 +43,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -709,7 +710,7 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
 func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string, connectNow bool) {
-	p := peermanager.PeerData{
+	p := service.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    ID,

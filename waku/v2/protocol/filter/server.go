@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 )
@@ -34,7 +35,7 @@ type (
 		msgSub  *relay.Subscription
 		metrics Metrics
 		log     *zap.Logger
-		*protocol.CommonService
+		*service.CommonService
 		subscriptions *SubscribersMap
 
 		maxSubscriptions int
@@ -53,7 +54,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 		opt(params)
 	}
 
-	wf.CommonService = protocol.NewCommonService()
+	wf.CommonService = service.NewCommonService()
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers

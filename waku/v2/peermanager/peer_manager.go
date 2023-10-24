@@ -21,6 +21,7 @@ import (
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/service"
 
 	"go.uber.org/zap"
 )
@@ -231,14 +232,14 @@ func (pm *PeerManager) connectToRelayPeers() {
 
 // addrInfoToPeerData returns addressinfo for a peer
 // If addresses are expired, it removes the peer from host peerStore and returns nil.
-func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) *PeerData {
+func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) *service.PeerData {
 	addrs := host.Peerstore().Addrs(peerID)
 	if len(addrs) == 0 {
 		//Addresses expired, remove peer from peerStore
 		host.Peerstore().RemovePeer(peerID)
 		return nil
 	}
-	return &PeerData{
+	return &service.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    peerID,
@@ -298,7 +299,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 // AddDiscoveredPeer to add dynamically discovered peers.
 // Note that these peers will not be set in service-slots.
 // TODO: It maybe good to set in service-slots based on services supported in the ENR
-func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
+func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 	//Doing this check again inside addPeer, in order to avoid additional complexity of rollingBack other changes.
 	if pm.maxPeers <= pm.host.Peerstore().Peers().Len() {
 		return

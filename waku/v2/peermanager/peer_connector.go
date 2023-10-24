@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/service"
 
 	"go.uber.org/zap"
 
@@ -34,8 +35,8 @@ type PeerConnectionStrategy struct {
 
 	paused      atomic.Bool
 	dialTimeout time.Duration
-	*CommonDiscoveryService
-	subscriptions []<-chan PeerData
+	*service.CommonDiscoveryService
+	subscriptions []<-chan service.PeerData
 
 	backoff backoff.BackoffFactory
 	logger  *zap.Logger
@@ -66,7 +67,7 @@ func NewPeerConnectionStrategy(pm *PeerManager,
 	pc := &PeerConnectionStrategy{
 		cache:                  cache,
 		dialTimeout:            dialTimeout,
-		CommonDiscoveryService: NewCommonDiscoveryService(),
+		CommonDiscoveryService: service.NewCommonDiscoveryService(),
 		pm:                     pm,
 		backoff:                getBackOff(),
 		logger:                 logger.Named("discovery-connector"),
@@ -81,7 +82,7 @@ type connCacheData struct {
 }
 
 // Subscribe receives channels on which discovered peers should be pushed
-func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerData) {
+func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan service.PeerData) {
 	// if not running yet, store the subscription and return
 	if err := c.ErrOnNotRunning(); err != nil {
 		c.mux.Lock()
@@ -97,7 +98,7 @@ func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerDa
 	}()
 }
 
-func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
+func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan service.PeerData) {
 	for {
 		// for returning from the loop when peerConnector is paused.
 		select {
@@ -166,7 +167,7 @@ func (c *PeerConnectionStrategy) isPaused() bool {
 func (c *PeerConnectionStrategy) consumeSubscriptions() {
 	for _, subs := range c.subscriptions {
 		c.WaitGroup().Add(1)
-		go func(s <-chan PeerData) {
+		go func(s <-chan service.PeerData) {
 			defer c.WaitGroup().Done()
 			c.consumeSubscription(s)
 		}(subs)
