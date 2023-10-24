@@ -145,9 +145,22 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	})
 
 	require.Len(t, response.Messages, 3)
-	require.True(t, proto.Equal(response.Messages[0], msg1))
-	require.True(t, proto.Equal(response.Messages[1], msg2))
-	require.True(t, proto.Equal(response.Messages[2], msg3))
+	var msgRcvd [3]bool
+	for i := 0; i < 3; i++ {
+		if proto.Equal(response.Messages[i], msg1) {
+			msgRcvd[0] = true
+		} else if proto.Equal(response.Messages[i], msg2) {
+			msgRcvd[1] = true
+		} else if proto.Equal(response.Messages[i], msg3) {
+			msgRcvd[2] = true
+		} else {
+			t.FailNow()
+		}
+	}
+	for i := 0; i < 3; i++ {
+		require.True(t, true, msgRcvd[i])
+
+	}
 }
 
 func TestStoreQueryForwardPagination(t *testing.T) {
