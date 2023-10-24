@@ -63,7 +63,11 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 
 	reply.Messages = make([]*RPCWakuMessage, len(res.Messages))
 	for i := range res.Messages {
-		reply.Messages[i] = ProtoToRPC(res.Messages[i])
+		msg, err := ProtoToRPC(res.Messages[i])
+		if err != nil {
+			return err
+		}
+		reply.Messages[i] = msg
 	}
 
 	reply.PagingInfo = StorePagingOptions{

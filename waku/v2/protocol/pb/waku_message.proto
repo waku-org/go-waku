@@ -2,6 +2,16 @@ syntax = "proto3";
 
 package pb;
 
+message WakuMessage {
+    bytes payload = 1;
+    string contentTopic = 2;
+    uint32 version = 3;
+    sint64 timestamp = 10;
+    bytes meta = 11;
+    bool ephemeral = 31;
+    bytes rate_limit_proof = 21;
+}
+
 message RateLimitProof {
   bytes proof = 1;
   bytes merkle_root = 2;
@@ -10,14 +20,4 @@ message RateLimitProof {
   bytes share_y = 5;
   bytes nullifier = 6;
   bytes rln_identifier = 7;
-}
-
-message WakuMessage {
-    bytes payload = 1;
-    string contentTopic = 2;
-    uint32 version = 3;
-    sint64 timestamp = 10;
-    bytes meta = 11;
-    RateLimitProof rate_limit_proof = 21;
-    bool ephemeral = 31;
 }

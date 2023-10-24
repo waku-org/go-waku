@@ -361,15 +361,17 @@ func (d *DBStore) handleQueryCursor(query *pb.HistoryQuery, paramCnt *int, condi
 		parameters = append(parameters, timeDBKey.Bytes())
 	}
 
-	if query.StartTime != 0 {
+	startTime := query.GetStartTime()
+	if startTime != 0 {
 		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_BACKWARD {
-			handleTimeParam(query.StartTime, ">=")
+			handleTimeParam(startTime, ">=")
 		}
 	}
 
-	if query.EndTime != 0 {
+	endTime := query.GetEndTime()
+	if endTime != 0 {
 		if !usesCursor || query.PagingInfo.Direction == pb.PagingInfo_FORWARD {
-			handleTimeParam(query.EndTime+1, "<")
+			handleTimeParam(endTime+1, "<")
 		}
 	}
 	return conditions, parameters, nil

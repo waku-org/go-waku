@@ -203,6 +203,10 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 	}
 }
 
+func refToInt64(input int64) *int64 {
+	return &input
+}
+
 func TestTemporalHistoryQueries(t *testing.T) {
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 
@@ -221,8 +225,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with a valid time window
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      now + 2,
-		EndTime:        now + 5,
+		StartTime:      refToInt64(now + 2),
+		EndTime:        refToInt64(now + 5),
 	})
 
 	require.Len(t, response.Messages, 2)
@@ -232,8 +236,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with a zero-size time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      now + 2,
-		EndTime:        now + 2,
+		StartTime:      refToInt64(now + 2),
+		EndTime:        refToInt64(now + 2),
 	})
 
 	require.Len(t, response.Messages, 0)
@@ -241,8 +245,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with an invalid time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      now + 5,
-		EndTime:        now + 2,
+		StartTime:      refToInt64(now + 5),
+		EndTime:        refToInt64(now + 2),
 	})
 	// time window is invalid since start time > end time
 	// perhaps it should return an error?

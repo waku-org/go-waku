@@ -35,10 +35,13 @@ func TestPostV1Message(t *testing.T) {
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
-	err := d.PostV1Message(
+	rpcWakuMsg, err := ProtoToRPC(msg)
+	require.NoError(t, err)
+
+	err = d.PostV1Message(
 		makeRequest(t),
 		&RelayMessageArgs{
-			Message: ProtoToRPC(msg),
+			Message: rpcWakuMsg,
 		},
 		&reply,
 	)
@@ -106,14 +109,16 @@ func TestRelayGetV1Messages(t *testing.T) {
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
 
+	rpcWakuMsg, err := ProtoToRPC(&pb.WakuMessage{
+		Payload: []byte("test"),
+	})
+	require.NoError(t, err)
+
 	err = serviceA.PostV1Message(
 		makeRequest(t),
 		&RelayMessageArgs{
-			Topic: "test",
-			Message: ProtoToRPC(&pb.WakuMessage{
-				Payload:      []byte("test"),
-				ContentTopic: "testContentTopic",
-			}),
+			Topic:   "test",
+			Message: rpcWakuMsg,
 		},
 		&reply,
 	)

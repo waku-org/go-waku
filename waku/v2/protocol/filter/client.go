@@ -139,7 +139,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(network.Strea
 
 		reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
-		messagePush := &pb.MessagePushV2{}
+		messagePush := &pb.MessagePush{}
 		err := reader.ReadMsg(messagePush)
 		if err != nil {
 			logger.Error("reading message push", zap.Error(err))
@@ -261,7 +261,11 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 
 	if filterSubscribeResponse.StatusCode != http.StatusOK {
 		wf.metrics.RecordError(errorResponse)
-		err := NewFilterError(int(filterSubscribeResponse.StatusCode), filterSubscribeResponse.StatusDesc)
+		errMessage := ""
+		if filterSubscribeResponse.StatusDesc != nil {
+			errMessage = *filterSubscribeResponse.StatusDesc
+		}
+		err := NewFilterError(int(filterSubscribeResponse.StatusCode), errMessage)
 		return &err
 	}
 

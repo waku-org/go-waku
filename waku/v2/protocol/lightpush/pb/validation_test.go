@@ -8,15 +8,15 @@ import (
 )
 
 func TestValidateRequest(t *testing.T) {
-	request := PushRPC{}
+	request := PushRpc{}
 	require.ErrorIs(t, request.ValidateRequest(), errMissingRequestID)
 	request.RequestId = "test"
 	require.ErrorIs(t, request.ValidateRequest(), errMissingQuery)
-	request.Query = &PushRequest{}
+	request.Request = &PushRequest{}
 	require.ErrorIs(t, request.ValidateRequest(), errMissingPubsubTopic)
-	request.Query.PubsubTopic = "test"
+	request.Request.PubsubTopic = "test"
 	require.ErrorIs(t, request.ValidateRequest(), errMissingMessage)
-	request.Query.Message = &pb.WakuMessage{
+	request.Request.Message = &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "test",
 	}
@@ -24,7 +24,7 @@ func TestValidateRequest(t *testing.T) {
 }
 
 func TestValidateResponse(t *testing.T) {
-	response := PushRPC{}
+	response := PushRpc{}
 	require.ErrorIs(t, response.ValidateResponse("test"), errMissingRequestID)
 	response.RequestId = "test1"
 	require.ErrorIs(t, response.ValidateResponse("test"), errRequestIDMismatch)

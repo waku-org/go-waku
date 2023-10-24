@@ -247,7 +247,6 @@ func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResp
 }
 
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
-
 	params := new(HistoryRequestParameters)
 	params.s = store
 
@@ -277,8 +276,8 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		Query: &pb.HistoryQuery{
 			PubsubTopic:    query.Topic,
 			ContentFilters: []*pb.ContentFilter{},
-			StartTime:      query.StartTime,
-			EndTime:        query.EndTime,
+			StartTime:      &query.StartTime,
+			EndTime:        &query.EndTime,
 			PagingInfo:     &pb.PagingInfo{},
 		},
 	}

@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -69,7 +70,14 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 		topic = args.Topic
 	}
 
-	msg := args.Message.toProto()
+	if !r.node.Relay().IsSubscribed(topic) {
+		return errors.New("not subscribed to pubsubTopic")
+	}
+
+	msg, err := args.Message.toProto()
+	if err != nil {
+		return err
+	}
 
 	if err = server.AppendRLNProof(r.node, msg); err != nil {
 		return err
@@ -117,10 +125,11 @@ func (r *RelayService) DeleteV1AutoSubscription(req *http.Request, args *TopicsA
 
 // PostV1AutoMessage is invoked when the json rpc request uses the post_waku_v2_relay_v1_auto_message
 func (r *RelayService) PostV1AutoMessage(req *http.Request, args *RelayAutoMessageArgs, reply *SuccessReply) error {
-	var err error
-	msg := args.Message.toProto()
-	if msg == nil {
-		err := fmt.Errorf("invalid message format received")
+	msg, err := args.Message.toProto()
+	if msg == nil || err != nil {
+		if err == nil {
+			err = fmt.Errorf("invalid message format received")
+		}
 		r.log.Error("publishing message", zap.Error(err))
 		return err
 	}
@@ -148,7 +157,11 @@ func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, rep
 	}
 	select {
 	case msg := <-sub.Ch:
-		*reply = append(*reply, ProtoToRPC(msg.Message()))
+		rpcMsg, err := ProtoToRPC(msg.Message())
+		if err != nil {
+			return err
+		}
+		*reply = append(*reply, rpcMsg)
 	default:
 		break
 	}
@@ -200,7 +213,10 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 	}
 	select {
 	case msg := <-sub.Ch:
-		*reply = append(*reply, ProtoToRPC(msg.Message()))
+		m, err := ProtoToRPC(msg.Message())
+		if err == nil {
+			*reply = append(*reply, m)
+		}
 	default:
 		break
 	}

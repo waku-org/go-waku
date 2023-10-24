@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"google.golang.org/protobuf/proto"
 )
 
 type RateLimitProof struct {
@@ -23,9 +24,9 @@ type RPCWakuMessage struct {
 	Ephemeral      bool            `json:"ephemeral,omitempty"`
 }
 
-func ProtoToRPC(input *pb.WakuMessage) *RPCWakuMessage {
+func ProtoToRPC(input *pb.WakuMessage) (*RPCWakuMessage, error) {
 	if input == nil {
-		return nil
+		return nil, nil
 	}
 
 	rpcWakuMsg := &RPCWakuMessage{
@@ -36,24 +37,30 @@ func ProtoToRPC(input *pb.WakuMessage) *RPCWakuMessage {
 		Ephemeral:    input.Ephemeral,
 	}
 
+	rateLimitProof := &pb.RateLimitProof{}
+	err := proto.Unmarshal(input.RateLimitProof, rateLimitProof)
+	if err != nil {
+		return nil, err
+	}
+
 	if input.RateLimitProof != nil {
 		rpcWakuMsg.RateLimitProof = &RateLimitProof{
-			Proof:         input.RateLimitProof.Proof,
-			MerkleRoot:    input.RateLimitProof.MerkleRoot,
-			Epoch:         input.RateLimitProof.Epoch,
-			ShareX:        input.RateLimitProof.ShareX,
-			ShareY:        input.RateLimitProof.ShareY,
-			Nullifier:     input.RateLimitProof.Nullifier,
-			RlnIdentifier: input.RateLimitProof.RlnIdentifier,
+			Proof:         rateLimitProof.Proof,
+			MerkleRoot:    rateLimitProof.MerkleRoot,
+			Epoch:         rateLimitProof.Epoch,
+			ShareX:        rateLimitProof.ShareX,
+			ShareY:        rateLimitProof.ShareY,
+			Nullifier:     rateLimitProof.Nullifier,
+			RlnIdentifier: rateLimitProof.RlnIdentifier,
 		}
 	}
 
-	return rpcWakuMsg
+	return rpcWakuMsg, nil
 }
 
-func (r *RPCWakuMessage) toProto() *pb.WakuMessage {
+func (r *RPCWakuMessage) toProto() (*pb.WakuMessage, error) {
 	if r == nil {
-		return nil
+		return nil, nil
 	}
 
 	msg := &pb.WakuMessage{
@@ -65,7 +72,7 @@ func (r *RPCWakuMessage) toProto() *pb.WakuMessage {
 	}
 
 	if r.RateLimitProof != nil {
-		msg.RateLimitProof = &pb.RateLimitProof{
+		rateLimitProof := &pb.RateLimitProof{
 			Proof:         r.RateLimitProof.Proof,
 			MerkleRoot:    r.RateLimitProof.MerkleRoot,
 			Epoch:         r.RateLimitProof.Epoch,
@@ -74,7 +81,14 @@ func (r *RPCWakuMessage) toProto() *pb.WakuMessage {
 			Nullifier:     r.RateLimitProof.Nullifier,
 			RlnIdentifier: r.RateLimitProof.RlnIdentifier,
 		}
+
+		b, err := proto.Marshal(rateLimitProof)
+		if err != nil {
+			return nil, err
+		}
+
+		msg.RateLimitProof = b
 	}
 
-	return msg
+	return msg, nil
 }

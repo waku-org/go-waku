@@ -20,9 +20,10 @@ func makeRequest(t *testing.T) *http.Request {
 func TestBase64Encoding(t *testing.T) {
 	input := "Hello World"
 
-	rpcMsg := ProtoToRPC(&pb.WakuMessage{
+	rpcMsg, err := ProtoToRPC(&pb.WakuMessage{
 		Payload: []byte(input),
 	})
+	require.NoError(t, err)
 
 	jsonBytes, err := json.Marshal(rpcMsg)
 	require.NoError(t, err)

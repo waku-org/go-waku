@@ -14,6 +14,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 type WakuRLNRelay struct {
@@ -106,7 +107,12 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		epoch = rln.CalcEpoch(rlnRelay.timesource.Now())
 	}
 
-	msgProof := toRateLimitProof(msg)
+	msgProof, err := BytesToRateLimitProof(msg.RateLimitProof)
+	if err != nil {
+		rlnRelay.log.Debug("invalid message: could not extract proof", zap.Error(err))
+		rlnRelay.metrics.RecordInvalidMessage(proofExtractionErr)
+	}
+
 	if msgProof == nil {
 		// message does not contain a proof
 		rlnRelay.log.Debug("invalid message: message does not contain a proof")
@@ -133,7 +139,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	}
 
 	if !(rlnRelay.RootTracker.ContainsRoot(msgProof.MerkleRoot)) {
-		rlnRelay.log.Debug("invalid message: unexpected root", logging.HexBytes("msgRoot", msg.RateLimitProof.MerkleRoot))
+		rlnRelay.log.Debug("invalid message: unexpected root", logging.HexBytes("msgRoot", msgProof.MerkleRoot[:]))
 		rlnRelay.metrics.RecordInvalidMessage(invalidRoot)
 		return invalidMessage, nil
 	}
@@ -206,7 +212,12 @@ func (rlnRelay *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTim
 	}
 	rlnRelay.metrics.RecordProofGeneration(time.Since(start))
 
-	msg.RateLimitProof = proof
+	b, err := proto.Marshal(proof)
+	if err != nil {
+		return err
+	}
+
+	msg.RateLimitProof = b
 
 	return nil
 }

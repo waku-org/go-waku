@@ -125,7 +125,11 @@ func (f *FilterService) GetV1Messages(req *http.Request, args *ContentTopicArgs,
 	}
 
 	for i := range f.messages[args.ContentTopic] {
-		*reply = append(*reply, ProtoToRPC(f.messages[args.ContentTopic][i]))
+		rpcMsg, err := ProtoToRPC(f.messages[args.ContentTopic][i])
+		if err != nil {
+			return err
+		}
+		*reply = append(*reply, rpcMsg)
 	}
 
 	f.messages[args.ContentTopic] = make([]*wpb.WakuMessage, 0)
