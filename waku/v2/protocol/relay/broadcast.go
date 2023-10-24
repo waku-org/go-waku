@@ -24,6 +24,12 @@ func DontConsume() BroadcasterOption {
 	}
 }
 
+func WithConsumerOption(dontConsume bool) BroadcasterOption {
+	return func(params *BroadcasterParameters) {
+		params.dontConsume = dontConsume
+	}
+}
+
 // WithBufferSize option let's a user set channel buffer to be set.
 func WithBufferSize(size int) BroadcasterOption {
 	return func(params *BroadcasterParameters) {
