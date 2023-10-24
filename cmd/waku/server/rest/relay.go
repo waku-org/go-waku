@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -19,6 +20,9 @@ import (
 
 const routeRelayV1Subscriptions = "/relay/v1/subscriptions"
 const routeRelayV1Messages = "/relay/v1/messages/{topic}"
+
+const routeRelayV1AutoSubscriptions = "/relay/v1/auto/subscriptions"
+const routeRelayV1AutoMessages = "/relay/v1/auto/messages"
 
 // RelayService represents the REST service for WakuRelay
 type RelayService struct {
@@ -49,6 +53,14 @@ func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *za
 	m.Delete(routeRelayV1Subscriptions, s.deleteV1Subscriptions)
 	m.Get(routeRelayV1Messages, s.getV1Messages)
 	m.Post(routeRelayV1Messages, s.postV1Message)
+
+	m.Post(routeRelayV1AutoSubscriptions, s.postV1AutoSubscriptions)
+	m.Delete(routeRelayV1AutoSubscriptions, s.deleteV1AutoSubscriptions)
+
+	m.Route(routeRelayV1AutoMessages, func(r chi.Router) {
+		r.Get("/{contentTopic}", s.getV1AutoMessages)
+		r.Post("/", s.postV1AutoMessage)
+	})
 
 	return s
 }
@@ -214,4 +226,111 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	}
 
 	writeErrOrResponse(w, err, true)
+}
+
+func (r *RelayService) deleteV1AutoSubscriptions(w http.ResponseWriter, req *http.Request) {
+	var cTopics []string
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&cTopics); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	err := r.node.Relay().Unsubscribe(req.Context(), protocol.NewContentFilter("", cTopics...))
+	if err != nil {
+		r.log.Error("unsubscribing from topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
+	}
+
+	writeErrOrResponse(w, err, true)
+}
+
+func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.Request) {
+	var cTopics []string
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&cTopics); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	var err error
+	_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", cTopics...))
+	if err != nil {
+		r.log.Error("subscribing to topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
+	}
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(err.Error()))
+		r.log.Error("writing response", zap.Error(err))
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+}
+
+func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Request) {
+	cTopic := chi.URLParam(req, "contentTopic")
+	if cTopic == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte("contentTopic is required"))
+		r.log.Error("writing response", zap.Error(err))
+		return
+	}
+	cTopic, err := url.QueryUnescape(cTopic)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err = w.Write([]byte("invalid contentTopic format"))
+		r.log.Error("writing response", zap.Error(err))
+		return
+	}
+
+	sub, err := r.node.Relay().GetSubscription(cTopic)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		_, err = w.Write([]byte("not subscribed to topic"))
+		r.log.Error("writing response", zap.Error(err))
+		return
+	}
+	var response []*pb.WakuMessage
+	select {
+	case msg := <-sub.Ch:
+		response = append(response, msg.Message())
+	default:
+		break
+	}
+
+	writeErrOrResponse(w, nil, response)
+}
+
+func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Request) {
+
+	var message *pb.WakuMessage
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&message); err != nil {
+		r.log.Error("decoding message failure", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+	var err error
+	if err = server.AppendRLNProof(r.node, message); err != nil {
+		writeErrOrResponse(w, err, nil)
+		return
+	}
+
+	_, err = r.node.Relay().Publish(req.Context(), message)
+	if err != nil {
+		r.log.Error("publishing message", zap.Error(err))
+	}
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(err.Error()))
+		r.log.Error("writing response", zap.Error(err))
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
 }
