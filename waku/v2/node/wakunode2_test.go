@@ -32,6 +32,7 @@ func createTestMsg(version uint32) *pb.WakuMessage {
 	message.Payload = []byte{0, 1, 2}
 	message.Version = version
 	message.Timestamp = 123456
+	message.ContentTopic = "abc"
 	return message
 }
 
@@ -264,7 +265,8 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	_, filter, err := wakuNode2.LegacyFilter().Subscribe(ctx, legacy_filter.ContentFilter{
-		Topic: string(relay.DefaultWakuTopic),
+		Topic:         string(relay.DefaultWakuTopic),
+		ContentTopics: []string{"abc"},
 	}, legacy_filter.WithPeer(wakuNode1.host.ID()))
 	require.NoError(t, err)
 
@@ -281,7 +283,10 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	go func() {
 		// MSG1 should be pushed in NODE2 via filter
 		defer wg.Done()
-		env := <-filter.Chan
+		env, ok := <-filter.Chan
+		if !ok {
+			require.Fail(t, "no message")
+		}
 		require.Equal(t, msg.Timestamp, env.Message().Timestamp)
 	}()
 
