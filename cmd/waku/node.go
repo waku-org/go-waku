@@ -505,7 +505,7 @@ func Execute(options NodeOptions) error {
 	var restServer *rest.WakuRest
 	if options.RESTServer.Enable {
 		wg.Add(1)
-		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.PProf, options.RESTServer.RelayCacheCapacity, logger)
+		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.PProf, options.RESTServer.Admin, options.RESTServer.RelayCacheCapacity, logger)
 		restServer.Start(ctx, &wg)
 	}
 
