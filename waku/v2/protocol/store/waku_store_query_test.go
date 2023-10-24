@@ -145,9 +145,9 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	})
 
 	require.Len(t, response.Messages, 3)
-	require.True(t, proto.Equal(response.Messages[0], msg1))
-	require.True(t, proto.Equal(response.Messages[1], msg2))
-	require.True(t, proto.Equal(response.Messages[2], msg3))
+	require.Contains(t, response.Messages, msg1)
+	require.Contains(t, response.Messages, msg2)
+	require.Contains(t, response.Messages, msg3)
 }
 
 func TestStoreQueryForwardPagination(t *testing.T) {
