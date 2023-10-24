@@ -234,12 +234,15 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 		return nil, errors.New("message can't be null")
 	}
 
+	if err := message.Validate(); err != nil {
+		return nil, err
+	}
+
 	if !w.EnoughPeersToPublishToTopic(topic) {
 		return nil, errors.New("not enough peers to publish")
 	}
 
 	pubSubTopic, err := w.upsertTopic(topic)
-
 	if err != nil {
 		return nil, err
 	}
@@ -461,11 +464,13 @@ func (w *WakuRelay) pubsubTopicMsgHandler(pubsubTopic string, sub *pubsub.Subscr
 			sub.Cancel()
 			return
 		}
-		wakuMessage := &pb.WakuMessage{}
-		if err := proto.Unmarshal(msg.Data, wakuMessage); err != nil {
+
+		wakuMessage, err := pb.Unmarshal(msg.Data)
+		if err != nil {
 			w.log.Error("decoding message", zap.Error(err))
 			return
 		}
+
 		envelope := waku_proto.NewEnvelope(wakuMessage, w.timesource.Now().UnixNano(), pubsubTopic)
 		w.metrics.RecordMessage(envelope)
 
