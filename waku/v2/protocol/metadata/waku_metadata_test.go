@@ -54,6 +54,11 @@ func TestWakuMetadataRequest(t *testing.T) {
 	m16_2 := createWakuMetadata(t, &rs16_2)
 	m_noRS := createWakuMetadata(t, nil)
 
+	// Removing notifee to test metadata protocol functionality without having the peers being disconnected by the notify process
+	m16_1.h.Network().StopNotify(m16_1)
+	m16_2.h.Network().StopNotify(m16_2)
+	m_noRS.h.Network().StopNotify(m_noRS)
+
 	m16_1.h.Peerstore().AddAddrs(m16_2.h.ID(), m16_2.h.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 	m16_1.h.Peerstore().AddAddrs(m_noRS.h.ID(), m_noRS.h.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 

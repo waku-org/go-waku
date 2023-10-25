@@ -21,7 +21,7 @@ type WakuRest struct {
 	relayService *RelayService
 }
 
-func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool, relayCacheCapacity int, log *zap.Logger) *WakuRest {
+func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool, enableAdmin bool, relayCacheCapacity int, log *zap.Logger) *WakuRest {
 	wrpc := new(WakuRest)
 	wrpc.log = log.Named("rest")
 
@@ -54,6 +54,10 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 			relayService.Stop()
 		})
 		wrpc.relayService = relayService
+	}
+
+	if enableAdmin {
+		_ = NewAdminService(node, mux, wrpc.log)
 	}
 
 	return wrpc

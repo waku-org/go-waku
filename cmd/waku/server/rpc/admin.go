@@ -7,12 +7,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
 
+	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
-	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
 type AdminService struct {
@@ -54,15 +50,6 @@ func (a *AdminService) PostV1Peers(req *http.Request, args *PeersArgs, reply *Su
 	return nil
 }
 
-func isWakuProtocol(protocol protocol.ID) bool {
-	return protocol == legacy_filter.FilterID_v20beta1 ||
-		protocol == filter.FilterPushID_v20beta1 ||
-		protocol == filter.FilterSubscribeID_v20beta1 ||
-		protocol == relay.WakuRelayID_v200 ||
-		protocol == lightpush.LightPushID_v20beta1 ||
-		protocol == store.StoreID_v20beta4
-}
-
 func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *PeersReply) error {
 	peers, err := a.node.Peers()
 	if err != nil {
@@ -72,7 +59,7 @@ func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *
 	for _, peer := range peers {
 		for _, addr := range peer.Addrs {
 			for _, proto := range peer.Protocols {
-				if !isWakuProtocol(proto) {
+				if !server.IsWakuProtocol(proto) {
 					continue
 				}
 				*reply = append(*reply, PeerReply{
