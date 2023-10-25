@@ -57,11 +57,13 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	if err != nil {
 		return err
 	}
-	defer stream.Close()
 
 	writer := pbio.NewDelimitedWriter(stream)
 	err = writer.WriteMsg(requestRPC)
 	if err != nil {
+		if err := stream.Reset(); err != nil {
+			wakuPX.log.Error("resetting connection", zap.Error(err))
+		}
 		return err
 	}
 
@@ -69,8 +71,13 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	responseRPC := &pb.PeerExchangeRPC{}
 	err = reader.ReadMsg(responseRPC)
 	if err != nil {
+		if err := stream.Reset(); err != nil {
+			wakuPX.log.Error("resetting connection", zap.Error(err))
+		}
 		return err
 	}
+
+	stream.Close()
 
 	return wakuPX.handleResponse(ctx, responseRPC.Response)
 }

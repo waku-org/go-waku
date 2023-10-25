@@ -181,11 +181,6 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		return nil, err
 	}
 
-	defer stream.Close()
-	defer func() {
-		_ = stream.Reset()
-	}()
-
 	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(requestID)}
 
 	writer := pbio.NewDelimitedWriter(stream)
@@ -195,6 +190,9 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	if err != nil {
 		logger.Error("writing request", zap.Error(err))
 		store.metrics.RecordError(writeRequestFailure)
+		if err := stream.Reset(); err != nil {
+			store.log.Error("resetting connection", zap.Error(err))
+		}
 		return nil, err
 	}
 
@@ -203,8 +201,13 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
 		store.metrics.RecordError(decodeRPCFailure)
+		if err := stream.Reset(); err != nil {
+			store.log.Error("resetting connection", zap.Error(err))
+		}
 		return nil, err
 	}
+
+	stream.Close()
 
 	if historyResponseRPC.Response == nil {
 		// Empty response
