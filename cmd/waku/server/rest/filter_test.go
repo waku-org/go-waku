@@ -53,8 +53,9 @@ func getRequestId() string {
 	return hex.EncodeToString(protocol.GenerateRequestID())
 }
 
-// test 400, 404, 200 status code for ping rest endpoint
-func TestPingFailure(t *testing.T) {
+// test 400, 404 status code for ping rest endpoint
+// both requests are not successful
+func TestFilterPingFailure(t *testing.T) {
 	node1, node2 := twoFilterConnectedNodes(t, "")
 	defer func() {
 		node1.Stop()
@@ -72,7 +73,7 @@ func TestPingFailure(t *testing.T) {
 		RequestId:  []byte{},
 		StatusDesc: "bad request id",
 	}, getFilterResponse(t, rr.Body))
-	// require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
 
 	// no subscription with peer
 	var requestId filterRequestId = protocol.GenerateRequestID()
@@ -83,11 +84,17 @@ func TestPingFailure(t *testing.T) {
 		RequestId:  requestId,
 		StatusDesc: "ping request failed",
 	}, getFilterResponse(t, rr.Body))
-	// require.Equal(t, http.StatusServiceUnavailable, rr.Code)
+	require.Equal(t, http.StatusServiceUnavailable, rr.Code)
 }
 
-func TestSubscribeAndPing(t *testing.T) {
+// create a filter subscription to the peer and try peer that peer
+// both steps should be successful
+func TestFilterSubscribeAndPing(t *testing.T) {
 	pubsubTopic := "/waku/2/test/proto"
+	contentTopics := []string{"test"}
+	var requestId filterRequestId = protocol.GenerateRequestID()
+
+	//
 	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
 	defer func() {
 		node1.Stop()
@@ -97,10 +104,7 @@ func TestSubscribeAndPing(t *testing.T) {
 	router := chi.NewRouter()
 	_ = NewFilterService(node2, router, utils.Logger())
 
-	var requestId filterRequestId = protocol.GenerateRequestID()
-
-	contentTopics := []string{"test"}
-
+	// create subscription to peer
 	rr := httptest.NewRecorder()
 	reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
 		RequestId:      requestId,
@@ -109,23 +113,133 @@ func TestSubscribeAndPing(t *testing.T) {
 	}))
 	req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
 	router.ServeHTTP(rr, req)
-	utils.Logger().Info(toString(t, getFilterResponse(t, rr.Body)))
 	checkJSON(t, filterSubscriptionResponse{
 		RequestId:  requestId,
-		StatusDesc: "ping request failed",
+		StatusDesc: "OK",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	// with peer
+	// trying pinging the peer once there is subscription to it
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", requestId), nil)
 	router.ServeHTTP(rr, req)
-	utils.Logger().Info(toString(t, getFilterResponse(t, rr.Body)))
+	checkJSON(t, filterSubscriptionResponse{
+		RequestId:  requestId,
+		StatusDesc: "OK",
+	}, getFilterResponse(t, rr.Body))
+	require.Equal(t, http.StatusOK, rr.Code)
+}
+
+// create subscription to peer
+// delete the subscription to the peer with matching pubSub and contentTopic
+func TestFilterSubscribeAndUnsubscribe(t *testing.T) {
+	pubsubTopic := "/waku/2/test/proto"
+	contentTopics := []string{"test"}
+	var requestId filterRequestId = protocol.GenerateRequestID()
+
+	//
+	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
+	defer func() {
+		node1.Stop()
+		node2.Stop()
+	}()
+
+	router := chi.NewRouter()
+	_ = NewFilterService(node2, router, utils.Logger())
+
+	// create subscription to peer
+	rr := httptest.NewRecorder()
+	reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
+		RequestId:      requestId,
+		PubsubTopic:    pubsubTopic,
+		ContentFilters: contentTopics,
+	}))
+	req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
+	router.ServeHTTP(rr, req)
+	checkJSON(t, filterSubscriptionResponse{
+		RequestId:  requestId,
+		StatusDesc: "OK",
+	}, getFilterResponse(t, rr.Body))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	// delete the subscription to the peer with matching pubSub and contentTopic
+	requestId = protocol.GenerateRequestID()
+	rr = httptest.NewRecorder()
+	reqReader = strings.NewReader(toString(t, filterSubscriptionRequest{
+		RequestId:      requestId,
+		PubsubTopic:    pubsubTopic,
+		ContentFilters: contentTopics,
+	}))
+	req, _ = http.NewRequest(http.MethodDelete, filterv2Subscribe, reqReader)
+	router.ServeHTTP(rr, req)
+	checkJSON(t, filterSubscriptionResponse{
+		RequestId:  requestId,
+		StatusDesc: "OK",
+	}, getFilterResponse(t, rr.Body))
+	require.Equal(t, http.StatusOK, rr.Code)
+}
+
+// create 2 subscription from filter client to server
+// make a unsubscribeAll request
+// try pinging the peer, if 404 is returned then unsubscribeAll was successful
+func TestFilterAllUnsubscribe(t *testing.T) {
+	pubsubTopic := "/waku/2/test/proto"
+	contentTopics1 := "ct_1"
+	contentTopics2 := "ct_2"
+	var requestId filterRequestId
+
+	//
+	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
+	defer func() {
+		node1.Stop()
+		node2.Stop()
+	}()
+
+	router := chi.NewRouter()
+	_ = NewFilterService(node2, router, utils.Logger())
+
+	// create 2 different subscription to peer
+	for _, ct := range []string{contentTopics1, contentTopics2} {
+		requestId = protocol.GenerateRequestID()
+		rr := httptest.NewRecorder()
+		reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
+			RequestId:      requestId,
+			PubsubTopic:    pubsubTopic,
+			ContentFilters: []string{ct},
+		}))
+		req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
+		router.ServeHTTP(rr, req)
+		checkJSON(t, filterSubscriptionResponse{
+			RequestId:  requestId,
+			StatusDesc: "OK",
+		}, getFilterResponse(t, rr.Body))
+		require.Equal(t, http.StatusOK, rr.Code)
+	}
+
+	// delete all subscription to the peer
+	requestId = protocol.GenerateRequestID()
+	rr := httptest.NewRecorder()
+	reqReader := strings.NewReader(toString(t, filterUnsubscribeAllRequest{
+		RequestId: requestId,
+	}))
+	req, _ := http.NewRequest(http.MethodDelete, filterv2SubscribeAll, reqReader)
+	router.ServeHTTP(rr, req)
+	checkJSON(t, filterSubscriptionResponse{
+		RequestId:  requestId,
+		StatusDesc: "OK",
+	}, getFilterResponse(t, rr.Body))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	// check if all subscriptions are deleted to the peer are deleted
+	requestId = protocol.GenerateRequestID()
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", requestId), nil)
+	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
 		RequestId:  requestId,
 		StatusDesc: "ping request failed",
 	}, getFilterResponse(t, rr.Body))
-	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, http.StatusServiceUnavailable, rr.Code)
 }
 
 func checkJSON(t *testing.T, expected, actual interface{}) {
