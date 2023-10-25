@@ -405,6 +405,7 @@ func WithLegacyWakuFilter(fullnode bool, filterOpts ...legacy_filter.Option) Wak
 // WithWakuFilter enables the Waku Filter V2 protocol for lightnode functionality
 func WithWakuFilterLightNode() WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
+		utils.Logger().Info("hwew")
 		params.enableFilterLightNode = true
 		return nil
 	}

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -17,8 +19,9 @@ import (
 
 type filterRequestId []byte
 
-func (r *filterRequestId) UnmarshalJSON(body []byte) error {
-	reqId, err := hex.DecodeString(string(body))
+func (r *filterRequestId) UnmarshalJSON(bodyBytes []byte) error {
+	body := strings.Trim(string(bodyBytes), `"`)
+	reqId, err := hex.DecodeString(body)
 	if err != nil {
 		return err
 	}
@@ -26,8 +29,11 @@ func (r *filterRequestId) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+func (r filterRequestId) String() string {
+	return hex.EncodeToString(r)
+}
 func (r filterRequestId) MarshalJSON() ([]byte, error) {
-	return r, nil
+	return []byte(fmt.Sprintf(`"%s"`, r.String())), nil
 }
 
 const filterv2Ping = "/filter/v2/subscriptions/{requestId}"
@@ -63,7 +69,7 @@ func (s *FilterService) ping(w http.ResponseWriter, req *http.Request) {
 	var requestId filterRequestId
 	if err := requestId.UnmarshalJSON([]byte(chi.URLParam(req, "requestId"))); err != nil {
 		s.log.Error("bad request id", zap.Error(err))
-		writeResponse(w, filterSubscriptionResponse{
+		writeResponse(w, &filterSubscriptionResponse{
 			RequestId:  requestId,
 			StatusDesc: "bad request id",
 		}, http.StatusBadRequest)
@@ -124,17 +130,15 @@ func toProtocolContentFilter(req filterSubscriptionRequest) protocol.ContentFilt
 // NOTE: subscribe on filter client randomly selects a peer if missing for given pubSubTopic
 func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 	message := filterSubscriptionRequest{}
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&message); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if !s.readBody(w, req, &message) {
 		return
 	}
-	defer req.Body.Close()
 
 	//
 	_, err := s.node.FilterLightnode().Subscribe(req.Context(), toProtocolContentFilter(message),
 		filter.WithRequestID(message.RequestId))
 	if err != nil {
+		s.log.Error("subscription failed", zap.Error(err))
 		writeResponse(w, filterSubscriptionResponse{
 			RequestId:  message.RequestId,
 			StatusDesc: "subscription failed",
@@ -156,12 +160,9 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 // to match functionality in nwaku, we will randomly select a peer that supports filter protocol.
 func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	message := filterSubscriptionRequest{} // as pubSubTopics can also be present
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&message); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if !s.readBody(w, req, &message) {
 		return
 	}
-	defer req.Body.Close()
 
 	peerId := s.getRandomFilterPeer(req.Context(), message.RequestId, w)
 	if peerId == "" {
@@ -176,6 +177,7 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 		filter.WithPeer(peerId),
 	)
 	if err != nil {
+		s.log.Error("unsubscribe failed", zap.Error(err))
 		writeResponse(w, filterSubscriptionResponse{
 			RequestId:  message.RequestId,
 			StatusDesc: err.Error(),
@@ -196,18 +198,26 @@ type filterUnsubscribeAllRequest struct {
 	RequestId filterRequestId `json:"requestId"`
 }
 
+func (s *FilterService) readBody(w http.ResponseWriter, req *http.Request, message interface{}) bool {
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(message); err != nil {
+		s.log.Error("bad request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return false
+	}
+	defer req.Body.Close()
+	return true
+}
+
 // 400 on invalid request
 // 500 on failed subscription
 // 200 on all successful unsubscribe
 // unsubscribe all subscriptions for a given peer
 func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request) {
 	message := filterUnsubscribeAllRequest{}
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&message); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if !s.readBody(w, req, &message) {
 		return
 	}
-	defer req.Body.Close()
 
 	peerId := s.getRandomFilterPeer(req.Context(), message.RequestId, w)
 	if peerId == "" {
@@ -221,6 +231,7 @@ func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request)
 		filter.WithPeer(peerId),
 	)
 	if err != nil {
+		s.log.Error("unsubscribeAll failed", zap.Error(err))
 		writeResponse(w, filterSubscriptionResponse{
 			RequestId:  message.RequestId,
 			StatusDesc: err.Error(),

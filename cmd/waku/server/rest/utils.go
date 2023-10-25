@@ -39,6 +39,6 @@ func writeResponse(w http.ResponseWriter, value interface{}, code int) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(code)
+	// utils.Logger().Info(fmt.Sprintf("%+v", w.Header()))
 }
