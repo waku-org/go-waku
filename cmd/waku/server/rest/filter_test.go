@@ -3,7 +3,6 @@ package rest
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -47,10 +46,6 @@ func twoFilterConnectedNodes(t *testing.T, pubSubTopic string) (*node.WakuNode, 
 	}
 
 	return node1, node2
-}
-
-func getRequestId() string {
-	return hex.EncodeToString(protocol.GenerateRequestID())
 }
 
 // test 400, 404 status code for ping rest endpoint
