@@ -306,7 +306,12 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = protocol.NewContentTopicSet(cTopics...)
 
-		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
+		err := wf.request(
+			ctx,
+			&FilterSubscribeParameters{selectedPeer: selectedPeer, requestID: params.requestID},
+			pb.FilterSubscribeRequest_SUBSCRIBE,
+			cFilter,
+		)
 		if err != nil {
 			wf.log.Error("Failed to subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
 				zap.Error(err))
