@@ -293,7 +293,6 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		} else {
 			selectedPeer = params.selectedPeer
 		}
-		wf.log.Info(selectedPeer.String())
 		if selectedPeer == "" {
 			wf.metrics.RecordError(peerNotFoundFailure)
 			wf.log.Error("selecting peer", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),

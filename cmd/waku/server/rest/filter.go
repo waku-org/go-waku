@@ -40,7 +40,7 @@ const filterv2Ping = "/filter/v2/subscriptions/{requestId}"
 const filterv2Subscribe = "/filter/v2/subscriptions"
 const filterv2SubscribeAll = "/filter/v2/subscriptions/all"
 
-// RelayService represents the REST service for WakuRelay
+// FilterService represents the REST service for Filter client
 type FilterService struct {
 	node *node.WakuNode
 
@@ -135,8 +135,19 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	//
-	_, err := s.node.FilterLightnode().Subscribe(req.Context(), toProtocolContentFilter(message),
+	subscriptions, err := s.node.FilterLightnode().Subscribe(req.Context(), toProtocolContentFilter(message),
 		filter.WithRequestID(message.RequestId))
+
+	// on partial subscribe failure
+	if len(subscriptions) > 0 && err != nil {
+		s.log.Error("partial subscribe failed", zap.Error(err))
+		// on partial failure
+		writeResponse(w, filterSubscriptionResponse{
+			RequestId:  message.RequestId,
+			StatusDesc: err.Error(),
+		}, http.StatusOK)
+	}
+
 	if err != nil {
 		s.log.Error("subscription failed", zap.Error(err))
 		writeResponse(w, filterSubscriptionResponse{
@@ -170,12 +181,13 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// unsubscribe on filter
-	_, err := s.node.FilterLightnode().Unsubscribe(
+	errCh, err := s.node.FilterLightnode().Unsubscribe(
 		req.Context(),
 		toProtocolContentFilter(message),
 		filter.WithRequestID(message.RequestId),
 		filter.WithPeer(peerId),
 	)
+
 	if err != nil {
 		s.log.Error("unsubscribe failed", zap.Error(err))
 		writeResponse(w, filterSubscriptionResponse{
@@ -188,8 +200,25 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	// on success
 	writeResponse(w, filterSubscriptionResponse{
 		RequestId:  message.RequestId,
-		StatusDesc: http.StatusText(http.StatusOK),
+		StatusDesc: s.unsubscribeGetMessage(errCh),
 	}, http.StatusOK)
+}
+
+func (s *FilterService) unsubscribeGetMessage(ch <-chan filter.WakuFilterPushResult) string {
+	var peerIds string
+	ind := 0
+	for entry := range ch {
+		s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
+		if ind != 0 {
+			peerIds += ", "
+		}
+		peerIds += entry.PeerID.String()
+		ind++
+	}
+	if peerIds != "" {
+		return "can't unsubscribe from " + peerIds
+	}
+	return http.StatusText(http.StatusOK)
 }
 
 // ///////////////////////
@@ -225,7 +254,7 @@ func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request)
 	}
 
 	// unsubscribe all subscriptions for a given peer
-	_, err := s.node.FilterLightnode().UnsubscribeAll(
+	errCh, err := s.node.FilterLightnode().UnsubscribeAll(
 		req.Context(),
 		filter.WithRequestID(message.RequestId),
 		filter.WithPeer(peerId),
@@ -242,7 +271,7 @@ func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request)
 	// on success
 	writeResponse(w, filterSubscriptionResponse{
 		RequestId:  message.RequestId,
-		StatusDesc: http.StatusText(http.StatusOK),
+		StatusDesc: s.unsubscribeGetMessage(errCh),
 	}, http.StatusOK)
 }
 
