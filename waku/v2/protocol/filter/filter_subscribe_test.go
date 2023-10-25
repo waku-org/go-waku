@@ -198,9 +198,7 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 	var maxContentTopics = 30
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
-	s.ctx = ctx
-	s.ctxCancel = cancel
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
 
 	// Detect existing content topics from previous test
 	if len(s.contentFilter.PubsubTopic) > 0 {
@@ -302,4 +300,35 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
+
+	// Create test context
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+
+	lightNode2 := s.makeWakuFilterLightNode(true, true)
+
+	// Connect node2
+	lightNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+
+	messages := prepareData(2, true, true, true)
+
+	// Subscribe separately: light node 1 -> full node
+	contentFilter := protocol.ContentFilter{PubsubTopic: messages[0].pubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[0].contentTopic)}
+	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	// Subscribe separately: light node 2 -> full node
+	contentFilter2 := protocol.ContentFilter{PubsubTopic: messages[1].pubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[1].contentTopic)}
+	_, err = lightNode2.Subscribe(s.ctx, contentFilter2, WithPeer(s.fullNodeHost.ID()))
+	s.Require().NoError(err)
+
+	// Unsubscribe
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+	_, err = lightNode2.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
 }
