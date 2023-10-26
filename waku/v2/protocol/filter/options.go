@@ -11,6 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func (old *FilterSubscribeParameters) Copy() *FilterSubscribeParameters {
+	return &FilterSubscribeParameters{
+		selectedPeer: old.selectedPeer,
+		requestID:    old.requestID,
+	}
+}
+
 type (
 	FilterPingParameters struct {
 		requestID []byte
