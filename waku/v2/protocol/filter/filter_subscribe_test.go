@@ -334,10 +334,15 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 
 func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 
-	// Create test context
-	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	var (
+		testTopic        = "/waku/2/go/filter/test2"
+		testContentTopic = "TopicB"
+	)
 
-	_, fullNode2 := s.makeWakuFilterFullNode(s.testTopic, false, false)
+	// Create test context
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second)
+
+	_, fullNode2 := s.makeWakuFilterFullNode(testTopic, false, false)
 
 	// Connect nodes
 	fullNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -349,22 +354,23 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	// Prepare subscribe request
 	subscribeRequest := &pb.FilterSubscribeRequest{
 		FilterSubscribeType: pb.FilterSubscribeRequest_SUBSCRIBE,
-		PubsubTopic:         &s.testTopic,
-		ContentTopics:       []string{"/waku/2/go/filter/test2"},
+		PubsubTopic:         &testTopic,
+		ContentTopics:       []string{testContentTopic},
 	}
 
 	// Subscribe full node 2 -> full node 1
-	s.fullNode.subscribe(s.ctx, stream, subscribeRequest)
+	fullNode2.subscribe(s.ctx, stream, subscribeRequest)
 
-	// Check the pubsub and content topic is known to the first node
-	//pubsubTopics, hasTopics := s.fullNode.subscriptions.Get(fullNode2.h.ID())
-	hasTopics := s.fullNode.subscriptions.Has(fullNode2.h.ID())
+	// Check the pubsub topic related to the first node is stored within the second node
+	pubsubTopics, hasTopics := fullNode2.subscriptions.Get(s.fullNodeHost.ID())
 	s.Require().True(hasTopics)
 
-	//contentTopics, ok := pubsubTopics[s.testTopic]
-	//s.Require().True(ok)
-	//
-	//_, hasContentTopic := contentTopics[s.testContentTopic]
-	//s.Require().True(hasContentTopic)
+	// Check the pubsub topic is what we have set
+	contentTopics, hasTestPubsubTopic := pubsubTopics[testTopic]
+	s.Require().True(hasTestPubsubTopic)
+
+	// Check the content topic is what we have set
+	_, hasTestContentTopic := contentTopics[testContentTopic]
+	s.Require().True(hasTestContentTopic)
 
 }
