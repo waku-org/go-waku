@@ -34,10 +34,15 @@ type PeerConnectionStrategy struct {
 	paused      atomic.Bool
 	dialTimeout time.Duration
 	*CommonDiscoveryService
-	subscriptions []<-chan PeerData
+	subscriptions []subscription
 
 	backoff backoff.BackoffFactory
 	logger  *zap.Logger
+}
+
+type subscription struct {
+	ctx context.Context
+	ch  <-chan PeerData
 }
 
 // backoff describes the strategy used to decide how long to backoff after previously attempting to connect to a peer
@@ -84,7 +89,7 @@ func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerDa
 	// if not running yet, store the subscription and return
 	if err := c.ErrOnNotRunning(); err != nil {
 		c.mux.Lock()
-		c.subscriptions = append(c.subscriptions, ch)
+		c.subscriptions = append(c.subscriptions, subscription{ctx, ch})
 		c.mux.Unlock()
 		return
 	}
@@ -92,15 +97,17 @@ func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan PeerDa
 	c.WaitGroup().Add(1)
 	go func() {
 		defer c.WaitGroup().Done()
-		c.consumeSubscription(ch)
+		c.consumeSubscription(subscription{ctx, ch})
 	}()
 }
 
-func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
+func (c *PeerConnectionStrategy) consumeSubscription(s subscription) {
 	for {
 		// for returning from the loop when peerConnector is paused.
 		select {
 		case <-c.Context().Done():
+			return
+		case <-s.ctx.Done():
 			return
 		default:
 		}
@@ -109,12 +116,14 @@ func (c *PeerConnectionStrategy) consumeSubscription(ch <-chan PeerData) {
 			select {
 			case <-c.Context().Done():
 				return
-			case p, ok := <-ch:
+			case <-s.ctx.Done():
+				return
+			case p, ok := <-s.ch:
 				if !ok {
 					return
 				}
 				c.pm.AddDiscoveredPeer(p)
-				c.PushToChan(p)
+				go c.PushToChan(p)
 			case <-time.After(1 * time.Second):
 				// This timeout is to not lock the goroutine
 				break
@@ -175,7 +184,7 @@ func (c *PeerConnectionStrategy) shouldDialPeers() {
 func (c *PeerConnectionStrategy) consumeSubscriptions() {
 	for _, subs := range c.subscriptions {
 		c.WaitGroup().Add(1)
-		go func(s <-chan PeerData) {
+		go func(s subscription) {
 			defer c.WaitGroup().Done()
 			c.consumeSubscription(s)
 		}(subs)

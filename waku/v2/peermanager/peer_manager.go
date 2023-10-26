@@ -292,7 +292,6 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData) {
 				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 		}
 	}
-
 }
 
 // addPeer adds peer to only the peerStore.
