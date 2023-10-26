@@ -311,7 +311,14 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = protocol.NewContentTopicSet(cTopics...)
 
-		err := wf.request(ctx, params, pb.FilterSubscribeRequest_SUBSCRIBE, cFilter)
+		paramsCopy := params.Copy()
+		paramsCopy.selectedPeer = selectedPeer
+		err := wf.request(
+			ctx,
+			paramsCopy,
+			pb.FilterSubscribeRequest_SUBSCRIBE,
+			cFilter,
+		)
 		if err != nil {
 			wf.log.Error("Failed to subscribe", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
 				zap.Error(err))
@@ -532,7 +539,9 @@ func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, 
 
 	if !wf.subscriptions.Has(sub.PeerID, sub.ContentFilter) {
 		// Last sub for this [peer, contentFilter] pair
-		err = wf.unsubscribeFromServer(ctx, &FilterSubscribeParameters{selectedPeer: sub.PeerID, requestID: params.requestID}, sub.ContentFilter)
+		paramsCopy := params.Copy()
+		paramsCopy.selectedPeer = sub.PeerID
+		err = wf.unsubscribeFromServer(ctx, paramsCopy, sub.ContentFilter)
 		resultChan <- WakuFilterPushResult{
 			Err:    err,
 			PeerID: sub.PeerID,
@@ -586,9 +595,11 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 				}
 			}()
 
+			paramsCopy := params.Copy()
+			paramsCopy.selectedPeer = peerID
 			err := wf.request(
 				ctx,
-				&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
+				params,
 				pb.FilterSubscribeRequest_UNSUBSCRIBE_ALL,
 				protocol.ContentFilter{})
 			if err != nil {
