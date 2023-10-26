@@ -53,7 +53,7 @@ type WakuMsg struct {
 	payload      string
 }
 
-func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.Subscription, host.Host, relay.Broadcaster) {
+func (s *FilterTestSuite) makeWakuRelay(topic string, shared bool) (*relay.WakuRelay, *relay.Subscription, host.Host, relay.Broadcaster) {
 
 	broadcaster := relay.NewBroadcaster(10)
 	s.Require().NoError(broadcaster.Start(context.Background()))
@@ -66,7 +66,11 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 
 	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	relay.SetHost(host)
-	s.fullNodeHost = host
+
+	if shared {
+		s.fullNodeHost = host
+	}
+
 	err = relay.Start(context.Background())
 	s.Require().NoError(err)
 
@@ -98,10 +102,13 @@ func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bo
 	return filterPush
 }
 
-func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll bool) (*relay.WakuRelay, *WakuFilterFullNode) {
+func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll bool, shared bool) (*relay.WakuRelay, *WakuFilterFullNode) {
 	var sub *relay.Subscription
-	node, relaySub, host, broadcaster := s.makeWakuRelay(topic)
-	s.relaySub = relaySub
+	node, relaySub, host, broadcaster := s.makeWakuRelay(topic, shared)
+
+	if shared {
+		s.relaySub = relaySub
+	}
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	node2Filter.SetHost(host)
@@ -331,7 +338,7 @@ func (s *FilterTestSuite) SetupTest() {
 
 	//TODO: Add tests to verify broadcaster.
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -479,7 +486,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.testTopic = pubSubTopic.String()
 
 	s.lightNode = s.makeWakuFilterLightNode(true, false)
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String(), false)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String(), false, true)
 
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
 	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)

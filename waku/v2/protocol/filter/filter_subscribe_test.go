@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"encoding/hex"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"sync"
 	"time"
 
@@ -118,7 +119,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -153,9 +154,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 
 	// Create test context
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
-	s.ctx = ctx
-	s.ctxCancel = cancel
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 
 	messages := prepareData(10, false, true, true)
 
@@ -281,7 +280,7 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	s.log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
 
 	// This will overwrite values with the second node info
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
 
 	// Connect to second full and relay node
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -330,5 +329,42 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 
 	_, err = lightNode2.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
+
+	// Create test context
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+
+	_, fullNode2 := s.makeWakuFilterFullNode(s.testTopic, false, false)
+
+	// Connect nodes
+	fullNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+
+	// Get stream
+	stream, err := fullNode2.h.NewStream(s.ctx, s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	// Prepare subscribe request
+	subscribeRequest := &pb.FilterSubscribeRequest{
+		FilterSubscribeType: pb.FilterSubscribeRequest_SUBSCRIBE,
+		PubsubTopic:         &s.testTopic,
+		ContentTopics:       []string{"/waku/2/go/filter/test2"},
+	}
+
+	// Subscribe full node 2 -> full node 1
+	s.fullNode.subscribe(s.ctx, stream, subscribeRequest)
+
+	// Check the pubsub and content topic is known to the first node
+	//pubsubTopics, hasTopics := s.fullNode.subscriptions.Get(fullNode2.h.ID())
+	hasTopics := s.fullNode.subscriptions.Has(fullNode2.h.ID())
+	s.Require().True(hasTopics)
+
+	//contentTopics, ok := pubsubTopics[s.testTopic]
+	//s.Require().True(ok)
+	//
+	//_, hasContentTopic := contentTopics[s.testContentTopic]
+	//s.Require().True(hasContentTopic)
 
 }
