@@ -1,11 +1,11 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/waku-org/go-waku/cmd/waku/server"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -70,10 +70,6 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 		topic = args.Topic
 	}
 
-	if !r.node.Relay().IsSubscribed(topic) {
-		return errors.New("not subscribed to pubsubTopic")
-	}
-
 	msg, err := args.Message.toProto()
 	if err != nil {
 		return err
@@ -126,10 +122,8 @@ func (r *RelayService) DeleteV1AutoSubscription(req *http.Request, args *TopicsA
 // PostV1AutoMessage is invoked when the json rpc request uses the post_waku_v2_relay_v1_auto_message
 func (r *RelayService) PostV1AutoMessage(req *http.Request, args *RelayAutoMessageArgs, reply *SuccessReply) error {
 	msg, err := args.Message.toProto()
-	if msg == nil || err != nil {
-		if err == nil {
-			err = fmt.Errorf("invalid message format received")
-		}
+	if err != nil {
+		err = fmt.Errorf("invalid message format received: %w", err)
 		r.log.Error("publishing message", zap.Error(err))
 		return err
 	}
@@ -159,9 +153,10 @@ func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, rep
 	case msg := <-sub.Ch:
 		rpcMsg, err := ProtoToRPC(msg.Message())
 		if err != nil {
-			return err
+			r.log.Warn("could not include message in response", logging.HexString("hash", msg.Hash()), zap.Error(err))
+		} else {
+			*reply = append(*reply, rpcMsg)
 		}
-		*reply = append(*reply, rpcMsg)
 	default:
 		break
 	}

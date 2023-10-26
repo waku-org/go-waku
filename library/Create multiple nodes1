@@ -1,6 +1,0 @@
-Create multiple nodes
-
-
-
-Filter Subscription
-{"subscriptions":[{"peerID":"16Uiu2HAm6HZZr7aToTvEBPpiys4UxajCTU97zj5v7RNR2gbniy1D","pubsubTopic":"/waku/2/default-waku/proto","contentTopics":["a"]}], "error":"..... omitempty"}

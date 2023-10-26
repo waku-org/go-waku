@@ -302,7 +302,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 
 	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
-		Version:      version,
+		Version:      proto.Uint32(version),
 		ContentTopic: options.ContentTopic,
 		Timestamp:    timestamp,
 	}
@@ -407,7 +407,7 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 			c.ui.InfoMessage("0 historic messages available")
 		} else {
 			for _, msg := range response.Messages {
-				c.C <- protocol.NewEnvelope(msg, msg.Timestamp, relay.DefaultWakuTopic)
+				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
 			}
 		}
 	}

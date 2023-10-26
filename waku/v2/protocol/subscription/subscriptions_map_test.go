@@ -13,6 +13,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 const PUBSUB_TOPIC = "/test/topic"
@@ -151,7 +152,7 @@ func TestSubscriptionsNotify(t *testing.T) {
 	go failOnReceive(ctx, 2)
 	time.Sleep(200 * time.Millisecond)
 
-	envTopic1Ct1 := protocol.NewEnvelope(tests.CreateWakuMessage("ct1", 0), 0, PUBSUB_TOPIC+"1")
+	envTopic1Ct1 := protocol.NewEnvelope(tests.CreateWakuMessage("ct1", nil), 0, PUBSUB_TOPIC+"1")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -175,7 +176,7 @@ func TestSubscriptionsNotify(t *testing.T) {
 	go failOnReceive(ctx, 2)
 	time.Sleep(200 * time.Millisecond)
 
-	envTopic1Ct2 := protocol.NewEnvelope(tests.CreateWakuMessage("ct2", 0), 0, PUBSUB_TOPIC+"1")
+	envTopic1Ct2 := protocol.NewEnvelope(tests.CreateWakuMessage("ct2", nil), 0, PUBSUB_TOPIC+"1")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -204,7 +205,7 @@ func TestSubscriptionsNotify(t *testing.T) {
 	go failOnReceive(ctx, 2)
 	time.Sleep(200 * time.Millisecond)
 
-	envTopic1Ct1_2 := protocol.NewEnvelope(tests.CreateWakuMessage("ct1", 1), 1, PUBSUB_TOPIC+"1")
+	envTopic1Ct1_2 := protocol.NewEnvelope(tests.CreateWakuMessage("ct1", proto.Int64(1)), 1, PUBSUB_TOPIC+"1")
 
 	wg.Add(1)
 	go func() {

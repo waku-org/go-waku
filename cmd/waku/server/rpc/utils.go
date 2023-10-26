@@ -1,7 +1,11 @@
 package rpc
 
 import (
+	"errors"
+
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	rlnpb "github.com/waku-org/go-waku/waku/v2/protocol/rln/pb"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -29,21 +33,25 @@ func ProtoToRPC(input *pb.WakuMessage) (*RPCWakuMessage, error) {
 		return nil, nil
 	}
 
-	rpcWakuMsg := &RPCWakuMessage{
-		Payload:      input.Payload,
-		ContentTopic: input.ContentTopic,
-		Version:      input.Version,
-		Timestamp:    input.Timestamp,
-		Ephemeral:    input.Ephemeral,
-	}
-
-	rateLimitProof := &pb.RateLimitProof{}
-	err := proto.Unmarshal(input.RateLimitProof, rateLimitProof)
-	if err != nil {
+	if err := input.Validate(); err != nil {
 		return nil, err
 	}
 
+	rpcWakuMsg := &RPCWakuMessage{
+		Payload:      input.Payload,
+		ContentTopic: input.ContentTopic,
+		Version:      input.GetVersion(),
+		Timestamp:    input.GetTimestamp(),
+		Ephemeral:    input.GetEphemeral(),
+	}
+
 	if input.RateLimitProof != nil {
+		rateLimitProof := &rlnpb.RateLimitProof{}
+		err := proto.Unmarshal(input.RateLimitProof, rateLimitProof)
+		if err != nil {
+			return nil, err
+		}
+
 		rpcWakuMsg.RateLimitProof = &RateLimitProof{
 			Proof:         rateLimitProof.Proof,
 			MerkleRoot:    rateLimitProof.MerkleRoot,
@@ -60,19 +68,19 @@ func ProtoToRPC(input *pb.WakuMessage) (*RPCWakuMessage, error) {
 
 func (r *RPCWakuMessage) toProto() (*pb.WakuMessage, error) {
 	if r == nil {
-		return nil, nil
+		return nil, errors.New("wakumessage is missing")
 	}
 
 	msg := &pb.WakuMessage{
 		Payload:      r.Payload,
 		ContentTopic: r.ContentTopic,
-		Version:      r.Version,
-		Timestamp:    r.Timestamp,
-		Ephemeral:    r.Ephemeral,
+		Version:      proto.Uint32(r.Version),
+		Timestamp:    proto.Int64(r.Timestamp),
+		Ephemeral:    proto.Bool(r.Ephemeral),
 	}
 
 	if r.RateLimitProof != nil {
-		rateLimitProof := &pb.RateLimitProof{
+		rateLimitProof := &rlnpb.RateLimitProof{
 			Proof:         r.RateLimitProof.Proof,
 			MerkleRoot:    r.RateLimitProof.MerkleRoot,
 			Epoch:         r.RateLimitProof.Epoch,

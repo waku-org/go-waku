@@ -21,7 +21,8 @@ func TestBase64Encoding(t *testing.T) {
 	input := "Hello World"
 
 	rpcMsg, err := ProtoToRPC(&pb.WakuMessage{
-		Payload: []byte(input),
+		Payload:      []byte(input),
+		ContentTopic: "test",
 	})
 	require.NoError(t, err)
 

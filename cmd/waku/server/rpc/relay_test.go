@@ -31,7 +31,6 @@ func TestPostV1Message(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "abc",
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
@@ -98,6 +97,17 @@ func TestRelayGetV1Messages(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	args := &TopicsArgs{Topics: []string{"test"}}
+
+	// Subscribe A to topic
+	err = serviceA.PostV1Subscription(
+		makeRequest(t),
+		args,
+		&reply,
+	)
+	require.NoError(t, err)
+	require.True(t, reply)
+
+	// Subscribe B to topic
 	err = serviceB.PostV1Subscription(
 		makeRequest(t),
 		args,
@@ -110,7 +120,8 @@ func TestRelayGetV1Messages(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	rpcWakuMsg, err := ProtoToRPC(&pb.WakuMessage{
-		Payload: []byte("test"),
+		Payload:      []byte("test"),
+		ContentTopic: "test",
 	})
 	require.NoError(t, err)
 

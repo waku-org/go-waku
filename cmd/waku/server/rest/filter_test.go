@@ -387,7 +387,6 @@ func genMessage(pubsubTopic, contentTopic string) *protocol.Envelope {
 		&pb.WakuMessage{
 			Payload:      []byte{1, 2, 3},
 			ContentTopic: contentTopic,
-			Version:      0,
 			Timestamp:    utils.GetUnixEpoch(),
 		},
 		0,

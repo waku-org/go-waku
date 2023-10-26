@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
+	rlnpb "github.com/waku-org/go-waku/waku/v2/protocol/rln/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
@@ -273,7 +274,7 @@ func (rlnRelay *WakuRLNRelay) Validator(
 	}
 }
 
-func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*pb.RateLimitProof, error) {
+func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*rlnpb.RateLimitProof, error) {
 	identityCredentials, err := rlnRelay.GroupManager.IdentityCredentials()
 	if err != nil {
 		return nil, err
@@ -286,7 +287,7 @@ func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*pb.
 		return nil, err
 	}
 
-	return &pb.RateLimitProof{
+	return &rlnpb.RateLimitProof{
 		Proof:         proof.Proof[:],
 		MerkleRoot:    proof.MerkleRoot[:],
 		Epoch:         proof.Epoch[:],

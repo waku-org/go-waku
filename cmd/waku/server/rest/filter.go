@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -241,7 +242,7 @@ func (s *FilterService) unsubscribeGetMessage(result *filter.WakuFilterPushResul
 	ind := 0
 	for _, entry := range result.Errors() {
 		if entry.Err != nil {
-			s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
+			s.log.Error("can't unsubscribe", logging.HostID("peer", entry.PeerID), zap.Error(entry.Err))
 			if ind != 0 {
 				peerIds += ", "
 			}

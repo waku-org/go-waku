@@ -219,7 +219,7 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (subs *pubsub.Subscript
 			return nil, err
 		}
 
-		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
+		w.log.Info("gossipsub subscription", zap.String("pubsubTopic", sub.Topic()))
 	}
 
 	return sub, nil

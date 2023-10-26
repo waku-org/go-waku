@@ -3,6 +3,7 @@ package rln
 import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	rlnpb "github.com/waku-org/go-waku/waku/v2/protocol/rln/pb"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"google.golang.org/protobuf/proto"
 )
@@ -44,7 +45,7 @@ func BytesToRateLimitProof(data []byte) (*rln.RateLimitProof, error) {
 		return nil, nil
 	}
 
-	rateLimitProof := &pb.RateLimitProof{}
+	rateLimitProof := &rlnpb.RateLimitProof{}
 	err := proto.Unmarshal(data, rateLimitProof)
 	if err != nil {
 		return nil, err

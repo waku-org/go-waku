@@ -133,7 +133,7 @@ func (store *WakuStore) Start(ctx context.Context, sub *relay.Subscription) erro
 
 func (store *WakuStore) storeMessage(env *protocol.Envelope) error {
 
-	if env.Message().Ephemeral {
+	if env.Message().GetEphemeral() {
 		return nil
 	}
 
