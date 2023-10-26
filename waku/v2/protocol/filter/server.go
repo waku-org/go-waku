@@ -3,7 +3,6 @@ package filter
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"net/http"
 	"time"
@@ -105,15 +104,19 @@ func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(network.Stream
 
 		start := time.Now()
 
-		switch subscribeRequest.FilterSubscribeType {
-		case pb.FilterSubscribeRequest_SUBSCRIBE:
-			wf.subscribe(ctx, stream, subscribeRequest)
-		case pb.FilterSubscribeRequest_SUBSCRIBER_PING:
-			wf.ping(ctx, stream, subscribeRequest)
-		case pb.FilterSubscribeRequest_UNSUBSCRIBE:
-			wf.unsubscribe(ctx, stream, subscribeRequest)
-		case pb.FilterSubscribeRequest_UNSUBSCRIBE_ALL:
-			wf.unsubscribeAll(ctx, stream, subscribeRequest)
+		if err := subscribeRequest.Validate(); err != nil {
+			wf.reply(ctx, stream, subscribeRequest, http.StatusBadRequest, err.Error())
+		} else {
+			switch subscribeRequest.FilterSubscribeType {
+			case pb.FilterSubscribeRequest_SUBSCRIBE:
+				wf.subscribe(ctx, stream, subscribeRequest)
+			case pb.FilterSubscribeRequest_SUBSCRIBER_PING:
+				wf.ping(ctx, stream, subscribeRequest)
+			case pb.FilterSubscribeRequest_UNSUBSCRIBE:
+				wf.unsubscribe(ctx, stream, subscribeRequest)
+			case pb.FilterSubscribeRequest_UNSUBSCRIBE_ALL:
+				wf.unsubscribeAll(ctx, stream, subscribeRequest)
+			}
 		}
 
 		stream.Close()
@@ -158,20 +161,6 @@ func (wf *WakuFilterFullNode) ping(ctx context.Context, stream network.Stream, r
 }
 
 func (wf *WakuFilterFullNode) subscribe(ctx context.Context, stream network.Stream, request *pb.FilterSubscribeRequest) {
-	if request.PubsubTopic == nil {
-		wf.reply(ctx, stream, request, http.StatusBadRequest, "pubsubtopic can't be empty")
-		return
-	}
-
-	if len(request.ContentTopics) == 0 {
-		wf.reply(ctx, stream, request, http.StatusBadRequest, "at least one contenttopic should be specified")
-		return
-	}
-
-	if len(request.ContentTopics) > MaxContentTopicsPerRequest {
-		wf.reply(ctx, stream, request, http.StatusBadRequest, fmt.Sprintf("exceeds maximum content topics: %d", MaxContentTopicsPerRequest))
-	}
-
 	if wf.subscriptions.Count() >= wf.maxSubscriptions {
 		wf.reply(ctx, stream, request, http.StatusServiceUnavailable, "node has reached maximum number of subscriptions")
 		return
@@ -198,20 +187,6 @@ func (wf *WakuFilterFullNode) subscribe(ctx context.Context, stream network.Stre
 }
 
 func (wf *WakuFilterFullNode) unsubscribe(ctx context.Context, stream network.Stream, request *pb.FilterSubscribeRequest) {
-	if request.PubsubTopic == nil {
-		wf.reply(ctx, stream, request, http.StatusBadRequest, "pubsubtopic can't be empty")
-		return
-	}
-
-	if len(request.ContentTopics) == 0 {
-		wf.reply(ctx, stream, request, http.StatusBadRequest, "at least one contenttopic should be specified")
-		return
-	}
-
-	if len(request.ContentTopics) > MaxContentTopicsPerRequest {
-		wf.reply(ctx, stream, request, http.StatusBadRequest, fmt.Sprintf("exceeds maximum content topics: %d", MaxContentTopicsPerRequest))
-	}
-
 	err := wf.subscriptions.Delete(stream.Conn().RemotePeer(), *request.PubsubTopic, request.ContentTopics)
 	if err != nil {
 		wf.reply(ctx, stream, request, http.StatusNotFound, peerHasNoSubscription)

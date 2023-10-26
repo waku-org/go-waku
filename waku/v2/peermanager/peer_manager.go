@@ -350,7 +350,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 		}
 	}
 	if connectNow {
-		pm.peerConnector.PushToChan(p)
+		go pm.peerConnector.PushToChan(p)
 	}
 }
 
