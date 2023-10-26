@@ -113,17 +113,6 @@ type filterSubscriptionResponse struct {
 	StatusDesc string          `json:"statusDesc"`
 }
 
-func toProtocolContentFilter(req filterSubscriptionRequest) protocol.ContentFilter {
-	contentTopics := map[string]struct{}{}
-	for _, topic := range req.ContentFilters {
-		contentTopics[topic] = struct{}{}
-	}
-	return protocol.ContentFilter{
-		PubsubTopic:   req.PubsubTopic,
-		ContentTopics: contentTopics,
-	}
-}
-
 // 400 on invalid request
 // 404 on failed subscription
 // 200 on single returned successful subscription
@@ -135,7 +124,8 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	//
-	subscriptions, err := s.node.FilterLightnode().Subscribe(req.Context(), toProtocolContentFilter(message),
+	subscriptions, err := s.node.FilterLightnode().Subscribe(req.Context(),
+		protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...),
 		filter.WithRequestID(message.RequestId))
 
 	// on partial subscribe failure
@@ -183,7 +173,7 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	// unsubscribe on filter
 	errCh, err := s.node.FilterLightnode().Unsubscribe(
 		req.Context(),
-		toProtocolContentFilter(message),
+		protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...),
 		filter.WithRequestID(message.RequestId),
 		filter.WithPeer(peerId),
 	)
