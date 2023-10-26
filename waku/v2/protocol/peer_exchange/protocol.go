@@ -57,16 +57,10 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.disc = disc
 	wakuPX.metrics = newMetrics(reg)
 	wakuPX.log = log.Named("wakupx")
+	wakuPX.enrCache = newEnrCache(MaxCacheSize, log)
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
 	wakuPX.CommonService = service.NewCommonService()
-
-	newEnrCache, err := newEnrCache(MaxCacheSize, wakuPX.log)
-	if err != nil {
-		return nil, err
-	}
-
-	wakuPX.enrCache = newEnrCache
 
 	return wakuPX, nil
 }
@@ -108,7 +102,7 @@ func (wakuPX *WakuPeerExchange) onRequest() func(network.Stream) {
 		if requestRPC.Query != nil {
 			logger.Info("request received")
 
-			records, err := wakuPX.enrCache.getENRs(int(requestRPC.Query.NumPeers))
+			records, err := wakuPX.enrCache.getENRs(int(requestRPC.Query.NumPeers), nil)
 			if err != nil {
 				logger.Error("obtaining enrs from cache", zap.Error(err))
 				wakuPX.metrics.RecordError(pxFailure)
