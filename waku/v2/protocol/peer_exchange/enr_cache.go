@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// simpleLRU uint16ernal uses container/list, which is ring buffer(double linked list)
+// simpleLRU internal uses container/list, which is ring buffer(double linked list)
 type enrCache struct {
 	// using lru, saves us from periodically cleaning the cache to mauint16ain a certain size
 	data *shardLRU
