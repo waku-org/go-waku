@@ -1,4 +1,4 @@
-package peermanager
+package discv5
 
 import (
 	"context"

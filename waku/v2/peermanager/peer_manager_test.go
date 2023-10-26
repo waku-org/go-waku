@@ -208,7 +208,6 @@ func TestConnectToRelayPeers(t *testing.T) {
 	ctx, pm, deferFn := initTest(t)
 	pc, err := NewPeerConnectionStrategy(pm, 120*time.Second, pm.logger)
 	require.NoError(t, err)
-	pm.SetPeerConnector(pc)
 	err = pc.Start(ctx)
 	require.NoError(t, err)
 	pm.Start(ctx)

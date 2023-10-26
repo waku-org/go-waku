@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -108,7 +107,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	ip1, _ := extractIP(host1.Addrs()[0])
 	l1, err := newLocalnode(prvKey1, ip1, udpPort1, wenr.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
-	discv5PeerConn1 := peermanager.NewTestPeerDiscoverer()
+	discv5PeerConn1 := discv5.NewTestPeerDiscoverer()
 	d1, err := discv5.NewDiscoveryV5(prvKey1, l1, discv5PeerConn1, prometheus.DefaultRegisterer, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
 	require.NoError(t, err)
 	d1.SetHost(host1)
@@ -120,7 +119,7 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	require.NoError(t, err)
 	l2, err := newLocalnode(prvKey2, ip2, udpPort2, wenr.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
 	require.NoError(t, err)
-	discv5PeerConn2 := peermanager.NewTestPeerDiscoverer()
+	discv5PeerConn2 := discv5.NewTestPeerDiscoverer()
 	d2, err := discv5.NewDiscoveryV5(prvKey2, l2, discv5PeerConn2, prometheus.DefaultRegisterer, utils.Logger(), discv5.WithUDPPort(uint(udpPort2)), discv5.WithBootnodes([]*enode.Node{d1.Node()}))
 	require.NoError(t, err)
 	d2.SetHost(host2)
@@ -143,12 +142,12 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	time.Sleep(3 * time.Second) // Wait some time for peers to be discovered
 
 	// mount peer exchange
-	pxPeerConn1 := peermanager.NewTestPeerDiscoverer()
+	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
 	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
-	pxPeerConn3 := peermanager.NewTestPeerDiscoverer()
+	pxPeerConn3 := discv5.NewTestPeerDiscoverer()
 	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)

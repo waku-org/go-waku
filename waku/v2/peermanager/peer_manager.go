@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -45,6 +46,7 @@ type PeerManager struct {
 	sub                 event.Subscription
 	topicMutex          sync.RWMutex
 	subRelayTopics      map[string]*NodeTopicDetails
+	discoveryService    *discv5.DiscoveryV5
 }
 
 // PeerSelection provides various options based on which Peer is selected from a list of peers.
@@ -104,6 +106,10 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 		zap.Int("maxPeers", maxPeers))
 
 	return pm
+}
+
+func (pm *PeerManager) SetDiscv5(discv5 *discv5.DiscoveryV5) {
+	pm.discoveryService = discv5
 }
 
 // SetHost sets the host to be used in order to access the peerStore.
@@ -182,6 +188,10 @@ func (pm *PeerManager) getRelayPeers(specificPeers ...peer.ID) (inRelayPeers pee
 	}
 	return
 }
+
+/* func (pm *PeerManager) OnDemandPeerDiscovery(cluster int16, shard int16, wakuServices []string) {
+
+} */
 
 // ensureMinRelayConnsPerTopic makes sure there are min of D conns per pubsubTopic.
 // If not it will look into peerStore to initiate more connections.
@@ -491,6 +501,8 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 			if err == nil {
 				peerIDPtr = &peerID
 			} else {
+				//TODO: Trigger on-demand discovery for this topic.
+
 				pm.logger.Debug("could not select random peer", zap.Error(err))
 			}
 		}
