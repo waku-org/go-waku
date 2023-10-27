@@ -19,6 +19,19 @@ func (old *FilterSubscribeParameters) Copy() *FilterSubscribeParameters {
 }
 
 type (
+	FilterPingParameters struct {
+		requestID []byte
+	}
+	FilterPingOption func(*FilterPingParameters)
+)
+
+func WithPingRequestId(requestId []byte) FilterPingOption {
+	return func(params *FilterPingParameters) {
+		params.requestID = requestId
+	}
+}
+
+type (
 	FilterSubscribeParameters struct {
 		selectedPeer      peer.ID
 		peerSelectionType peermanager.PeerSelection
