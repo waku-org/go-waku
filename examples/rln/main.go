@@ -17,6 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
@@ -128,7 +129,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 		log.Error("Error appending proof", zap.Error(err))
 	}
 
-	_, err = wakuNode.Relay().PublishToTopic(ctx, msg, pubsubTopic.String())
+	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic.String()))
 	if err != nil {
 		log.Error("Error sending a message", zap.Error(err))
 	}

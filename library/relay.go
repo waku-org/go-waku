@@ -39,7 +39,7 @@ func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, erro
 		ctx = context.Background()
 	}
 
-	hash, err := wakuState.node.Relay().PublishToTopic(ctx, msg, pubsubTopic)
+	hash, err := wakuState.node.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic))
 	return hexutil.Encode(hash), err
 }
 

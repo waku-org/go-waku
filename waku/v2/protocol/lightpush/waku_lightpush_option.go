@@ -5,6 +5,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
 
@@ -40,12 +41,6 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) Option {
 	}
 }
 
-func WithPubSubTopic(pubsubTopic string) Option {
-	return func(params *lightPushParameters) {
-		params.pubsubTopic = pubsubTopic
-	}
-}
-
 // WithFastestPeerSelection is an option used to select a peer from the peer store
 // with the lowest ping. If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a peer
@@ -53,6 +48,20 @@ func WithPubSubTopic(pubsubTopic string) Option {
 func WithFastestPeerSelection(fromThesePeers ...peer.ID) Option {
 	return func(params *lightPushParameters) {
 		params.peerSelectionType = peermanager.LowestRTT
+	}
+}
+
+// WithPubSubTopic is used to specify the pubsub topic on which a WakuMessage will be broadcasted
+func WithPubSubTopic(pubsubTopic string) Option {
+	return func(params *lightPushParameters) {
+		params.pubsubTopic = pubsubTopic
+	}
+}
+
+// WithDefaultPubsubTopic is used to indicate that the message should be broadcasted in the default pubsub topic
+func WithDefaultPubsubTopic() Option {
+	return func(params *lightPushParameters) {
+		params.pubsubTopic = relay.DefaultWakuTopic
 	}
 }
 

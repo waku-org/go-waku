@@ -19,6 +19,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -98,6 +99,7 @@ func main() {
 
 	// Send FilterRequest from light node to full node
 	cf := protocol.ContentFilter{
+		PubsubTopic:   relay.DefaultWakuTopic,
 		ContentTopics: protocol.NewContentTopicSet(contentTopic),
 	}
 
@@ -157,7 +159,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 		Timestamp:    timestamp,
 	}
 
-	_, err := wakuNode.Relay().Publish(ctx, msg)
+	_, err := wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic.String()))
 	if err != nil {
 		log.Error("Error sending a message: ", err)
 	}
