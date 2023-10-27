@@ -20,7 +20,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
@@ -33,21 +32,29 @@ type NodeTopicDetails struct {
 	topic *pubsub.Topic
 }
 
+// WakuProtoInfo holds protocol specific info
+// To be used at a later stage to set various config such as criteria for peer management specific to each Waku protocols
+// This should make peer-manager agnostic to protocol
+type WakuProtoInfo struct {
+	waku2ENRBitField uint8
+}
+
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
-	peerConnector       *PeerConnectionStrategy
-	maxPeers            int
-	maxRelayPeers       int
-	logger              *zap.Logger
-	InRelayPeersTarget  int
-	OutRelayPeersTarget int
-	host                host.Host
-	serviceSlots        *ServiceSlots
-	ctx                 context.Context
-	sub                 event.Subscription
-	topicMutex          sync.RWMutex
-	subRelayTopics      map[string]*NodeTopicDetails
-	discoveryService    *discv5.DiscoveryV5
+	peerConnector          *PeerConnectionStrategy
+	maxPeers               int
+	maxRelayPeers          int
+	logger                 *zap.Logger
+	InRelayPeersTarget     int
+	OutRelayPeersTarget    int
+	host                   host.Host
+	serviceSlots           *ServiceSlots
+	ctx                    context.Context
+	sub                    event.Subscription
+	topicMutex             sync.RWMutex
+	subRelayTopics         map[string]*NodeTopicDetails
+	discoveryService       *discv5.DiscoveryV5
+	wakuprotoToENRFieldMap map[protocol.ID]WakuProtoInfo
 }
 
 // PeerSelection provides various options based on which Peer is selected from a list of peers.
@@ -92,13 +99,14 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 	}
 
 	pm := &PeerManager{
-		logger:              logger.Named("peer-manager"),
-		maxRelayPeers:       maxRelayPeers,
-		InRelayPeersTarget:  inRelayPeersTarget,
-		OutRelayPeersTarget: outRelayPeersTarget,
-		serviceSlots:        NewServiceSlot(),
-		subRelayTopics:      make(map[string]*NodeTopicDetails),
-		maxPeers:            maxPeers,
+		logger:                 logger.Named("peer-manager"),
+		maxRelayPeers:          maxRelayPeers,
+		InRelayPeersTarget:     inRelayPeersTarget,
+		OutRelayPeersTarget:    outRelayPeersTarget,
+		serviceSlots:           NewServiceSlot(),
+		subRelayTopics:         make(map[string]*NodeTopicDetails),
+		maxPeers:               maxPeers,
+		wakuprotoToENRFieldMap: map[protocol.ID]WakuProtoInfo{},
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
@@ -125,6 +133,11 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
+
+	var enrField uint8
+	enrField |= (1 << 0)
+	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, enrField)
+
 	pm.ctx = ctx
 	if pm.sub != nil {
 		go pm.peerEventLoop(ctx)
@@ -211,16 +224,10 @@ func (pm *PeerManager) DiscoverAndConnectToPeers(ctx context.Context, cluster ui
 	return nil
 }
 
-// Convert wakuProtocols to enrBitField
-func wakuProtoToENRFlags(protocol protocol.ID) (uint8, error) {
-	//TODO: figure out where to implement this without causing import loop
-	/*
-		 	switch(protocol){
-			case string(relay.WakuRelayID_v200):
-
-			}
-	*/
-	return 0, nil
+// RegisterWakuProtocol to be used by Waku protocols that could be used for peer discovery
+// Which means protoocl should be as defined in waku2 ENR key in https://rfc.vac.dev/spec/31/.
+func (pm *PeerManager) RegisterWakuProtocol(proto protocol.ID, bitField uint8) {
+	pm.wakuprotoToENRFieldMap[proto] = WakuProtoInfo{waku2ENRBitField: bitField}
 }
 
 //type Predicate func(enode.Iterator) enode.Iterator
@@ -231,14 +238,15 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	shard uint16, wakuProtocol protocol.ID) ([]service.PeerData, error) {
 	var peers []service.PeerData
 
-	wakuENRFlags, err := wakuProtoToENRFlags(wakuProtocol)
-	if err != nil {
-		return nil, err
+	wakuProtoInfo, ok := pm.wakuprotoToENRFieldMap[wakuProtocol]
+	if !ok {
+		pm.logger.Error("cannot do on demand discovery for non-waku protocol", zap.String("protocol", string(wakuProtocol)))
+		return nil, errors.New("cannot do on demand discovery for non-waku protocol")
 	}
 
 	iterator, err := pm.discoveryService.PeerIterator(
 		discv5.FilterShard(cluster, shard),
-		discv5.FilterCapabilities(wakuENRFlags))
+		discv5.FilterCapabilities(wakuProtoInfo.waku2ENRBitField))
 	if err != nil {
 		pm.logger.Error("failed to find peers for shard and services", zap.Uint16("cluster", cluster),
 			zap.Uint16("shard", shard), zap.String("service", string(wakuProtocol)), zap.Error(err))
@@ -249,7 +257,7 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	defer iterator.Close()
 
 	for iterator.Next() {
-		pInfo, err := enr.EnodeToPeerInfo(iterator.Node())
+		pInfo, err := wenr.EnodeToPeerInfo(iterator.Node())
 		if err != nil {
 			continue
 		}
@@ -264,13 +272,13 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	return peers, nil
 }
 
-func (pm *PeerManager) discoverRelayPeersByPubsub(topic string) {
-	shardInfo, err := waku_proto.TopicsToRelayShards(topic)
+func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto protocol.ID) {
+	shardInfo, err := waku_proto.TopicsToRelayShards(pubsubTopic)
 	if err != nil {
-		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", topic), zap.Error(err))
+		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
 		return
 	}
-	pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].Cluster, shardInfo[0].Indices[0], relay.WakuRelayID_v200)
+	pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].Cluster, shardInfo[0].Indices[0], proto)
 }
 
 // ensureMinRelayConnsPerTopic makes sure there are min of D conns per pubsubTopic.
@@ -289,7 +297,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
-				pm.discoverRelayPeersByPubsub(topicStr)
+				pm.discoverPeersByPubsubTopic(topicStr, relay.WakuRelayID_v200)
 				continue
 			}
 			//Connect to eligible peers.
@@ -581,8 +589,9 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 			if err == nil {
 				peerIDPtr = &peerID
 			} else {
-				//TODO: Trigger on-demand discovery for this topic.
-
+				//TODO:Trigger on-demand discovery for this topic and connect to peer immediately and set peerID.
+				//TODO: Use context to limit time for connectivity
+				//pm.discoverPeersByPubsubTopic(pubSubTopic, proto)
 				pm.logger.Debug("could not select random peer", zap.Error(err))
 			}
 		}

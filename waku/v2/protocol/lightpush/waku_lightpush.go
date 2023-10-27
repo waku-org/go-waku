@@ -49,6 +49,7 @@ func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, reg p
 	wakuLP.log = log.Named("lightpush")
 	wakuLP.pm = pm
 	wakuLP.metrics = newMetrics(reg)
+
 	return wakuLP
 }
 
@@ -69,6 +70,11 @@ func (wakuLP *WakuLightPush) Start(ctx context.Context) error {
 	wakuLP.h.SetStreamHandlerMatch(LightPushID_v20beta1, protocol.PrefixTextMatch(string(LightPushID_v20beta1)), wakuLP.onRequest(ctx))
 	wakuLP.log.Info("Light Push protocol started")
 
+	if wakuLP.pm != nil {
+		var enrField uint8
+		enrField |= (1 << 3)
+		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, enrField)
+	}
 	return nil
 }
 

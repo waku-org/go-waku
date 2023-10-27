@@ -76,5 +76,10 @@ func NewWakuStore(p MessageProvider, pm *peermanager.PeerManager, timesource tim
 	wakuStore.pm = pm
 	wakuStore.metrics = newMetrics(reg)
 
+	if pm != nil {
+		var enrField uint8
+		enrField |= (1 << 1)
+		pm.RegisterWakuProtocol(StoreID_v20beta4, enrField)
+	}
 	return wakuStore
 }

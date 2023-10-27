@@ -57,7 +57,11 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
-
+	if params.pm != nil {
+		var enrField uint8
+		enrField |= (1 << 2)
+		params.pm.RegisterWakuProtocol(FilterSubscribeID_v20beta1, enrField)
+	}
 	return wf
 }
 
