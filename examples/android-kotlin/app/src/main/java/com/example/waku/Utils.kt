@@ -22,12 +22,3 @@ fun ContentTopic(applicationName: String, applicationVersion: Long, contentTopic
     return Gowaku.contentTopic(applicationName, applicationVersion, contentTopicName, encoding)
 }
 
-/**
- * Create a pubsub topic string
- * @param name
- * @param encoding
- * @return Pubsub topic string according to RFC 23
- */
-fun PubsubTopic(name: String, encoding: String): String {
-    return Gowaku.pubsubTopic(name, encoding)
-}

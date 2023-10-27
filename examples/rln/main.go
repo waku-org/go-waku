@@ -31,7 +31,7 @@ var keystorePath = "./rlnKeystore.json"
 var keystorePassword = "password"
 var membershipIndex = uint(0)
 var contentTopic, _ = protocol.NewContentTopic("rln", 1, "test", "proto")
-var pubsubTopic = protocol.DefaultPubsubTopic()
+var pubsubTopic = protocol.DefaultPubsubTopic{}
 
 // ============================================================================
 

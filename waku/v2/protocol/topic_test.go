@@ -117,9 +117,8 @@ func TestShardChoiceSimulation(t *testing.T) {
 func TestShardPubsubTopic(t *testing.T) {
 	{ // not waku topci
 		topic := "/waku/1/2/3"
-		wakuTopic, err := ToWakuPubsubTopic(topic)
+		_, err := ToWakuPubsubTopic(topic)
 		require.Error(t, ErrNotWakuPubsubTopic, err)
-		require.Equal(t, defaultPubsubTopic, wakuTopic.String())
 	}
 
 	{ // check default pubsub topic
