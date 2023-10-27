@@ -205,6 +205,9 @@ func (pm *PeerManager) getRelayPeers(specificPeers ...peer.ID) (inRelayPeers pee
 
 func (pm *PeerManager) DiscoverAndConnectToPeers(ctx context.Context, cluster uint16,
 	shard uint16, serviceProtocol protocol.ID) error {
+	if pm.discoveryService == nil {
+		return nil
+	}
 	peers, err := pm.discoverOnDemand(cluster, shard, serviceProtocol)
 	if err != nil {
 		return err
@@ -257,6 +260,9 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	defer iterator.Close()
 
 	for iterator.Next() {
+		if pm.ctx.Err() != nil {
+			break
+		}
 		pInfo, err := wenr.EnodeToPeerInfo(iterator.Node())
 		if err != nil {
 			continue
@@ -278,7 +284,10 @@ func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto prot
 		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
 		return
 	}
-	pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].Cluster, shardInfo[0].Indices[0], proto)
+	err = pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].Cluster, shardInfo[0].Indices[0], proto)
+	if err != nil {
+		pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
+	}
 }
 
 // ensureMinRelayConnsPerTopic makes sure there are min of D conns per pubsubTopic.
