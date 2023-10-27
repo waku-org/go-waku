@@ -637,6 +637,11 @@ func (w *WakuNode) FilterLightnode() *filter.WakuFilterLightNode {
 	return nil
 }
 
+// PeerManager for getting peer filterv2 protocol
+func (w *WakuNode) PeerManager() *peermanager.PeerManager {
+	return w.peermanager
+}
+
 // Lightpush is used to access any operation related to Waku Lightpush protocol
 func (w *WakuNode) Lightpush() *lightpush.WakuLightPush {
 	if result, ok := w.lightPush.(*lightpush.WakuLightPush); ok {

@@ -299,7 +299,6 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		} else {
 			selectedPeer = params.selectedPeer
 		}
-
 		if selectedPeer == "" {
 			wf.metrics.RecordError(peerNotFoundFailure)
 			wf.log.Error("selecting peer", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics),
@@ -365,16 +364,24 @@ func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterSubscribeO
 	return params, nil
 }
 
-func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID) error {
+func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ...FilterPingOption) error {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
 		return err
 	}
 
+	params := &FilterPingParameters{}
+	for _, opt := range opts {
+		opt(params)
+	}
+	if len(params.requestID) == 0 {
+		params.requestID = protocol.GenerateRequestID()
+	}
+
 	return wf.request(
 		ctx,
-		&FilterSubscribeParameters{selectedPeer: peerID, requestID: protocol.GenerateRequestID()},
+		&FilterSubscribeParameters{selectedPeer: peerID, requestID: params.requestID},
 		pb.FilterSubscribeRequest_SUBSCRIBER_PING,
 		protocol.ContentFilter{})
 }

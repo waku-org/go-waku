@@ -60,6 +60,10 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 		_ = NewAdminService(node, mux, wrpc.log)
 	}
 
+	if node.FilterLightnode() != nil {
+		_ = NewFilterService(node, mux, log)
+	}
+
 	return wrpc
 }
 
