@@ -20,6 +20,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
@@ -189,9 +190,88 @@ func (pm *PeerManager) getRelayPeers(specificPeers ...peer.ID) (inRelayPeers pee
 	return
 }
 
-/* func (pm *PeerManager) OnDemandPeerDiscovery(cluster int16, shard int16, wakuServices []string) {
+func (pm *PeerManager) DiscoverAndConnectToPeers(ctx context.Context, cluster uint16,
+	shard uint16, serviceProtocol protocol.ID) error {
+	peers, err := pm.discoverOnDemand(cluster, shard, serviceProtocol)
+	if err != nil {
+		return err
+	}
+	pm.logger.Debug("discovered peers on demand ", zap.Int("noOfPeers", len(peers)))
+	connectNow := false
+	//Add discovered peers to peerStore and connect to them
+	for idx, p := range peers {
+		if serviceProtocol != relay.WakuRelayID_v200 && idx <= 1 {
+			//how many connections to initiate? Maybe this could be a config exposed to client API.
+			//For now just going ahead with initiating connections with 2 nodes in case of non-relay service
+			//In case of relay let it go through connectivityLoop
+			connectNow = true
+		}
+		pm.AddDiscoveredPeer(p, connectNow)
+	}
+	return nil
+}
 
-} */
+// Convert wakuProtocols to enrBitField
+func wakuProtoToENRFlags(protocol protocol.ID) (uint8, error) {
+	//TODO: figure out where to implement this without causing import loop
+	/*
+		 	switch(protocol){
+			case string(relay.WakuRelayID_v200):
+
+			}
+	*/
+	return 0, nil
+}
+
+//type Predicate func(enode.Iterator) enode.Iterator
+
+// OnDemandPeerDiscovery initiates an on demand peer discovery and
+// filters peers based on cluster,shard and any wakuservice protocols specified
+func (pm *PeerManager) discoverOnDemand(cluster uint16,
+	shard uint16, wakuProtocol protocol.ID) ([]service.PeerData, error) {
+	var peers []service.PeerData
+
+	wakuENRFlags, err := wakuProtoToENRFlags(wakuProtocol)
+	if err != nil {
+		return nil, err
+	}
+
+	iterator, err := pm.discoveryService.PeerIterator(
+		discv5.FilterShard(cluster, shard),
+		discv5.FilterCapabilities(wakuENRFlags))
+	if err != nil {
+		pm.logger.Error("failed to find peers for shard and services", zap.Uint16("cluster", cluster),
+			zap.Uint16("shard", shard), zap.String("service", string(wakuProtocol)), zap.Error(err))
+		return peers, err
+	}
+
+	//Iterate and fill peers.
+	defer iterator.Close()
+
+	for iterator.Next() {
+		pInfo, err := enr.EnodeToPeerInfo(iterator.Node())
+		if err != nil {
+			continue
+		}
+		pData := service.PeerData{
+			Origin:   wps.Discv5,
+			ENR:      iterator.Node(),
+			AddrInfo: *pInfo,
+		}
+		peers = append(peers, pData)
+
+	}
+	return peers, nil
+}
+
+func (pm *PeerManager) discoverRelayPeersByPubsub(topic string) {
+	shardInfo, err := waku_proto.TopicsToRelayShards(topic)
+	if err != nil {
+		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", topic), zap.Error(err))
+		return
+	}
+	pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].Cluster, shardInfo[0].Indices[0], relay.WakuRelayID_v200)
+}
 
 // ensureMinRelayConnsPerTopic makes sure there are min of D conns per pubsubTopic.
 // If not it will look into peerStore to initiate more connections.
@@ -209,7 +289,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
-				//TODO: Trigger on-demand discovery for this topic.
+				pm.discoverRelayPeersByPubsub(topicStr)
 				continue
 			}
 			//Connect to eligible peers.

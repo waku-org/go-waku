@@ -23,3 +23,18 @@ func PrefixTextMatch(prefix string) func(protocol.ID) bool {
 		return strings.HasPrefix(string(receivedProtocol), prefix)
 	}
 }
+
+// Convert wakuProtocols to enrBitField
+/* func wakuProtoToENRFlags(protocol string) (uint8, error) {
+	var wakuENRField uint8
+	switch protocol {
+	case string(store.StoreID_v20beta4):
+	case string(filter.FilterSubscribeID_v20beta1):
+	case string(lightpush.LightPushID_v20beta1):
+	case string(relay.WakuRelayID_v200):
+	default:
+		return 0, errors.New("protocol provided is not a waku protocol")
+	}
+	return wakuENRField, nil
+}
+*/

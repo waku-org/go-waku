@@ -103,7 +103,6 @@ func (c *PeerConnectionStrategy) Subscribe(ctx context.Context, ch <-chan servic
 	}()
 }
 
-
 func (c *PeerConnectionStrategy) consumeSubscription(s subscription) {
 	for {
 		// for returning from the loop when peerConnector is paused.
