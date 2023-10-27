@@ -203,14 +203,6 @@ func waku_content_topic(applicationName *C.char, applicationVersion C.uint, cont
 	return execOkCB(onOkCb, contentTopic.String())
 }
 
-// Create a pubsub topic string according to RFC 23
-//
-//export waku_pubsub_topic
-func waku_pubsub_topic(name *C.char, encoding *C.char, onOkCb C.WakuCallBack) C.int {
-	topic := library.PubsubTopic(C.GoString(name), C.GoString(encoding))
-	return execOkCB(onOkCb, topic)
-}
-
 // Get the default pubsub topic used in waku2: /waku/2/default-waku/proto
 //
 //export waku_default_pubsub_topic

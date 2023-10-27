@@ -122,22 +122,22 @@ func ContainsShard(record *enr.Record, cluster uint16, index uint16) bool {
 	return rs.Contains(cluster, index)
 }
 
-func ContainsShardWithNsTopic(record *enr.Record, topic protocol.NamespacedPubsubTopic) bool {
-	if topic.Kind() != protocol.StaticSharding {
+func ContainsShardWithWakuTopic(record *enr.Record, topic protocol.WakuPubSubTopic) bool {
+	if shardTopic, err := protocol.ToShardPubsubTopic(topic); err != nil {
 		return false
+	} else {
+		return ContainsShard(record, shardTopic.Cluster(), shardTopic.Shard())
 	}
-	shardTopic := topic.(protocol.StaticShardingPubsubTopic)
-	return ContainsShard(record, shardTopic.Cluster(), shardTopic.Shard())
 }
 
 func ContainsRelayShard(record *enr.Record, topic protocol.StaticShardingPubsubTopic) bool {
-	return ContainsShardWithNsTopic(record, topic)
+	return ContainsShardWithWakuTopic(record, topic)
 }
 
 func ContainsShardTopic(record *enr.Record, topic string) bool {
-	shardTopic, err := protocol.ToShardedPubsubTopic(topic)
+	shardTopic, err := protocol.ToWakuPubsubTopic(topic)
 	if err != nil {
 		return false
 	}
-	return ContainsShardWithNsTopic(record, shardTopic)
+	return ContainsShardWithWakuTopic(record, shardTopic)
 }
