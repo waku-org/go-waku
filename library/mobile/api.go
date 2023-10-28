@@ -80,7 +80,7 @@ func ContentTopic(applicationName string, applicationVersion int, contentTopicNa
 
 // DefaultPubsubTopic returns the default pubsub topic used in waku2: /waku/2/default-waku/proto
 func DefaultPubsubTopic() string {
-	return protocol.DefaultPubsubTopic{}.String()
+	return library.DefaultPubsubTopic()
 }
 
 // Peers retrieves the list of peers known by the waku node
