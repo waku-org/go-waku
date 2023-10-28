@@ -81,7 +81,10 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	}
 	var subResult subscribeResult
 	subResult.Subscriptions = subscriptions
-	subResult.Error = err.Error()
+	if err != nil {
+		subResult.Error = err.Error()
+	}
+
 	return marshalJSON(subResult)
 }
 

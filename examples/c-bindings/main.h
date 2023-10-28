@@ -2,6 +2,8 @@
 #define MAIN_H
 
 #include <stdbool.h>
+#include <time.h>
+#include <stdint.h>
 #include "nxjson.c"
 
 /// Convert seconds to nanoseconds

@@ -265,7 +265,7 @@ func AddPeer(address string, protocolID string) (string, error) {
 		return "", err
 	}
 
-	return marshalJSON(peerID)
+	return peerID.String(), nil
 }
 
 // Connect is used to connect to a peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
@@ -350,13 +350,6 @@ func DefaultPubsubTopic() string {
 	return protocol.DefaultPubsubTopic().String()
 }
 
-func getTopic(topic string) string {
-	if topic == "" {
-		return protocol.DefaultPubsubTopic().String()
-	}
-	return topic
-}
-
 type subscriptionMsg struct {
 	MessageID   string          `json:"messageId"`
 	PubsubTopic string          `json:"pubsubTopic"`
@@ -380,6 +373,19 @@ func Peers() (string, error) {
 	peers, err := wakuState.node.Peers()
 	if err != nil {
 		return "", err
+	}
+
+	for _, p := range peers {
+		addrs := []multiaddr.Multiaddr{}
+		for i := range p.Addrs {
+			// Filtering out SNI addresses due to https://github.com/waku-org/waku-rust-bindings/issues/66
+			// TODO: once https://github.com/multiformats/rust-multiaddr/issues/88 is implemented, remove this
+			_, err := p.Addrs[i].ValueForProtocol(multiaddr.P_SNI)
+			if err != nil {
+				addrs = append(addrs, p.Addrs[i])
+			}
+		}
+		p.Addrs = addrs
 	}
 
 	return marshalJSON(peers)
