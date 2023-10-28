@@ -107,10 +107,11 @@ func (s *StaticShardingPubsubTopic) Parse(topic string) error {
 }
 
 func ToShardPubsubTopic(topic WakuPubSubTopic) (StaticShardingPubsubTopic, error) {
-	if topic.String() != defaultPubsubTopic {
-		return topic.(StaticShardingPubsubTopic), nil
-	}
-	return StaticShardingPubsubTopic{}, ErrNotShardPubsubTopic
+        result, ok := topic.(StaticShardingPubsubTopic)
+        if !ok {
+             return StaticShardingPubsubTopic{}, ErrNotShardPubsubTopic
+        }
+        return result, nil
 }
 
 // ToWakuPubsubTopic takes a pubSub topic string and creates a WakuPubsubTopic object.
