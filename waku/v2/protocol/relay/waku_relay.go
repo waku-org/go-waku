@@ -25,7 +25,7 @@ import (
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
-var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic().String()
+var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic{}.String()
 
 // WakuRelay is the implementation of the Waku Relay protocol
 type WakuRelay struct {
@@ -223,8 +223,10 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (subs *pubsub.Subscript
 	return sub, nil
 }
 
-// PublishToTopic is used to broadcast a WakuMessage to a pubsub topic
-func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage, topic string) ([]byte, error) {
+// PublishToTopic is used to broadcast a WakuMessage to a pubsub topic. The pubsubTopic is derived from contentTopic
+// specified in the message via autosharding. To publish to a specific pubsubTopic, the `WithPubSubTopic` option should
+// be provided
+func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts ...PublishOption) ([]byte, error) {
 	// Publish a `WakuMessage` to a PubSub topic.
 	if w.pubsub == nil {
 		return nil, errors.New("PubSub hasn't been set")
@@ -234,15 +236,28 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 		return nil, errors.New("message can't be null")
 	}
 
-	if err := message.Validate(); err != nil {
+	err := message.Validate()
+	if err != nil {
 		return nil, err
 	}
 
-	if !w.EnoughPeersToPublishToTopic(topic) {
+	params := new(publishParameters)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	if params.pubsubTopic == "" {
+		params.pubsubTopic, err = waku_proto.GetPubSubTopicFromContentTopic(message.ContentTopic)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !w.EnoughPeersToPublishToTopic(params.pubsubTopic) {
 		return nil, errors.New("not enough peers to publish")
 	}
 
-	pubSubTopic, err := w.upsertTopic(topic)
+	pubSubTopic, err := w.upsertTopic(params.pubsubTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -257,21 +272,11 @@ func (w *WakuRelay) PublishToTopic(ctx context.Context, message *pb.WakuMessage,
 		return nil, err
 	}
 
-	hash := message.Hash(topic)
+	hash := message.Hash(params.pubsubTopic)
 
-	w.log.Debug("waku.relay published", zap.String("pubsubTopic", topic), logging.HexString("hash", hash), zap.Int64("publishTime", w.timesource.Now().UnixNano()), zap.Int("payloadSizeBytes", len(message.Payload)))
+	w.log.Debug("waku.relay published", zap.String("pubsubTopic", params.pubsubTopic), logging.HexString("hash", hash), zap.Int64("publishTime", w.timesource.Now().UnixNano()), zap.Int("payloadSizeBytes", len(message.Payload)))
 
 	return hash, nil
-}
-
-// Publish is used to broadcast a WakuMessage, the pubsubTopic is derived from contentTopic specified in the message via autosharding.
-// To publish to a specific pubsubTopic, please use PublishToTopic
-func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage) ([]byte, error) {
-	pubSubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(message.ContentTopic)
-	if err != nil {
-		return nil, err
-	}
-	return w.PublishToTopic(ctx, message, pubSubTopic)
 }
 
 func (w *WakuRelay) GetSubscription(contentTopic string) (*Subscription, error) {

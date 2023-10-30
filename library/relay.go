@@ -16,7 +16,7 @@ func RelayEnoughPeers(topic string) (bool, error) {
 		return false, errWakuNodeNotReady
 	}
 
-	topicToCheck := protocol.DefaultPubsubTopic().String()
+	topicToCheck := protocol.DefaultPubsubTopic{}.String()
 	if topic != "" {
 		topicToCheck = topic
 	}
@@ -39,7 +39,7 @@ func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, erro
 		ctx = context.Background()
 	}
 
-	hash, err := wakuState.node.Relay().PublishToTopic(ctx, msg, pubsubTopic)
+	hash, err := wakuState.node.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic))
 	return hexutil.Encode(hash), err
 }
 

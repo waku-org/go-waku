@@ -49,8 +49,8 @@ func NewRelayShards(cluster uint16, indices ...uint16) (RelayShards, error) {
 	return RelayShards{Cluster: cluster, Indices: indices}, nil
 }
 
-func (rs RelayShards) Topics() []NamespacedPubsubTopic {
-	var result []NamespacedPubsubTopic
+func (rs RelayShards) Topics() []WakuPubSubTopic {
+	var result []WakuPubSubTopic
 	for _, i := range rs.Indices {
 		result = append(result, NewStaticShardingPubsubTopic(rs.Cluster, i))
 	}
@@ -72,14 +72,12 @@ func (rs RelayShards) Contains(cluster uint16, index uint16) bool {
 	return found
 }
 
-func (rs RelayShards) ContainsNamespacedTopic(topic NamespacedPubsubTopic) bool {
-	if topic.Kind() != StaticSharding {
+func (rs RelayShards) ContainsShardPubsubTopic(topic WakuPubSubTopic) bool {
+	if shardedTopic, err := ToShardPubsubTopic(topic); err != nil {
 		return false
+	} else {
+		return rs.Contains(shardedTopic.Cluster(), shardedTopic.Shard())
 	}
-
-	shardedTopic := topic.(StaticShardingPubsubTopic)
-
-	return rs.Contains(shardedTopic.Cluster(), shardedTopic.Shard())
 }
 
 func TopicsToRelayShards(topic ...string) ([]RelayShards, error) {
@@ -123,11 +121,11 @@ func TopicsToRelayShards(topic ...string) ([]RelayShards, error) {
 }
 
 func (rs RelayShards) ContainsTopic(topic string) bool {
-	nsTopic, err := ToShardedPubsubTopic(topic)
+	wTopic, err := ToWakuPubsubTopic(topic)
 	if err != nil {
 		return false
 	}
-	return rs.ContainsNamespacedTopic(nsTopic)
+	return rs.ContainsShardPubsubTopic(wTopic)
 }
 
 func (rs RelayShards) IndicesList() ([]byte, error) {
