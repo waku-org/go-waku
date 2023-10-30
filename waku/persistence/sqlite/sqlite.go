@@ -1,9 +1,11 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -32,10 +34,35 @@ func addSqliteURLDefaults(dburl string) string {
 
 func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 	logger.Info("starting sqlite database vacuuming")
-	_, err := db.Exec("VACUUM")
-	if err != nil {
-		return err
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error)
+
+	go func() {
+		defer cancel()
+		_, err := db.Exec("VACUUM")
+		if err != nil {
+			errCh <- err
+		}
+	}()
+
+	t := time.NewTicker(2 * time.Minute)
+	defer t.Stop()
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			break loop
+		case err := <-errCh:
+			return err
+		case <-t.C:
+			logger.Info("still vacuuming...")
+		}
 	}
+
 	logger.Info("finished sqlite database vacuuming")
 	return nil
 }

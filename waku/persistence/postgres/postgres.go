@@ -1,8 +1,10 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/pgx"
@@ -15,10 +17,35 @@ import (
 
 func executeVacuum(db *sql.DB, logger *zap.Logger) error {
 	logger.Info("starting PostgreSQL database vacuuming")
-	_, err := db.Exec("VACUUM FULL")
-	if err != nil {
-		return err
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error)
+
+	go func() {
+		defer cancel()
+		_, err := db.Exec("VACUUM FULL")
+		if err != nil {
+			errCh <- err
+		}
+	}()
+
+	t := time.NewTicker(2 * time.Minute)
+	defer t.Stop()
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			break loop
+		case err := <-errCh:
+			return err
+		case <-t.C:
+			logger.Info("still vacuuming...")
+		}
 	}
+
 	logger.Info("finished PostgreSQL database vacuuming")
 	return nil
 }
