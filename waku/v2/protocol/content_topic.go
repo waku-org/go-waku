@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-const DefaultContentTopic = "/waku/2/default-content/proto"
-
 var ErrInvalidFormat = errors.New("invalid content topic format")
 var ErrMissingGeneration = errors.New("missing part: generation")
 var ErrInvalidGeneration = errors.New("generation should be a number")
