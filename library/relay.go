@@ -4,16 +4,11 @@ import (
 	"context"
 	"time"
 
-	"sync"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 )
-
-var relaySubscriptions map[string]*relay.Subscription = make(map[string]*relay.Subscription)
-var relaySubsMutex sync.Mutex
 
 // RelayEnoughPeers determines if there are enough peers to publish a message on a topic
 func RelayEnoughPeers(topic string) (bool, error) {
@@ -55,43 +50,38 @@ func RelayPublish(messageJSON string, topic string, ms int) (string, error) {
 		return "", err
 	}
 
-	return relayPublish(msg, getTopic(topic), int(ms))
+	return relayPublish(msg, topic, int(ms))
 }
 
-func relaySubscribe(topic string) error {
-	topicToSubscribe := getTopic(topic)
-
-	relaySubsMutex.Lock()
-	defer relaySubsMutex.Unlock()
-
-	_, ok := relaySubscriptions[topicToSubscribe]
-	if ok {
-		return nil
-	}
-
-	subscription, err := wakuState.node.Relay().Subscribe(context.Background(), protocol.NewContentFilter(topicToSubscribe))
+func relaySubscribe(filterJSON string) error {
+	cf, err := toContentFilter(filterJSON)
 	if err != nil {
 		return err
 	}
 
-	relaySubscriptions[topicToSubscribe] = subscription[0]
+	subscriptions, err := wakuState.node.Relay().Subscribe(context.Background(), cf)
+	if err != nil {
+		return err
+	}
 
-	go func(subscription *relay.Subscription) {
-		for envelope := range subscription.Ch {
-			send("message", toSubscriptionMessage(envelope))
-		}
-	}(subscription[0])
+	for _, sub := range subscriptions {
+		go func(subscription *relay.Subscription) {
+			for envelope := range subscription.Ch {
+				send("message", toSubscriptionMessage(envelope))
+			}
+		}(sub)
+	}
 
 	return nil
 }
 
 // RelaySubscribe subscribes to a WakuRelay topic.
-func RelaySubscribe(topic string) error {
+func RelaySubscribe(contentFilterJSON string) error {
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
 	}
 
-	return relaySubscribe(topic)
+	return relaySubscribe(contentFilterJSON)
 }
 
 // RelayTopics returns a list of pubsub topics the node is subscribed to in WakuRelay
@@ -104,24 +94,15 @@ func RelayTopics() (string, error) {
 }
 
 // RelayUnsubscribe closes the pubsub subscription to a pubsub topic
-func RelayUnsubscribe(topic string) error {
+func RelayUnsubscribe(contentFilterJSON string) error {
+	cf, err := toContentFilter(contentFilterJSON)
+	if err != nil {
+		return err
+	}
+
 	if wakuState.node == nil {
 		return errWakuNodeNotReady
 	}
 
-	topicToUnsubscribe := getTopic(topic)
-
-	relaySubsMutex.Lock()
-	defer relaySubsMutex.Unlock()
-
-	subscription, ok := relaySubscriptions[topicToUnsubscribe]
-	if ok {
-		return nil
-	}
-
-	subscription.Unsubscribe()
-
-	delete(relaySubscriptions, topicToUnsubscribe)
-
-	return wakuState.node.Relay().Unsubscribe(context.Background(), protocol.NewContentFilter(topicToUnsubscribe))
+	return wakuState.node.Relay().Unsubscribe(context.Background(), cf)
 }
