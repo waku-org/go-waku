@@ -25,7 +25,7 @@ import (
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
-var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic().String()
+var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic{}.String()
 
 // WakuRelay is the implementation of the Waku Relay protocol
 type WakuRelay struct {

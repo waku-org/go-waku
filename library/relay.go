@@ -16,7 +16,7 @@ func RelayEnoughPeers(topic string) (bool, error) {
 		return false, errWakuNodeNotReady
 	}
 
-	topicToCheck := protocol.DefaultPubsubTopic().String()
+	topicToCheck := protocol.DefaultPubsubTopic{}.String()
 	if topic != "" {
 		topicToCheck = topic
 	}

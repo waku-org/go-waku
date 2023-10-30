@@ -24,7 +24,7 @@ import (
 
 var log = logging.Logger("filter2")
 
-var pubSubTopic = protocol.DefaultPubsubTopic()
+var pubSubTopic = protocol.DefaultPubsubTopic{}
 
 const contentTopic = "/filter2test/1/testTopic/proto"
 
