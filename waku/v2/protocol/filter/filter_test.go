@@ -125,7 +125,7 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll b
 	return node, node2Filter
 }
 
-func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
+func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope, expectTimeout bool) {
 	s.wg.Add(1)
 	var msgFound = false
 	go func() {
@@ -137,9 +137,10 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 					msgFound = true
 				}
 			}
-			s.Require().True(msgFound)
+			// Either wait for message or report error when it is unexpected
+			s.Require().True((msgFound && !expectTimeout) || (!msgFound && expectTimeout))
 		case <-time.After(5 * time.Second):
-			s.Require().Fail("Message timeout")
+			s.Require().True(expectTimeout, "Message timeout")
 		case <-s.ctx.Done():
 			s.Require().Fail("test exceeded allocated time")
 		}
@@ -372,7 +373,7 @@ func (s *FilterTestSuite) TestPeerFailure() {
 
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic)
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	// Failure is removed
 	s.Require().False(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
@@ -498,7 +499,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	// Wrong content topic
 	s.waitForTimeout(func() {
@@ -531,7 +532,8 @@ func (s *FilterTestSuite) TestAutoShard() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
+
 	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
 		PubsubTopic:   s.testTopic,
 		ContentTopics: protocol.NewContentTopicSet(newContentTopic),

@@ -33,7 +33,7 @@ func (s *FilterTestSuite) TestCreateSubscription() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 }
 
 func (s *FilterTestSuite) TestModifySubscription() {
@@ -45,7 +45,7 @@ func (s *FilterTestSuite) TestModifySubscription() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	// Subscribe to another content_topic
 	newContentTopic := "Topic_modified"
@@ -55,7 +55,7 @@ func (s *FilterTestSuite) TestModifySubscription() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 }
 
 func (s *FilterTestSuite) TestMultipleMessages() {
@@ -67,13 +67,13 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "first"), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	s.waitForMsg(func() {
 		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), s.testTopic)
 		s.Require().NoError(err)
 
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 }
 
 func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, params *FilterSubscribeParameters,

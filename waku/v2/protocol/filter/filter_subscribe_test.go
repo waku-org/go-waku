@@ -21,7 +21,7 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	// Should be received
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "first")
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	// Wrong content topic
 	s.waitForTimeout(func() {
@@ -46,14 +46,14 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	// Should be received on both subscriptions
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "fourth")
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "fifth")
-	}, secondSub[0].C)
+	}, secondSub[0].C, false)
 
-	s.waitForMsg(nil, s.subDetails[0].C)
-	s.waitForMsg(nil, secondSub[0].C)
+	s.waitForMsg(nil, s.subDetails[0].C, false)
+	s.waitForMsg(nil, secondSub[0].C, false)
 
 	// Unsubscribe from second sub only
 	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, secondSub[0])
@@ -62,7 +62,7 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	// Should still receive
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "sixth")
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	// Unsubscribe from first sub only
 	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, s.subDetails[0])
@@ -83,7 +83,7 @@ func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 	// Message should be received
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg")
-	}, s.subDetails[0].C)
+	}, s.subDetails[0].C, false)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
