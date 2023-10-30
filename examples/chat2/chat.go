@@ -319,18 +319,18 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	}
 
 	if c.options.LightPush.Enable {
-		var lightOpt lightpush.Option
+		lightOpt := []lightpush.Option{lightpush.WithDefaultPubsubTopic()}
 		var peerID peer.ID
 		peerID, err = options.LightPush.NodePeerID()
 		if err != nil {
-			lightOpt = lightpush.WithAutomaticPeerSelection()
+			lightOpt = append(lightOpt, lightpush.WithAutomaticPeerSelection())
 		} else {
-			lightOpt = lightpush.WithPeer(peerID)
+			lightOpt = append(lightOpt, lightpush.WithPeer(peerID))
 		}
 
-		_, err = c.node.Lightpush().Publish(c.ctx, wakuMsg, lightOpt)
+		_, err = c.node.Lightpush().Publish(c.ctx, wakuMsg, lightOpt...)
 	} else {
-		_, err = c.node.Relay().Publish(ctx, wakuMsg)
+		_, err = c.node.Relay().Publish(ctx, wakuMsg, relay.WithDefaultPubsubTopic())
 	}
 
 	return err

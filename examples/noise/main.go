@@ -18,7 +18,9 @@ import (
 	n "github.com/waku-org/go-noise"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/noise"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -186,7 +188,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.P
 
 		msg.Timestamp = wakuNode.Timesource().Now().UnixNano()
 
-		_, err = wakuNode.Relay().Publish(ctx, msg)
+		_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic())
 		if err != nil {
 			log.Error("Error sending a message", zap.Error(err))
 		}
@@ -194,13 +196,13 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.P
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.Pairing) {
-	sub, err := wakuNode.Relay().Subscribe(ctx)
+	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	if err != nil {
 		log.Error("Could not subscribe", zap.Error(err))
 		return
 	}
 
-	for value := range sub.Ch {
+	for value := range sub[0].Ch {
 		if value.Message().ContentTopic != pairingObj.ContentTopic {
 			continue
 		}

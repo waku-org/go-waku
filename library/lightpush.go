@@ -41,7 +41,7 @@ func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms
 		lpOptions = append(lpOptions, lightpush.WithPubSubTopic(pubsubTopic))
 	}
 
-	hash, err := wakuState.node.Lightpush().PublishToTopic(ctx, msg, lpOptions...)
+	hash, err := wakuState.node.Lightpush().Publish(ctx, msg, lpOptions...)
 	return hexutil.Encode(hash), err
 }
 

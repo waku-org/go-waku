@@ -65,22 +65,17 @@ if err != nil {
 ```
 
 
-To send a message, it needs to be wrapped into a [`WakuMessage`](https://rfc.vac.dev/spec/14/) protobuffer. The payload of the message is not limited to strings. Any kind of data that can be serialized
+To send a message, it needs to be wrapped into a [`WakuMessage`](https://rfc.vac.dev/spec/14/) protobuffer.
+The payload of the message is not limited to strings. Any kind of data that can be serialized
 into a `[]byte` can be sent as long as it does not exceed the maximum length a message can have (~1MB)
 
-The following functions can be used to publish a message:
-- `wakuNode.Lightpush().Publish(ctx, msg, opts...)` - to send a message to the default waku pubsub topic
-- `wakuNode.Lightpush().PublishToTopic(ctx, msg, topic, opts...)` - to send a message to a custom pubsub topic
+`wakuNode.Lightpush().Publish(ctx, msg, opts...)` is used to publish a message. This function will return a message id on success, or an error if the message could not be published.
 
-Both of these functions will return a message id on success, or an error if the message could not be published.
-
-If no options are specified, go-waku will automatically choose the peer used to broadcast the message via Lightpush. This behaviour can be controlled via options:
+If no options are specified, go-waku will automatically choose the peer used to broadcast the message via Lightpush and publish the message to a pubsub topic derived from the content topic of the message. This behaviour can be controlled via options:
 
 ### Options
-
+- `lightpush.WithPubSubTopic(topic)` - broadcast the message using a custom pubsub topic
+- `lightpush.WithDefaultPubsubTopic()` - broadcast the message to the default pubsub topic
 - `lightpush.WithPeer(peerID)` - use an specific peer ID (which should be part of the node peerstore) to broadcast the message with 
 - `lightpush.WithAutomaticPeerSelection(host)` - automatically select a peer that supports lightpush protocol from the peerstore to broadcast the message with
 - `lightpush.WithFastestPeerSelection(ctx)` - automatically select a peer based on its ping reply time
-
-
-
