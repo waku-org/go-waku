@@ -37,26 +37,26 @@ var ErrInvalidNumberFormat = errors.New("only 2^16 numbers are allowed")
 
 // StaticShardingPubsubTopic describes a pubSub topic as per StaticSharding
 type StaticShardingPubsubTopic struct {
-	cluster uint16
-	shard   uint16
+	clusterID uint16
+	shardID   uint16
 }
 
 // NewStaticShardingPubsubTopic creates a new pubSub topic
 func NewStaticShardingPubsubTopic(cluster uint16, shard uint16) StaticShardingPubsubTopic {
 	return StaticShardingPubsubTopic{
-		cluster: cluster,
-		shard:   shard,
+		clusterID: cluster,
+		shardID:   shard,
 	}
 }
 
 // Cluster returns the sharded cluster index
 func (s StaticShardingPubsubTopic) Cluster() uint16 {
-	return s.cluster
+	return s.clusterID
 }
 
 // Shard returns the shard number
 func (s StaticShardingPubsubTopic) Shard() uint16 {
-	return s.shard
+	return s.shardID
 }
 
 // Equal compares StaticShardingPubsubTopic
@@ -66,7 +66,7 @@ func (s StaticShardingPubsubTopic) Equal(t2 StaticShardingPubsubTopic) bool {
 
 // String formats StaticShardingPubsubTopic to RFC 23 specific string format for pubsub topic.
 func (s StaticShardingPubsubTopic) String() string {
-	return fmt.Sprintf("%s/%d/%d", StaticShardingPubsubTopicPrefix, s.cluster, s.shard)
+	return fmt.Sprintf("%s/%d/%d", StaticShardingPubsubTopicPrefix, s.clusterID, s.shardID)
 }
 
 // Parse parses a topic string into a StaticShardingPubsubTopic
@@ -100,18 +100,18 @@ func (s *StaticShardingPubsubTopic) Parse(topic string) error {
 		return ErrInvalidNumberFormat
 	}
 
-	s.shard = uint16(shardInt)
-	s.cluster = uint16(clusterInt)
+	s.shardID = uint16(shardInt)
+	s.clusterID = uint16(clusterInt)
 
 	return nil
 }
 
 func ToShardPubsubTopic(topic WakuPubSubTopic) (StaticShardingPubsubTopic, error) {
-        result, ok := topic.(StaticShardingPubsubTopic)
-        if !ok {
-             return StaticShardingPubsubTopic{}, ErrNotShardPubsubTopic
-        }
-        return result, nil
+	result, ok := topic.(StaticShardingPubsubTopic)
+	if !ok {
+		return StaticShardingPubsubTopic{}, ErrNotShardPubsubTopic
+	}
+	return result, nil
 }
 
 // ToWakuPubsubTopic takes a pubSub topic string and creates a WakuPubsubTopic object.

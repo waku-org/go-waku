@@ -400,13 +400,13 @@ func (d *DiscoveryV5) defaultPredicate() Predicate {
 			return false
 		}
 
-		if nodeRS.Cluster != localRS.Cluster {
+		if nodeRS.ClusterID != localRS.ClusterID {
 			return false
 		}
 
 		// Contains any
-		for _, idx := range localRS.Indices {
-			if nodeRS.Contains(localRS.Cluster, idx) {
+		for _, idx := range localRS.ShardIDs {
+			if nodeRS.Contains(localRS.ClusterID, idx) {
 				return true
 			}
 		}

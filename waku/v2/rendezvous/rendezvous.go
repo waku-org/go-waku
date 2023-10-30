@@ -148,8 +148,8 @@ func (r *Rendezvous) RegisterShard(ctx context.Context, cluster uint16, shard ui
 
 // RegisterRelayShards registers the node in the rendezvous point by specifying a RelayShards struct (more than one shard index can be registered)
 func (r *Rendezvous) RegisterRelayShards(ctx context.Context, rs protocol.RelayShards, rendezvousPoints []*RendezvousPoint) {
-	for _, idx := range rs.Indices {
-		go r.RegisterShard(ctx, rs.Cluster, idx, rendezvousPoints)
+	for _, idx := range rs.ShardIDs {
+		go r.RegisterShard(ctx, rs.ClusterID, idx, rendezvousPoints)
 	}
 }
 
