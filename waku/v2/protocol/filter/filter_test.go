@@ -139,7 +139,7 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope, expe
 			}
 			// Either wait for message or report error when it is unexpected
 			s.Require().True((msgFound && !expectTimeout) || (!msgFound && expectTimeout))
-		case <-time.After(5 * time.Second):
+		case <-time.After(2 * time.Second):
 			s.Require().True(expectTimeout, "Message timeout")
 		case <-s.ctx.Done():
 			s.Require().Fail("test exceeded allocated time")

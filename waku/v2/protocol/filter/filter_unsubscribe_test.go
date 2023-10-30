@@ -34,3 +34,39 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	s.Require().NoError(err)
 
 }
+
+func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
+
+	messages := prepareData(3, false, true, true)
+
+	// Subscribe with 3 content topics
+	for _, m := range messages {
+		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+	}
+
+	// All messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	// Unsubscribe with the last 2 content topics
+	for _, m := range messages[1:] {
+		_ = s.unsubscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+	}
+
+	// Messages should not be received for the last two contentTopics as it was unsubscribed
+	for _, m := range messages[1:] {
+		s.waitForMsg(func() {
+			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
+		}, s.subDetails[0].C, true)
+	}
+
+	// Message is still possible to receive for the first contentTopic
+	s.waitForMsg(func() {
+		s.publishMsg(messages[0].pubSubTopic, messages[0].contentTopic, messages[0].payload)
+	}, s.subDetails[0].C, false)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+
+}
