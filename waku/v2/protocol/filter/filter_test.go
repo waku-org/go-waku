@@ -249,11 +249,11 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 	return subDetails
 }
 
-func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) <-chan WakuFilterPushResult {
+func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
 
 	for _, sub := range s.subDetails {
 		if sub.ContentFilter.PubsubTopic == pubsubTopic {
-			topicsCount := len(s.contentFilter.ContentTopicsList())
+			topicsCount := len(sub.ContentFilter.ContentTopicsList())
 			if topicsCount == 1 {
 				_, err := s.lightNode.Unsubscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
 				s.Require().NoError(err)
@@ -261,11 +261,10 @@ func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, p
 				sub.Remove(contentTopic)
 			}
 			s.contentFilter = sub.ContentFilter
-			return nil
 		}
 	}
 
-	return nil
+	return s.lightNode.Subscriptions()
 }
 
 func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload ...string) {
@@ -289,8 +288,8 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 
 func prepareData(quantity int, topics, contentTopics, payloads bool) []WakuMsg {
 	var (
-		pubsubTopic  = "/waku/2/go/filter/test"
-		contentTopic = "TopicA"
+		pubsubTopic  = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
+		contentTopic = "TopicA"                 // Has to be the same with initial s.testContentTopic
 		payload      = "test_msg"
 		messages     []WakuMsg
 	)

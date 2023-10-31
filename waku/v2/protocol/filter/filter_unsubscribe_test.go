@@ -1,5 +1,13 @@
 package filter
 
+import (
+	"context"
+	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"time"
+)
+
 func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 
 	var newContentTopic = "TopicB"
@@ -37,7 +45,7 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 
 func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
-	messages := prepareData(3, false, true, true)
+	var messages = prepareData(3, false, true, true)
 
 	// Subscribe with 3 content topics
 	for _, m := range messages {
@@ -68,5 +76,42 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
+	// Create test context
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
+
+	s.lightNode = s.makeWakuFilterLightNode(true, true)
+
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true, true)
+
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	messages := prepareData(2, true, true, true)
+
+	// Subscribe
+	for _, m := range messages {
+		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
+		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.pubSubTopic))
+		s.Require().NoError(err)
+	}
+
+	// All messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	// Unsubscribe
+	for _, m := range messages {
+		s.subDetails = s.unsubscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+	}
+
+	// No messages can be sent or received without any subscription
+	s.Require().Equal(len(s.subDetails), 0, "Number of subscriptions is not 0")
 
 }
