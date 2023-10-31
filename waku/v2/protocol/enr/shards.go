@@ -13,9 +13,9 @@ func deleteShardingENREntries(localnode *enode.LocalNode) {
 	localnode.Delete(enr.WithEntry(ShardingIndicesListEnrField, struct{}{}))
 }
 
-func WithWakuRelayShardingIndicesList(rs protocol.RelayShards) ENROption {
+func WithWakuRelayShardList(rs protocol.RelayShards) ENROption {
 	return func(localnode *enode.LocalNode) error {
-		value, err := rs.IndicesList()
+		value, err := rs.ShardList()
 		if err != nil {
 			return err
 		}
@@ -35,11 +35,11 @@ func WithWakuRelayShardingBitVector(rs protocol.RelayShards) ENROption {
 
 func WithWakuRelaySharding(rs protocol.RelayShards) ENROption {
 	return func(localnode *enode.LocalNode) error {
-		if len(rs.Indices) >= 64 {
+		if len(rs.ShardIDs) >= 64 {
 			return WithWakuRelayShardingBitVector(rs)(localnode)
 		}
 
-		return WithWakuRelayShardingIndicesList(rs)(localnode)
+		return WithWakuRelayShardList(rs)(localnode)
 	}
 }
 
@@ -60,7 +60,7 @@ func WithWakuRelayShardingTopics(topics ...string) ENROption {
 
 // ENR record accessors
 
-func RelayShardingIndicesList(record *enr.Record) (*protocol.RelayShards, error) {
+func RelayShardList(record *enr.Record) (*protocol.RelayShards, error) {
 	var field []byte
 	if err := record.Load(enr.WithEntry(ShardingIndicesListEnrField, &field)); err != nil {
 		if enr.IsNotFound(err) {
@@ -69,7 +69,7 @@ func RelayShardingIndicesList(record *enr.Record) (*protocol.RelayShards, error)
 		return nil, err
 	}
 
-	res, err := protocol.FromIndicesList(field)
+	res, err := protocol.FromShardList(field)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func RelayShardingBitVector(record *enr.Record) (*protocol.RelayShards, error) {
 }
 
 func RelaySharding(record *enr.Record) (*protocol.RelayShards, error) {
-	res, err := RelayShardingIndicesList(record)
+	res, err := RelayShardList(record)
 	if err != nil {
 		return nil, err
 	}
