@@ -110,7 +110,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	go serviceB.Start(context.Background())
 	defer serviceB.Stop()
 
-	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID()))
 	require.NoError(t, err)
 
 	var addr multiaddr.Multiaddr

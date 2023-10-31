@@ -556,7 +556,7 @@ func (w *WakuNode) Host() host.Host {
 
 // ID returns the base58 encoded ID from the host
 func (w *WakuNode) ID() string {
-	return w.host.ID().Pretty()
+	return w.host.ID().String()
 }
 
 func (w *WakuNode) watchENRChanges(ctx context.Context) {

@@ -198,7 +198,11 @@ func (s *FilterService) unsubscribeGetMessage(ch <-chan filter.WakuFilterPushRes
 	var peerIds string
 	ind := 0
 	for entry := range ch {
-		s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
+		if entry.Err == nil {
+			continue
+		}
+
+		s.log.Error("can't unsubscribe for ", zap.Stringer("peer", entry.PeerID), zap.Error(entry.Err))
 		if ind != 0 {
 			peerIds += ", "
 		}
@@ -211,8 +215,6 @@ func (s *FilterService) unsubscribeGetMessage(ch <-chan filter.WakuFilterPushRes
 	return http.StatusText(http.StatusOK)
 }
 
-// ///////////////////////
-// ///////////////////////
 type filterUnsubscribeAllRequest struct {
 	RequestId filterRequestId `json:"requestId"`
 }

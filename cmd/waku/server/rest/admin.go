@@ -23,7 +23,7 @@ type AdminService struct {
 }
 
 type WakuPeer struct {
-	ID         string   `json:"id"`
+	ID         peer.ID  `json:"id"`
 	MultiAddrs []string `json:"multiaddrs"`
 	Protocols  []string `json:"protocols"`
 	Connected  bool     `json:"connected"`
@@ -59,7 +59,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 	response := make([]WakuPeer, 0)
 	for _, peer := range peers {
 		wPeer := WakuPeer{
-			ID:        peer.ID.Pretty(),
+			ID:        peer.ID,
 			Connected: peer.Connected,
 		}
 

@@ -161,8 +161,8 @@ func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
 }
 
 type unsubscribeAllResult struct {
-	PeerID string `json:"peerID"`
-	Error  string `json:"error"`
+	PeerID peer.ID `json:"peerID"`
+	Error  string  `json:"error"`
 }
 
 // FilterUnsubscribeAll is used to remove an active subscription to a peer. If no peerID is defined, it will stop all active filter subscriptions
@@ -201,7 +201,7 @@ func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 
 	for result := range pushResult {
 		ur := unsubscribeAllResult{
-			PeerID: result.PeerID.Pretty(),
+			PeerID: result.PeerID,
 		}
 		if result.Err != nil {
 			ur.Error = result.Err.Error()

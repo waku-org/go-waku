@@ -32,7 +32,7 @@ func (x *FilterSubscribeRequest) Validate() error {
 			return errNoContentTopics
 		}
 
-		if slices.Contains[string](x.ContentTopics, "") {
+		if slices.Contains(x.ContentTopics, "") {
 			return errEmptyContentTopics
 		}
 

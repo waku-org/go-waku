@@ -41,7 +41,7 @@ func TestGetMessages(t *testing.T) {
 	node1.Broadcaster().Submit(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1))
 	node1.Broadcaster().Submit(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1))
 
-	n1HostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", node1.Host().ID().Pretty()))
+	n1HostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", node1.Host().ID()))
 	n1Addr := node1.ListenAddresses()[0].Encapsulate(n1HostInfo)
 
 	node2, err := node.New()

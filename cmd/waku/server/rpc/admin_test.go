@@ -54,7 +54,7 @@ func TestV1Peers(t *testing.T) {
 
 	var reply2 SuccessReply
 
-	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID()))
 	require.NoError(t, err)
 
 	var addr multiaddr.Multiaddr

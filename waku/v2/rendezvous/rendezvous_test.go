@@ -59,7 +59,7 @@ func TestRendezvous(t *testing.T) {
 	defer rendezvousPoint.Stop()
 	host1RP := NewRendezvousPoint(host1.ID())
 
-	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host1.ID().Pretty()))
+	hostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host1.ID()))
 	host1Addr := host1.Addrs()[0].Encapsulate(hostInfo)
 
 	port2, err := tests.FindFreePort(t, "", 5)
@@ -108,7 +108,7 @@ func TestRendezvous(t *testing.T) {
 	case <-timer:
 		require.Fail(t, "no peer discovered")
 	case p := <-myPeerConnector.ch:
-		require.Equal(t, p.AddrInfo.ID.Pretty(), host2.ID().Pretty())
+		require.Equal(t, p.AddrInfo.ID, host2.ID())
 	}
 	rendezvousClient2.Stop()
 }

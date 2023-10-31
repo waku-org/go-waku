@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opencensus.io/plugin/ochttp"
 	"go.uber.org/zap"
 )
 
@@ -31,11 +30,9 @@ func NewMetricsServer(address string, port int, log *zap.Logger) *Server {
 		fmt.Fprint(w, "OK")
 	})
 
-	h := &ochttp.Handler{Handler: mux}
-
 	p.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", address, port),
-		Handler: h,
+		Handler: mux,
 	}
 
 	return &p

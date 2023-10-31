@@ -77,7 +77,7 @@ func TestFilterSubscription(t *testing.T) {
 	d := makeFilterService(t, true)
 	defer d.node.Stop()
 
-	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID().Pretty()))
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID()))
 	require.NoError(t, err)
 
 	var addr multiaddr.Multiaddr
@@ -117,7 +117,7 @@ func TestFilterGetV1Messages(t *testing.T) {
 	go serviceB.Start()
 	defer serviceB.Stop()
 
-	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID()))
 	require.NoError(t, err)
 
 	var addr multiaddr.Multiaddr

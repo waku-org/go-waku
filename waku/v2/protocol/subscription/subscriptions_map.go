@@ -236,13 +236,13 @@ func iterateSubscriptionSet(logger *zap.Logger, subscriptions SubscriptionSet, e
 
 func (s *SubscriptionDetails) MarshalJSON() ([]byte, error) {
 	type resultType struct {
-		PeerID        string   `json:"peerID"`
+		PeerID        peer.ID  `json:"peerID"`
 		PubsubTopic   string   `json:"pubsubTopic"`
 		ContentTopics []string `json:"contentTopics"`
 	}
 
 	result := resultType{
-		PeerID:      s.PeerID.Pretty(),
+		PeerID:      s.PeerID,
 		PubsubTopic: s.ContentFilter.PubsubTopic,
 	}
 

@@ -123,9 +123,9 @@ func (c *Chat) connectionWatcher(connectionWg *sync.WaitGroup, connNotifier <-ch
 
 	for conn := range connNotifier {
 		if conn.Connected {
-			c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID.Pretty()))
+			c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID))
 		} else {
-			c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID.Pretty()))
+			c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID))
 		}
 	}
 }
@@ -214,7 +214,7 @@ func (c *Chat) parseInput() {
 								c.ui.ErrorMessage(err)
 								return
 							}
-							peerInfoMsg += fmt.Sprintf("• %s:\n", p.Pretty())
+							peerInfoMsg += fmt.Sprintf("• %s:\n", p)
 
 							var strProtocols []string
 							for _, p := range peerProtocols {
@@ -224,7 +224,7 @@ func (c *Chat) parseInput() {
 							peerInfoMsg += fmt.Sprintf("    Protocols: %s\n", strings.Join(strProtocols, ", "))
 							peerInfoMsg += "    Addresses:\n"
 							for _, addr := range peerInfo.Addrs {
-								peerInfoMsg += fmt.Sprintf("    - %s/p2p/%s\n", addr.String(), p.Pretty())
+								peerInfoMsg += fmt.Sprintf("    - %s/p2p/%s\n", addr.String(), p)
 							}
 						}
 						c.ui.InfoMessage(peerInfoMsg)
@@ -519,7 +519,7 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 					err = c.node.DialPeerWithInfo(ctx, info)
 					if err != nil {
 
-						c.ui.ErrorMessage(fmt.Errorf("co!!uld not connect to %s: %w", info.ID.Pretty(), err))
+						c.ui.ErrorMessage(fmt.Errorf("co!!uld not connect to %s: %w", info.ID, err))
 					}
 				}(c.ctx, n)
 
