@@ -220,7 +220,7 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = r.node.Relay().PublishToTopic(req.Context(), message, strings.Replace(topic, "\n", "", -1))
+	_, err = r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
 	}

@@ -319,7 +319,7 @@ func (w *WakuNode) watchTopicShards(ctx context.Context) error {
 
 				if len(rs) == 1 {
 					w.log.Info("updating advertised relay shards in ENR")
-					if len(rs[0].Indices) != len(topics) {
+					if len(rs[0].ShardIDs) != len(topics) {
 						w.log.Warn("A mix of named and static shards found. ENR shard will contain only the following shards", zap.Any("shards", rs[0]))
 					}
 

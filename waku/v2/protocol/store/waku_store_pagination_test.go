@@ -13,6 +13,7 @@ import (
 )
 
 func TestIndexComputation(t *testing.T) {
+	testContentTopic := "/waku/2/default-content/proto"
 	msg := &wpb.WakuMessage{
 		Payload:   []byte{1, 2, 3},
 		Timestamp: utils.GetUnixEpoch(),
@@ -27,14 +28,14 @@ func TestIndexComputation(t *testing.T) {
 	msg1 := &wpb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		Timestamp:    123,
-		ContentTopic: protocol.DefaultContentTopic,
+		ContentTopic: testContentTopic,
 	}
 	idx1 := protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), "test").Index()
 
 	msg2 := &wpb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		Timestamp:    123,
-		ContentTopic: protocol.DefaultContentTopic,
+		ContentTopic: testContentTopic,
 	}
 	idx2 := protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), "test").Index()
 
