@@ -98,6 +98,7 @@ func main() {
 		RESTAddress,
 		RESTPort,
 		RESTRelayCacheCapacity,
+		RESTFilterCacheCapacity,
 		RESTAdmin,
 		PProf,
 	}

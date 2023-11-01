@@ -112,11 +112,12 @@ type RPCServerOptions struct {
 
 // RESTServerOptions are settings used to start a rest http server
 type RESTServerOptions struct {
-	Enable             bool
-	Port               int
-	Address            string
-	Admin              bool
-	RelayCacheCapacity int
+	Enable              bool
+	Port                int
+	Address             string
+	Admin               bool
+	RelayCacheCapacity  int
+	FilterCacheCapacity int
 }
 
 // WSOptions are settings used for enabling websockets and secure websockets

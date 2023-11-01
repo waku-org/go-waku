@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -18,6 +19,7 @@ import (
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -58,7 +60,7 @@ func TestFilterPingFailure(t *testing.T) {
 	}()
 
 	router := chi.NewRouter()
-	_ = NewFilterService(node2, router, utils.Logger())
+	_ = NewFilterService(node2, router, 0, utils.Logger())
 
 	// with malformed requestId
 	rr := httptest.NewRecorder()
@@ -97,7 +99,7 @@ func TestFilterSubscribeAndPing(t *testing.T) {
 	}()
 
 	router := chi.NewRouter()
-	_ = NewFilterService(node2, router, utils.Logger())
+	_ = NewFilterService(node2, router, 0, utils.Logger())
 
 	// create subscription to peer
 	rr := httptest.NewRecorder()
@@ -140,7 +142,7 @@ func TestFilterSubscribeAndUnsubscribe(t *testing.T) {
 	}()
 
 	router := chi.NewRouter()
-	_ = NewFilterService(node2, router, utils.Logger())
+	_ = NewFilterService(node2, router, 0, utils.Logger())
 
 	// create subscription to peer
 	rr := httptest.NewRecorder()
@@ -191,7 +193,7 @@ func TestFilterAllUnsubscribe(t *testing.T) {
 	}()
 
 	router := chi.NewRouter()
-	_ = NewFilterService(node2, router, utils.Logger())
+	_ = NewFilterService(node2, router, 0, utils.Logger())
 
 	// create 2 different subscription to peer
 	for _, ct := range []string{contentTopics1, contentTopics2} {
@@ -250,4 +252,118 @@ func toString(t *testing.T, data interface{}) string {
 	bytes, err := json.Marshal(data)
 	require.NoError(t, err)
 	return string(bytes)
+}
+
+func TestFilterGetMessages(t *testing.T) {
+	pubsubTopic := "/waku/2/test/proto"
+	contentTopic := "/waku/2/app/1"
+
+	// get nodes add connect them
+	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
+	defer func() {
+		node1.Stop()
+		node2.Stop()
+	}()
+
+	// set router and start filter service
+	router := chi.NewRouter()
+	service := NewFilterService(node2, router, 2, utils.Logger())
+	go service.Start(context.Background())
+	defer service.Stop()
+
+	// submit messages
+	messageByContentTopic := []*protocol.Envelope{
+		genMessage("", contentTopic),
+		genMessage("", contentTopic),
+		genMessage("", contentTopic),
+	}
+	messageByPubsubTopic := []*protocol.Envelope{
+		genMessage(pubsubTopic, contentTopic),
+		genMessage(pubsubTopic, contentTopic),
+	}
+	for _, envelope := range append(messageByContentTopic, messageByPubsubTopic...) {
+		node2.Broadcaster().Submit(envelope)
+	}
+
+	// with malformed contentTopic
+	utils.Logger().Info(url.QueryEscape("/waku/2/wrong/topic"))
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet,
+		fmt.Sprintf("/filter/v2/messages/%s", url.QueryEscape("/waku/2/wrongtopic")),
+		nil,
+	)
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Equal(t, "bad content topic", rr.Body.String())
+
+	// with check if the cache is working properly
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet,
+		fmt.Sprintf("/filter/v2/messages/%s", url.QueryEscape(contentTopic)),
+		nil,
+	)
+	router.ServeHTTP(rr, req)
+	req.Body.Close()
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+	router.ServeHTTP(rr, req)
+	checkJSON(t, toMessage(messageByContentTopic[1:]), getFilterResponse(t, rr.Body))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	// check if pubsubTopic is present in the url
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet,
+		fmt.Sprintf("/filter/v2/messages//%s", url.QueryEscape(contentTopic)),
+		nil,
+	)
+	router.ServeHTTP(rr, req)
+	req.Body.Close()
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Equal(t, "missing pubsubTopic", rr.Body.String())
+
+	// check messages by pubsub/contentTopic pair
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet,
+		fmt.Sprintf("/filter/v2/messages/%s/%s", url.QueryEscape(pubsubTopic), url.QueryEscape(contentTopic)),
+		nil,
+	)
+	router.ServeHTTP(rr, req)
+	req.Body.Close()
+	require.Equal(t, http.StatusOK, rr.Code)
+	checkJSON(t, toMessage(messageByPubsubTopic), getFilterResponse(t, rr.Body))
+
+	// check if pubsubTopic/contentTOpic is subscribed or not.
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet,
+		fmt.Sprintf("/filter/v2/messages/%s/%s", "/waku/2/test2/proto", url.QueryEscape(contentTopic)),
+		nil,
+	)
+	router.ServeHTTP(rr, req)
+	req.Body.Close()
+	require.Equal(t, http.StatusNotFound, rr.Code)
+	require.Equal(t, "missing pubsubTopic", rr.Body.String())
+}
+
+func toMessage(envs []*protocol.Envelope) []*pb.WakuMessage {
+	msgs := make([]*pb.WakuMessage, len(envs))
+	for i, env := range envs {
+		msgs[i] = env.Message()
+	}
+	return msgs
+}
+
+func genMessage(pubsubTopic, contentTopic string) *protocol.Envelope {
+	if pubsubTopic == "" {
+		pubsubTopic, _ = protocol.GetPubSubTopicFromContentTopic(contentTopic)
+	}
+	return protocol.NewEnvelope(
+		&pb.WakuMessage{
+			Payload:      []byte{1, 2, 3},
+			ContentTopic: contentTopic,
+			Version:      0,
+			Timestamp:    utils.GetUnixEpoch(),
+		},
+		0,
+		pubsubTopic,
+	)
 }
