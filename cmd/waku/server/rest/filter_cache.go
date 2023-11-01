@@ -6,6 +6,7 @@ import (
 
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type filterCache struct {
@@ -25,12 +26,17 @@ func (c *filterCache) subscribe(contentFilter protocol.ContentFilter) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	pubsubTopic := contentFilter.PubsubTopic
-	if c.data[pubsubTopic] == nil {
-		c.data[pubsubTopic] = make(map[string][]*pb.WakuMessage)
-	}
-	for topic := range contentFilter.ContentTopics {
-		c.data[pubsubTopic][topic] = []*pb.WakuMessage{}
+	pubSubTopicMap, _ := protocol.ContentFilterToPubSubTopicMap(contentFilter)
+	for pubsubTopic, contentTopics := range pubSubTopicMap {
+		if c.data[pubsubTopic] == nil {
+			c.data[pubsubTopic] = make(map[string][]*pb.WakuMessage)
+		}
+		for _, topic := range contentTopics {
+			utils.Logger().Info(fmt.Sprintf("pb %s ct %s ", pubsubTopic, topic))
+			if c.data[pubsubTopic][topic] == nil {
+				c.data[pubsubTopic][topic] = []*pb.WakuMessage{}
+			}
+		}
 	}
 }
 
@@ -67,12 +73,6 @@ func (c *filterCache) getMessages(pubsubTopic string, contentTopic string) ([]*p
 		return nil, fmt.Errorf("Not subscribed to pubsubTopic:%s contentTopic: %s", pubsubTopic, contentTopic)
 	}
 	msgs := c.data[pubsubTopic][contentTopic]
-	c.data[pubsubTopic][contentTopic] = nil
+	c.data[pubsubTopic][contentTopic] = []*pb.WakuMessage{}
 	return msgs, nil
-}
-func (c *filterCache) clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.data = map[string]map[string][]*pb.WakuMessage{}
 }

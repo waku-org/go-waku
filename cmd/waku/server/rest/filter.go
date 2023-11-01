@@ -333,8 +333,7 @@ func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *ht
 	}
 	pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(contentTopic)
 	if err != nil {
-		s.log.Error("bad content topic", zap.Error(err))
-		writeResponse(w, "bad content topic", http.StatusBadRequest)
+		s.writeGetMessageErr(w, fmt.Errorf("bad content topic"), http.StatusBadRequest)
 		return
 	}
 	s.getMessages(w, req, pubsubTopic, contentTopic)
@@ -362,7 +361,6 @@ func (s *FilterService) getMessages(w http.ResponseWriter, req *http.Request, pu
 		s.writeGetMessageErr(w, err, http.StatusNotFound)
 		return
 	}
-
 	writeResponse(w, msgs, http.StatusOK)
 }
 
