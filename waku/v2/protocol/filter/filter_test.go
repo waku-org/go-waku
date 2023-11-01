@@ -177,7 +177,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 			s.log.Info("Looking at ", zap.String("pubSubTopic", sub.ContentFilter.PubsubTopic))
 			for i := 0; i < msgCount; i++ {
 				select {
-				case env := <-sub.C: // Different logic for timeout
+				case env := <-sub.C:
 					received := WakuMsg{
 						pubSubTopic:  env.PubsubTopic(),
 						contentTopic: env.Message().GetContentTopic(),
