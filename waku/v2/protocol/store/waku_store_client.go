@@ -170,7 +170,7 @@ func DefaultOptions() []HistoryRequestOption {
 	}
 }
 
-func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selectedPeer peer.ID, requestID []byte) (*pb.HistoryResponse, error) {
+func (store *WakuStore) queryFrom(ctx context.Context, historyRequest *pb.HistoryRPC, selectedPeer peer.ID) (*pb.HistoryResponse, error) {
 	logger := store.log.With(logging.HostID("peer", selectedPeer))
 	logger.Info("querying message history")
 
@@ -180,8 +180,6 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		store.metrics.RecordError(dialFailure)
 		return nil, err
 	}
-
-	historyRequest := &pb.HistoryRPC{Query: q, RequestId: hex.EncodeToString(requestID)}
 
 	writer := pbio.NewDelimitedWriter(stream)
 	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
@@ -209,6 +207,8 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 
 	stream.Close()
 
+	// nwaku does not return a response if there are no results due to the way their
+	// protobuffer library works. this condition once they have proper proto3 support
 	if historyResponseRPC.Response == nil {
 		// Empty response
 		return &pb.HistoryResponse{
@@ -216,10 +216,14 @@ func (store *WakuStore) queryFrom(ctx context.Context, q *pb.HistoryQuery, selec
 		}, nil
 	}
 
+	if err := historyResponseRPC.ValidateResponse(historyRequest.RequestId); err != nil {
+		return nil, err
+	}
+
 	return historyResponseRPC.Response, nil
 }
 
-func (store *WakuStore) localQuery(query *pb.HistoryQuery, requestID []byte) (*pb.HistoryResponse, error) {
+func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResponse, error) {
 	logger := store.log
 	logger.Info("querying local message history")
 
@@ -228,8 +232,8 @@ func (store *WakuStore) localQuery(query *pb.HistoryQuery, requestID []byte) (*p
 	}
 
 	historyResponseRPC := &pb.HistoryRPC{
-		RequestId: hex.EncodeToString(requestID),
-		Response:  store.FindMessages(query),
+		RequestId: historyQuery.RequestId,
+		Response:  store.FindMessages(historyQuery.Query),
 	}
 
 	if historyResponseRPC.Response == nil {
@@ -243,21 +247,6 @@ func (store *WakuStore) localQuery(query *pb.HistoryQuery, requestID []byte) (*p
 }
 
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
-	q := &pb.HistoryQuery{
-		PubsubTopic:    query.Topic,
-		ContentFilters: []*pb.ContentFilter{},
-		StartTime:      query.StartTime,
-		EndTime:        query.EndTime,
-		PagingInfo:     &pb.PagingInfo{},
-	}
-
-	for _, cf := range query.ContentTopics {
-		q.ContentFilters = append(q.ContentFilters, &pb.ContentFilter{ContentTopic: cf})
-	}
-
-	if len(q.ContentFilters) > MaxContentFilters {
-		return nil, ErrMaxContentFilters
-	}
 
 	params := new(HistoryRequestParameters)
 	params.s = store
@@ -283,38 +272,53 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		}
 	}
 
+	historyRequest := &pb.HistoryRPC{
+		RequestId: hex.EncodeToString(params.requestID),
+		Query: &pb.HistoryQuery{
+			PubsubTopic:    query.Topic,
+			ContentFilters: []*pb.ContentFilter{},
+			StartTime:      query.StartTime,
+			EndTime:        query.EndTime,
+			PagingInfo:     &pb.PagingInfo{},
+		},
+	}
+
+	for _, cf := range query.ContentTopics {
+		historyRequest.Query.ContentFilters = append(historyRequest.Query.ContentFilters, &pb.ContentFilter{ContentTopic: cf})
+	}
+
 	if !params.localQuery && params.selectedPeer == "" {
 		store.metrics.RecordError(peerNotFoundFailure)
 		return nil, ErrNoPeersAvailable
 	}
 
-	if len(params.requestID) == 0 {
-		return nil, ErrInvalidID
-	}
-
 	if params.cursor != nil {
-		q.PagingInfo.Cursor = params.cursor
+		historyRequest.Query.PagingInfo.Cursor = params.cursor
 	}
 
 	if params.asc {
-		q.PagingInfo.Direction = pb.PagingInfo_FORWARD
+		historyRequest.Query.PagingInfo.Direction = pb.PagingInfo_FORWARD
 	} else {
-		q.PagingInfo.Direction = pb.PagingInfo_BACKWARD
+		historyRequest.Query.PagingInfo.Direction = pb.PagingInfo_BACKWARD
 	}
 
 	pageSize := params.pageSize
 	if pageSize == 0 || pageSize > uint64(MaxPageSize) {
 		pageSize = MaxPageSize
 	}
-	q.PagingInfo.PageSize = pageSize
+	historyRequest.Query.PagingInfo.PageSize = pageSize
+
+	err := historyRequest.ValidateQuery()
+	if err != nil {
+		return nil, err
+	}
 
 	var response *pb.HistoryResponse
-	var err error
 
 	if params.localQuery {
-		response, err = store.localQuery(q, params.requestID)
+		response, err = store.localQuery(historyRequest)
 	} else {
-		response, err = store.queryFrom(ctx, q, params.selectedPeer, params.requestID)
+		response, err = store.queryFrom(ctx, historyRequest, params.selectedPeer)
 	}
 	if err != nil {
 		return nil, err
@@ -327,7 +331,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	result := &Result{
 		store:    store,
 		Messages: response.Messages,
-		query:    q,
+		query:    historyRequest.Query,
 		peerID:   params.selectedPeer,
 	}
 
@@ -390,24 +394,27 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 		}, nil
 	}
 
-	q := &pb.HistoryQuery{
-		PubsubTopic:    r.Query().PubsubTopic,
-		ContentFilters: r.Query().ContentFilters,
-		StartTime:      r.Query().StartTime,
-		EndTime:        r.Query().EndTime,
-		PagingInfo: &pb.PagingInfo{
-			PageSize:  r.Query().PagingInfo.PageSize,
-			Direction: r.Query().PagingInfo.Direction,
-			Cursor: &pb.Index{
-				Digest:       r.Cursor().Digest,
-				ReceiverTime: r.Cursor().ReceiverTime,
-				SenderTime:   r.Cursor().SenderTime,
-				PubsubTopic:  r.Cursor().PubsubTopic,
+	historyRequest := &pb.HistoryRPC{
+		RequestId: hex.EncodeToString(protocol.GenerateRequestID()),
+		Query: &pb.HistoryQuery{
+			PubsubTopic:    r.Query().PubsubTopic,
+			ContentFilters: r.Query().ContentFilters,
+			StartTime:      r.Query().StartTime,
+			EndTime:        r.Query().EndTime,
+			PagingInfo: &pb.PagingInfo{
+				PageSize:  r.Query().PagingInfo.PageSize,
+				Direction: r.Query().PagingInfo.Direction,
+				Cursor: &pb.Index{
+					Digest:       r.Cursor().Digest,
+					ReceiverTime: r.Cursor().ReceiverTime,
+					SenderTime:   r.Cursor().SenderTime,
+					PubsubTopic:  r.Cursor().PubsubTopic,
+				},
 			},
 		},
 	}
 
-	response, err := store.queryFrom(ctx, q, r.PeerID(), protocol.GenerateRequestID())
+	response, err := store.queryFrom(ctx, historyRequest, r.PeerID())
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +427,7 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 		started:  true,
 		store:    store,
 		Messages: response.Messages,
-		query:    q,
+		query:    historyRequest.Query,
 		peerID:   r.PeerID(),
 	}
 

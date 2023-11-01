@@ -118,7 +118,7 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 		// TODO: Assumes success, should probably be extended to check for network, peers, etc
 		// It might make sense to use WithReadiness option here?
 
-		_, err = wakuLP.relay.PublishToTopic(ctx, message, pubSubTopic)
+		_, err = wakuLP.relay.Publish(ctx, message, relay.WithPubSubTopic(pubSubTopic))
 		if err != nil {
 			logger.Error("publishing message", zap.Error(err))
 			wakuLP.metrics.RecordError(messagePushFailure)
@@ -261,9 +261,10 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 	return params, nil
 }
 
-// Optional PublishToTopic is used to broadcast a WakuMessage to a pubsub topic via lightpush protocol
-// If pubSubTopic is not provided, then contentTopic is use to derive the relevant pubSubTopic via autosharding.
-func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
+// Publish is used to broadcast a WakuMessage to the pubSubTopic (which is derived from the
+// contentTopic) via lightpush protocol. If auto-sharding is not to be used, then the
+// `WithPubSubTopic` option should be provided to publish the message to an specific pubSubTopic
+func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}
@@ -288,10 +289,4 @@ func (wakuLP *WakuLightPush) PublishToTopic(ctx context.Context, message *wpb.Wa
 	}
 
 	return nil, errors.New(response.Info)
-}
-
-// Publish is used to broadcast a WakuMessage to the pubSubTopic (which is derived from the contentTopic) via lightpush protocol
-// If auto-sharding is not to be used, then PublishToTopic API should be used
-func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
-	return wakuLP.PublishToTopic(ctx, message, opts...)
 }

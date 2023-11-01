@@ -34,19 +34,5 @@ namespace Waku
             return Response.PtrToStringUtf8(ptr);
         }
 
-        [DllImport(Constants.dllName)]
-        internal static extern IntPtr waku_pubsub_topic(string name, string encoding);
-
-        /// <summary>
-        /// Create a pubsub topic string
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="encoding"></param>
-        /// <returns>Pubsub topic string according to RFC 23</returns>
-        public static string PubsubTopic(string name, string encoding)
-        {
-            IntPtr ptr = waku_pubsub_topic(name, encoding);
-            return Response.PtrToStringUtf8(ptr);
-        }
     }
 }

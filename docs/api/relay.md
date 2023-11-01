@@ -41,34 +41,19 @@ One of these options must be specified when instantiating a node supporting the 
 ## Receiving messages
 ```go
 ...
-sub, err := wakuNode.Relay().Subscribe(context.Background())
+contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic)
+sub, err := wakuNode.Relay().Subscribe(context.Background, contentFilter) ([]*Subscription, error)
 if err != nil {
     fmt.Println(err)
     return
 }
 
-for value := range sub.C {
+for value := range sub[0].C {
     fmt.Println("Received msg:", string(value.Message().Payload))
 }
 ...
 ```
-To receive messages sent via the relay protocol, you need to subscribe to a pubsub topic. This can be done via any of these functions:
-- `wakuNode.Relay().Subscribe(ctx)` - subscribes to the default waku pubsub topic `/waku/2/default-waku/proto`
-- `wakuNode.Relay().SubscribeToTopic(ctx, topic)` - subscribes to a custom pubsub topic
-
-These functions return a `Subscription` struct containing a channel on which messages will be received. To stop receiving messages in this channel `sub.Unsubscribe()` can be executed which will close the channel (without unsubscribing from the pubsub topic)
-
-> Pubsub topics should follow the [recommended usage](https://rfc.vac.dev/spec/23/) structure. For this purpose, the `NewPubsubTopic` helper function was created:
-```go
-import 	"github.com/waku-org/go-waku/waku/v2/protocol"
-
-topic := protocol.NewPubsubTopic("the_topic_name", "the_encoding")
-/*
-fmt.Println(topic.String())  // => `/waku/2/the_topic_name/the_encoding`
-*/
-```
-
-
+To receive messages sent via the relay protocol, you need to subscribe specifying a content filter with the function `Subscribe(ctx context.Context, contentFilter waku_proto.ContentFilter, opts ...RelaySubscribeOption) ([]*Subscription, error)`. This functions return a list of `Subscription` struct containing a channel on which messages will be received. To stop receiving messages `WakuRelay`'s `Unsubscribe(ctx context.Context, contentFilter waku_proto.ContentFilter) error` can be executed which will close the channel (without unsubscribing from the pubsub topic) which will make sure the subscription is stopped, and if no other subscriptions exist for underlying pubsub topic, the pubsub is also unsubscribed.
 
 ## Sending messages
 
@@ -95,11 +80,13 @@ if err != nil {
 To send a message, it needs to be wrapped into a [`WakuMessage`](https://rfc.vac.dev/spec/14/) protobuffer. The payload of the message is not limited to strings. Any kind of data that can be serialized
 into a `[]byte` can be sent as long as it does not exceed the maximum length a message can have (~1MB)
 
-The following functions can be used to publish a message:
-- `wakuNode.Relay().Publish(ctx, msg)` - to send a message to the default waku pubsub topic
-- `wakuNode.Relay().PublishToTopic(ctx, msg, topic)` - to send a message to a custom pubsub topic
+`wakuNode.Relay().Publish(ctx, msg, opts...)` is used to publish a message. This function will return a message id on success, or an error if the message could not be published.
 
-Both of these functions will return a message id on success, or an error if the message could not be published.
+If no options are specified, go-waku will automatically choose the peer used to broadcast the message via Relay and publish the message to a pubsub topic derived from the content topic of the message. This behaviour can be controlled via options:
+
+### Options
+- `relay.WithPubSubTopic(topic)` - broadcast the message using a custom pubsub topic
+- `relay.WithDefaultPubsubTopic()` - broadcast the message to the default pubsub topic
 
 > If `WithWakuRelayAndMinPeers` was used during the instantiation of the wakuNode, it should be possible to verify if there's enough peers for publishing to a topic with `wakuNode.Relay().EnoughPeersToPublish()` and `wakuNode.Relay().EnoughPeersToPublishToTopic(topic)`
 

@@ -63,7 +63,7 @@ func TestWakuRelay(t *testing.T) {
 		ContentTopic: "test",
 		Timestamp:    0,
 	}
-	_, err = relay.PublishToTopic(context.Background(), msg, testTopic)
+	_, err = relay.Publish(context.Background(), msg, WithPubSubTopic(testTopic))
 	require.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
@@ -273,7 +273,7 @@ func TestWakuRelayAutoShard(t *testing.T) {
 		Timestamp:    0,
 	}
 
-	_, err = relay.PublishToTopic(context.Background(), msg1, subs[0].contentFilter.PubsubTopic)
+	_, err = relay.Publish(context.Background(), msg1, WithPubSubTopic(subs[0].contentFilter.PubsubTopic))
 	require.NoError(t, err)
 
 	wg = waitForMsg(t, subs1[0].Ch, testcTopic1)
@@ -300,7 +300,7 @@ func TestWakuRelayAutoShard(t *testing.T) {
 		Timestamp:    1,
 	}
 
-	_, err = relay.PublishToTopic(context.Background(), msg2, subs[0].contentFilter.PubsubTopic)
+	_, err = relay.Publish(context.Background(), msg2, WithPubSubTopic(subs[0].contentFilter.PubsubTopic))
 	require.NoError(t, err)
 	wg2.Wait()
 
