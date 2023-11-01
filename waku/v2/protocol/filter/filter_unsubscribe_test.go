@@ -19,24 +19,24 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	// Message is possible to receive for original contentTopic
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg")
-	}, s.subDetails[0].C, false)
+	}, s.subDetails[0].C)
 
 	// Message is possible to receive for new contentTopic
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, newContentTopic, "test_msg")
-	}, s.subDetails[0].C, false)
+	}, s.subDetails[0].C)
 
 	_ = s.unsubscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	// Message should not be received for new contentTopic as it was unsubscribed
-	s.waitForMsg(func() {
+	s.waitForTimeout(func() {
 		s.publishMsg(s.testTopic, newContentTopic, "test_msg")
-	}, s.subDetails[0].C, true)
+	}, s.subDetails[0].C)
 
 	// Message is still possible to receive for original contentTopic
 	s.waitForMsg(func() {
 		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg2")
-	}, s.subDetails[0].C, false)
+	}, s.subDetails[0].C)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -64,15 +64,15 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	// Messages should not be received for the last two contentTopics as it was unsubscribed
 	for _, m := range messages[1:] {
-		s.waitForMsg(func() {
+		s.waitForTimeout(func() {
 			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
-		}, s.subDetails[0].C, true)
+		}, s.subDetails[0].C)
 	}
 
 	// Message is still possible to receive for the first contentTopic
 	s.waitForMsg(func() {
 		s.publishMsg(messages[0].pubSubTopic, messages[0].contentTopic, messages[0].payload)
-	}, s.subDetails[0].C, false)
+	}, s.subDetails[0].C)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -108,10 +108,17 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	// Unsubscribe
 	for _, m := range messages {
-		s.subDetails = s.unsubscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+		_ = s.unsubscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
-	// No messages can be sent or received without any subscription
-	s.Require().Equal(len(s.subDetails), 0, "Number of subscriptions is not 0")
+	// No messages can be received with previous subscriptions
+	for i, m := range messages {
+		s.waitForTimeout(func() {
+			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
+		}, s.subDetails[i].C)
+	}
+}
+
+func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 }
