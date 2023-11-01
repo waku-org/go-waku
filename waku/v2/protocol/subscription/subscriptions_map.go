@@ -199,10 +199,10 @@ func (m *SubscriptionsMap) GetSubscription(peerID peer.ID, contentFilter protoco
 
 	var output []*SubscriptionDetails
 
-	var peersId []peer.ID
+	var peerIDs []peer.ID
 	for _, peerSubs := range m.items {
 		if peerID == "" || peerSubs.PeerID == peerID {
-			peersId = append(peersId, peerID)
+			peerIDs = append(peerIDs, peerID)
 			for _, subs := range peerSubs.SubsPerPubsubTopic {
 				for _, subscriptionDetail := range subs {
 					if subscriptionDetail.isPartOf(contentFilter) {
@@ -212,5 +212,5 @@ func (m *SubscriptionsMap) GetSubscription(peerID peer.ID, contentFilter protoco
 			}
 		}
 	}
-	return peersId, output
+	return peerIDs, output
 }

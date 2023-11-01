@@ -54,15 +54,17 @@ type WakuFilterPushError struct {
 
 type WakuFilterPushResult struct {
 	errs []WakuFilterPushError
-	mu   sync.Mutex
+	sync.RWMutex
 }
 
 func (arr *WakuFilterPushResult) Add(err WakuFilterPushError) {
-	arr.mu.Lock()
-	defer arr.mu.Unlock()
+	arr.Lock()
+	defer arr.Unlock()
 	arr.errs = append(arr.errs, err)
 }
 func (arr *WakuFilterPushResult) Errors() []WakuFilterPushError {
+	arr.RLock()
+	defer arr.RUnlock()
 	return arr.errs
 }
 
