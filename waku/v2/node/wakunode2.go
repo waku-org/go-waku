@@ -11,7 +11,6 @@ import (
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -325,13 +324,13 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-first:
-			addr := maps.Keys(addrsSet)
+			addr := utils.MultiAddrFromSet(addrsSet)
 			w.log.Info("listening", logging.MultiAddrs("multiaddr", addr...))
 		case <-w.addressChangesSub.Out():
 			newAddrs := utils.MultiAddrSet(w.ListenAddresses()...)
-			if !maps.Equal(addrsSet, newAddrs) {
+			if !utils.MultiAddrSetEquals(addrsSet, newAddrs) {
 				addrsSet = newAddrs
-				addrs := maps.Keys(addrsSet)
+				addrs := utils.MultiAddrFromSet(addrsSet)
 				w.log.Info("listening addresses update received", logging.MultiAddrs("multiaddr", addrs...))
 				err := w.setupENR(ctx, addrs)
 				if err != nil {

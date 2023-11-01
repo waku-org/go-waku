@@ -24,3 +24,26 @@ func MultiAddrSet(addr ...multiaddr.Multiaddr) map[multiaddr.Multiaddr]struct{} 
 	}
 	return r
 }
+
+func MultiAddrSetEquals(m1 map[multiaddr.Multiaddr]struct{}, m2 map[multiaddr.Multiaddr]struct{}) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+
+	for k := range m1 {
+		_, ok := m2[k]
+		if !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func MultiAddrFromSet(m map[multiaddr.Multiaddr]struct{}) []multiaddr.Multiaddr {
+	var r []multiaddr.Multiaddr
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
+}
