@@ -7,7 +7,7 @@ var (
 	errMissingQuery       = errors.New("missing Query field")
 	errMissingMessage     = errors.New("missing Message field")
 	errMissingPubsubTopic = errors.New("missing PubsubTopic field")
-	errRequestIDMismatch  = errors.New("RequestID in response does not match request")
+	errRequestIDMismatch  = errors.New("requestID in response does not match request")
 	errMissingResponse    = errors.New("missing Response field")
 )
 

@@ -66,7 +66,7 @@ func (w *WakuRelay) defaultPubsubOptions() []pubsub.Option {
 	cfg.GossipFactor = 0.25
 	cfg.D = waku_proto.GossipSubOptimalFullMeshSize
 	cfg.Dlo = 4
-	cfg.Dhi = 12
+	cfg.Dhi = 8
 	cfg.Dout = 3
 	cfg.Dlazy = waku_proto.GossipSubOptimalFullMeshSize
 	cfg.HeartbeatInterval = time.Second

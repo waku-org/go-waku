@@ -340,14 +340,9 @@ func ContentTopic(applicationName string, applicationVersion int, contentTopicNa
 	return contentTopic.String()
 }
 
-// PubsubTopic creates a pubsub topic string according to RFC 23
-func PubsubTopic(name string, encoding string) string {
-	return protocol.NewNamedShardingPubsubTopic(name + "/" + encoding).String()
-}
-
 // DefaultPubsubTopic returns the default pubsub topic used in waku2: /waku/2/default-waku/proto
 func DefaultPubsubTopic() string {
-	return protocol.DefaultPubsubTopic().String()
+	return protocol.DefaultPubsubTopic{}.String()
 }
 
 type subscriptionMsg struct {

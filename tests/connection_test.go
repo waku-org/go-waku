@@ -72,6 +72,6 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) erro
 		Timestamp:    timestamp,
 	}
 
-	_, err = wakuNode.Relay().PublishToTopic(ctx, msg, relay.DefaultWakuTopic)
+	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic())
 	return err
 }

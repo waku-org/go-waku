@@ -208,7 +208,7 @@ func Test500(t *testing.T) {
 			msg := createTestMsg(0)
 			msg.Payload = int2Bytes(i)
 			msg.Timestamp = int64(i)
-			if _, err := wakuNode2.Relay().PublishToTopic(ctx, msg, relay.DefaultWakuTopic); err != nil {
+			if _, err := wakuNode2.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic()); err != nil {
 				require.Fail(t, "Could not publish all messages")
 			}
 			time.Sleep(5 * time.Millisecond)
@@ -292,7 +292,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	if _, err := wakuNode1.Relay().PublishToTopic(ctx, msg, relay.DefaultWakuTopic); err != nil {
+	if _, err := wakuNode1.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic()); err != nil {
 		require.Fail(t, "Could not publish all messages")
 	}
 

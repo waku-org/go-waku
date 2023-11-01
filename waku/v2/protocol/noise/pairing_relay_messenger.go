@@ -129,7 +129,7 @@ func (r *NoiseWakuRelay) Publish(ctx context.Context, contentTopic string, paylo
 	message.ContentTopic = contentTopic
 	message.Timestamp = r.timesource.Now().UnixNano()
 
-	_, err = r.relay.PublishToTopic(ctx, message, r.pubsubTopic)
+	_, err = r.relay.Publish(ctx, message, relay.WithPubSubTopic(r.pubsubTopic))
 	return err
 }
 

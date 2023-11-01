@@ -78,8 +78,8 @@ func (wakuM *WakuMetadata) getClusterAndShards() (*uint32, []uint32, error) {
 	}
 
 	var shards []uint32
-	if shard != nil && shard.Cluster == uint16(wakuM.clusterID) {
-		for _, idx := range shard.Indices {
+	if shard != nil && shard.ClusterID == uint16(wakuM.clusterID) {
+		for _, idx := range shard.ShardIDs {
 			shards = append(shards, uint32(idx))
 		}
 	}
@@ -139,9 +139,9 @@ func (wakuM *WakuMetadata) Request(ctx context.Context, peerID peer.ID) (*protoc
 	}
 
 	result := &protocol.RelayShards{}
-	result.Cluster = uint16(*response.ClusterId)
+	result.ClusterID = uint16(*response.ClusterId)
 	for _, i := range response.Shards {
-		result.Indices = append(result.Indices, uint16(i))
+		result.ShardIDs = append(result.ShardIDs, uint16(i))
 	}
 
 	return result, nil
@@ -226,7 +226,7 @@ func (wakuM *WakuMetadata) Connected(n network.Network, cc network.Conn) {
 		if err == nil {
 			if shard == nil {
 				err = errors.New("no shard reported")
-			} else if shard.Cluster != wakuM.clusterID {
+			} else if shard.ClusterID != wakuM.clusterID {
 				err = errors.New("different clusterID reported")
 			}
 		} else {

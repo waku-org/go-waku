@@ -274,13 +274,13 @@ func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload
 		payload = "123"
 	}
 
-	_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch(), payload), topic)
+	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch(), payload), relay.WithPubSubTopic(topic))
 	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	for _, m := range msgs {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), m.pubSubTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), relay.WithPubSubTopic(m.pubSubTopic))
 		s.Require().NoError(err)
 	}
 }
@@ -494,7 +494,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.log.Info("Testing Autoshard:CreateSubscription")
 	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
@@ -527,7 +527,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.subDetails = s.subscribe("", newContentTopic, s.fullNodeHost.ID())
 
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)

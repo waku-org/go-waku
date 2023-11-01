@@ -5,15 +5,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/libp2p/go-msgio/pbio"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
-	"golang.org/x/exp/slices"
 	"math"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/libp2p/go-msgio/pbio"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"golang.org/x/exp/slices"
 
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 
@@ -30,7 +32,7 @@ func (s *FilterTestSuite) TestCreateSubscription() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
@@ -42,7 +44,7 @@ func (s *FilterTestSuite) TestModifySubscription() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
@@ -52,7 +54,7 @@ func (s *FilterTestSuite) TestModifySubscription() {
 	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
@@ -64,13 +66,13 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "first"), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "first"), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
 
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
@@ -286,7 +288,7 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	time.Sleep(1 * time.Second)
 
 	// Send message
-	_, err = s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), s.testTopic)
+	_, err = s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), relay.WithPubSubTopic(s.testTopic))
 	s.Require().NoError(err)
 
 	// Message should never arrive -> exit after timeout
