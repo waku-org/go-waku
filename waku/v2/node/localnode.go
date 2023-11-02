@@ -263,7 +263,7 @@ func (w *WakuNode) setupENR(ctx context.Context, addrs []ma.Multiaddr) error {
 		return err
 	}
 
-	err = w.updateLocalNode(w.localNode, multiaddresses, ipAddr, w.opts.udpPort, w.wakuFlag, w.opts.advertiseAddrs, w.opts.discV5autoUpdate)
+	err = w.updateLocalNode(w.localNode, multiaddresses, ipAddr, w.opts.discv5Params.UdpPort, w.wakuFlag, w.opts.advertiseAddrs, w.opts.discv5Params.AutoUpdate)
 	if err != nil {
 		w.log.Error("updating localnode ENR record", zap.Error(err))
 		return err

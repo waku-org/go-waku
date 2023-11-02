@@ -389,31 +389,6 @@ var (
 		},
 		EnvVars: []string{"WAKUNODE2_LIGHTPUSHNODE"},
 	})
-	Discv5Discovery = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "discv5-discovery",
-		Usage:       "Enable discovering nodes via Node Discovery v5",
-		Destination: &options.DiscV5.Enable,
-		EnvVars:     []string{"WAKUNODE2_DISCV5_DISCOVERY"},
-	})
-	Discv5BootstrapNode = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
-		Name:        "discv5-bootstrap-node",
-		Usage:       "Text-encoded ENR for bootstrap node. Used when connecting to the network. Option may be repeated",
-		Destination: &options.DiscV5.Nodes,
-		EnvVars:     []string{"WAKUNODE2_DISCV5_BOOTSTRAP_NODE"},
-	})
-	Discv5UDPPort = altsrc.NewUintFlag(&cli.UintFlag{
-		Name:        "discv5-udp-port",
-		Value:       9000,
-		Usage:       "Listening UDP port for Node Discovery v5.",
-		Destination: &options.DiscV5.Port,
-		EnvVars:     []string{"WAKUNODE2_DISCV5_UDP_PORT"},
-	})
-	Discv5ENRAutoUpdate = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "discv5-enr-auto-update",
-		Usage:       "Discovery can automatically update its ENR with the IP address as seen by other nodes it communicates with.",
-		Destination: &options.DiscV5.AutoUpdate,
-		EnvVars:     []string{"WAKUNODE2_DISCV5_ENR_AUTO_UPDATE"},
-	})
 	Rendezvous = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rendezvous",
 		Usage:       "Enable rendezvous protocol for peer discovery",

@@ -10,7 +10,6 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
@@ -32,7 +31,7 @@ type PeerConnector interface {
 }
 
 type DiscoveryV5 struct {
-	params    *discV5Parameters
+	params    *DiscV5Parameters
 	host      host.Host
 	config    discover.Config
 	udpAddr   *net.UDPAddr
@@ -48,59 +47,13 @@ type DiscoveryV5 struct {
 	*peermanager.CommonDiscoveryService
 }
 
-type discV5Parameters struct {
-	autoUpdate    bool
-	autoFindPeers bool
-	bootnodes     []*enode.Node
-	udpPort       uint
-	advertiseAddr []multiaddr.Multiaddr
-	loopPredicate func(*enode.Node) bool
-}
-
-type DiscoveryV5Option func(*discV5Parameters)
+type DiscoveryV5Option func(*DiscV5Parameters)
 
 var protocolID = [6]byte{'d', '5', 'w', 'a', 'k', 'u'}
 
 const peerDelay = 100 * time.Millisecond
 const bucketSize = 16
 const delayBetweenDiscoveredPeerCnt = 5 * time.Second
-
-func WithAutoUpdate(autoUpdate bool) DiscoveryV5Option {
-	return func(params *discV5Parameters) {
-		params.autoUpdate = autoUpdate
-	}
-}
-
-// WithBootnodes is an option used to specify the bootstrap nodes to use with DiscV5
-func WithBootnodes(bootnodes []*enode.Node) DiscoveryV5Option {
-	return func(params *discV5Parameters) {
-		params.bootnodes = bootnodes
-	}
-}
-
-func WithAdvertiseAddr(addr []multiaddr.Multiaddr) DiscoveryV5Option {
-	return func(params *discV5Parameters) {
-		params.advertiseAddr = addr
-	}
-}
-
-func WithUDPPort(port uint) DiscoveryV5Option {
-	return func(params *discV5Parameters) {
-		params.udpPort = port
-	}
-}
-
-func WithPredicate(predicate func(*enode.Node) bool) DiscoveryV5Option {
-	return func(params *discV5Parameters) {
-		params.loopPredicate = predicate
-	}
-}
-
-func WithAutoFindPeers(find bool) DiscoveryV5Option {
-	return func(params *discV5Parameters) {
-		params.autoFindPeers = find
-	}
-}
 
 // DefaultOptions contains the default list of options used when setting up DiscoveryV5
 func DefaultOptions() []DiscoveryV5Option {
@@ -112,7 +65,7 @@ func DefaultOptions() []DiscoveryV5Option {
 
 // NewDiscoveryV5 returns a new instance of a DiscoveryV5 struct
 func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConnector PeerConnector, reg prometheus.Registerer, log *zap.Logger, opts ...DiscoveryV5Option) (*DiscoveryV5, error) {
-	params := new(discV5Parameters)
+	params := new(DiscV5Parameters)
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
 	for _, opt := range optList {
@@ -142,7 +95,7 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 		},
 		udpAddr: &net.UDPAddr{
 			IP:   net.IPv4zero,
-			Port: int(params.udpPort),
+			Port: int(params.UdpPort),
 		},
 		log: logger,
 	}, nil

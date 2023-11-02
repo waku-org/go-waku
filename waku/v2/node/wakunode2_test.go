@@ -16,6 +16,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -95,7 +96,7 @@ func TestUpAndDown(t *testing.T) {
 		WithPrivateKey(prvKey1),
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
-		WithDiscoveryV5(0, bootnodes, true),
+		WithDiscoveryV5(discv5.GetDiscv5Params(0, bootnodes, true)),
 	)
 	require.NoError(t, err)
 

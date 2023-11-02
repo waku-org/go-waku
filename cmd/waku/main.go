@@ -12,6 +12,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type CliFlagsI interface {
+	CliFlags() []cli.Flag
+}
+
 var options NodeOptions
 
 func main() {
@@ -74,10 +78,6 @@ func main() {
 		FilterLegacyLightClient,
 		LightPush,
 		LightPushNode,
-		Discv5Discovery,
-		Discv5BootstrapNode,
-		Discv5UDPPort,
-		Discv5ENRAutoUpdate,
 		PeerExchange,
 		PeerExchangeNode,
 		DNSDiscovery,
@@ -100,6 +100,12 @@ func main() {
 		RESTRelayCacheCapacity,
 		RESTAdmin,
 		PProf,
+	}
+	//
+	for _, obj := range []CliFlagsI{
+		&options.DiscV5,
+	} {
+		cliFlags = append(cliFlags, obj.CliFlags()...)
 	}
 
 	rlnFlags := rlnFlags()

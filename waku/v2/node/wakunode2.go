@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"sync"
@@ -92,7 +93,7 @@ type WakuNode struct {
 
 	relay           Service
 	lightPush       Service
-	discoveryV5     Service
+	discoveryV5     *discv5.DiscoveryV5
 	peerExchange    Service
 	rendezvous      Service
 	metadata        Service
@@ -265,11 +266,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		w.log.Error("creating peer connection strategy", zap.Error(err))
 	}
 
-	if w.opts.enableDiscV5 {
-		err := w.mountDiscV5()
-		if err != nil {
-			return nil, err
-		}
+	w.discoveryV5, err = w.opts.discv5Params.Service(w.opts.privKey, w.localNode, w.peerConnector, w.opts.prometheusReg, w.log, w.opts.discoveredNodes, w.opts.advertiseAddrs)
+	if err != nil {
+		return nil, err
 	}
 
 	w.peerExchange, err = peer_exchange.NewWakuPeerExchange(w.DiscV5(), w.peerConnector, w.peermanager, w.opts.prometheusReg, w.log)
@@ -526,7 +525,8 @@ func (w *WakuNode) Stop() {
 	w.legacyFilter.Stop()
 	w.filterFullNode.Stop()
 
-	if w.opts.enableDiscV5 {
+	if w.discoveryV5 != nil {
+		utils.Logger().Info(fmt.Sprintf("%v", w.discoveryV5))
 		w.discoveryV5.Stop()
 	}
 	w.peerExchange.Stop()
@@ -651,10 +651,7 @@ func (w *WakuNode) Lightpush() *lightpush.WakuLightPush {
 
 // DiscV5 is used to access any operation related to DiscoveryV5
 func (w *WakuNode) DiscV5() *discv5.DiscoveryV5 {
-	if result, ok := w.discoveryV5.(*discv5.DiscoveryV5); ok {
-		return result
-	}
-	return nil
+	return w.discoveryV5
 }
 
 // PeerExchange is used to access any operation related to Peer Exchange
@@ -677,23 +674,6 @@ func (w *WakuNode) Rendezvous() *rendezvous.Rendezvous {
 // messages to different protocols
 func (w *WakuNode) Broadcaster() relay.Broadcaster {
 	return w.bcaster
-}
-
-func (w *WakuNode) mountDiscV5() error {
-	discV5Options := []discv5.DiscoveryV5Option{
-		discv5.WithBootnodes(w.opts.discV5bootnodes),
-		discv5.WithUDPPort(w.opts.udpPort),
-		discv5.WithAutoUpdate(w.opts.discV5autoUpdate),
-	}
-
-	if w.opts.advertiseAddrs != nil {
-		discV5Options = append(discV5Options, discv5.WithAdvertiseAddr(w.opts.advertiseAddrs))
-	}
-
-	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.opts.privKey, w.localNode, w.peerConnector, w.opts.prometheusReg, w.log, discV5Options...)
-
-	return err
 }
 
 func (w *WakuNode) startStore(ctx context.Context, sub *relay.Subscription) error {
@@ -834,7 +814,6 @@ func (w *WakuNode) PeerStats() PeerStats {
 
 // Set the bootnodes on discv5
 func (w *WakuNode) SetDiscV5Bootnodes(nodes []*enode.Node) error {
-	w.opts.discV5bootnodes = nodes
 	return w.DiscV5().SetBootnodes(nodes)
 }
 

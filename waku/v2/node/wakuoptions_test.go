@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
@@ -40,7 +41,7 @@ func TestWakuOptions(t *testing.T) {
 		WithLibP2POptions(),
 		WithWakuRelay(),
 		WithLegacyWakuFilter(true),
-		WithDiscoveryV5(123, nil, false),
+		WithDiscoveryV5(discv5.GetDiscv5Params(123, nil, false)),
 		WithWakuStore(),
 		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),

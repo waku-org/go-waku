@@ -19,12 +19,12 @@ import (
 	"github.com/urfave/cli/v2"
 
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
+	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -44,7 +44,6 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
-	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
@@ -303,24 +302,7 @@ func Execute(options NodeOptions) error {
 		}
 	}
 
-	if options.DiscV5.Enable {
-		var bootnodes []*enode.Node
-		for _, addr := range options.DiscV5.Nodes.Value() {
-			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
-			if err != nil {
-				logger.Fatal("parsing ENR", zap.Error(err))
-			}
-			bootnodes = append(bootnodes, bootnode)
-		}
-
-		for _, n := range discoveredNodes {
-			if n.ENR != nil {
-				bootnodes = append(bootnodes, n.ENR)
-			}
-		}
-
-		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate))
-	}
+	nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5))
 
 	if options.PeerExchange.Enable {
 		nodeOpts = append(nodeOpts, node.WithPeerExchange())
@@ -331,7 +313,7 @@ func Execute(options NodeOptions) error {
 		nodeOpts = append(nodeOpts, node.WithRendezvous(rdb))
 	}
 
-	utils.Logger().Info("Version details ", zap.String("version", node.Version), zap.String("commit", node.GitCommit))
+	logger.Info("Version details ", zap.String("version", node.Version), zap.String("commit", node.GitCommit))
 
 	if err = checkForRLN(logger, options, &nodeOpts); err != nil {
 		return nonRecoverError(err)
@@ -460,8 +442,8 @@ func Execute(options NodeOptions) error {
 		}(ctx, n)
 	}
 
-	if options.DiscV5.Enable {
-		if err = wakuNode.DiscV5().Start(ctx); err != nil {
+	if service := wakuNode.DiscV5(); service != nil {
+		if err = service.Start(ctx); err != nil {
 			logger.Fatal("starting discovery v5", zap.Error(err))
 		}
 	}

@@ -8,16 +8,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
 	"github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
 )
-
-// DiscV5Options are settings to enable a modified version of Ethereum’s Node
-// Discovery Protocol v5 as a means for ambient node discovery.
-type DiscV5Options struct {
-	Enable     bool
-	Nodes      cli.StringSlice
-	Port       uint
-	AutoUpdate bool
-}
 
 // RelayOptions are settings to enable the relay protocol which is a pubsub
 // approach to peer-to-peer messaging with a strong focus on privacy,
@@ -179,10 +171,11 @@ type NodeOptions struct {
 	Filter       FilterOptions
 	LightPush    LightpushOptions
 	RLNRelay     RLNRelayOptions
-	DiscV5       DiscV5Options
 	DNSDiscovery DNSDiscoveryOptions
 	Rendezvous   RendezvousOptions
 	Metrics      MetricsOptions
 	RPCServer    RPCServerOptions
 	RESTServer   RESTServerOptions
+	//
+	DiscV5 discv5.DiscV5Parameters
 }

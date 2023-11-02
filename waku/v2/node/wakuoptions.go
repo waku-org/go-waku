@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -26,6 +25,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
+	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -90,10 +91,8 @@ type WakuNodeParameters struct {
 	maxPeerConnections int
 	peerStoreCapacity  int
 
-	enableDiscV5     bool
-	udpPort          uint
-	discV5bootnodes  []*enode.Node
-	discV5autoUpdate bool
+	discv5Params    discv5.DiscV5Parameters
+	discoveredNodes []dnsdisc.DiscoveredNode
 
 	enablePeerExchange bool
 
@@ -373,12 +372,15 @@ func WithPeerStoreCapacity(capacity int) WakuNodeOption {
 }
 
 // WithDiscoveryV5 is a WakuOption used to enable DiscV5 peer discovery
-func WithDiscoveryV5(udpPort uint, bootnodes []*enode.Node, autoUpdate bool) WakuNodeOption {
+func WithDiscoveryV5(discv5Params discv5.DiscV5Parameters) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.enableDiscV5 = true
-		params.udpPort = udpPort
-		params.discV5bootnodes = bootnodes
-		params.discV5autoUpdate = autoUpdate
+		params.discv5Params = discv5Params
+		return nil
+	}
+}
+func WithDiscoveredNodes(discoveredNodes []dnsdisc.DiscoveredNode) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.discoveredNodes = discoveredNodes
 		return nil
 	}
 }

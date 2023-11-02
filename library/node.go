@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/waku/persistence"
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -153,7 +154,7 @@ func NewNode(configJSON string) error {
 			}
 			bootnodes = append(bootnodes, bootnode)
 		}
-		opts = append(opts, node.WithDiscoveryV5(*config.DiscV5UDPPort, bootnodes, true))
+		opts = append(opts, node.WithDiscoveryV5(discv5.GetDiscv5Params(*config.DiscV5UDPPort, bootnodes, true)))
 	}
 
 	wakuState.relayTopics = config.RelayTopics
