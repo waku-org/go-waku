@@ -32,7 +32,6 @@ func (c *filterCache) subscribe(contentFilter protocol.ContentFilter) {
 			c.data[pubsubTopic] = make(map[string][]*pb.WakuMessage)
 		}
 		for _, topic := range contentTopics {
-			utils.Logger().Info(fmt.Sprintf("pb %s ct %s ", pubsubTopic, topic))
 			if c.data[pubsubTopic][topic] == nil {
 				c.data[pubsubTopic][topic] = []*pb.WakuMessage{}
 			}
