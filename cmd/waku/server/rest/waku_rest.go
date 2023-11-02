@@ -77,6 +77,8 @@ func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 
 	if r.node.Relay() != nil {
 		go r.relayService.Start(ctx)
+	}
+	if r.node.FilterLightnode() != nil {
 		go r.filterService.Start(ctx)
 	}
 
