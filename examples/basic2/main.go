@@ -103,7 +103,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, contentTopic string, ms
 		Timestamp:    timestamp,
 	}
 
-	_, err = wakuNode.Relay().Publish(ctx, msg)
+	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic())
 	if err != nil {
 		log.Error("Error sending a message", zap.Error(err))
 	}

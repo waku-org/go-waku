@@ -109,7 +109,7 @@ func TestWakuLightPush(t *testing.T) {
 	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 
 	// Checking that msg hash is correct
-	hash, err := client.PublishToTopic(ctx, msg2, lpOptions...)
+	hash, err := client.Publish(ctx, msg2, lpOptions...)
 	require.NoError(t, err)
 	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(testTopic)).Hash(), hash)
 	wg.Wait()
@@ -141,7 +141,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	var lpOptions []Option
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 
-	_, err = client.PublishToTopic(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), lpOptions...)
+	_, err = client.Publish(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), lpOptions...)
 	require.Errorf(t, err, "no suitable remote peers")
 }
 

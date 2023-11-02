@@ -4,7 +4,7 @@ package library
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
-extern bool ServiceSignalEvent(const char *jsonEvent, size_t len);
+extern bool ServiceSignalEvent(const char *jsonEvent);
 extern void SetEventCallback(void *cb);
 */
 import "C"
@@ -51,7 +51,7 @@ func send(signalType string, event interface{}) {
 		// ...and fallback to C implementation otherwise.
 		dataStr := string(data)
 		str := C.CString(dataStr)
-		C.ServiceSignalEvent(str, C.size_t(len(data)))
+		C.ServiceSignalEvent(str)
 		C.free(unsafe.Pointer(str))
 	}
 }

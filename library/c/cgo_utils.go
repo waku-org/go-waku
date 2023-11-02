@@ -3,35 +3,51 @@ package main
 /*
 #include <stdlib.h>
 #include <cgo_utils.h>
-extern void _waku_execCB(WakuCallBack op, char* a, size_t b);
+extern void _waku_execCB(WakuCallBack cb, int retCode, char* msg, void* user_data);
 */
 import "C"
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
-func execOkCB(onOkCb C.WakuCallBack, value string) C.int {
-	if onOkCb == nil {
-		return retMissingCallback
+const ret_ok = 0
+const ret_err = 1
+const ret_cb = 2
+
+var errMissingCallback = errors.New("missing callback")
+
+func onSuccesfulResponse(value string, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	retCode := ret_ok
+	if cb == nil {
+		retCode = ret_cb
+		value = errMissingCallback.Error()
 	}
 
-	val := C.CString(value)
-	valLen := C.size_t(len(value))
-	C._waku_execCB(onOkCb, val, valLen)
+	cstrVal := C.CString(value)
+	C._waku_execCB(cb, C.int(retCode), cstrVal, userData)
 
-	C.free(unsafe.Pointer(val))
+	C.free(unsafe.Pointer(cstrVal))
 
-	return retOk
+	return ret_ok
 }
 
-func execErrCB(onErrCb C.WakuCallBack, err error) C.int {
-	if onErrCb == nil {
-		return retMissingCallback
+func onError(err error, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	retCode := ret_err
+	if cb == nil {
+		retCode = ret_cb
+		err = errMissingCallback
 	}
 
 	if err != nil {
 		errMsg := err.Error()
-		execOkCB(onErrCb, errMsg) // reusing ok cb
-		return retErr
+		cstrVal := C.CString(errMsg)
+		C._waku_execCB(cb, C.int(retCode), cstrVal, userData)
+		C.free(unsafe.Pointer(cstrVal))
+		return ret_err
 	}
 
-	return retOk
+	retCode = ret_ok
+	C._waku_execCB(cb, C.int(retCode), nil, userData)
+	return ret_ok
 }

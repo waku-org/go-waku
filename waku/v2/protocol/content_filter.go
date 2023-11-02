@@ -20,8 +20,8 @@ func NewContentTopicSet(contentTopics ...string) ContentTopicSet {
 // ContentTopics - Specify list of content topics to be filtered under a pubSubTopic (for named and static sharding), or a list of contentTopics (in case ofAuto sharding)
 // If pubSub topic is not specified, then content-topics are used to derive the shard and corresponding pubSubTopic using autosharding algorithm
 type ContentFilter struct {
-	PubsubTopic   string
-	ContentTopics ContentTopicSet
+	PubsubTopic   string          `json:"pubsubTopic"`
+	ContentTopics ContentTopicSet `json:"contentTopics"`
 }
 
 func (cf ContentFilter) ContentTopicsList() []string {

@@ -4,7 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"net/http"
+	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -47,7 +48,13 @@ type FilterTestSuite struct {
 	log              *zap.Logger
 }
 
-func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.Subscription, host.Host, relay.Broadcaster) {
+type WakuMsg struct {
+	pubSubTopic  string
+	contentTopic string
+	payload      string
+}
+
+func (s *FilterTestSuite) makeWakuRelay(topic string, shared bool) (*relay.WakuRelay, *relay.Subscription, host.Host, relay.Broadcaster) {
 
 	broadcaster := relay.NewBroadcaster(10)
 	s.Require().NoError(broadcaster.Start(context.Background()))
@@ -60,7 +67,11 @@ func (s *FilterTestSuite) makeWakuRelay(topic string) (*relay.WakuRelay, *relay.
 
 	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	relay.SetHost(host)
-	s.fullNodeHost = host
+
+	if shared {
+		s.fullNodeHost = host
+	}
+
 	err = relay.Start(context.Background())
 	s.Require().NoError(err)
 
@@ -92,13 +103,23 @@ func (s *FilterTestSuite) makeWakuFilterLightNode(start bool, withBroadcaster bo
 	return filterPush
 }
 
-func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay, *WakuFilterFullNode) {
-	node, relaySub, host, broadcaster := s.makeWakuRelay(topic)
-	s.relaySub = relaySub
+func (s *FilterTestSuite) makeWakuFilterFullNode(topic string, withRegisterAll bool, shared bool) (*relay.WakuRelay, *WakuFilterFullNode) {
+	var sub *relay.Subscription
+	node, relaySub, host, broadcaster := s.makeWakuRelay(topic, shared)
+
+	if shared {
+		s.relaySub = relaySub
+	}
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.log)
 	node2Filter.SetHost(host)
-	sub := broadcaster.Register(protocol.NewContentFilter(topic))
+
+	if withRegisterAll {
+		sub = broadcaster.RegisterForAll()
+	} else {
+		sub = broadcaster.Register(protocol.NewContentFilter(topic))
+	}
+
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 
@@ -107,12 +128,18 @@ func (s *FilterTestSuite) makeWakuFilterFullNode(topic string) (*relay.WakuRelay
 
 func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 	s.wg.Add(1)
+	var msgFound = false
 	go func() {
 		defer s.wg.Done()
 		select {
 		case env := <-ch:
-			s.Require().Equal(s.contentFilter.ContentTopicsList()[0], env.Message().GetContentTopic())
-		case <-time.After(5 * time.Second):
+			for _, topic := range s.contentFilter.ContentTopicsList() {
+				if topic == env.Message().GetContentTopic() {
+					msgFound = true
+				}
+			}
+			s.Require().True(msgFound)
+		case <-time.After(1 * time.Second):
 			s.Require().Fail("Message timeout")
 		case <-s.ctx.Done():
 			s.Require().Fail("test exceeded allocated time")
@@ -124,6 +151,58 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 	}
 
 	s.wg.Wait()
+}
+
+func matchOneOfManyMsg(one WakuMsg, many []WakuMsg) bool {
+	for _, m := range many {
+		if m.pubSubTopic == one.pubSubTopic &&
+			m.contentTopic == one.contentTopic &&
+			m.payload == one.payload {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.SubscriptionDetails, expected []WakuMsg) {
+	s.wg.Add(1)
+	msgCount := len(expected)
+	found := 0
+	s.log.Info("Expected messages ", zap.String("count", strconv.Itoa(msgCount)))
+	s.log.Info("Existing subscriptions ", zap.String("count", strconv.Itoa(len(subs))))
+
+	go func() {
+		defer s.wg.Done()
+		for _, sub := range subs {
+			s.log.Info("Looking at ", zap.String("pubSubTopic", sub.ContentFilter.PubsubTopic))
+			for i := 0; i < msgCount; i++ {
+				select {
+				case env := <-sub.C:
+					received := WakuMsg{
+						pubSubTopic:  env.PubsubTopic(),
+						contentTopic: env.Message().GetContentTopic(),
+						payload:      string(env.Message().GetPayload()),
+					}
+					s.log.Info("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
+					if matchOneOfManyMsg(received, expected) {
+						found++
+					}
+				case <-time.After(1 * time.Second):
+
+				case <-s.ctx.Done():
+					s.Require().Fail("test exceeded allocated time")
+				}
+			}
+		}
+	}()
+
+	if fn != nil {
+		fn()
+	}
+
+	s.wg.Wait()
+	s.Require().True(msgCount == found)
 }
 
 func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) {
@@ -148,15 +227,44 @@ func (s *FilterTestSuite) waitForTimeout(fn func(), ch chan *protocol.Envelope) 
 }
 
 func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
+
+	for _, sub := range s.subDetails {
+		if sub.ContentFilter.PubsubTopic == pubsubTopic {
+			sub.Add(contentTopic)
+			s.contentFilter = sub.ContentFilter
+			subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
+			s.Require().NoError(err)
+			return subDetails
+		}
+	}
+
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
 
 	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
 	s.Require().NoError(err)
 
 	// Sleep to make sure the filter is subscribed
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	return subDetails
+}
+
+func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
+
+	for _, sub := range s.subDetails {
+		if sub.ContentFilter.PubsubTopic == pubsubTopic {
+			topicsCount := len(sub.ContentFilter.ContentTopicsList())
+			if topicsCount == 1 {
+				_, err := s.lightNode.Unsubscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
+				s.Require().NoError(err)
+			} else {
+				sub.Remove(contentTopic)
+			}
+			s.contentFilter = sub.ContentFilter
+		}
+	}
+
+	return s.lightNode.Subscriptions()
 }
 
 func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload ...string) {
@@ -167,8 +275,48 @@ func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload
 		payload = "123"
 	}
 
-	_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch(), payload), topic)
+	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch(), payload), relay.WithPubSubTopic(topic))
 	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
+	for _, m := range msgs {
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), relay.WithPubSubTopic(m.pubSubTopic))
+		s.Require().NoError(err)
+	}
+}
+
+func prepareData(quantity int, topics, contentTopics, payloads bool) []WakuMsg {
+	var (
+		pubsubTopic  = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
+		contentTopic = "TopicA"                 // Has to be the same with initial s.testContentTopic
+		payload      = "test_msg"
+		messages     []WakuMsg
+	)
+
+	for i := 0; i < quantity; i++ {
+		msg := WakuMsg{
+			pubSubTopic:  pubsubTopic,
+			contentTopic: contentTopic,
+			payload:      payload,
+		}
+
+		if topics {
+			msg.pubSubTopic = fmt.Sprintf("%s%02d", pubsubTopic, i)
+		}
+
+		if contentTopics {
+			msg.contentTopic = fmt.Sprintf("%s%02d", contentTopic, i)
+		}
+
+		if payloads {
+			msg.payload = fmt.Sprintf("%s%02d", payload, i)
+		}
+
+		messages = append(messages, msg)
+	}
+
+	return messages
 }
 
 func (s *FilterTestSuite) SetupTest() {
@@ -190,7 +338,7 @@ func (s *FilterTestSuite) SetupTest() {
 
 	//TODO: Add tests to verify broadcaster.
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -205,82 +353,6 @@ func (s *FilterTestSuite) TearDownTest() {
 	s.relaySub.Unsubscribe()
 	s.lightNode.Stop()
 	s.ctxCancel()
-}
-
-func (s *FilterTestSuite) TestWakuFilter() {
-	// Initial subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Should be received
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "first")
-	}, s.subDetails[0].C)
-
-	// Wrong content topic
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, "TopicB", "second")
-	}, s.subDetails[0].C)
-
-	_, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
-	s.Require().NoError(err)
-
-	// Should not receive after unsubscribe
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "third")
-	}, s.subDetails[0].C)
-
-	// Two new subscriptions with same [peer, contentFilter]
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-	secondSub := s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Assert that we have 2 subscriptions now
-	s.Require().Equal(len(s.lightNode.Subscriptions()), 2)
-
-	// Should be received on both subscriptions
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "fourth")
-	}, s.subDetails[0].C)
-
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "fifth")
-	}, secondSub[0].C)
-
-	s.waitForMsg(nil, s.subDetails[0].C)
-	s.waitForMsg(nil, secondSub[0].C)
-
-	// Unsubscribe from second sub only
-	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, secondSub[0])
-	s.Require().NoError(err)
-
-	// Should still receive
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "sixth")
-	}, s.subDetails[0].C)
-
-	// Unsubscribe from first sub only
-	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, s.subDetails[0])
-	s.Require().NoError(err)
-
-	s.Require().Equal(len(s.lightNode.Subscriptions()), 0)
-
-	// Should not receive after unsubscribe
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "seventh")
-	}, s.subDetails[0].C)
-}
-
-func (s *FilterTestSuite) TestSubscriptionPing() {
-	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
-	s.Require().Error(err)
-	filterErr, ok := err.(*FilterError)
-	s.Require().True(ok)
-	s.Require().Equal(filterErr.Code, http.StatusNotFound)
-
-	contentTopic := "abc"
-	s.subDetails = s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
-
-	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
-	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) TestPeerFailure() {
@@ -324,56 +396,6 @@ func (s *FilterTestSuite) TestPeerFailure() {
 
 	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID())) // Failed peer has been removed
 	s.Require().False(s.fullNode.subscriptions.Has(s.lightNodeHost.ID()))         // Failed peer has been removed
-}
-
-func (s *FilterTestSuite) TestCreateSubscription() {
-	// Initial subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
-}
-
-func (s *FilterTestSuite) TestModifySubscription() {
-
-	// Initial subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
-
-	// Subscribe to another content_topic
-	newContentTopic := "Topic_modified"
-	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
-
-	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
-}
-
-func (s *FilterTestSuite) TestMultipleMessages() {
-
-	// Initial subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "first"), s.testTopic)
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
-
-	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), s.testTopic)
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
 }
 
 func (s *FilterTestSuite) TestRunningGuard() {
@@ -464,7 +486,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.testTopic = pubSubTopic.String()
 
 	s.lightNode = s.makeWakuFilterLightNode(true, false)
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String())
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(pubSubTopic.String(), false, true)
 
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
 	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
@@ -473,7 +495,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.log.Info("Testing Autoshard:CreateSubscription")
 	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
@@ -506,10 +528,11 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.subDetails = s.subscribe("", newContentTopic, s.fullNodeHost.ID())
 
 	s.waitForMsg(func() {
-		_, err := s.relayNode.PublishToTopic(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), s.testTopic)
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
+
 	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
 		PubsubTopic:   s.testTopic,
 		ContentTopics: protocol.NewContentTopicSet(newContentTopic),

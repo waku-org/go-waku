@@ -22,11 +22,11 @@ type storePagingOptions struct {
 }
 
 type storeMessagesArgs struct {
-	Topic          string              `json:"pubsubTopic,omitempty"`
-	ContentFilters []*pb.ContentFilter `json:"contentFilters,omitempty"`
-	StartTime      int64               `json:"startTime,omitempty"`
-	EndTime        int64               `json:"endTime,omitempty"`
-	PagingOptions  storePagingOptions  `json:"pagingOptions,omitempty"`
+	Topic         string             `json:"pubsubTopic,omitempty"`
+	ContentTopics []string           `json:"contentTopics,omitempty"`
+	StartTime     int64              `json:"startTime,omitempty"`
+	EndTime       int64              `json:"endTime,omitempty"`
+	PagingOptions storePagingOptions `json:"pagingOptions,omitempty"`
 }
 
 type storeMessagesReply struct {
@@ -36,16 +36,11 @@ type storeMessagesReply struct {
 }
 
 func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.HistoryRequestOption) (string, error) {
-	var contentTopics []string
-	for _, ct := range args.ContentFilters {
-		contentTopics = append(contentTopics, ct.ContentTopic)
-	}
-
 	res, err := wakuState.node.Store().Query(
 		ctx,
 		store.Query{
 			Topic:         args.Topic,
-			ContentTopics: contentTopics,
+			ContentTopics: args.ContentTopics,
 			StartTime:     args.StartTime,
 			EndTime:       args.EndTime,
 		},

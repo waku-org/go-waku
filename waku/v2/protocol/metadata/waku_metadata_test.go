@@ -27,14 +27,14 @@ func createWakuMetadata(t *testing.T, rs *protocol.RelayShards) *WakuMetadata {
 	localNode, err := enr.NewLocalnode(key)
 	require.NoError(t, err)
 
-	cluster := uint16(0)
+	clusterID := uint16(0)
 	if rs != nil {
 		err = enr.WithWakuRelaySharding(*rs)(localNode)
 		require.NoError(t, err)
-		cluster = rs.Cluster
+		clusterID = rs.ClusterID
 	}
 
-	m1 := NewWakuMetadata(cluster, localNode, utils.Logger())
+	m1 := NewWakuMetadata(clusterID, localNode, utils.Logger())
 	m1.SetHost(host)
 	err = m1.Start(context.TODO())
 	require.NoError(t, err)
@@ -65,25 +65,25 @@ func TestWakuMetadataRequest(t *testing.T) {
 	// Query a peer that is subscribed to a shard
 	result, err := m16_1.Request(context.Background(), m16_2.h.ID())
 	require.NoError(t, err)
-	require.Equal(t, testShard16, result.Cluster)
-	require.Equal(t, rs16_2.Indices, result.Indices)
+	require.Equal(t, testShard16, result.ClusterID)
+	require.Equal(t, rs16_2.ShardIDs, result.ShardIDs)
 
 	// Updating the peer shards
-	rs16_2.Indices = append(rs16_2.Indices, 3, 4)
+	rs16_2.ShardIDs = append(rs16_2.ShardIDs, 3, 4)
 	err = enr.WithWakuRelaySharding(rs16_2)(m16_2.localnode)
 	require.NoError(t, err)
 
 	// Query same peer, after that peer subscribes to more shards
 	result, err = m16_1.Request(context.Background(), m16_2.h.ID())
 	require.NoError(t, err)
-	require.Equal(t, testShard16, result.Cluster)
-	require.ElementsMatch(t, rs16_2.Indices, result.Indices)
+	require.Equal(t, testShard16, result.ClusterID)
+	require.ElementsMatch(t, rs16_2.ShardIDs, result.ShardIDs)
 
 	// Query a peer not subscribed to a shard
 	result, err = m16_1.Request(context.Background(), m_noRS.h.ID())
 	require.NoError(t, err)
-	require.Equal(t, uint16(0), result.Cluster)
-	require.Len(t, result.Indices, 0)
+	require.Equal(t, uint16(0), result.ClusterID)
+	require.Len(t, result.ShardIDs, 0)
 }
 
 func TestNoNetwork(t *testing.T) {

@@ -15,7 +15,7 @@ const credentialsPath = ""
 const credentialsPassword = ""
 
 var contentTopic = protocol.NewContentTopic("rln", 1, "test", "proto").String()
-var pubsubTopic = protocol.DefaultPubsubTopic()
+var pubsubTopic = protocol.DefaultPubsubTopic{}
 ```
 The private key used here should contain enough Sepolia ETH to register on the contract (0.001 ETH). An ethereum client address is required as well. After updating these values, execute `make`
 
