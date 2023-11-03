@@ -8,26 +8,26 @@ import (
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 )
 
-type ClusterShard struct {
+type ShardInfo struct {
 	clusterID uint16
 	shard     uint16
 }
 type shardLRU struct {
 	size       int // number of nodes allowed per shard
 	idToNode   map[enode.ID][]*list.Element
-	shardNodes map[ClusterShard]*list.List
+	shardNodes map[ShardInfo]*list.List
 }
 
 func newShardLRU(size int) *shardLRU {
 	return &shardLRU{
 		idToNode:   map[enode.ID][]*list.Element{},
-		shardNodes: map[ClusterShard]*list.List{},
+		shardNodes: map[ShardInfo]*list.List{},
 		size:       size,
 	}
 }
 
 type nodeWithClusterIndex struct {
-	key  ClusterShard
+	key  ShardInfo
 	node *enode.Node
 }
 
@@ -66,7 +66,7 @@ func (l *shardLRU) add(node *enode.Node) {
 	}
 	elements := []*list.Element{}
 	for _, index := range shard.ShardIDs {
-		key := ClusterShard{
+		key := ShardInfo{
 			shard.ClusterID,
 			index,
 		}
@@ -96,7 +96,7 @@ func (l *shardLRU) Add(node *enode.Node) {
 }
 
 // clusterIndex is nil when peers for no specific shard are requested
-func (l shardLRU) getNodes(clusterIndex *ClusterShard) []*enode.Node {
+func (l shardLRU) getNodes(clusterIndex *ShardInfo) []*enode.Node {
 	// if clusterIndex is nil, then return all nodes
 	if clusterIndex == nil {
 		nodes := make([]*enode.Node, 0, len(l.idToNode))
@@ -118,7 +118,7 @@ func (l shardLRU) getNodes(clusterIndex *ClusterShard) []*enode.Node {
 
 // if clusterIndex is not nil, return len of nodes maintained for a given shard
 // if clusterIndex is nil, return count of all nodes maintained
-func (l shardLRU) len(clusterIndex *ClusterShard) int {
+func (l shardLRU) len(clusterIndex *ShardInfo) int {
 	if clusterIndex == nil {
 		return len(l.idToNode)
 	}

@@ -14,7 +14,7 @@ import (
 
 // simpleLRU internal uses container/list, which is ring buffer(double linked list)
 type enrCache struct {
-	// using lru, saves us from periodically cleaning the cache to mauint16ain a certain size
+	// using lru, saves us from periodically cleaning the cache to mauintain a certain size
 	data *shardLRU
 	rng  *rand.Rand
 	mu   sync.RWMutex
@@ -43,7 +43,7 @@ func (c *enrCache) updateCache(node *enode.Node) {
 }
 
 // get `numPeers` records of enr
-func (c *enrCache) getENRs(neededPeers int, clusterIndex *ClusterShard) ([]*pb.PeerInfo, error) {
+func (c *enrCache) getENRs(neededPeers int, clusterIndex *ShardInfo) ([]*pb.PeerInfo, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	//

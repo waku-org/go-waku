@@ -39,7 +39,7 @@ func TestLruMoreThanSize(t *testing.T) {
 	lru.Add(node2)
 	lru.Add(node3)
 
-	nodes := lru.getNodes(&ClusterIndex{1, 1})
+	nodes := lru.getNodes(&ShardInfo{1, 1})
 
 	require.Equal(t, 2, len(nodes))
 	require.Equal(t, node2.ID(), nodes[0].ID())
@@ -75,13 +75,13 @@ func TestLruNodeWithNewSeq(t *testing.T) {
 	lru.Add(node1)
 
 	//
-	nodes := lru.getNodes(&ClusterIndex{1, 1})
+	nodes := lru.getNodes(&ShardInfo{1, 1})
 	require.Equal(t, 0, len(nodes))
 	//
-	nodes = lru.getNodes(&ClusterIndex{1, 2})
+	nodes = lru.getNodes(&ShardInfo{1, 2})
 	require.Equal(t, 1, len(nodes))
 	//
-	nodes = lru.getNodes(&ClusterIndex{1, 3})
+	nodes = lru.getNodes(&ShardInfo{1, 3})
 	require.Equal(t, 1, len(nodes))
 }
 
@@ -119,12 +119,12 @@ func TestLruMixedNodes(t *testing.T) {
 	require.Equal(t, 3, lru.len(nil))
 
 	//
-	nodes := lru.getNodes(&ClusterIndex{1, 1})
+	nodes := lru.getNodes(&ShardInfo{1, 1})
 	require.Equal(t, 1, len(nodes))
 	require.Equal(t, node2.ID(), nodes[0].ID())
 
 	//
-	nodes = lru.getNodes(&ClusterIndex{1, 2})
+	nodes = lru.getNodes(&ShardInfo{1, 2})
 	require.Equal(t, 1, len(nodes))
 	require.Equal(t, node3.ID(), nodes[0].ID())
 }
