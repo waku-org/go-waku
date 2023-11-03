@@ -216,7 +216,6 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	//var err error
 	if topic == "" {
 		topic = relay.DefaultWakuTopic
 	}
