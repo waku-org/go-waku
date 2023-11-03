@@ -95,7 +95,7 @@ func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto prot
 		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
 		return
 	}
-	err = pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].Cluster, shardInfo[0].Indices[0], proto)
+	err = pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto)
 	if err != nil {
 		pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
 	}
