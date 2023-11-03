@@ -25,6 +25,7 @@ type DiscV5Options struct {
 type RelayOptions struct {
 	Enable                 bool
 	Topics                 cli.StringSlice
+	BridgeTopics           []cliutils.BridgeTopic
 	ProtectedTopics        []cliutils.ProtectedTopic
 	PubSubTopics           cli.StringSlice
 	ContentTopics          cli.StringSlice
