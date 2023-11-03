@@ -40,7 +40,7 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	//  - which topics they track
 	//  - latency?
 
-	if peerID := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.SpecificPeers...); peerID != nil {
+	if peerID := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.Ctx, criteria.SpecificPeers...); peerID != nil {
 		return *peerID, nil
 	}
 
@@ -55,33 +55,40 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	return selectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers ...peer.ID) (peerIDPtr *peer.ID) {
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, ctx context.Context, specificPeers ...peer.ID) (peerIDPtr *peer.ID) {
 	peerIDPtr = nil
 
-	//Try to fetch from serviceSlot
-	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
-		if pubSubTopic == "" {
-			if peerID, err := slot.getRandom(); err == nil {
-				peerIDPtr = &peerID
-			} else {
-				pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
-			}
-		} else { //PubsubTopic based selection
-			keys := make([]peer.ID, 0, len(slot.m))
-			for i := range slot.m {
-				keys = append(keys, i)
-			}
-			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
-			peerID, err := selectRandomPeer(selectedPeers, pm.logger)
-			if err == nil {
-				peerIDPtr = &peerID
-			} else {
-				//TODO:Trigger on-demand discovery for this topic and connect to peer immediately and set peerID.
-				//TODO: Use context to limit time for connectivity
-				//pm.discoverPeersByPubsubTopic(pubSubTopic, proto)
-				pm.logger.Debug("could not select random peer", zap.Error(err))
+	for tries := 0; tries <= 1; tries++ {
+		//Try to fetch from serviceSlot
+		if slot := pm.serviceSlots.getPeers(proto); slot != nil {
+			if pubSubTopic == "" {
+				if peerID, err := slot.getRandom(); err == nil {
+					peerIDPtr = &peerID
+				} else {
+					pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
+				}
+			} else { //PubsubTopic based selection
+				keys := make([]peer.ID, 0, len(slot.m))
+				for i := range slot.m {
+					keys = append(keys, i)
+				}
+				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
+				peerID, err := selectRandomPeer(selectedPeers, pm.logger)
+				if err == nil {
+					peerIDPtr = &peerID
+					break
+				} else {
+					//Trigger on-demand discovery for this topic and connect to peer immediately.
+					//For now discover atleast 1 peer for the criteria
+					pm.discoverPeersByPubsubTopic(pubSubTopic, proto, ctx, 1)
+					//Try to fetch peers again.
+					continue
+				}
 			}
 		}
+	}
+	if peerIDPtr == nil {
+		pm.logger.Debug("could not select random peer even after trying to discover")
 	}
 	return
 }

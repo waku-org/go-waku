@@ -115,6 +115,7 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 	return pm
 }
 
+// SetDiscv5 sets the discoveryv5 service to be used for peer discovery.
 func (pm *PeerManager) SetDiscv5(discv5 *discv5.DiscoveryV5) {
 	pm.discoveryService = discv5
 }
@@ -217,7 +218,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
-				pm.discoverPeersByPubsubTopic(topicStr, relay.WakuRelayID_v200)
+				pm.discoverPeersByPubsubTopic(topicStr, relay.WakuRelayID_v200, pm.ctx, 2)
 				continue
 			}
 			//Connect to eligible peers.

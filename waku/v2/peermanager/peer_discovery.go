@@ -14,12 +14,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// DiscoverAndConnectToPeers discovers peers using discoveryv5 and connects to the peers.
+// It discovers peers till maxCount peers are found for the cluster,shard and protocol or the context passed expires.
 func (pm *PeerManager) DiscoverAndConnectToPeers(ctx context.Context, cluster uint16,
-	shard uint16, serviceProtocol protocol.ID) error {
+	shard uint16, serviceProtocol protocol.ID, maxCount int) error {
 	if pm.discoveryService == nil {
 		return nil
 	}
-	peers, err := pm.discoverOnDemand(cluster, shard, serviceProtocol)
+	peers, err := pm.discoverOnDemand(cluster, shard, serviceProtocol, ctx, maxCount)
 	if err != nil {
 		return err
 	}
@@ -27,9 +29,9 @@ func (pm *PeerManager) DiscoverAndConnectToPeers(ctx context.Context, cluster ui
 	connectNow := false
 	//Add discovered peers to peerStore and connect to them
 	for idx, p := range peers {
-		if serviceProtocol != relay.WakuRelayID_v200 && idx <= 1 {
+		if serviceProtocol != relay.WakuRelayID_v200 && idx <= maxCount {
 			//how many connections to initiate? Maybe this could be a config exposed to client API.
-			//For now just going ahead with initiating connections with 2 nodes in case of non-relay service
+			//For now just going ahead with initiating connections with 2 nodes in case of non-relay service peers
 			//In case of relay let it go through connectivityLoop
 			connectNow = true
 		}
@@ -49,7 +51,7 @@ func (pm *PeerManager) RegisterWakuProtocol(proto protocol.ID, bitField uint8) {
 // OnDemandPeerDiscovery initiates an on demand peer discovery and
 // filters peers based on cluster,shard and any wakuservice protocols specified
 func (pm *PeerManager) discoverOnDemand(cluster uint16,
-	shard uint16, wakuProtocol protocol.ID) ([]service.PeerData, error) {
+	shard uint16, wakuProtocol protocol.ID, ctx context.Context, maxCount int) ([]service.PeerData, error) {
 	var peers []service.PeerData
 
 	wakuProtoInfo, ok := pm.wakuprotoToENRFieldMap[wakuProtocol]
@@ -71,7 +73,7 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	defer iterator.Close()
 
 	for iterator.Next() {
-		if pm.ctx.Err() != nil {
+		if ctx.Err() != nil || len(peers) >= maxCount {
 			break
 		}
 		pInfo, err := wenr.EnodeToPeerInfo(iterator.Node())
@@ -84,18 +86,17 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 			AddrInfo: *pInfo,
 		}
 		peers = append(peers, pData)
-
 	}
 	return peers, nil
 }
 
-func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto protocol.ID) {
+func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto protocol.ID, ctx context.Context, maxCount int) {
 	shardInfo, err := waku_proto.TopicsToRelayShards(pubsubTopic)
 	if err != nil {
 		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
 		return
 	}
-	err = pm.DiscoverAndConnectToPeers(pm.ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto)
+	err = pm.DiscoverAndConnectToPeers(ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto, maxCount)
 	if err != nil {
 		pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
 	}
