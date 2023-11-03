@@ -57,16 +57,15 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 
 func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, ctx context.Context, specificPeers ...peer.ID) (peerIDPtr *peer.ID) {
 	peerIDPtr = nil
-
+	var err error
 	for tries := 0; tries <= 1; tries++ {
 		//Try to fetch from serviceSlot
 		if slot := pm.serviceSlots.getPeers(proto); slot != nil {
 			if pubSubTopic == "" {
 				if peerID, err := slot.getRandom(); err == nil {
 					peerIDPtr = &peerID
-				} else {
-					pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
 				}
+				break
 			} else { //PubsubTopic based selection
 				keys := make([]peer.ID, 0, len(slot.m))
 				for i := range slot.m {
@@ -88,7 +87,7 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 		}
 	}
 	if peerIDPtr == nil {
-		pm.logger.Debug("could not select random peer even after trying to discover")
+		pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
 	}
 	return
 }
