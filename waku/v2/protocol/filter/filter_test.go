@@ -138,7 +138,7 @@ func (s *FilterTestSuite) waitForMsg(fn func(), ch chan *protocol.Envelope) {
 				}
 			}
 			s.Require().True(msgFound)
-		case <-time.After(5 * time.Second):
+		case <-time.After(1 * time.Second):
 			s.Require().Fail("Message timeout")
 		case <-s.ctx.Done():
 			s.Require().Fail("test exceeded allocated time")
@@ -190,7 +190,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
-				case <-time.After(2 * time.Second):
+				case <-time.After(1 * time.Second):
 
 				case <-s.ctx.Done():
 					s.Require().Fail("test exceeded allocated time")
@@ -251,11 +251,11 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 	return subDetails
 }
 
-func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) <-chan WakuFilterPushResult {
+func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
 
 	for _, sub := range s.subDetails {
 		if sub.ContentFilter.PubsubTopic == pubsubTopic {
-			topicsCount := len(s.contentFilter.ContentTopicsList())
+			topicsCount := len(sub.ContentFilter.ContentTopicsList())
 			if topicsCount == 1 {
 				_, err := s.lightNode.Unsubscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
 				s.Require().NoError(err)
@@ -263,11 +263,10 @@ func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, p
 				sub.Remove(contentTopic)
 			}
 			s.contentFilter = sub.ContentFilter
-			return nil
 		}
 	}
 
-	return nil
+	return s.lightNode.Subscriptions()
 }
 
 func (s *FilterTestSuite) publishMsg(topic, contentTopic string, optionalPayload ...string) {
@@ -291,8 +290,8 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 
 func prepareData(quantity int, topics, contentTopics, payloads bool) []WakuMsg {
 	var (
-		pubsubTopic  = "/waku/2/go/filter/test"
-		contentTopic = "TopicA"
+		pubsubTopic  = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
+		contentTopic = "TopicA"                 // Has to be the same with initial s.testContentTopic
 		payload      = "test_msg"
 		messages     []WakuMsg
 	)
@@ -534,6 +533,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 		s.Require().NoError(err)
 
 	}, s.subDetails[0].C)
+
 	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
 		PubsubTopic:   s.testTopic,
 		ContentTopics: protocol.NewContentTopicSet(newContentTopic),
