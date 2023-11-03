@@ -171,8 +171,13 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	var err error
+	topic, err := url.QueryUnescape(topic)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err = w.Write([]byte("invalid topic format"))
+		r.log.Error("writing response", zap.Error(err))
+		return
+	}
 
 	r.messagesMutex.Lock()
 	defer r.messagesMutex.Unlock()
@@ -196,7 +201,13 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
+	topic, err := url.QueryUnescape(topic)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err = w.Write([]byte("invalid topic format"))
+		r.log.Error("writing response", zap.Error(err))
+		return
+	}
 	var message *pb.WakuMessage
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&message); err != nil {
@@ -205,7 +216,7 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	var err error
+	//var err error
 	if topic == "" {
 		topic = relay.DefaultWakuTopic
 	}
