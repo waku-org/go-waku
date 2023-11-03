@@ -318,7 +318,6 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 
 // AddDiscoveredPeer to add dynamically discovered peers.
 // Note that these peers will not be set in service-slots.
-// TODO: It maybe good to set in service-slots based on services supported in the ENR
 func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 	//Doing this check again inside addPeer, in order to avoid additional complexity of rollingBack other changes.
 	if pm.maxPeers <= pm.host.Peerstore().Peers().Len() {
@@ -356,9 +355,12 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 				protoENRField := protoENR.waku2ENRBitField
 				if protoENRField&enrField == enrField {
 					supportedProtos = append(supportedProtos, proto)
+					//Add Service peers to serviceSlots.
+					pm.addPeerToServiceSlot(proto, p.AddrInfo.ID)
 				}
 			}
 		}
+
 	}
 
 	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics, supportedProtos...)
