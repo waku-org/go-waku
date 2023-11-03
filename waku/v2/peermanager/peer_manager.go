@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -329,6 +330,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 		pm.logger.Debug("Found discovered peer already in peerStore", logging.HostID("peer", p.AddrInfo.ID))
 		return
 	}
+	supportedProtos := []protocol.ID{}
 	// Try to fetch shard info from ENR to arrive at pubSub topics.
 	if len(p.PubSubTopics) == 0 && p.ENR != nil {
 		shards, err := wenr.RelaySharding(p.ENR.Record())
@@ -347,10 +349,19 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 				pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
 			}
 		}
-
+		//Identify and specify protocols supported by the peer based on the discovered peer's ENR
+		var enrField wenr.WakuEnrBitfield
+		if err := p.ENR.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err == nil {
+			for proto, protoENR := range pm.wakuprotoToENRFieldMap {
+				protoENRField := protoENR.waku2ENRBitField
+				if protoENRField&enrField == enrField {
+					supportedProtos = append(supportedProtos, proto)
+				}
+			}
+		}
 	}
 
-	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics)
+	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics, supportedProtos...)
 
 	if p.ENR != nil {
 		err := pm.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
