@@ -2,10 +2,13 @@ package peer_exchange
 
 import (
 	"container/list"
+	"fmt"
+	"math/rand"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type ShardInfo struct {
@@ -16,6 +19,7 @@ type shardLRU struct {
 	size       int // number of nodes allowed per shard
 	idToNode   map[enode.ID][]*list.Element
 	shardNodes map[ShardInfo]*list.List
+	rng        *rand.Rand
 }
 
 func newShardLRU(size int) *shardLRU {
@@ -23,6 +27,7 @@ func newShardLRU(size int) *shardLRU {
 		idToNode:   map[enode.ID][]*list.Element{},
 		shardNodes: map[ShardInfo]*list.List{},
 		size:       size,
+		rng:        rand.New(rand.NewSource(rand.Int63())),
 	}
 }
 
@@ -55,8 +60,7 @@ func (l *shardLRU) removeFromIdToNode(ele *list.Element) {
 	}
 }
 
-// time complexity: O(new number of indexes in node's shard)
-func (l *shardLRU) add(node *enode.Node) {
+func nodeToRelayShard(node *enode.Node) *protocol.RelayShards {
 	shard, err := wenr.RelaySharding(node.Record())
 	if shard == nil || err != nil { // if no shard info, then add to node to Cluster 0, Index 0
 		shard = &protocol.RelayShards{
@@ -64,6 +68,12 @@ func (l *shardLRU) add(node *enode.Node) {
 			ShardIDs:  []uint16{0},
 		}
 	}
+	return shard
+}
+
+// time complexity: O(new number of indexes in node's shard)
+func (l *shardLRU) add(node *enode.Node) {
+	shard := nodeToRelayShard(node)
 	elements := []*list.Element{}
 	for _, index := range shard.ShardIDs {
 		key := ShardInfo{
@@ -96,24 +106,32 @@ func (l *shardLRU) Add(node *enode.Node) {
 }
 
 // clusterIndex is nil when peers for no specific shard are requested
-func (l shardLRU) getNodes(clusterIndex *ShardInfo) []*enode.Node {
+func (l *shardLRU) getRandomNodes(clusterIndex *ShardInfo, neededPeers int) (nodes []*enode.Node) {
+	availablePeers := l.len(clusterIndex)
+	if availablePeers < neededPeers {
+		neededPeers = availablePeers
+	}
 	// if clusterIndex is nil, then return all nodes
+	var elements []*list.Element
 	if clusterIndex == nil {
-		nodes := make([]*enode.Node, 0, len(l.idToNode))
+		elements = make([]*list.Element, 0, len(l.idToNode))
 		for _, entries := range l.idToNode {
-			nodes = append(nodes, entries[0].Value.(nodeWithShardInfo).node)
+			elements = append(elements, entries[0])
 		}
-		return nodes
-	}
-	//
-	if entries := l.shardNodes[*clusterIndex]; entries != nil && entries.Len() != 0 {
-		nodes := make([]*enode.Node, 0, entries.Len())
+	} else if entries := l.shardNodes[*clusterIndex]; entries != nil && entries.Len() != 0 {
+		elements = make([]*list.Element, 0, entries.Len())
 		for ent := entries.Back(); ent != nil; ent = ent.Prev() {
-			nodes = append(nodes, ent.Value.(nodeWithShardInfo).node)
+			elements = append(elements, ent)
 		}
-		return nodes
 	}
-	return nil
+	utils.Logger().Info(fmt.Sprintf("%d", len(elements)))
+	indexes := l.rng.Perm(len(elements))[0:neededPeers]
+	for _, ind := range indexes {
+		node := elements[ind].Value.(nodeWithShardInfo).node
+		nodes = append(nodes, node)
+		l.Add(node) // this removes the node from all list (all cluster/shard pair that the node has) and adds it to the front
+	}
+	return nodes
 }
 
 // if clusterIndex is not nil, return len of nodes maintained for a given shard

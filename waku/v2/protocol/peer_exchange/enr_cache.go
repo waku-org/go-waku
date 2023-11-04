@@ -3,7 +3,6 @@ package peer_exchange
 import (
 	"bufio"
 	"bytes"
-	"math/rand"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -16,7 +15,6 @@ import (
 type enrCache struct {
 	// using lru, saves us from periodically cleaning the cache to mauintain a certain size
 	data *shardLRU
-	rng  *rand.Rand
 	mu   sync.RWMutex
 	log  *zap.Logger
 }
@@ -26,8 +24,6 @@ func newEnrCache(size int, log *zap.Logger) *enrCache {
 	inner := newShardLRU(int(size))
 	return &enrCache{
 		data: inner,
-		rng:  rand.New(rand.NewSource(rand.Int63())),
-		log:  log.Named("enr-cache"),
 	}
 }
 
@@ -44,22 +40,12 @@ func (c *enrCache) updateCache(node *enode.Node) {
 
 // get `numPeers` records of enr
 func (c *enrCache) getENRs(neededPeers int, clusterIndex *ShardInfo) ([]*pb.PeerInfo, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	//
-	availablePeers := c.data.len(clusterIndex)
-	if availablePeers == 0 {
-		return nil, nil
-	}
-	if availablePeers < neededPeers {
-		neededPeers = availablePeers
-	}
-
-	perm := c.rng.Perm(availablePeers)[0:neededPeers]
-	nodes := c.data.getNodes(clusterIndex)
+	nodes := c.data.getRandomNodes(clusterIndex, neededPeers)
 	result := []*pb.PeerInfo{}
-	for _, ind := range perm {
-		node := nodes[ind]
+	for _, node := range nodes {
 		//
 		var b bytes.Buffer
 		writer := bufio.NewWriter(&b)
