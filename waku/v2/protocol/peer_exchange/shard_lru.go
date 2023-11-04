@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"math/rand"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -20,6 +21,7 @@ type shardLRU struct {
 	idToNode   map[enode.ID][]*list.Element
 	shardNodes map[ShardInfo]*list.List
 	rng        *rand.Rand
+	mu         sync.RWMutex
 }
 
 func newShardLRU(size int) *shardLRU {
@@ -100,13 +102,18 @@ func (l *shardLRU) add(node *enode.Node) {
 
 // this will be called when the seq number of node is more than the one in cache
 func (l *shardLRU) Add(node *enode.Node) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	// removing bcz previous node might be subscribed to different shards, we need to remove node from those shards
 	l.remove(node)
 	l.add(node)
 }
 
 // clusterIndex is nil when peers for no specific shard are requested
-func (l *shardLRU) getRandomNodes(clusterIndex *ShardInfo, neededPeers int) (nodes []*enode.Node) {
+func (l *shardLRU) GetRandomNodes(clusterIndex *ShardInfo, neededPeers int) (nodes []*enode.Node) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	availablePeers := l.len(clusterIndex)
 	if availablePeers < neededPeers {
 		neededPeers = availablePeers
@@ -129,14 +136,16 @@ func (l *shardLRU) getRandomNodes(clusterIndex *ShardInfo, neededPeers int) (nod
 	for _, ind := range indexes {
 		node := elements[ind].Value.(nodeWithShardInfo).node
 		nodes = append(nodes, node)
-		l.Add(node) // this removes the node from all list (all cluster/shard pair that the node has) and adds it to the front
+		// this removes the node from all list (all cluster/shard pair that the node has) and adds it to the front
+		l.remove(node)
+		l.add(node)
 	}
 	return nodes
 }
 
 // if clusterIndex is not nil, return len of nodes maintained for a given shard
 // if clusterIndex is nil, return count of all nodes maintained
-func (l shardLRU) len(clusterIndex *ShardInfo) int {
+func (l *shardLRU) len(clusterIndex *ShardInfo) int {
 	if clusterIndex == nil {
 		return len(l.idToNode)
 	}
@@ -147,7 +156,10 @@ func (l shardLRU) len(clusterIndex *ShardInfo) int {
 }
 
 // get the node with the given id, if it is present in cache
-func (l shardLRU) Get(id enode.ID) *enode.Node {
+func (l *shardLRU) Get(id enode.ID) *enode.Node {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	if elements, ok := l.idToNode[id]; ok && len(elements) > 0 {
 		return elements[0].Value.(nodeWithShardInfo).node
 	}

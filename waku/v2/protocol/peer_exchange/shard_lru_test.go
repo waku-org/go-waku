@@ -39,7 +39,7 @@ func TestLruMoreThanSize(t *testing.T) {
 	lru.Add(node2)
 	lru.Add(node3)
 
-	nodes := lru.getRandomNodes(&ShardInfo{1, 1}, 1)
+	nodes := lru.GetRandomNodes(&ShardInfo{1, 1}, 1)
 
 	require.Equal(t, 1, len(nodes))
 	if nodes[0].ID() != node2.ID() && nodes[0].ID() != node3.ID() {
@@ -80,13 +80,13 @@ func TestLruNodeWithNewSeq(t *testing.T) {
 	lru.Add(node1)
 
 	//
-	nodes := lru.getRandomNodes(&ShardInfo{1, 1}, 2)
+	nodes := lru.GetRandomNodes(&ShardInfo{1, 1}, 2)
 	require.Equal(t, 0, len(nodes))
 	//
-	nodes = lru.getRandomNodes(&ShardInfo{1, 2}, 2)
+	nodes = lru.GetRandomNodes(&ShardInfo{1, 2}, 2)
 	require.Equal(t, 1, len(nodes))
 	//
-	nodes = lru.getRandomNodes(&ShardInfo{1, 3}, 2)
+	nodes = lru.GetRandomNodes(&ShardInfo{1, 3}, 2)
 	require.Equal(t, 1, len(nodes))
 }
 
@@ -101,7 +101,7 @@ func TestLruNoShard(t *testing.T) {
 
 	// check returned nodes
 	require.Equal(t, 2, lru.len(nil))
-	for _, node := range lru.getRandomNodes(nil, 2) {
+	for _, node := range lru.GetRandomNodes(nil, 2) {
 		if node.ID() != node1.ID() && node.ID() != node2.ID() {
 			t.Fatalf("different node found %v", node)
 		}
@@ -124,12 +124,12 @@ func TestLruMixedNodes(t *testing.T) {
 	require.Equal(t, 3, lru.len(nil))
 
 	//
-	nodes := lru.getRandomNodes(&ShardInfo{1, 1}, 2)
+	nodes := lru.GetRandomNodes(&ShardInfo{1, 1}, 2)
 	require.Equal(t, 1, len(nodes))
 	require.Equal(t, node2.ID(), nodes[0].ID())
 
 	//
-	nodes = lru.getRandomNodes(&ShardInfo{1, 2}, 2)
+	nodes = lru.GetRandomNodes(&ShardInfo{1, 2}, 2)
 	require.Equal(t, 1, len(nodes))
 	require.Equal(t, node3.ID(), nodes[0].ID())
 }

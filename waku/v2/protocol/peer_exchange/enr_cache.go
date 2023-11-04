@@ -3,7 +3,6 @@ package peer_exchange
 import (
 	"bufio"
 	"bytes"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
@@ -15,7 +14,6 @@ import (
 type enrCache struct {
 	// using lru, saves us from periodically cleaning the cache to mauintain a certain size
 	data *shardLRU
-	mu   sync.RWMutex
 	log  *zap.Logger
 }
 
@@ -29,8 +27,6 @@ func newEnrCache(size int, log *zap.Logger) *enrCache {
 
 // updating cache
 func (c *enrCache) updateCache(node *enode.Node) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	currNode := c.data.Get(node.ID())
 	if currNode == nil || node.Seq() > currNode.Seq() {
 		c.data.Add(node)
@@ -40,10 +36,8 @@ func (c *enrCache) updateCache(node *enode.Node) {
 
 // get `numPeers` records of enr
 func (c *enrCache) getENRs(neededPeers int, clusterIndex *ShardInfo) ([]*pb.PeerInfo, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	//
-	nodes := c.data.getRandomNodes(clusterIndex, neededPeers)
+	nodes := c.data.GetRandomNodes(clusterIndex, neededPeers)
 	result := []*pb.PeerInfo{}
 	for _, node := range nodes {
 		//
