@@ -481,8 +481,10 @@ func (wf *WakuFilterLightNode) Subscriptions() []*subscription.SubscriptionDetai
 	_, subs := wf.subscriptions.GetSubscription("", protocol.ContentFilter{})
 	return subs
 }
+
 func (wf *WakuFilterLightNode) IsListening(pubsubTopic, contentTopic string) bool {
 	return wf.subscriptions.IsListening(pubsubTopic, contentTopic)
+
 }
 
 // UnsubscribeWithSubscription is used to close a particular subscription
