@@ -171,7 +171,7 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// unsubscribe on filter
-	errCh, err := s.node.FilterLightnode().Unsubscribe(
+	result, err := s.node.FilterLightnode().Unsubscribe(
 		req.Context(),
 		protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...),
 		filter.WithRequestID(message.RequestId),
@@ -190,14 +190,17 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	// on success
 	writeResponse(w, filterSubscriptionResponse{
 		RequestId:  message.RequestId,
-		StatusDesc: s.unsubscribeGetMessage(errCh),
+		StatusDesc: s.unsubscribeGetMessage(result),
 	}, http.StatusOK)
 }
 
-func (s *FilterService) unsubscribeGetMessage(ch <-chan filter.WakuFilterPushResult) string {
+func (s *FilterService) unsubscribeGetMessage(result *filter.WakuFilterPushResult) string {
+	if result == nil {
+		return http.StatusText(http.StatusOK)
+	}
 	var peerIds string
 	ind := 0
-	for entry := range ch {
+	for _, entry := range result.Errors() {
 		s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
 		if ind != 0 {
 			peerIds += ", "

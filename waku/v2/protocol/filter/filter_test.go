@@ -177,7 +177,10 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 			s.log.Info("Looking at ", zap.String("pubSubTopic", sub.ContentFilter.PubsubTopic))
 			for i := 0; i < msgCount; i++ {
 				select {
-				case env := <-sub.C:
+				case env, ok := <-sub.C:
+					if !ok {
+						continue
+					}
 					received := WakuMsg{
 						pubSubTopic:  env.PubsubTopic(),
 						contentTopic: env.Message().GetContentTopic(),
@@ -422,10 +425,9 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
 
-	ch, err := s.lightNode.Unsubscribe(s.ctx, contentFilter, DontWait())
-	_, open := <-ch
+	result, err := s.lightNode.Unsubscribe(s.ctx, contentFilter, DontWait())
 	s.Require().NoError(err)
-	s.Require().False(open)
+	s.Require().Equal(0, len(result.Errors()))
 
 	_, err = s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
