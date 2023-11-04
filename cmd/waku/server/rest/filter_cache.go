@@ -6,7 +6,6 @@ import (
 
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type filterCache struct {
