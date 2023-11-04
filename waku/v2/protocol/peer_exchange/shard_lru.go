@@ -26,7 +26,7 @@ func newShardLRU(size int) *shardLRU {
 	}
 }
 
-type nodeWithClusterIndex struct {
+type nodeWithShardInfo struct {
 	key  ShardInfo
 	node *enode.Node
 }
@@ -35,7 +35,7 @@ type nodeWithClusterIndex struct {
 func (l *shardLRU) remove(node *enode.Node) {
 	elements := l.idToNode[node.ID()]
 	for _, element := range elements {
-		key := element.Value.(nodeWithClusterIndex).key
+		key := element.Value.(nodeWithShardInfo).key
 		l.shardNodes[key].Remove(element)
 	}
 	delete(l.idToNode, node.ID())
@@ -43,7 +43,7 @@ func (l *shardLRU) remove(node *enode.Node) {
 
 // if a node is removed for a list, remove it from idToNode too
 func (l *shardLRU) removeFromIdToNode(ele *list.Element) {
-	nodeID := ele.Value.(nodeWithClusterIndex).node.ID()
+	nodeID := ele.Value.(nodeWithShardInfo).node.ID()
 	for ind, entries := range l.idToNode[nodeID] {
 		if entries == ele {
 			l.idToNode[nodeID] = append(l.idToNode[nodeID][:ind], l.idToNode[nodeID][ind+1:]...)
@@ -78,7 +78,7 @@ func (l *shardLRU) add(node *enode.Node) {
 			l.removeFromIdToNode(oldest)
 			l.shardNodes[key].Remove(oldest)
 		}
-		entry := l.shardNodes[key].PushFront(nodeWithClusterIndex{
+		entry := l.shardNodes[key].PushFront(nodeWithShardInfo{
 			key:  key,
 			node: node,
 		})
@@ -101,7 +101,7 @@ func (l shardLRU) getNodes(clusterIndex *ShardInfo) []*enode.Node {
 	if clusterIndex == nil {
 		nodes := make([]*enode.Node, 0, len(l.idToNode))
 		for _, entries := range l.idToNode {
-			nodes = append(nodes, entries[0].Value.(nodeWithClusterIndex).node)
+			nodes = append(nodes, entries[0].Value.(nodeWithShardInfo).node)
 		}
 		return nodes
 	}
@@ -109,7 +109,7 @@ func (l shardLRU) getNodes(clusterIndex *ShardInfo) []*enode.Node {
 	if entries := l.shardNodes[*clusterIndex]; entries != nil && entries.Len() != 0 {
 		nodes := make([]*enode.Node, 0, entries.Len())
 		for ent := entries.Back(); ent != nil; ent = ent.Prev() {
-			nodes = append(nodes, ent.Value.(nodeWithClusterIndex).node)
+			nodes = append(nodes, ent.Value.(nodeWithShardInfo).node)
 		}
 		return nodes
 	}
@@ -131,7 +131,7 @@ func (l shardLRU) len(clusterIndex *ShardInfo) int {
 // get the node with the given id, if it is present in cache
 func (l shardLRU) Get(id enode.ID) *enode.Node {
 	if elements, ok := l.idToNode[id]; ok && len(elements) > 0 {
-		return elements[0].Value.(nodeWithClusterIndex).node
+		return elements[0].Value.(nodeWithShardInfo).node
 	}
 	return nil
 }
