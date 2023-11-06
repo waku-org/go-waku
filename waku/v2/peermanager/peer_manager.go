@@ -316,6 +316,39 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 	}
 }
 
+func (pm *PeerManager) processPeerENR(p *service.PeerData) []protocol.ID {
+	shards, err := wenr.RelaySharding(p.ENR.Record())
+	if err != nil {
+		pm.logger.Error("Could not derive relayShards from ENR", zap.Error(err),
+			logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
+	} else {
+		if shards != nil {
+			p.PubSubTopics = make([]string, 0)
+			topics := shards.Topics()
+			for _, topic := range topics {
+				topicStr := topic.String()
+				p.PubSubTopics = append(p.PubSubTopics, topicStr)
+			}
+		} else {
+			pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
+		}
+	}
+	supportedProtos := []protocol.ID{}
+	//Identify and specify protocols supported by the peer based on the discovered peer's ENR
+	var enrField wenr.WakuEnrBitfield
+	if err := p.ENR.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err == nil {
+		for proto, protoENR := range pm.wakuprotoToENRFieldMap {
+			protoENRField := protoENR.waku2ENRBitField
+			if protoENRField&enrField != 0 {
+				supportedProtos = append(supportedProtos, proto)
+				//Add Service peers to serviceSlots.
+				pm.addPeerToServiceSlot(proto, p.AddrInfo.ID)
+			}
+		}
+	}
+	return supportedProtos
+}
+
 // AddDiscoveredPeer to add dynamically discovered peers.
 // Note that these peers will not be set in service-slots.
 func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
@@ -330,37 +363,9 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 		return
 	}
 	supportedProtos := []protocol.ID{}
-	// Try to fetch shard info from ENR to arrive at pubSub topics.
 	if len(p.PubSubTopics) == 0 && p.ENR != nil {
-		shards, err := wenr.RelaySharding(p.ENR.Record())
-		if err != nil {
-			pm.logger.Error("Could not derive relayShards from ENR", zap.Error(err),
-				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
-		} else {
-			if shards != nil {
-				p.PubSubTopics = make([]string, 0)
-				topics := shards.Topics()
-				for _, topic := range topics {
-					topicStr := topic.String()
-					p.PubSubTopics = append(p.PubSubTopics, topicStr)
-				}
-			} else {
-				pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
-			}
-		}
-		//Identify and specify protocols supported by the peer based on the discovered peer's ENR
-		var enrField wenr.WakuEnrBitfield
-		if err := p.ENR.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err == nil {
-			for proto, protoENR := range pm.wakuprotoToENRFieldMap {
-				protoENRField := protoENR.waku2ENRBitField
-				if protoENRField&enrField != 0 {
-					supportedProtos = append(supportedProtos, proto)
-					//Add Service peers to serviceSlots.
-					pm.addPeerToServiceSlot(proto, p.AddrInfo.ID)
-				}
-			}
-		}
-
+		// Try to fetch shard info and supported protocols from ENR to arrive at pubSub topics.
+		supportedProtos = pm.processPeerENR(&p)
 	}
 
 	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics, supportedProtos...)
