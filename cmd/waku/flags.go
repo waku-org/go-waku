@@ -264,6 +264,15 @@ var (
 		Destination: &options.Relay.ContentTopics,
 		EnvVars:     []string{"WAKUNODE2_CONTENT_TOPICS"},
 	})
+	BridgeTopics = altsrc.NewGenericFlag(&cli.GenericFlag{
+		Name:    "bridge-topics",
+		Usage:   "Bridge two pubsub topics, from_topic:to_topic. Argument may be repeated.",
+		EnvVars: []string{"WAKUNODE2_BRIDGE_TOPIC"},
+		Value: &cliutils.BridgeTopicSlice{
+			Values: &options.Relay.BridgeTopics,
+		},
+		Hidden: true,
+	})
 	ProtectedTopics = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:    "protected-topic",
 		Usage:   "Topics and its public key to be used for message validation, topic:pubkey. Argument may be repeated.",
@@ -550,6 +559,13 @@ var (
 		Usage:       "Capacity of the Relay REST API message cache",
 		Destination: &options.RESTServer.RelayCacheCapacity,
 		EnvVars:     []string{"WAKUNODE2_REST_RELAY_CACHE_CAPACITY"},
+	})
+	RESTFilterCacheCapacity = altsrc.NewIntFlag(&cli.IntFlag{
+		Name:        "rest-filter-cache-capacity",
+		Value:       30,
+		Usage:       "Capacity of the Filter REST API message cache",
+		Destination: &options.RESTServer.FilterCacheCapacity,
+		EnvVars:     []string{"WAKUNODE2_REST_FILTER_CACHE_CAPACITY"},
 	})
 	RESTAdmin = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rest-admin",

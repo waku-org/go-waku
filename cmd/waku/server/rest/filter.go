@@ -39,25 +39,56 @@ func (r filterRequestId) MarshalJSON() ([]byte, error) {
 const filterv2Ping = "/filter/v2/subscriptions/{requestId}"
 const filterv2Subscribe = "/filter/v2/subscriptions"
 const filterv2SubscribeAll = "/filter/v2/subscriptions/all"
+const filterv2MessagesByContentTopic = "/filter/v2/messages/{contentTopic}"
+const filterv2MessagesByPubsubTopic = "/filter/v2/messages/{pubsubTopic}/{contentTopic}"
 
 // FilterService represents the REST service for Filter client
 type FilterService struct {
-	node *node.WakuNode
+	node   *node.WakuNode
+	cancel context.CancelFunc
 
 	log *zap.Logger
+
+	cache  *filterCache
+	runner *runnerService
+}
+
+// Start starts the RelayService
+func (s *FilterService) Start(ctx context.Context) {
+
+	for _, sub := range s.node.FilterLightnode().Subscriptions() {
+		s.cache.subscribe(sub.ContentFilter)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	s.cancel = cancel
+	s.runner.Start(ctx)
+}
+
+// Stop stops the RelayService
+func (r *FilterService) Stop() {
+	if r.cancel == nil {
+		return
+	}
+	r.cancel()
 }
 
 // NewFilterService returns an instance of FilterService
-func NewFilterService(node *node.WakuNode, m *chi.Mux, log *zap.Logger) *FilterService {
+func NewFilterService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *zap.Logger) *FilterService {
 	s := &FilterService{
-		node: node,
-		log:  log.Named("filter"),
+		node:  node,
+		log:   log.Named("filter"),
+		cache: newFilterCache(cacheCapacity),
 	}
 
 	m.Get(filterv2Ping, s.ping)
 	m.Post(filterv2Subscribe, s.subscribe)
 	m.Delete(filterv2Subscribe, s.unsubscribe)
 	m.Delete(filterv2SubscribeAll, s.unsubscribeAll)
+	m.Get(filterv2MessagesByContentTopic, s.getMessagesByContentTopic)
+	m.Get(filterv2MessagesByPubsubTopic, s.getMessagesByPubsubTopic)
+
+	s.runner = newRunnerService(node.Broadcaster(), s.cache.addMessage)
 
 	return s
 }
@@ -123,9 +154,10 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	contentFilter := protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...)
 	//
 	subscriptions, err := s.node.FilterLightnode().Subscribe(req.Context(),
-		protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...),
+		contentFilter,
 		filter.WithRequestID(message.RequestId))
 
 	// on partial subscribe failure
@@ -148,6 +180,7 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// on success
+	s.cache.subscribe(contentFilter)
 	writeResponse(w, filterSubscriptionResponse{
 		RequestId:  message.RequestId,
 		StatusDesc: http.StatusText(http.StatusOK),
@@ -170,10 +203,11 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	contentFilter := protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...)
 	// unsubscribe on filter
-	errCh, err := s.node.FilterLightnode().Unsubscribe(
+	result, err := s.node.FilterLightnode().Unsubscribe(
 		req.Context(),
-		protocol.NewContentFilter(message.PubsubTopic, message.ContentFilters...),
+		contentFilter,
 		filter.WithRequestID(message.RequestId),
 		filter.WithPeer(peerId),
 	)
@@ -188,16 +222,24 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// on success
+	for cTopic := range contentFilter.ContentTopics {
+		if !s.node.FilterLightnode().IsListening(contentFilter.PubsubTopic, cTopic) {
+			s.cache.unsubscribe(contentFilter.PubsubTopic, cTopic)
+		}
+	}
 	writeResponse(w, filterSubscriptionResponse{
 		RequestId:  message.RequestId,
-		StatusDesc: s.unsubscribeGetMessage(errCh),
+		StatusDesc: s.unsubscribeGetMessage(result),
 	}, http.StatusOK)
 }
 
-func (s *FilterService) unsubscribeGetMessage(ch <-chan filter.WakuFilterPushResult) string {
+func (s *FilterService) unsubscribeGetMessage(result *filter.WakuFilterPushResult) string {
+	if result == nil {
+		return http.StatusText(http.StatusOK)
+	}
 	var peerIds string
 	ind := 0
-	for entry := range ch {
+	for _, entry := range result.Errors() {
 		s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
 		if ind != 0 {
 			peerIds += ", "
@@ -281,4 +323,42 @@ func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId []byte
 		return ""
 	}
 	return peerId
+}
+
+func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *http.Request) {
+	contentTopic := topicFromPath(w, req, "contentTopic", s.log)
+	if contentTopic == "" {
+		return
+	}
+	pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(contentTopic)
+	if err != nil {
+		writeGetMessageErr(w, fmt.Errorf("bad content topic"), http.StatusBadRequest, s.log)
+		return
+	}
+	s.getMessages(w, req, pubsubTopic, contentTopic)
+}
+
+func (s *FilterService) getMessagesByPubsubTopic(w http.ResponseWriter, req *http.Request) {
+	contentTopic := topicFromPath(w, req, "contentTopic", s.log)
+	if contentTopic == "" {
+		return
+	}
+	pubsubTopic := topicFromPath(w, req, "pubsubTopic", s.log)
+	if pubsubTopic == "" {
+		return
+	}
+	s.getMessages(w, req, pubsubTopic, contentTopic)
+}
+
+// 400 on invalid request
+// 500 on failed subscription
+// 200 on all successful unsubscribe
+// unsubscribe all subscriptions for a given peer
+func (s *FilterService) getMessages(w http.ResponseWriter, req *http.Request, pubsubTopic, contentTopic string) {
+	msgs, err := s.cache.getMessages(pubsubTopic, contentTopic)
+	if err != nil {
+		writeGetMessageErr(w, err, http.StatusNotFound, s.log)
+		return
+	}
+	writeResponse(w, msgs, http.StatusOK)
 }
