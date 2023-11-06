@@ -166,20 +166,17 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 }
 
 func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
-	topic := chi.URLParam(req, "topic")
+	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	var err error
 
 	r.messagesMutex.Lock()
 	defer r.messagesMutex.Unlock()
 
 	if _, ok := r.messages[topic]; !ok {
 		w.WriteHeader(http.StatusNotFound)
-		_, err = w.Write([]byte("not subscribed to topic"))
+		_, err := w.Write([]byte("not subscribed to topic"))
 		r.log.Error("writing response", zap.Error(err))
 		return
 	}
@@ -191,9 +188,8 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
-	topic := chi.URLParam(req, "topic")
+	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -205,7 +201,6 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	var err error
 	if topic == "" {
 		topic = relay.DefaultWakuTopic
 	}
@@ -215,12 +210,12 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = server.AppendRLNProof(r.node, message); err != nil {
+	if err := server.AppendRLNProof(r.node, message); err != nil {
 		writeErrOrResponse(w, err, nil)
 		return
 	}
 
-	_, err = r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
+	_, err := r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
 	}

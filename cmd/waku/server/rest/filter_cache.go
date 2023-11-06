@@ -68,7 +68,7 @@ func (c *filterCache) getMessages(pubsubTopic string, contentTopic string) ([]*p
 	defer c.mu.RUnlock()
 
 	if c.data[pubsubTopic] == nil || c.data[pubsubTopic][contentTopic] == nil {
-		return nil, fmt.Errorf("Not subscribed to pubsubTopic:%s contentTopic: %s", pubsubTopic, contentTopic)
+		return nil, fmt.Errorf("not subscribed to pubsubTopic:%s contentTopic: %s", pubsubTopic, contentTopic)
 	}
 	msgs := c.data[pubsubTopic][contentTopic]
 	c.data[pubsubTopic][contentTopic] = []*pb.WakuMessage{}
