@@ -15,6 +15,10 @@ func NewContentTopicSet(contentTopics ...string) ContentTopicSet {
 	return s
 }
 
+func (cf ContentTopicSet) ToList() []string {
+	return maps.Keys(cf)
+}
+
 // ContentFilter is used to specify the filter to be applied for a FilterNode.
 // Topic means pubSubTopic - optional in case of using contentTopics that following Auto sharding, mandatory in case of named or static sharding.
 // ContentTopics - Specify list of content topics to be filtered under a pubSubTopic (for named and static sharding), or a list of contentTopics (in case ofAuto sharding)
@@ -25,7 +29,7 @@ type ContentFilter struct {
 }
 
 func (cf ContentFilter) ContentTopicsList() []string {
-	return maps.Keys(cf.ContentTopics)
+	return cf.ContentTopics.ToList()
 }
 
 func NewContentFilter(pubsubTopic string, contentTopics ...string) ContentFilter {

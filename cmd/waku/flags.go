@@ -560,6 +560,13 @@ var (
 		Destination: &options.RESTServer.RelayCacheCapacity,
 		EnvVars:     []string{"WAKUNODE2_REST_RELAY_CACHE_CAPACITY"},
 	})
+	RESTFilterCacheCapacity = altsrc.NewIntFlag(&cli.IntFlag{
+		Name:        "rest-filter-cache-capacity",
+		Value:       30,
+		Usage:       "Capacity of the Filter REST API message cache",
+		Destination: &options.RESTServer.FilterCacheCapacity,
+		EnvVars:     []string{"WAKUNODE2_REST_FILTER_CACHE_CAPACITY"},
+	})
 	RESTAdmin = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rest-admin",
 		Value:       false,

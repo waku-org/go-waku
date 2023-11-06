@@ -174,6 +174,92 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FilterSubscriptionResponse'
+  /filter/v2/messages/{contentTopic}:
+    get: # get_waku_v2_filter_v2_messages
+      summary: Get the latest messages on the polled content topic
+      description: Get a list of messages that were received on a subscribed content topic after the last time this method was called.
+      operationId: getMessagesByTopic
+      tags:
+        - filter
+      parameters:
+        - in: path
+          name: contentTopic  # Note the name is the same as in the path
+          required: true
+          schema:
+            type: string
+          description: Content topic of message
+      responses:
+        '200':
+          description: The latest messages on the polled topic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterGetMessagesResponse'
+        # TODO: Review the possible errors of this endpoint
+        '400':
+          description: Bad request.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Not found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '5XX':
+          description: Unexpected error.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /filter/v2/messages/{pubsubTopic}/{contentTopic}:
+    get: # get_waku_v2_filter_v2_messages
+      summary: Get the latest messages on the polled pubsub/content topic pair
+      description: Get a list of messages that were received on a subscribed content topic after the last time this method was called.
+      operationId: getMessagesByTopic
+      tags:
+        - filter
+      parameters:
+        - in: path
+          name: contentTopic  # Note the name is the same as in the path
+          required: true
+          schema:
+            type: string
+          description: Content topic of message
+        - in: path
+          name: pubsubTopic  # Note the name is the same as in the path
+          required: true
+          schema:
+            type: string
+          description: pubsub topic of message
+      responses:
+        '200':
+          description: The latest messages on the polled topic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterGetMessagesResponse'
+        # TODO: Review the possible errors of this endpoint
+        '400':
+          description: Bad request.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Not found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '5XX':
+          description: Unexpected error.
+          content:
+            text/plain:
+              schema:
+                type: string
 
 components:
     PubSubTopic:
@@ -229,3 +315,23 @@ components:
           type: string
       required:
         -  requestId
+
+    FilterGetMessagesResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/FilterWakuMessage'
+
+    FilterWakuMessage:
+      type: object
+      properties:
+        payload:
+          type: string
+          format: byte
+        contentTopic:
+          $ref: '#/components/schemas/ContentTopic'
+        version:
+          type: number
+        timestamp:
+          type: number
+      required:
+        - payload

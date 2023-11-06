@@ -18,10 +18,11 @@ type WakuRest struct {
 
 	log *zap.Logger
 
-	relayService *RelayService
+	relayService  *RelayService
+	filterService *FilterService
 }
 
-func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool, enableAdmin bool, relayCacheCapacity int, log *zap.Logger) *WakuRest {
+func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool, enableAdmin bool, relayCacheCapacity, filterCacheCapacity int, log *zap.Logger) *WakuRest {
 	wrpc := new(WakuRest)
 	wrpc.log = log.Named("rest")
 
@@ -61,7 +62,11 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 	}
 
 	if node.FilterLightnode() != nil {
-		_ = NewFilterService(node, mux, log)
+		filterService := NewFilterService(node, mux, filterCacheCapacity, log)
+		server.RegisterOnShutdown(func() {
+			filterService.Stop()
+		})
+		wrpc.filterService = filterService
 	}
 
 	return wrpc
@@ -72,6 +77,9 @@ func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 
 	if r.node.Relay() != nil {
 		go r.relayService.Start(ctx)
+	}
+	if r.node.FilterLightnode() != nil {
+		go r.filterService.Start(ctx)
 	}
 
 	go func() {
