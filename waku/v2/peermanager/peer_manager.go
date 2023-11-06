@@ -353,7 +353,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 		if err := p.ENR.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err == nil {
 			for proto, protoENR := range pm.wakuprotoToENRFieldMap {
 				protoENRField := protoENR.waku2ENRBitField
-				if protoENRField&enrField == enrField {
+				if protoENRField&enrField != 0 {
 					supportedProtos = append(supportedProtos, proto)
 					//Add Service peers to serviceSlots.
 					pm.addPeerToServiceSlot(proto, p.AddrInfo.ID)

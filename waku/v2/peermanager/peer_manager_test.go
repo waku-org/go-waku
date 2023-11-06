@@ -265,7 +265,7 @@ func TestOnDemandPeerDiscovery(t *testing.T) {
 	host1, _, d1 := createHostWithDiscv5AndPM(t, "host1", topic, wenr.NewWakuEnrBitfield(true, true, false, true))
 
 	host2, _, d2 := createHostWithDiscv5AndPM(t, "host2", topic, wenr.NewWakuEnrBitfield(false, true, true, true), d1.Node())
-	host3, pm3, d3 := createHostWithDiscv5AndPM(t, "host3", topic, wenr.NewWakuEnrBitfield(false, true, true, true), d2.Node())
+	host3, pm3, d3 := createHostWithDiscv5AndPM(t, "host3", topic, wenr.NewWakuEnrBitfield(true, true, true, true), d2.Node())
 
 	defer d1.Stop()
 	defer d2.Stop()
@@ -310,7 +310,6 @@ func TestOnDemandPeerDiscovery(t *testing.T) {
 	pm3.RegisterWakuProtocol("/vac/waku/lightpush/2.0.0-beta1", enrField1)
 	peerID, err = pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopic: topic, Proto: "/vac/waku/lightpush/2.0.0-beta1", Ctx: ctx})
 	require.NoError(t, err)
-	fmt.Println("peerID for lightpush is ", peerID)
 	require.Equal(t, peerID, host1.ID())
 
 }
