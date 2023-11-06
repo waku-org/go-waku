@@ -25,6 +25,7 @@ func (pm *PeerManager) DiscoverAndConnectToPeers(ctx context.Context, cluster ui
 	if err != nil {
 		return err
 	}
+
 	pm.logger.Debug("discovered peers on demand ", zap.Int("noOfPeers", len(peers)))
 	connectNow := false
 	//Add discovered peers to peerStore and connect to them
@@ -59,10 +60,10 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 		pm.logger.Error("cannot do on demand discovery for non-waku protocol", zap.String("protocol", string(wakuProtocol)))
 		return nil, errors.New("cannot do on demand discovery for non-waku protocol")
 	}
-
 	iterator, err := pm.discoveryService.PeerIterator(
 		discv5.FilterShard(cluster, shard),
-		discv5.FilterCapabilities(wakuProtoInfo.waku2ENRBitField))
+		discv5.FilterCapabilities(wakuProtoInfo.waku2ENRBitField),
+	)
 	if err != nil {
 		pm.logger.Error("failed to find peers for shard and services", zap.Uint16("cluster", cluster),
 			zap.Uint16("shard", shard), zap.String("service", string(wakuProtocol)), zap.Error(err))
@@ -73,9 +74,7 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	defer iterator.Close()
 
 	for iterator.Next() {
-		if ctx.Err() != nil || len(peers) >= maxCount {
-			break
-		}
+
 		pInfo, err := wenr.EnodeToPeerInfo(iterator.Node())
 		if err != nil {
 			continue
@@ -86,6 +85,19 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 			AddrInfo: *pInfo,
 		}
 		peers = append(peers, pData)
+
+		if len(peers) >= maxCount {
+			pm.logger.Debug("found required number of nodes, stopping on demand discovery", zap.Uint16("cluster", cluster),
+				zap.Uint16("shard", shard), zap.Int("required-nodes", maxCount))
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 	}
 	return peers, nil
 }
@@ -96,6 +108,7 @@ func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto prot
 		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
 		return
 	}
+
 	err = pm.DiscoverAndConnectToPeers(ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto, maxCount)
 	if err != nil {
 		pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))

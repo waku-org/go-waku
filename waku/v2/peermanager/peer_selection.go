@@ -60,27 +60,28 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	return selectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, ctx context.Context, specificPeers ...peer.ID) (peer.ID, error) {
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubsubTopic string, ctx context.Context, specificPeers ...peer.ID) (peer.ID, error) {
 	var peerID peer.ID
 	var err error
-	for tries := 0; tries <= 1; tries++ {
+	for retryCnt := 0; retryCnt < 1; retryCnt++ {
 		//Try to fetch from serviceSlot
 		if slot := pm.serviceSlots.getPeers(proto); slot != nil {
-			if pubSubTopic == "" {
+			if pubsubTopic == "" {
 				return slot.getRandom()
 			} else { //PubsubTopic based selection
 				keys := make([]peer.ID, 0, len(slot.m))
 				for i := range slot.m {
 					keys = append(keys, i)
 				}
-				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
+				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubsubTopic, keys...)
 				peerID, err = selectRandomPeer(selectedPeers, pm.logger)
 				if err == nil {
 					return peerID, nil
 				} else {
+					pm.logger.Debug("Discovering peers by pubsubTopic", zap.String("pubsubTopic", pubsubTopic))
 					//Trigger on-demand discovery for this topic and connect to peer immediately.
 					//For now discover atleast 1 peer for the criteria
-					pm.discoverPeersByPubsubTopic(pubSubTopic, proto, ctx, 1)
+					pm.discoverPeersByPubsubTopic(pubsubTopic, proto, ctx, 1)
 					//Try to fetch peers again.
 					continue
 				}
@@ -110,10 +111,6 @@ func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, erro
 	case Automatic:
 		return pm.SelectRandomPeer(criteria)
 	case LowestRTT:
-		if criteria.Ctx == nil {
-			criteria.Ctx = context.Background()
-			pm.logger.Warn("context is not passed for peerSelectionwithRTT, using background context")
-		}
 		return pm.SelectPeerWithLowestRTT(criteria)
 	default:
 		return "", errors.New("unknown peer selection type specified")
@@ -134,6 +131,7 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 	var peers peer.IDSlice
 	var err error
 	if criteria.Ctx == nil {
+		pm.logger.Warn("context is not passed for peerSelectionwithRTT, using background context")
 		criteria.Ctx = context.Background()
 	}
 
