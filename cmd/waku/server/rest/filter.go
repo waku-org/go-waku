@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -327,24 +326,24 @@ func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId []byte
 }
 
 func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *http.Request) {
-	contentTopic := s.topicFromPath(w, req, "contentTopic")
+	contentTopic := topicFromPath(w, req, "contentTopic", s.log)
 	if contentTopic == "" {
 		return
 	}
 	pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(contentTopic)
 	if err != nil {
-		s.writeGetMessageErr(w, fmt.Errorf("bad content topic"), http.StatusBadRequest)
+		writeGetMessageErr(w, fmt.Errorf("bad content topic"), http.StatusBadRequest, s.log)
 		return
 	}
 	s.getMessages(w, req, pubsubTopic, contentTopic)
 }
 
 func (s *FilterService) getMessagesByPubsubTopic(w http.ResponseWriter, req *http.Request) {
-	contentTopic := s.topicFromPath(w, req, "contentTopic")
+	contentTopic := topicFromPath(w, req, "contentTopic", s.log)
 	if contentTopic == "" {
 		return
 	}
-	pubsubTopic := s.topicFromPath(w, req, "pubsubTopic")
+	pubsubTopic := topicFromPath(w, req, "pubsubTopic", s.log)
 	if pubsubTopic == "" {
 		return
 	}
@@ -358,33 +357,8 @@ func (s *FilterService) getMessagesByPubsubTopic(w http.ResponseWriter, req *htt
 func (s *FilterService) getMessages(w http.ResponseWriter, req *http.Request, pubsubTopic, contentTopic string) {
 	msgs, err := s.cache.getMessages(pubsubTopic, contentTopic)
 	if err != nil {
-		s.writeGetMessageErr(w, err, http.StatusNotFound)
+		writeGetMessageErr(w, err, http.StatusNotFound, s.log)
 		return
 	}
 	writeResponse(w, msgs, http.StatusOK)
-}
-
-func (s *FilterService) topicFromPath(w http.ResponseWriter, req *http.Request, field string) string {
-	cTopic := chi.URLParam(req, field)
-	if cTopic == "" {
-		errMissing := fmt.Errorf("missing %s", field)
-		s.writeGetMessageErr(w, errMissing, http.StatusBadRequest)
-		return ""
-	}
-	cTopic, err := url.QueryUnescape(cTopic)
-	if err != nil {
-		errInvalid := fmt.Errorf("invalid %s format", field)
-		s.writeGetMessageErr(w, errInvalid, http.StatusBadRequest)
-		return ""
-	}
-	return cTopic
-}
-
-func (s *FilterService) writeGetMessageErr(w http.ResponseWriter, err error, code int) {
-	// write status before the body
-	w.WriteHeader(code)
-	s.log.Error("get message", zap.Error(err))
-	if _, err := w.Write([]byte(err.Error())); err != nil {
-		s.log.Error("writing response", zap.Error(err))
-	}
 }
