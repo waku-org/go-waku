@@ -54,7 +54,6 @@ func NewRelayService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *R
 
 // Start starts the RelayService
 func (r *RelayService) Start() {
-	//TODO: can we handle context similar to the way it is done for REST service?
 }
 
 // Stop stops the RelayService
