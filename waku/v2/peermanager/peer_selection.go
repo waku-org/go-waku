@@ -40,8 +40,13 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	//  - which topics they track
 	//  - latency?
 
-	if peerID := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.Ctx, criteria.SpecificPeers...); peerID != nil {
-		return *peerID, nil
+	peerID, err := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.Ctx, criteria.SpecificPeers...)
+	if err == nil {
+		return peerID, nil
+	} else if !errors.Is(err, ErrNoPeersAvailable) {
+		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)),
+			zap.String("pubsubTopic", criteria.PubsubTopic), zap.Error(err))
+		return "", err
 	}
 
 	// if not found in serviceSlots or proto == WakuRelayIDv200
@@ -55,27 +60,23 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	return selectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, ctx context.Context, specificPeers ...peer.ID) (peerIDPtr *peer.ID) {
-	peerIDPtr = nil
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, ctx context.Context, specificPeers ...peer.ID) (peer.ID, error) {
+	var peerID peer.ID
 	var err error
 	for tries := 0; tries <= 1; tries++ {
 		//Try to fetch from serviceSlot
 		if slot := pm.serviceSlots.getPeers(proto); slot != nil {
 			if pubSubTopic == "" {
-				if peerID, err := slot.getRandom(); err == nil {
-					peerIDPtr = &peerID
-				}
-				break
+				return slot.getRandom()
 			} else { //PubsubTopic based selection
 				keys := make([]peer.ID, 0, len(slot.m))
 				for i := range slot.m {
 					keys = append(keys, i)
 				}
 				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
-				peerID, err := selectRandomPeer(selectedPeers, pm.logger)
+				peerID, err = selectRandomPeer(selectedPeers, pm.logger)
 				if err == nil {
-					peerIDPtr = &peerID
-					break
+					return peerID, nil
 				} else {
 					//Trigger on-demand discovery for this topic and connect to peer immediately.
 					//For now discover atleast 1 peer for the criteria
@@ -86,10 +87,10 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, 
 			}
 		}
 	}
-	if peerIDPtr == nil {
+	if peerID == "" {
 		pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
 	}
-	return
+	return "", ErrNoPeersAvailable
 }
 
 // PeerSelectionCriteria is the selection Criteria that is used by PeerManager to select peers.
