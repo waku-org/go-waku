@@ -101,6 +101,7 @@ func extractIP(addr multiaddr.Multiaddr) (*net.TCPAddr, error) {
 
 func TestDiscV5(t *testing.T) {
 	// Host1 <-> Host2 <-> Host3
+	// Host4(No waku capabilities) <-> Host2
 
 	// H1
 	host1, _, prvKey1 := createHost(t)
@@ -138,9 +139,22 @@ func TestDiscV5(t *testing.T) {
 	require.NoError(t, err)
 	d3.SetHost(host3)
 
+	// H4 doesn't have any Waku capabilities
+	host4, _, prvKey4 := createHost(t)
+	ip4, _ := extractIP(host2.Addrs()[0])
+	udpPort4, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
+	require.NoError(t, err)
+	l4, err := newLocalnode(prvKey4, ip4, udpPort4, 0, nil, utils.Logger())
+	require.NoError(t, err)
+	peerconn4 := peermanager.NewTestPeerDiscoverer()
+	d4, err := NewDiscoveryV5(prvKey4, l4, peerconn4, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort4)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	require.NoError(t, err)
+	d2.SetHost(host2)
+
 	defer d1.Stop()
 	defer d2.Stop()
 	defer d3.Stop()
+	defer d4.Stop()
 
 	err = d1.Start(context.Background())
 	require.NoError(t, err)
@@ -151,9 +165,13 @@ func TestDiscV5(t *testing.T) {
 	err = d3.Start(context.Background())
 	require.NoError(t, err)
 
+	err = d4.Start(context.Background())
+	require.NoError(t, err)
+
 	time.Sleep(2 * time.Second) // Wait for nodes to be discovered
 
 	require.True(t, peerconn3.HasPeer(host1.ID()) && peerconn3.HasPeer(host2.ID()))
+	require.False(t, peerconn3.HasPeer(host4.ID())) //host4 should not be discoverable, rather filtered out.
 
 	d3.Stop()
 	peerconn3.Clear()
@@ -165,4 +183,6 @@ func TestDiscV5(t *testing.T) {
 	time.Sleep(2 * time.Second) // Wait for nodes to be discovered
 
 	require.True(t, peerconn3.HasPeer(host1.ID()) && peerconn3.HasPeer(host2.ID()))
+	require.False(t, peerconn3.HasPeer(host4.ID())) //host4 should not be discoverable, rather filtered out.
+
 }
