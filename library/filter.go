@@ -150,14 +150,16 @@ func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
 		return errors.New("peerID is required")
 	}
 
-	pushResult, err := wakuState.node.FilterLightnode().Unsubscribe(ctx, cf, fOptions...)
+	result, err := wakuState.node.FilterLightnode().Unsubscribe(ctx, cf, fOptions...)
 	if err != nil {
 		return err
 	}
 
-	result := <-pushResult
-
-	return result.Err
+	errs := result.Errors()
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs[0].Err
 }
 
 type unsubscribeAllResult struct {
@@ -192,19 +194,19 @@ func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 		fOptions = append(fOptions, filter.UnsubscribeAll())
 	}
 
-	pushResult, err := wakuState.node.FilterLightnode().UnsubscribeAll(ctx, fOptions...)
+	result, err := wakuState.node.FilterLightnode().UnsubscribeAll(ctx, fOptions...)
 	if err != nil {
 		return "", err
 	}
 
 	var unsubscribeResult []unsubscribeAllResult
 
-	for result := range pushResult {
+	for _, err := range result.Errors() {
 		ur := unsubscribeAllResult{
-			PeerID: result.PeerID.Pretty(),
+			PeerID: err.PeerID.Pretty(),
 		}
-		if result.Err != nil {
-			ur.Error = result.Err.Error()
+		if err.Err != nil {
+			ur.Error = err.Err.Error()
 		}
 		unsubscribeResult = append(unsubscribeResult, ur)
 	}

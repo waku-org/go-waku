@@ -56,6 +56,7 @@ func main() {
 		Topics,
 		ContentTopics,
 		PubSubTopics,
+		BridgeTopics,
 		ProtectedTopics,
 		RelayPeerExchange,
 		MinRelayPeersToPublish,
@@ -98,6 +99,7 @@ func main() {
 		RESTAddress,
 		RESTPort,
 		RESTRelayCacheCapacity,
+		RESTFilterCacheCapacity,
 		RESTAdmin,
 		PProf,
 	}

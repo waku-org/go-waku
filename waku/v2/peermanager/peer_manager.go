@@ -454,8 +454,12 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	//  - which topics they track
 	//  - latency?
 
-	if peerID := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.SpecificPeers...); peerID != nil {
-		return *peerID, nil
+	peerID, err := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.SpecificPeers...)
+	if err == nil {
+		return peerID, nil
+	} else if !errors.Is(err, ErrNoPeersAvailable) {
+		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)), zap.String("pubsubTopic", criteria.PubsubTopic), zap.Error(err))
+		return "", err
 	}
 
 	// if not found in serviceSlots or proto == WakuRelayIDv200
@@ -469,32 +473,22 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	return selectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers ...peer.ID) (peerIDPtr *peer.ID) {
-	peerIDPtr = nil
-
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers ...peer.ID) (peer.ID, error) {
 	//Try to fetch from serviceSlot
 	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
 		if pubSubTopic == "" {
-			if peerID, err := slot.getRandom(); err == nil {
-				peerIDPtr = &peerID
-			} else {
-				pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
-			}
+			return slot.getRandom()
 		} else { //PubsubTopic based selection
 			keys := make([]peer.ID, 0, len(slot.m))
 			for i := range slot.m {
 				keys = append(keys, i)
 			}
 			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
-			peerID, err := selectRandomPeer(selectedPeers, pm.logger)
-			if err == nil {
-				peerIDPtr = &peerID
-			} else {
-				pm.logger.Debug("could not select random peer", zap.Error(err))
-			}
+			return selectRandomPeer(selectedPeers, pm.logger)
 		}
 	}
-	return
+
+	return "", ErrNoPeersAvailable
 }
 
 // PeerSelectionCriteria is the selection Criteria that is used by PeerManager to select peers.
