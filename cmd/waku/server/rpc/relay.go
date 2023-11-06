@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -103,10 +102,6 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	topic := relay.DefaultWakuTopic
 	if args.Topic != "" {
 		topic = args.Topic
-	}
-
-	if !r.node.Relay().IsSubscribed(topic) {
-		return errors.New("not subscribed to pubsubTopic")
 	}
 
 	msg := args.Message.toProto()

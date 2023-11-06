@@ -279,13 +279,31 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts .
 	return hash, nil
 }
 
+// GetSubscriptionWithPubsubTopic fetches subscription matching pubsub and contentTopic
+func (w *WakuRelay) GetSubscriptionWithPubsubTopic(pubsubTopic string, contentTopic string) (*Subscription, error) {
+	var contentFilter waku_proto.ContentFilter
+	if contentTopic != "" {
+		contentFilter = waku_proto.NewContentFilter(pubsubTopic, contentTopic)
+	} else {
+		contentFilter = waku_proto.NewContentFilter(pubsubTopic)
+	}
+	cSubs := w.contentSubs[pubsubTopic]
+	for _, sub := range cSubs {
+		if sub.contentFilter.Equals(contentFilter) {
+			return sub, nil
+		}
+	}
+	return nil, errors.New("no subscription found for content topic")
+}
+
+// GetSubscription fetches subscription matching a contentTopic(via autosharding)
 func (w *WakuRelay) GetSubscription(contentTopic string) (*Subscription, error) {
-	pubSubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
+	pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
 	if err != nil {
 		return nil, err
 	}
-	contentFilter := waku_proto.NewContentFilter(pubSubTopic, contentTopic)
-	cSubs := w.contentSubs[pubSubTopic]
+	contentFilter := waku_proto.NewContentFilter(pubsubTopic, contentTopic)
+	cSubs := w.contentSubs[pubsubTopic]
 	for _, sub := range cSubs {
 		if sub.contentFilter.Equals(contentFilter) {
 			return sub, nil

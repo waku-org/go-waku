@@ -75,9 +75,6 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if r.node.Relay() != nil {
-		go r.relayService.Start(ctx)
-	}
 	if r.node.FilterLightnode() != nil {
 		go r.filterService.Start(ctx)
 	}

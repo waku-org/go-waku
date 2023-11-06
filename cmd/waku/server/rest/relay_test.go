@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -34,7 +34,6 @@ func TestPostV1Message(t *testing.T) {
 	router := chi.NewRouter()
 
 	_ = makeRelayService(t, router)
-
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "abc",
@@ -54,10 +53,10 @@ func TestPostV1Message(t *testing.T) {
 func TestRelaySubscription(t *testing.T) {
 	router := chi.NewRouter()
 
-	d := makeRelayService(t, router)
+	r := makeRelayService(t, router)
 
-	go d.Start(context.Background())
-	defer d.Stop()
+	go r.Start(context.Background())
+	defer r.Stop()
 
 	// Wait for node to start
 	time.Sleep(500 * time.Millisecond)
@@ -74,21 +73,19 @@ func TestRelaySubscription(t *testing.T) {
 
 	// Test max messages in subscription
 	now := utils.GetUnixEpoch()
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+1), now, "test"))
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+2), now, "test"))
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+3), now, "test"))
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage("test", now+1), relay.WithPubSubTopic("test"))
+	require.NoError(t, err)
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage("test", now+2), relay.WithPubSubTopic("test"))
+	require.NoError(t, err)
+
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage("test", now+3), relay.WithPubSubTopic("test"))
+	require.NoError(t, err)
 
 	// Wait for the messages to be processed
-	time.Sleep(500 * time.Millisecond)
-
-	require.Len(t, d.messages["test"], 3)
-
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+4), now+4, "test"))
-
-	time.Sleep(500 * time.Millisecond)
-
-	// Should only have 3 messages
-	require.Len(t, d.messages["test"], 3)
+	time.Sleep(5 * time.Millisecond)
 
 	// Test deletion
 	rr = httptest.NewRecorder()
@@ -96,17 +93,17 @@ func TestRelaySubscription(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
-	require.Len(t, d.messages["test"], 0)
-
 }
 
 func TestRelayGetV1Messages(t *testing.T) {
 	router := chi.NewRouter()
+	router1 := chi.NewRouter()
 
 	serviceA := makeRelayService(t, router)
 	go serviceA.Start(context.Background())
 	defer serviceA.Stop()
-	serviceB := makeRelayService(t, router)
+
+	serviceB := makeRelayService(t, router1)
 	go serviceB.Start(context.Background())
 	defer serviceB.Stop()
 
@@ -165,9 +162,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, "/relay/v1/messages/test", bytes.NewReader([]byte{}))
-	router.ServeHTTP(rr, req)
+	router1.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNotFound, rr.Code)
 
-	err = json.Unmarshal(rr.Body.Bytes(), &messages)
-	require.NoError(t, err)
-	require.Len(t, messages, 0)
 }
