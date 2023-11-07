@@ -20,9 +20,9 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	wrln "github.com/waku-org/go-waku/waku/v2/protocol/rln"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
-	"github.com/waku-org/go-zerokit-rln/rln"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -302,7 +302,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 
 	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
-		Version:      version,
+		Version:      proto.Uint32(version),
 		ContentTopic: options.ContentTopic,
 		Timestamp:    timestamp,
 	}
@@ -315,7 +315,12 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 			return err
 		}
 
-		c.ui.InfoMessage(fmt.Sprintf("RLN Epoch: %d", rln.BytesToEpoch(wakuMsg.RateLimitProof.Epoch).Uint64()))
+		rateLimitProof, err := wrln.BytesToRateLimitProof(wakuMsg.RateLimitProof)
+		if err != nil {
+			return err
+		}
+
+		c.ui.InfoMessage(fmt.Sprintf("RLN Epoch: %d", rateLimitProof.Epoch.Uint64()))
 	}
 
 	if c.options.LightPush.Enable {
@@ -402,7 +407,7 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 			c.ui.InfoMessage("0 historic messages available")
 		} else {
 			for _, msg := range response.Messages {
-				c.C <- protocol.NewEnvelope(msg, msg.Timestamp, relay.DefaultWakuTopic)
+				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
 			}
 		}
 	}

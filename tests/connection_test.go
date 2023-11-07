@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
@@ -67,7 +68,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) erro
 
 	msg := &pb.WakuMessage{
 		Payload:      payload,
-		Version:      version,
+		Version:      proto.Uint32(version),
 		ContentTopic: contentTopic,
 		Timestamp:    timestamp,
 	}

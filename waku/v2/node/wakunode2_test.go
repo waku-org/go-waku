@@ -25,13 +25,14 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 func createTestMsg(version uint32) *pb.WakuMessage {
 	message := new(pb.WakuMessage)
 	message.Payload = []byte{0, 1, 2}
-	message.Version = version
-	message.Timestamp = 123456
+	message.Version = proto.Uint32(version)
+	message.Timestamp = proto.Int64(123456)
 	message.ContentTopic = "abc"
 	return message
 }
@@ -207,7 +208,7 @@ func Test500(t *testing.T) {
 		for i := 1; i <= maxMsgs; i++ {
 			msg := createTestMsg(0)
 			msg.Payload = int2Bytes(i)
-			msg.Timestamp = int64(i)
+			msg.Timestamp = proto.Int64(int64(i))
 			if _, err := wakuNode2.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic()); err != nil {
 				require.Fail(t, "Could not publish all messages")
 			}

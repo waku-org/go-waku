@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/hash"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestHash(t *testing.T) {
@@ -18,8 +19,8 @@ func TestEnvelopeHash(t *testing.T) {
 	msg := new(WakuMessage)
 	msg.ContentTopic = "Test"
 	msg.Payload = []byte("Hello World")
-	msg.Timestamp = 123456789123456789
-	msg.Version = 1
+	msg.Timestamp = proto.Int64(123456789123456789)
+	msg.Version = proto.Uint32(1)
 
 	expected := []byte{0xee, 0xcf, 0xf5, 0xb7, 0xdd, 0x54, 0x2d, 0x68, 0x9e, 0x7d, 0x64, 0xa3, 0xb8, 0x50, 0x8b, 0xba, 0xc, 0xf1, 0xac, 0xb6, 0xf7, 0x1c, 0x9f, 0xf2, 0x32, 0x7, 0x5b, 0xfd, 0x90, 0x5c, 0xe5, 0xa1}
 	result := msg.Hash("test")
@@ -33,8 +34,8 @@ func TestEmptyMeta(t *testing.T) {
 	msg.Payload = []byte("\x01\x02\x03\x04TEST\x05\x06\x07\x08")
 
 	msg.Meta = []byte{}
-	msg.Timestamp = 123456789123456789
-	msg.Version = 1
+	msg.Timestamp = proto.Int64(123456789123456789)
+	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
 
@@ -47,7 +48,7 @@ func Test13ByteMeta(t *testing.T) {
 	msg.ContentTopic = "/waku/2/default-content/proto"
 	msg.Payload = []byte("\x01\x02\x03\x04TEST\x05\x06\x07\x08")
 	msg.Meta = []byte("\x73\x75\x70\x65\x72\x2d\x73\x65\x63\x72\x65\x74")
-	msg.Version = 1
+	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
 
@@ -60,7 +61,7 @@ func TestZeroLenPayload(t *testing.T) {
 	msg.ContentTopic = "/waku/2/default-content/proto"
 	msg.Payload = []byte{}
 	msg.Meta = []byte("\x73\x75\x70\x65\x72\x2d\x73\x65\x63\x72\x65\x74")
-	msg.Version = 1
+	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
 

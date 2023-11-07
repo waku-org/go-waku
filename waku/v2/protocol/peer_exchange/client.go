@@ -91,9 +91,9 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 
 	for _, p := range response.PeerInfos {
 		enrRecord := &enr.Record{}
-		buf := bytes.NewBuffer(p.ENR)
+		buf := bytes.NewBuffer(p.Enr)
 
-		err := enrRecord.DecodeRLP(rlp.NewStream(buf, uint64(len(p.ENR))))
+		err := enrRecord.DecodeRLP(rlp.NewStream(buf, uint64(len(p.Enr))))
 		if err != nil {
 			wakuPX.log.Error("converting bytes to enr", zap.Error(err))
 			return err

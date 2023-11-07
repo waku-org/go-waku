@@ -20,6 +20,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = utils.Logger().Named("rln")
@@ -105,7 +106,6 @@ func randomHex(n int) (string, error) {
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	var version uint32 = 0
-	var timestamp int64 = utils.GetUnixEpoch(wakuNode.Timesource())
 
 	p := new(payload.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
@@ -119,9 +119,9 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 
 	msg := &pb.WakuMessage{
 		Payload:      payload,
-		Version:      version,
+		Version:      proto.Uint32(version),
 		ContentTopic: contentTopic.String(),
-		Timestamp:    timestamp,
+		Timestamp:    utils.GetUnixEpoch(wakuNode.Timesource()),
 	}
 
 	err = wakuNode.RLNRelay().AppendRLNProof(msg, wakuNode.Timesource().Now())

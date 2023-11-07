@@ -20,8 +20,8 @@ import (
 type Query struct {
 	Topic         string
 	ContentTopics []string
-	StartTime     int64
-	EndTime       int64
+	StartTime     *int64
+	EndTime       *int64
 }
 
 // Result represents a valid response from a store node
@@ -247,7 +247,6 @@ func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResp
 }
 
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
-
 	params := new(HistoryRequestParameters)
 	params.s = store
 

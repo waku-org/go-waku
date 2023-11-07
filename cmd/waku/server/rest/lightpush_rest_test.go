@@ -49,7 +49,6 @@ func TestLightpushMessagev1(t *testing.T) {
 		Message: &pb.WakuMessage{
 			Payload:      []byte{1, 2, 3},
 			ContentTopic: "abc",
-			Version:      0,
 			Timestamp:    utils.GetUnixEpoch(),
 		},
 	}

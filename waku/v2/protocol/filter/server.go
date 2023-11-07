@@ -136,9 +136,10 @@ func (wf *WakuFilterFullNode) reply(ctx context.Context, stream network.Stream, 
 	}
 
 	if len(description) != 0 {
-		response.StatusDesc = description[0]
+		response.StatusDesc = &description[0]
 	} else {
-		response.StatusDesc = http.StatusText(statusCode)
+		desc := http.StatusText(statusCode)
+		response.StatusDesc = &desc
 	}
 
 	writer := pbio.NewDelimitedWriter(stream)
@@ -256,7 +257,7 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 		zap.String("contentTopic", env.Message().ContentTopic),
 	)
 	pubSubTopic := env.PubsubTopic()
-	messagePush := &pb.MessagePushV2{
+	messagePush := &pb.MessagePush{
 		PubsubTopic: &pubSubTopic,
 		WakuMessage: env.Message(),
 	}

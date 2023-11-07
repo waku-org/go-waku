@@ -30,7 +30,7 @@ func TestBroadcast(t *testing.T) {
 
 	}
 
-	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, *utils.GetUnixEpoch(), "abc")
 	b.Submit(env)
 
 	wg.Wait()
@@ -56,7 +56,7 @@ func TestBroadcastSpecificTopic(t *testing.T) {
 
 	}
 
-	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, *utils.GetUnixEpoch(), "abc")
 	b.Submit(env)
 
 	wg.Wait()
@@ -81,7 +81,7 @@ func TestBroadcastUnregisterSub(t *testing.T) {
 	specificSub := b.Register(protocol.NewContentFilter("abc"))
 	specificSub.Unsubscribe()
 	//
-	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, *utils.GetUnixEpoch(), "abc")
 	b.Submit(env)
 	// no message on specific sub
 	require.Nil(t, <-specificSub.Ch)
@@ -96,7 +96,7 @@ func TestBroadcastNoOneListening(t *testing.T) {
 	require.NoError(t, b.Start(context.Background()))
 	_ = b.RegisterForAll() // no one listening on channel
 	//
-	env := protocol.NewEnvelope(&pb.WakuMessage{}, utils.GetUnixEpoch(), "abc")
+	env := protocol.NewEnvelope(&pb.WakuMessage{}, *utils.GetUnixEpoch(), "abc")
 	b.Submit(env)
 	b.Submit(env)
 	b.Stop()

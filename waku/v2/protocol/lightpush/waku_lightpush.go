@@ -85,7 +85,7 @@ func (wakuLP *WakuLightPush) relayIsNotAvailable() bool {
 func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream) {
 	return func(stream network.Stream) {
 		logger := wakuLP.log.With(logging.HostID("peer", stream.Conn().RemotePeer()))
-		requestPushRPC := &pb.PushRPC{}
+		requestPushRPC := &pb.PushRpc{}
 
 		reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
@@ -99,13 +99,14 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 			return
 		}
 
-		responsePushRPC := &pb.PushRPC{
+		responsePushRPC := &pb.PushRpc{
 			RequestId: requestPushRPC.RequestId,
 			Response:  &pb.PushResponse{},
 		}
 
 		if err := requestPushRPC.ValidateRequest(); err != nil {
-			responsePushRPC.Response.Info = err.Error()
+			responseMsg := err.Error()
+			responsePushRPC.Response.Info = &responseMsg
 			wakuLP.metrics.RecordError(requestBodyFailure)
 			wakuLP.reply(stream, responsePushRPC, logger)
 			return
@@ -115,8 +116,8 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 
 		logger.Info("push request")
 
-		pubSubTopic := requestPushRPC.Query.PubsubTopic
-		message := requestPushRPC.Query.Message
+		pubSubTopic := requestPushRPC.Request.PubsubTopic
+		message := requestPushRPC.Request.Message
 
 		wakuLP.metrics.RecordMessage()
 
@@ -127,11 +128,13 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 		if err != nil {
 			logger.Error("publishing message", zap.Error(err))
 			wakuLP.metrics.RecordError(messagePushFailure)
-			responsePushRPC.Response.Info = fmt.Sprintf("Could not publish message: %s", err.Error())
+			responseMsg := fmt.Sprintf("Could not publish message: %s", err.Error())
+			responsePushRPC.Response.Info = &responseMsg
 			return
 		} else {
 			responsePushRPC.Response.IsSuccess = true
-			responsePushRPC.Response.Info = "OK"
+			responseMsg := "OK"
+			responsePushRPC.Response.Info = &responseMsg
 		}
 
 		wakuLP.reply(stream, responsePushRPC, logger)
@@ -143,12 +146,12 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 		if responsePushRPC.Response.IsSuccess {
 			logger.Info("request success")
 		} else {
-			logger.Info("request failure", zap.String("info", responsePushRPC.Response.Info))
+			logger.Info("request failure", zap.String("info", responsePushRPC.GetResponse().GetInfo()))
 		}
 	}
 }
 
-func (wakuLP *WakuLightPush) reply(stream network.Stream, responsePushRPC *pb.PushRPC, logger *zap.Logger) {
+func (wakuLP *WakuLightPush) reply(stream network.Stream, responsePushRPC *pb.PushRpc, logger *zap.Logger) {
 	writer := pbio.NewDelimitedWriter(stream)
 	err := writer.WriteMsg(responsePushRPC)
 	if err != nil {
@@ -180,7 +183,7 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 		wakuLP.metrics.RecordError(dialFailure)
 		return nil, err
 	}
-	pushRequestRPC := &pb.PushRPC{RequestId: hex.EncodeToString(params.requestID), Query: req}
+	pushRequestRPC := &pb.PushRpc{RequestId: hex.EncodeToString(params.requestID), Request: req}
 
 	writer := pbio.NewDelimitedWriter(stream)
 	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
@@ -195,7 +198,7 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 		return nil, err
 	}
 
-	pushResponseRPC := &pb.PushRPC{}
+	pushResponseRPC := &pb.PushRpc{}
 	err = reader.ReadMsg(pushResponseRPC)
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
@@ -293,5 +296,10 @@ func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessa
 		return hash, nil
 	}
 
-	return nil, errors.New(response.Info)
+	errMsg := "lightpush error"
+	if response.Info != nil {
+		errMsg = *response.Info
+	}
+
+	return nil, errors.New(errMsg)
 }
