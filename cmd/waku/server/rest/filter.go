@@ -240,11 +240,13 @@ func (s *FilterService) unsubscribeGetMessage(result *filter.WakuFilterPushResul
 	var peerIds string
 	ind := 0
 	for _, entry := range result.Errors() {
-		s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
-		if ind != 0 {
-			peerIds += ", "
+		if entry.Err != nil {
+			s.log.Error("can't unsubscribe for ", zap.String("peer", entry.PeerID.String()), zap.Error(entry.Err))
+			if ind != 0 {
+				peerIds += ", "
+			}
+			peerIds += entry.PeerID.String()
 		}
-		peerIds += entry.PeerID.String()
 		ind++
 	}
 	if peerIds != "" {

@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 )
 
@@ -250,23 +251,21 @@ func (d *DiscoveryV5) Stop() {
 	})
 }
 
-/*
 func isWakuNode(node *enode.Node) bool {
-	enrField := new(utils.WakuEnrBitfield)
-	if err := node.Record().Load(enr.WithEntry(utils.WakuENRField, &enrField)); err != nil {
+	enrField := new(wenr.WakuEnrBitfield)
+	if err := node.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err != nil {
 		if !enr.IsNotFound(err) {
-			utils.Logger().Named("discv5").Error("could not retrieve port for enr ", zap.Any("node", node))
+			utils.Logger().Named("discv5").Error("could not retrieve waku2 ENR field for enr ", zap.Any("node", node))
 		}
 		return false
 	}
 
 	if enrField != nil {
-		return *enrField != uint8(0)
+		return *enrField != uint8(0) // #RFC 31 requirement
 	}
 
 	return false
 }
-*/
 
 func (d *DiscoveryV5) evaluateNode() func(node *enode.Node) bool {
 	return func(node *enode.Node) bool {
@@ -274,10 +273,10 @@ func (d *DiscoveryV5) evaluateNode() func(node *enode.Node) bool {
 			return false
 		}
 
-		//  TODO: consider node filtering based on ENR; we do not filter based on ENR in the first waku discv5 beta stage
-		/*if !isWakuNode(node) {
+		//  node filtering based on ENR; we do not filter based on ENR in the first waku discv5 beta stage
+		if !isWakuNode(node) {
 			return false
-		}*/
+		}
 
 		_, err := wenr.EnodeToPeerInfo(node)
 

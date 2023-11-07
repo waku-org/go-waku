@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -15,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -34,7 +35,6 @@ func TestPostV1Message(t *testing.T) {
 	router := chi.NewRouter()
 
 	_ = makeRelayService(t, router)
-
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "abc",
@@ -54,10 +54,7 @@ func TestPostV1Message(t *testing.T) {
 func TestRelaySubscription(t *testing.T) {
 	router := chi.NewRouter()
 
-	d := makeRelayService(t, router)
-
-	go d.Start(context.Background())
-	defer d.Stop()
+	r := makeRelayService(t, router)
 
 	// Wait for node to start
 	time.Sleep(500 * time.Millisecond)
@@ -67,48 +64,42 @@ func TestRelaySubscription(t *testing.T) {
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1Subscriptions, bytes.NewReader(topicsJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
 
 	// Test max messages in subscription
 	now := utils.GetUnixEpoch()
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+1), now, "test"))
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+2), now, "test"))
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+3), now, "test"))
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage("test", now+1), relay.WithPubSubTopic("test"))
+	require.NoError(t, err)
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage("test", now+2), relay.WithPubSubTopic("test"))
+	require.NoError(t, err)
+
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage("test", now+3), relay.WithPubSubTopic("test"))
+	require.NoError(t, err)
 
 	// Wait for the messages to be processed
-	time.Sleep(500 * time.Millisecond)
-
-	require.Len(t, d.messages["test"], 3)
-
-	d.runner.broadcaster.Submit(protocol.NewEnvelope(tests.CreateWakuMessage("test", now+4), now+4, "test"))
-
-	time.Sleep(500 * time.Millisecond)
-
-	// Should only have 3 messages
-	require.Len(t, d.messages["test"], 3)
+	time.Sleep(5 * time.Millisecond)
 
 	// Test deletion
 	rr = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodDelete, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
+	req, _ = http.NewRequest(http.MethodDelete, routeRelayV1Subscriptions, bytes.NewReader(topicsJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
-	require.Len(t, d.messages["test"], 0)
-
 }
 
 func TestRelayGetV1Messages(t *testing.T) {
 	router := chi.NewRouter()
+	router1 := chi.NewRouter()
 
 	serviceA := makeRelayService(t, router)
-	go serviceA.Start(context.Background())
-	defer serviceA.Stop()
-	serviceB := makeRelayService(t, router)
-	go serviceB.Start(context.Background())
-	defer serviceB.Stop()
+
+	serviceB := makeRelayService(t, router1)
 
 	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
 	require.NoError(t, err)
@@ -129,7 +120,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1Subscriptions, bytes.NewReader(topicsJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
@@ -165,9 +156,144 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, "/relay/v1/messages/test", bytes.NewReader([]byte{}))
-	router.ServeHTTP(rr, req)
+	router1.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNotFound, rr.Code)
 
+}
+
+func TestPostAutoV1Message(t *testing.T) {
+	router := chi.NewRouter()
+
+	_ = makeRelayService(t, router)
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: "/toychat/1/huilong/proto",
+		Version:      0,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+	msgJSONBytes, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1AutoMessages, bytes.NewReader(msgJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestRelayAutoSubUnsub(t *testing.T) {
+	router := chi.NewRouter()
+
+	r := makeRelayService(t, router)
+
+	// Wait for node to start
+	time.Sleep(500 * time.Millisecond)
+
+	cTopic1 := "/toychat/1/huilong/proto"
+
+	cTopics := []string{cTopic1}
+	topicsJSONBytes, err := json.Marshal(cTopics)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+
+	// Test publishing messages after subscription
+	now := utils.GetUnixEpoch()
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage(cTopic1, now+1))
+	require.NoError(t, err)
+
+	// Wait for the messages to be processed
+	time.Sleep(5 * time.Millisecond)
+
+	// Test deletion
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodDelete, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+
+	cTopics = append(cTopics, "test")
+	topicsJSONBytes, err = json.Marshal(cTopics)
+	require.NoError(t, err)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodPost, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+}
+
+func TestRelayGetV1AutoMessages(t *testing.T) {
+	router := chi.NewRouter()
+	router1 := chi.NewRouter()
+
+	serviceA := makeRelayService(t, router)
+
+	serviceB := makeRelayService(t, router1)
+
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	require.NoError(t, err)
+
+	var addr multiaddr.Multiaddr
+	for _, a := range serviceB.node.Host().Addrs() {
+		addr = a.Encapsulate(hostInfo)
+		break
+	}
+	err = serviceA.node.DialPeerWithMultiAddress(context.Background(), addr)
+	require.NoError(t, err)
+
+	// Wait for the dial to complete
+	time.Sleep(1 * time.Second)
+
+	cTopic1 := "/toychat/1/huilong/proto"
+
+	cTopics := []string{cTopic1}
+	topicsJSONBytes, err := json.Marshal(cTopics)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+
+	// Wait for the subscription to be started
+	time.Sleep(1 * time.Second)
+
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: cTopic1,
+		Version:      0,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+	msgJsonBytes, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodPost, routeRelayV1AutoMessages, bytes.NewReader(msgJsonBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	// Wait for the message to be received
+	time.Sleep(1 * time.Second)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", routeRelayV1AutoMessages, url.QueryEscape(cTopic1)), bytes.NewReader([]byte{}))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var messages []*pb.WakuMessage
 	err = json.Unmarshal(rr.Body.Bytes(), &messages)
 	require.NoError(t, err)
-	require.Len(t, messages, 0)
+	require.Len(t, messages, 1)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", routeRelayV1AutoMessages, url.QueryEscape(cTopic1)), bytes.NewReader([]byte{}))
+	router1.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNotFound, rr.Code)
+
 }

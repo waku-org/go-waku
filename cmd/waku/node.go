@@ -430,7 +430,14 @@ func Execute(options NodeOptions) error {
 	var restServer *rest.WakuRest
 	if options.RESTServer.Enable {
 		wg.Add(1)
-		restServer = rest.NewWakuRest(wakuNode, options.RESTServer.Address, options.RESTServer.Port, options.PProf, options.RESTServer.Admin, options.RESTServer.RelayCacheCapacity, options.RESTServer.FilterCacheCapacity, logger)
+		restConfig := rest.RestConfig{Address: options.RESTServer.Address,
+			Port:                uint(options.RESTServer.Port),
+			EnablePProf:         options.PProf,
+			EnableAdmin:         options.RESTServer.Admin,
+			RelayCacheCapacity:  uint(options.RESTServer.RelayCacheCapacity),
+			FilterCacheCapacity: uint(options.RESTServer.FilterCacheCapacity)}
+
+		restServer = rest.NewWakuRest(wakuNode, restConfig, logger)
 		restServer.Start(ctx, &wg)
 	}
 
