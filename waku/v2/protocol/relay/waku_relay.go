@@ -349,6 +349,9 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			return nil, err
 		}
 	}
+	if params.cacheSize <= 0 {
+		params.cacheSize = uint(DefaultRelaySubscriptionBufferSize)
+	}
 
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		w.log.Info("subscribing to", zap.String("pubsubTopic", pubSubTopic), zap.Strings("contenTopics", cTopics))
@@ -365,7 +368,7 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			}
 		}
 
-		subscription := w.bcaster.Register(cFilter, WithBufferSize(DefaultRelaySubscriptionBufferSize),
+		subscription := w.bcaster.Register(cFilter, WithBufferSize(int(params.cacheSize)),
 			WithConsumerOption(params.dontConsume))
 
 		// Create Content subscription

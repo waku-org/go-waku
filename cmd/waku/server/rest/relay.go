@@ -26,11 +26,11 @@ type RelayService struct {
 
 	log *zap.Logger
 
-	cacheCapacity int
+	cacheCapacity uint
 }
 
 // NewRelayService returns an instance of RelayService
-func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *zap.Logger) *RelayService {
+func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity uint, log *zap.Logger) *RelayService {
 	s := &RelayService{
 		node:          node,
 		log:           log.Named("relay"),
@@ -91,7 +91,7 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 		} else {
 			topicToSubscribe = topic
 		}
-		_, err = r.node.Relay().Subscribe(req.Context(), protocol.NewContentFilter(topicToSubscribe))
+		_, err = r.node.Relay().Subscribe(req.Context(), protocol.NewContentFilter(topicToSubscribe), relay.WithCacheSize(r.cacheCapacity))
 
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
@@ -193,7 +193,7 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 	defer req.Body.Close()
 
 	var err error
-	_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", cTopics...))
+	_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", cTopics...), relay.WithCacheSize(r.cacheCapacity))
 	if err != nil {
 		r.log.Error("subscribing to topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
 	}
