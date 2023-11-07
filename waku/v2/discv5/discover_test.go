@@ -56,13 +56,13 @@ func TestDiscV5(t *testing.T) {
 	d3.SetHost(host3)
 
 	// H4 doesn't have any Waku capabilities
-	host4, _, prvKey4 := createHost(t)
-	ip4, _ := extractIP(host2.Addrs()[0])
+	host4, _, prvKey4 := tests.CreateHost(t)
+	ip4, _ := tests.ExtractIP(host2.Addrs()[0])
 	udpPort4, err := tests.FindFreeUDPPort(t, "127.0.0.1", 3)
 	require.NoError(t, err)
-	l4, err := newLocalnode(prvKey4, ip4, udpPort4, 0, nil, utils.Logger())
+	l4, err := tests.NewLocalnode(prvKey4, ip4, udpPort4, 0, nil, utils.Logger())
 	require.NoError(t, err)
-	peerconn4 := peermanager.NewTestPeerDiscoverer()
+	peerconn4 := NewTestPeerDiscoverer()
 	d4, err := NewDiscoveryV5(prvKey4, l4, peerconn4, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort4)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
 	require.NoError(t, err)
 	d2.SetHost(host2)

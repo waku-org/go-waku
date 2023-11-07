@@ -24,6 +24,7 @@ import (
 
 // WakuRelayID_v200 is the current protocol ID used for WakuRelay
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
+const WakuRelayENRField = uint8(1 << 0)
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic{}.String()

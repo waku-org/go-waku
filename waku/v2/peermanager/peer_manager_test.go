@@ -20,7 +20,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/discv5"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	wakuproto "github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -243,7 +242,7 @@ func createHostWithDiscv5AndPM(t *testing.T, hostName string, topic string, enrF
 	rs, err := wakuproto.TopicsToRelayShards(topic)
 	require.NoError(t, err)
 
-	err = wenr.Update(localNode, enr.WithWakuRelaySharding(rs[0]))
+	err = wenr.Update(localNode, wenr.WithWakuRelaySharding(rs[0]))
 	require.NoError(t, err)
 	pm := NewPeerManager(10, 20, logger)
 	pm.SetHost(host)

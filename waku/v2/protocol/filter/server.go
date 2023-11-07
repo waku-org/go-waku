@@ -25,7 +25,7 @@ import (
 // FilterSubscribeID_v20beta1 is the current Waku Filter protocol identifier for servers to
 // allow filter clients to subscribe, modify, refresh and unsubscribe a desired set of filter criteria
 const FilterSubscribeID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/2.0.0-beta1")
-
+const FilterSubscribeENRField = uint8(1 << 2)
 const peerHasNoSubscription = "peer has no subscriptions"
 
 type (
@@ -58,8 +58,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
 	if params.pm != nil {
-		enrField = uint8(1 << 2)
-		params.pm.RegisterWakuProtocol(FilterSubscribeID_v20beta1, enrField)
+		params.pm.RegisterWakuProtocol(FilterSubscribeID_v20beta1, FilterSubscribeENRField)
 	}
 	return wf
 }

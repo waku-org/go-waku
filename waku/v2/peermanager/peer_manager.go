@@ -134,9 +134,7 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
 
-	var enrField uint8
-	enrField |= (1 << 0)
-	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, enrField)
+	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
 	pm.ctx = ctx
 	if pm.sub != nil {

@@ -23,6 +23,7 @@ import (
 
 // LightPushID_v20beta1 is the current Waku LightPush protocol identifier
 const LightPushID_v20beta1 = libp2pProtocol.ID("/vac/waku/lightpush/2.0.0-beta1")
+const LightPushENRField = uint8(1 << 3)
 
 var (
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
@@ -71,9 +72,7 @@ func (wakuLP *WakuLightPush) Start(ctx context.Context) error {
 	wakuLP.log.Info("Light Push protocol started")
 
 	if wakuLP.pm != nil {
-		var enrField uint8
-		enrField |= (1 << 3)
-		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, enrField)
+		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, LightPushENRField)
 	}
 	return nil
 }
