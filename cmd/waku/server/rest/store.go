@@ -74,7 +74,7 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 
 	options = append(options, store.WithPeer(peerID))
 
-	query.Topic = r.URL.Query().Get("pubsubTopic")
+	query.PubsubTopic = r.URL.Query().Get("pubsubTopic")
 
 	contentTopics := r.URL.Query().Get("contentTopics")
 	if contentTopics != "" {
@@ -127,7 +127,7 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 			}
 		}
 
-		cursor.PubsubTopic = query.Topic
+		cursor.PubsubTopic = query.PubsubTopic
 
 		options = append(options, store.WithCursor(cursor))
 	}

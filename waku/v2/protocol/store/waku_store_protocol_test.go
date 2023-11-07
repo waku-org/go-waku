@@ -71,7 +71,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	q := Query{
-		Topic:         pubsubTopic1,
+		PubsubTopic:   pubsubTopic1,
 		ContentTopics: []string{topic1},
 	}
 
@@ -111,7 +111,7 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	q := Query{
-		Topic:         pubsubTopic1,
+		PubsubTopic:   pubsubTopic1,
 		ContentTopics: []string{topic1},
 	}
 	response, err := s1.Query(ctx, q, WithLocalQuery())
@@ -168,7 +168,7 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	defer s2.Stop()
 
 	q := Query{
-		Topic:         pubsubTopic1,
+		PubsubTopic:   pubsubTopic1,
 		ContentTopics: []string{topic1},
 	}
 
@@ -245,7 +245,7 @@ func TestWakuStoreResult(t *testing.T) {
 	defer s2.Stop()
 
 	q := Query{
-		Topic:         pubsubTopic1,
+		PubsubTopic:   pubsubTopic1,
 		ContentTopics: []string{topic1},
 	}
 
@@ -347,7 +347,7 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	defer s2.Stop()
 
 	q := Query{
-		Topic: pubsubTopic1,
+		PubsubTopic: pubsubTopic1,
 	}
 
 	fn := func(msg *pb.WakuMessage) (bool, error) {
