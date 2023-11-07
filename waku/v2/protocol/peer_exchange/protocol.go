@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +33,7 @@ var (
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
 type PeerConnector interface {
-	Subscribe(context.Context, <-chan peermanager.PeerData)
+	Subscribe(context.Context, <-chan service.PeerData)
 }
 
 type WakuPeerExchange struct {
@@ -42,7 +43,7 @@ type WakuPeerExchange struct {
 	metrics Metrics
 	log     *zap.Logger
 
-	*protocol.CommonService
+	*service.CommonService
 
 	peerConnector PeerConnector
 	enrCache      *enrCache
@@ -63,7 +64,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
-	wakuPX.CommonService = protocol.NewCommonService()
+	wakuPX.CommonService = service.NewCommonService()
 
 	return wakuPX, nil
 }

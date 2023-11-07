@@ -1,15 +1,12 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 
 	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
@@ -20,11 +17,7 @@ type RelayService struct {
 
 	log *zap.Logger
 
-	messages      map[string][]*pb.WakuMessage
 	cacheCapacity int
-	messagesMutex sync.RWMutex
-
-	runner *runnerService
 }
 
 // RelayMessageArgs represents the requests used for posting messages
@@ -54,46 +47,17 @@ func NewRelayService(node *node.WakuNode, cacheCapacity int, log *zap.Logger) *R
 		node:          node,
 		cacheCapacity: cacheCapacity,
 		log:           log.Named("relay"),
-		messages:      make(map[string][]*pb.WakuMessage),
 	}
-
-	s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
 
 	return s
 }
 
-func (r *RelayService) addEnvelope(envelope *protocol.Envelope) {
-	r.messagesMutex.Lock()
-	defer r.messagesMutex.Unlock()
-
-	if _, ok := r.messages[envelope.PubsubTopic()]; !ok {
-		return
-	}
-
-	// Keep a specific max number of messages per topic
-	if len(r.messages[envelope.PubsubTopic()]) >= r.cacheCapacity {
-		r.messages[envelope.PubsubTopic()] = r.messages[envelope.PubsubTopic()][1:]
-	}
-
-	r.messages[envelope.PubsubTopic()] = append(r.messages[envelope.PubsubTopic()], envelope.Message())
-}
-
 // Start starts the RelayService
 func (r *RelayService) Start() {
-	r.messagesMutex.Lock()
-	// Node may already be subscribed to some topics when Relay API handlers are installed. Let's add these
-	for _, topic := range r.node.Relay().Topics() {
-		r.log.Info("adding topic handler for existing subscription", zap.String("topic", topic))
-		r.messages[topic] = make([]*pb.WakuMessage, 0)
-	}
-	r.messagesMutex.Unlock()
-
-	r.runner.Start()
 }
 
 // Stop stops the RelayService
 func (r *RelayService) Stop() {
-	r.runner.Stop()
 }
 
 // PostV1Message is invoked when the json rpc request uses the post_waku_v2_relay_v1_message method
@@ -103,10 +67,6 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	topic := relay.DefaultWakuTopic
 	if args.Topic != "" {
 		topic = args.Topic
-	}
-
-	if !r.node.Relay().IsSubscribed(topic) {
-		return errors.New("not subscribed to pubsubTopic")
 	}
 
 	msg := args.Message.toProto()
@@ -204,17 +164,12 @@ func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, r
 		if topic == "" {
 			topic = relay.DefaultWakuTopic
 		}
-		var sub *relay.Subscription
-		subs, err := r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
+		_, err = r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
 			return err
 		}
-		sub = subs[0]
-		sub.Unsubscribe()
-		r.messagesMutex.Lock()
-		r.messages[topic] = make([]*pb.WakuMessage, 0)
-		r.messagesMutex.Unlock()
+
 	}
 
 	*reply = true
@@ -230,8 +185,6 @@ func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs,
 			r.log.Error("unsubscribing from topic", zap.String("topic", topic), zap.Error(err))
 			return err
 		}
-
-		delete(r.messages, topic)
 	}
 
 	*reply = true
@@ -240,18 +193,16 @@ func (r *RelayService) DeleteV1Subscription(req *http.Request, args *TopicsArgs,
 
 // GetV1Messages is invoked when the json rpc request uses the get_waku_v2_relay_v1_messages method
 func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *MessagesReply) error {
-	r.messagesMutex.Lock()
-	defer r.messagesMutex.Unlock()
 
-	if _, ok := r.messages[args.Topic]; !ok {
-		return fmt.Errorf("topic %s not subscribed", args.Topic)
+	sub, err := r.node.Relay().GetSubscriptionWithPubsubTopic(args.Topic, "")
+	if err != nil {
+		return err
 	}
-
-	for i := range r.messages[args.Topic] {
-		*reply = append(*reply, ProtoToRPC(r.messages[args.Topic][i]))
+	select {
+	case msg := <-sub.Ch:
+		*reply = append(*reply, ProtoToRPC(msg.Message()))
+	default:
+		break
 	}
-
-	r.messages[args.Topic] = make([]*pb.WakuMessage, 0)
-
 	return nil
 }

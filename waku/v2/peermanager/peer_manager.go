@@ -3,10 +3,10 @@ package peermanager
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -14,13 +14,14 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/discv5"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/service"
 
 	"go.uber.org/zap"
 )
@@ -30,20 +31,29 @@ type NodeTopicDetails struct {
 	topic *pubsub.Topic
 }
 
+// WakuProtoInfo holds protocol specific info
+// To be used at a later stage to set various config such as criteria for peer management specific to each Waku protocols
+// This should make peer-manager agnostic to protocol
+type WakuProtoInfo struct {
+	waku2ENRBitField uint8
+}
+
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
-	peerConnector       *PeerConnectionStrategy
-	maxPeers            int
-	maxRelayPeers       int
-	logger              *zap.Logger
-	InRelayPeersTarget  int
-	OutRelayPeersTarget int
-	host                host.Host
-	serviceSlots        *ServiceSlots
-	ctx                 context.Context
-	sub                 event.Subscription
-	topicMutex          sync.RWMutex
-	subRelayTopics      map[string]*NodeTopicDetails
+	peerConnector          *PeerConnectionStrategy
+	maxPeers               int
+	maxRelayPeers          int
+	logger                 *zap.Logger
+	InRelayPeersTarget     int
+	OutRelayPeersTarget    int
+	host                   host.Host
+	serviceSlots           *ServiceSlots
+	ctx                    context.Context
+	sub                    event.Subscription
+	topicMutex             sync.RWMutex
+	subRelayTopics         map[string]*NodeTopicDetails
+	discoveryService       *discv5.DiscoveryV5
+	wakuprotoToENRFieldMap map[protocol.ID]WakuProtoInfo
 }
 
 // PeerSelection provides various options based on which Peer is selected from a list of peers.
@@ -88,13 +98,14 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 	}
 
 	pm := &PeerManager{
-		logger:              logger.Named("peer-manager"),
-		maxRelayPeers:       maxRelayPeers,
-		InRelayPeersTarget:  inRelayPeersTarget,
-		OutRelayPeersTarget: outRelayPeersTarget,
-		serviceSlots:        NewServiceSlot(),
-		subRelayTopics:      make(map[string]*NodeTopicDetails),
-		maxPeers:            maxPeers,
+		logger:                 logger.Named("peer-manager"),
+		maxRelayPeers:          maxRelayPeers,
+		InRelayPeersTarget:     inRelayPeersTarget,
+		OutRelayPeersTarget:    outRelayPeersTarget,
+		serviceSlots:           NewServiceSlot(),
+		subRelayTopics:         make(map[string]*NodeTopicDetails),
+		maxPeers:               maxPeers,
+		wakuprotoToENRFieldMap: map[protocol.ID]WakuProtoInfo{},
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
@@ -103,6 +114,11 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 		zap.Int("maxPeers", maxPeers))
 
 	return pm
+}
+
+// SetDiscv5 sets the discoveryv5 service to be used for peer discovery.
+func (pm *PeerManager) SetDiscv5(discv5 *discv5.DiscoveryV5) {
+	pm.discoveryService = discv5
 }
 
 // SetHost sets the host to be used in order to access the peerStore.
@@ -117,6 +133,9 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
+
+	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
+
 	pm.ctx = ctx
 	if pm.sub != nil {
 		go pm.peerEventLoop(ctx)
@@ -198,7 +217,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
-				//TODO: Trigger on-demand discovery for this topic.
+				pm.discoverPeersByPubsubTopic(topicStr, relay.WakuRelayID_v200, pm.ctx, 2)
 				continue
 			}
 			//Connect to eligible peers.
@@ -231,14 +250,14 @@ func (pm *PeerManager) connectToRelayPeers() {
 
 // addrInfoToPeerData returns addressinfo for a peer
 // If addresses are expired, it removes the peer from host peerStore and returns nil.
-func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) *PeerData {
+func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) *service.PeerData {
 	addrs := host.Peerstore().Addrs(peerID)
 	if len(addrs) == 0 {
 		//Addresses expired, remove peer from peerStore
 		host.Peerstore().RemovePeer(peerID)
 		return nil
 	}
-	return &PeerData{
+	return &service.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    peerID,
@@ -295,10 +314,42 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 	}
 }
 
+func (pm *PeerManager) processPeerENR(p *service.PeerData) []protocol.ID {
+	shards, err := wenr.RelaySharding(p.ENR.Record())
+	if err != nil {
+		pm.logger.Error("could not derive relayShards from ENR", zap.Error(err),
+			logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
+	} else {
+		if shards != nil {
+			p.PubSubTopics = make([]string, 0)
+			topics := shards.Topics()
+			for _, topic := range topics {
+				topicStr := topic.String()
+				p.PubSubTopics = append(p.PubSubTopics, topicStr)
+			}
+		} else {
+			pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
+		}
+	}
+	supportedProtos := []protocol.ID{}
+	//Identify and specify protocols supported by the peer based on the discovered peer's ENR
+	var enrField wenr.WakuEnrBitfield
+	if err := p.ENR.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err == nil {
+		for proto, protoENR := range pm.wakuprotoToENRFieldMap {
+			protoENRField := protoENR.waku2ENRBitField
+			if protoENRField&enrField != 0 {
+				supportedProtos = append(supportedProtos, proto)
+				//Add Service peers to serviceSlots.
+				pm.addPeerToServiceSlot(proto, p.AddrInfo.ID)
+			}
+		}
+	}
+	return supportedProtos
+}
+
 // AddDiscoveredPeer to add dynamically discovered peers.
 // Note that these peers will not be set in service-slots.
-// TODO: It maybe good to set in service-slots based on services supported in the ENR
-func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
+func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 	//Doing this check again inside addPeer, in order to avoid additional complexity of rollingBack other changes.
 	if pm.maxPeers <= pm.host.Peerstore().Peers().Len() {
 		return
@@ -309,27 +360,13 @@ func (pm *PeerManager) AddDiscoveredPeer(p PeerData, connectNow bool) {
 		pm.logger.Debug("Found discovered peer already in peerStore", logging.HostID("peer", p.AddrInfo.ID))
 		return
 	}
-	// Try to fetch shard info from ENR to arrive at pubSub topics.
+	supportedProtos := []protocol.ID{}
 	if len(p.PubSubTopics) == 0 && p.ENR != nil {
-		shards, err := wenr.RelaySharding(p.ENR.Record())
-		if err != nil {
-			pm.logger.Error("Could not derive relayShards from ENR", zap.Error(err),
-				logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
-		} else {
-			if shards != nil {
-				p.PubSubTopics = make([]string, 0)
-				topics := shards.Topics()
-				for _, topic := range topics {
-					topicStr := topic.String()
-					p.PubSubTopics = append(p.PubSubTopics, topicStr)
-				}
-			} else {
-				pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
-			}
-		}
+		// Try to fetch shard info and supported protocols from ENR to arrive at pubSub topics.
+		supportedProtos = pm.processPeerENR(&p)
 	}
 
-	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics)
+	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics, supportedProtos...)
 
 	if p.ENR != nil {
 		err := pm.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
@@ -428,200 +465,4 @@ func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 		zap.String("service", string(proto)))
 	// getPeers returns nil for WakuRelayIDv200 protocol, but we don't run this ServiceSlot code for WakuRelayIDv200 protocol
 	pm.serviceSlots.getPeers(proto).add(peerID)
-}
-
-// SelectPeerByContentTopic is used to return a random peer that supports a given protocol for given contentTopic.
-// If a list of specific peers is passed, the peer will be chosen from that list assuming
-// it supports the chosen protocol and contentTopic, otherwise it will chose a peer from the service slot.
-// If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic string, specificPeers ...peer.ID) (peer.ID, error) {
-	pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
-	if err != nil {
-		return "", err
-	}
-	return pm.SelectPeer(PeerSelectionCriteria{PubsubTopic: pubsubTopic, Proto: proto, SpecificPeers: specificPeers})
-}
-
-// SelectRandomPeer is used to return a random peer that supports a given protocol.
-// If a list of specific peers is passed, the peer will be chosen from that list assuming
-// it supports the chosen protocol, otherwise it will chose a peer from the service slot.
-// If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-// if pubSubTopic is specified, peer is selected from list that support the pubSubTopic
-func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
-	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
-	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
-	// This will require us to check for various factors such as:
-	//  - which topics they track
-	//  - latency?
-
-	peerID, err := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.SpecificPeers...)
-	if err == nil {
-		return peerID, nil
-	} else if !errors.Is(err, ErrNoPeersAvailable) {
-		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)), zap.String("pubsubTopic", criteria.PubsubTopic), zap.Error(err))
-		return "", err
-	}
-
-	// if not found in serviceSlots or proto == WakuRelayIDv200
-	filteredPeers, err := pm.FilterPeersByProto(criteria.SpecificPeers, criteria.Proto)
-	if err != nil {
-		return "", err
-	}
-	if criteria.PubsubTopic != "" {
-		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(criteria.PubsubTopic, filteredPeers...)
-	}
-	return selectRandomPeer(filteredPeers, pm.logger)
-}
-
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubSubTopic string, specificPeers ...peer.ID) (peer.ID, error) {
-	//Try to fetch from serviceSlot
-	if slot := pm.serviceSlots.getPeers(proto); slot != nil {
-		if pubSubTopic == "" {
-			return slot.getRandom()
-		} else { //PubsubTopic based selection
-			keys := make([]peer.ID, 0, len(slot.m))
-			for i := range slot.m {
-				keys = append(keys, i)
-			}
-			selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubSubTopic, keys...)
-			return selectRandomPeer(selectedPeers, pm.logger)
-		}
-	}
-
-	return "", ErrNoPeersAvailable
-}
-
-// PeerSelectionCriteria is the selection Criteria that is used by PeerManager to select peers.
-type PeerSelectionCriteria struct {
-	SelectionType PeerSelection
-	Proto         protocol.ID
-	PubsubTopic   string
-	SpecificPeers peer.IDSlice
-	Ctx           context.Context
-}
-
-// SelectPeer selects a peer based on selectionType specified.
-// Context is required only in case of selectionType set to LowestRTT
-func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
-
-	switch criteria.SelectionType {
-	case Automatic:
-		return pm.SelectRandomPeer(criteria)
-	case LowestRTT:
-		if criteria.Ctx == nil {
-			criteria.Ctx = context.Background()
-			pm.logger.Warn("context is not passed for peerSelectionwithRTT, using background context")
-		}
-		return pm.SelectPeerWithLowestRTT(criteria)
-	default:
-		return "", errors.New("unknown peer selection type specified")
-	}
-}
-
-type pingResult struct {
-	p   peer.ID
-	rtt time.Duration
-}
-
-// SelectPeerWithLowestRTT will select a peer that supports a specific protocol with the lowest reply time
-// If a list of specific peers is passed, the peer will be chosen from that list assuming
-// it supports the chosen protocol, otherwise it will chose a peer from the node peerstore
-// TO OPTIMIZE: As of now the peer with lowest RTT is identified when select is called, this should be optimized
-// to maintain the RTT as part of peer-scoring and just select based on that.
-func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (peer.ID, error) {
-	var peers peer.IDSlice
-	var err error
-	if criteria.Ctx == nil {
-		criteria.Ctx = context.Background()
-	}
-
-	if criteria.PubsubTopic != "" {
-		peers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(criteria.PubsubTopic, criteria.SpecificPeers...)
-	}
-
-	peers, err = pm.FilterPeersByProto(peers, criteria.Proto)
-	if err != nil {
-		return "", err
-	}
-	wg := sync.WaitGroup{}
-	waitCh := make(chan struct{})
-	pingCh := make(chan pingResult, 1000)
-
-	wg.Add(len(peers))
-
-	go func() {
-		for _, p := range peers {
-			go func(p peer.ID) {
-				defer wg.Done()
-				ctx, cancel := context.WithTimeout(criteria.Ctx, 3*time.Second)
-				defer cancel()
-				result := <-ping.Ping(ctx, pm.host, p)
-				if result.Error == nil {
-					pingCh <- pingResult{
-						p:   p,
-						rtt: result.RTT,
-					}
-				} else {
-					pm.logger.Debug("could not ping", logging.HostID("peer", p), zap.Error(result.Error))
-				}
-			}(p)
-		}
-		wg.Wait()
-		close(waitCh)
-		close(pingCh)
-	}()
-
-	select {
-	case <-waitCh:
-		var min *pingResult
-		for p := range pingCh {
-			if min == nil {
-				min = &p
-			} else {
-				if p.rtt < min.rtt {
-					min = &p
-				}
-			}
-		}
-		if min == nil {
-			return "", ErrNoPeersAvailable
-		}
-
-		return min.p, nil
-	case <-criteria.Ctx.Done():
-		return "", ErrNoPeersAvailable
-	}
-}
-
-// selectRandomPeer selects randomly a peer from the list of peers passed.
-func selectRandomPeer(peers peer.IDSlice, log *zap.Logger) (peer.ID, error) {
-	if len(peers) >= 1 {
-		peerID := peers[rand.Intn(len(peers))]
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-		return peerID, nil // nolint: gosec
-	}
-
-	return "", ErrNoPeersAvailable
-}
-
-// FilterPeersByProto filters list of peers that support specified protocols.
-// If specificPeers is nil, all peers in the host's peerStore are considered for filtering.
-func (pm *PeerManager) FilterPeersByProto(specificPeers peer.IDSlice, proto ...protocol.ID) (peer.IDSlice, error) {
-	peerSet := specificPeers
-	if len(peerSet) == 0 {
-		peerSet = pm.host.Peerstore().Peers()
-	}
-
-	var peers peer.IDSlice
-	for _, peer := range peerSet {
-		protocols, err := pm.host.Peerstore().SupportsProtocols(peer, proto...)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(protocols) > 0 {
-			peers = append(peers, peer)
-		}
-	}
-	return peers, nil
 }

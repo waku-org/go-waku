@@ -19,6 +19,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -408,7 +409,7 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 
-	s.Require().ErrorIs(err, protocol.ErrNotStarted)
+	s.Require().ErrorIs(err, service.ErrNotStarted)
 
 	err = s.lightNode.Start(s.ctx)
 	s.Require().NoError(err)
@@ -454,7 +455,7 @@ func (s *FilterTestSuite) TestStartStop() {
 	startNode := func() {
 		for i := 0; i < 100; i++ {
 			err := s.lightNode.Start(context.Background())
-			if errors.Is(err, protocol.ErrAlreadyStarted) {
+			if errors.Is(err, service.ErrAlreadyStarted) {
 				continue
 			}
 			s.Require().NoError(err)

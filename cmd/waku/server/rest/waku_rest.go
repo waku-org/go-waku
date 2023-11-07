@@ -22,7 +22,16 @@ type WakuRest struct {
 	filterService *FilterService
 }
 
-func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool, enableAdmin bool, relayCacheCapacity, filterCacheCapacity int, log *zap.Logger) *WakuRest {
+type RestConfig struct {
+	Address             string
+	Port                uint
+	EnablePProf         bool
+	EnableAdmin         bool
+	RelayCacheCapacity  uint
+	FilterCacheCapacity uint
+}
+
+func NewWakuRest(node *node.WakuNode, config RestConfig, log *zap.Logger) *WakuRest {
 	wrpc := new(WakuRest)
 	wrpc.log = log.Named("rest")
 
@@ -30,7 +39,7 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.NoCache)
 
-	if enablePProf {
+	if config.EnablePProf {
 		mux.Mount("/debug", middleware.Profiler())
 	}
 
@@ -39,7 +48,7 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 	_ = NewStoreService(node, mux)
 	_ = NewLightpushService(node, mux, log)
 
-	listenAddr := fmt.Sprintf("%s:%d", address, port)
+	listenAddr := fmt.Sprintf("%s:%d", config.Address, config.Port)
 
 	server := &http.Server{
 		Addr:    listenAddr,
@@ -50,19 +59,16 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 	wrpc.server = server
 
 	if node.Relay() != nil {
-		relayService := NewRelayService(node, mux, relayCacheCapacity, log)
-		server.RegisterOnShutdown(func() {
-			relayService.Stop()
-		})
+		relayService := NewRelayService(node, mux, config.RelayCacheCapacity, log)
 		wrpc.relayService = relayService
 	}
 
-	if enableAdmin {
+	if config.EnableAdmin {
 		_ = NewAdminService(node, mux, wrpc.log)
 	}
 
 	if node.FilterLightnode() != nil {
-		filterService := NewFilterService(node, mux, filterCacheCapacity, log)
+		filterService := NewFilterService(node, mux, int(config.FilterCacheCapacity), log)
 		server.RegisterOnShutdown(func() {
 			filterService.Stop()
 		})
@@ -75,9 +81,6 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if r.node.Relay() != nil {
-		go r.relayService.Start(ctx)
-	}
 	if r.node.FilterLightnode() != nil {
 		go r.filterService.Start(ctx)
 	}

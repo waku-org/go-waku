@@ -111,7 +111,8 @@ func TestRelayGetV1Messages(t *testing.T) {
 		&RelayMessageArgs{
 			Topic: "test",
 			Message: ProtoToRPC(&pb.WakuMessage{
-				Payload: []byte("test"),
+				Payload:      []byte("test"),
+				ContentTopic: "testContentTopic",
 			}),
 		},
 		&reply,
