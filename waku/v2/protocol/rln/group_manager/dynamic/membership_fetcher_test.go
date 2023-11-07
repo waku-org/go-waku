@@ -22,9 +22,9 @@ func TestFetchingLogic(t *testing.T) {
 	require.NoError(t, err)
 	rlnInstance, err := rln.NewRLN()
 	require.NoError(t, err)
-	rootTracker, err := group_manager.NewMerkleRootTracker(1, rlnInstance)
-	require.NoError(t, err)
-	//
+
+	rootTracker := group_manager.NewMerkleRootTracker(1, rlnInstance)
+
 	mf := MembershipFetcher{
 		web3Config: &web3.Config{
 			RLNContract: web3.RLNContract{
