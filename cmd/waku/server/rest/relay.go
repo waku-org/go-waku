@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -23,13 +22,11 @@ const routeRelayV1AutoMessages = "/relay/v1/auto/messages"
 
 // RelayService represents the REST service for WakuRelay
 type RelayService struct {
-	node   *node.WakuNode
-	cancel context.CancelFunc
+	node *node.WakuNode
 
 	log *zap.Logger
 
 	cacheCapacity int
-	ctx           context.Context
 }
 
 // NewRelayService returns an instance of RelayService
@@ -39,8 +36,6 @@ func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *za
 		log:           log.Named("relay"),
 		cacheCapacity: cacheCapacity,
 	}
-
-	//s.runner = newRunnerService(node.Broadcaster(), s.addEnvelope)
 
 	m.Post(routeRelayV1Subscriptions, s.postV1Subscriptions)
 	m.Delete(routeRelayV1Subscriptions, s.deleteV1Subscriptions)
@@ -56,21 +51,6 @@ func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *za
 	})
 
 	return s
-}
-
-// Start starts the RelayService
-func (r *RelayService) Start(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-	r.ctx = ctx
-}
-
-// Stop stops the RelayService
-func (r *RelayService) Stop() {
-	if r.cancel == nil {
-		return
-	}
-	r.cancel()
 }
 
 func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Request) {

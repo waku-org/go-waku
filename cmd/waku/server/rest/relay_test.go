@@ -55,9 +55,6 @@ func TestRelaySubscription(t *testing.T) {
 
 	r := makeRelayService(t, router)
 
-	go r.Start(context.Background())
-	defer r.Stop()
-
 	// Wait for node to start
 	time.Sleep(500 * time.Millisecond)
 
@@ -100,12 +97,8 @@ func TestRelayGetV1Messages(t *testing.T) {
 	router1 := chi.NewRouter()
 
 	serviceA := makeRelayService(t, router)
-	go serviceA.Start(context.Background())
-	defer serviceA.Stop()
 
 	serviceB := makeRelayService(t, router1)
-	go serviceB.Start(context.Background())
-	defer serviceB.Stop()
 
 	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
 	require.NoError(t, err)

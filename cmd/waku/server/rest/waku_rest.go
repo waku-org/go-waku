@@ -51,9 +51,6 @@ func NewWakuRest(node *node.WakuNode, address string, port int, enablePProf bool
 
 	if node.Relay() != nil {
 		relayService := NewRelayService(node, mux, relayCacheCapacity, log)
-		server.RegisterOnShutdown(func() {
-			relayService.Stop()
-		})
 		wrpc.relayService = relayService
 	}
 
