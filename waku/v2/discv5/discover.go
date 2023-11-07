@@ -14,9 +14,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 
@@ -29,7 +29,7 @@ var ErrNoDiscV5Listener = errors.New("no discv5 listener")
 
 // PeerConnector will subscribe to a channel containing the information for all peers found by this discovery protocol
 type PeerConnector interface {
-	Subscribe(context.Context, <-chan peermanager.PeerData)
+	Subscribe(context.Context, <-chan service.PeerData)
 }
 
 type DiscoveryV5 struct {
@@ -46,7 +46,7 @@ type DiscoveryV5 struct {
 
 	log *zap.Logger
 
-	*peermanager.CommonDiscoveryService
+	*service.CommonDiscoveryService
 }
 
 type discV5Parameters struct {
@@ -139,7 +139,7 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 		params:                 params,
 		peerConnector:          peerConnector,
 		NAT:                    NAT,
-		CommonDiscoveryService: peermanager.NewCommonDiscoveryService(),
+		CommonDiscoveryService: service.NewCommonDiscoveryService(),
 		localnode:              localnode,
 		metrics:                newMetrics(reg),
 		config: discover.Config{
@@ -438,7 +438,7 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 	defer iterator.Close()
 
 	d.Iterate(ctx, iterator, func(n *enode.Node, p peer.AddrInfo) error {
-		peer := peermanager.PeerData{
+		peer := service.PeerData{
 			Origin:   peerstore.Discv5,
 			AddrInfo: p,
 			ENR:      n,

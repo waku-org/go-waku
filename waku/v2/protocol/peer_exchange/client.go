@@ -14,6 +14,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"go.uber.org/zap"
 )
 
@@ -124,11 +125,11 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 		go func() {
 			defer wakuPX.WaitGroup().Done()
 
-			peerCh := make(chan peermanager.PeerData)
+			peerCh := make(chan service.PeerData)
 			defer close(peerCh)
 			wakuPX.peerConnector.Subscribe(ctx, peerCh)
 			for _, p := range discoveredPeers {
-				peer := peermanager.PeerData{
+				peer := service.PeerData{
 					Origin:   peerstore.PeerExchange,
 					AddrInfo: p.addrInfo,
 					ENR:      p.enr,

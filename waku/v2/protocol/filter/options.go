@@ -51,6 +51,7 @@ type (
 	FilterParameters struct {
 		Timeout        time.Duration
 		MaxSubscribers int
+		pm             *peermanager.PeerManager
 	}
 
 	Option func(*FilterParameters)
@@ -153,6 +154,12 @@ func DefaultUnsubscribeOptions() []FilterSubscribeOption {
 func WithMaxSubscribers(maxSubscribers int) Option {
 	return func(params *FilterParameters) {
 		params.MaxSubscribers = maxSubscribers
+	}
+}
+
+func WithPeerManager(pm *peermanager.PeerManager) Option {
+	return func(params *FilterParameters) {
+		params.pm = pm
 	}
 }
 

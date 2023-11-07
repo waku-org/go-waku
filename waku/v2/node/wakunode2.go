@@ -43,6 +43,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -289,6 +290,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	}
 
 	w.opts.legacyFilterOpts = append(w.opts.legacyFilterOpts, legacy_filter.WithPeerManager(w.peermanager))
+	w.opts.filterOpts = append(w.opts.filterOpts, filter.WithPeerManager(w.peermanager))
 
 	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullNode, w.timesource, w.opts.prometheusReg, w.log, w.opts.legacyFilterOpts...)
 	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.opts.prometheusReg, w.log, w.opts.filterOpts...)
@@ -691,7 +693,9 @@ func (w *WakuNode) mountDiscV5() error {
 	}
 
 	var err error
-	w.discoveryV5, err = discv5.NewDiscoveryV5(w.opts.privKey, w.localNode, w.peerConnector, w.opts.prometheusReg, w.log, discV5Options...)
+	discv5Inst, err := discv5.NewDiscoveryV5(w.opts.privKey, w.localNode, w.peerConnector, w.opts.prometheusReg, w.log, discV5Options...)
+	w.discoveryV5 = discv5Inst
+	w.peermanager.SetDiscv5(discv5Inst)
 
 	return err
 }
@@ -714,7 +718,7 @@ func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
 func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubsubTopics []string, connectNow bool) {
-	p := peermanager.PeerData{
+	p := service.PeerData{
 		Origin: origin,
 		AddrInfo: peer.AddrInfo{
 			ID:    ID,

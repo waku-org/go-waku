@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -47,7 +48,7 @@ type (
 	}
 
 	WakuFilter struct {
-		*protocol.CommonService
+		*service.CommonService
 		h          host.Host
 		pm         *peermanager.PeerManager
 		isFullNode bool
@@ -76,7 +77,7 @@ func NewWakuFilter(broadcaster relay.Broadcaster, isFullNode bool, timesource ti
 	}
 
 	wf.isFullNode = isFullNode
-	wf.CommonService = protocol.NewCommonService()
+	wf.CommonService = service.NewCommonService()
 	wf.filters = NewFilterMap(broadcaster, timesource)
 	wf.subscribers = NewSubscribers(params.Timeout)
 	wf.metrics = newMetrics(reg)

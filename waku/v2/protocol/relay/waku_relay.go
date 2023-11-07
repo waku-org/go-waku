@@ -18,11 +18,13 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
 // WakuRelayID_v200 is the current protocol ID used for WakuRelay
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
+const WakuRelayENRField = uint8(1 << 0)
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic{}.String()
@@ -62,7 +64,7 @@ type WakuRelay struct {
 		EvtPeerTopic         event.Emitter
 	}
 	contentSubs map[string]map[int]*Subscription
-	*waku_proto.CommonService
+	*service.CommonService
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
@@ -76,7 +78,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.topicValidators = make(map[string][]validatorFn)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
-	w.CommonService = waku_proto.NewCommonService()
+	w.CommonService = service.NewCommonService()
 	w.log = log.Named("relay")
 	w.events = eventbus.NewBus()
 	w.metrics = newMetrics(reg, w.log)

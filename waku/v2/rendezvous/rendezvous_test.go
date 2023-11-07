@@ -14,16 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type PeerConn struct {
 	sync.RWMutex
-	ch <-chan peermanager.PeerData
+	ch <-chan service.PeerData
 }
 
-func (p *PeerConn) Subscribe(ctx context.Context, ch <-chan peermanager.PeerData) {
+func (p *PeerConn) Subscribe(ctx context.Context, ch <-chan service.PeerData) {
 	p.Lock()
 	p.ch = ch
 	p.Unlock()

@@ -421,20 +421,6 @@ func Execute(options NodeOptions) error {
 		}
 	}
 
-	if len(discoveredNodes) != 0 {
-		for _, n := range discoveredNodes {
-			go func(ctx context.Context, info peer.AddrInfo) {
-				ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-				defer cancel()
-				err = wakuNode.DialPeerWithInfo(ctx, info)
-				if err != nil {
-					logger.Error("dialing peer", logging.HostID("peer", info.ID), zap.Error(err))
-				}
-			}(ctx, n.PeerInfo)
-
-		}
-	}
-
 	var rpcServer *rpc.WakuRPC
 	if options.RPCServer.Enable {
 		rpcServer = rpc.NewWakuRPC(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
