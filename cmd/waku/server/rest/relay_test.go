@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -66,7 +67,7 @@ func TestRelaySubscription(t *testing.T) {
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1Subscriptions, bytes.NewReader(topicsJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
@@ -89,7 +90,7 @@ func TestRelaySubscription(t *testing.T) {
 
 	// Test deletion
 	rr = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodDelete, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
+	req, _ = http.NewRequest(http.MethodDelete, routeRelayV1Subscriptions, bytes.NewReader(topicsJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())
@@ -126,7 +127,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/subscriptions", bytes.NewReader(topicsJSONBytes))
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1Subscriptions, bytes.NewReader(topicsJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
@@ -162,6 +163,150 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, "/relay/v1/messages/test", bytes.NewReader([]byte{}))
+	router1.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNotFound, rr.Code)
+
+}
+
+func TestPostAutoV1Message(t *testing.T) {
+	router := chi.NewRouter()
+
+	_ = makeRelayService(t, router)
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: "/toychat/1/huilong/proto",
+		Version:      0,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+	msgJSONBytes, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1AutoMessages, bytes.NewReader(msgJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestRelayAutoSubUnsub(t *testing.T) {
+	router := chi.NewRouter()
+
+	r := makeRelayService(t, router)
+
+	go r.Start(context.Background())
+	defer r.Stop()
+
+	// Wait for node to start
+	time.Sleep(500 * time.Millisecond)
+
+	cTopic1 := "/toychat/1/huilong/proto"
+
+	cTopics := []string{cTopic1}
+	topicsJSONBytes, err := json.Marshal(cTopics)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+
+	// Test publishing messages after subscription
+	now := utils.GetUnixEpoch()
+	_, err = r.node.Relay().Publish(context.Background(),
+		tests.CreateWakuMessage(cTopic1, now+1))
+	require.NoError(t, err)
+
+	// Wait for the messages to be processed
+	time.Sleep(5 * time.Millisecond)
+
+	// Test deletion
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodDelete, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+
+	cTopics = append(cTopics, "test")
+	topicsJSONBytes, err = json.Marshal(cTopics)
+	require.NoError(t, err)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodPost, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+}
+
+func TestRelayGetV1AutoMessages(t *testing.T) {
+	router := chi.NewRouter()
+	router1 := chi.NewRouter()
+
+	serviceA := makeRelayService(t, router)
+	go serviceA.Start(context.Background())
+	defer serviceA.Stop()
+
+	serviceB := makeRelayService(t, router1)
+	go serviceB.Start(context.Background())
+	defer serviceB.Stop()
+
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	require.NoError(t, err)
+
+	var addr multiaddr.Multiaddr
+	for _, a := range serviceB.node.Host().Addrs() {
+		addr = a.Encapsulate(hostInfo)
+		break
+	}
+	err = serviceA.node.DialPeerWithMultiAddress(context.Background(), addr)
+	require.NoError(t, err)
+
+	// Wait for the dial to complete
+	time.Sleep(1 * time.Second)
+
+	cTopic1 := "/toychat/1/huilong/proto"
+
+	cTopics := []string{cTopic1}
+	topicsJSONBytes, err := json.Marshal(cTopics)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, routeRelayV1AutoSubscriptions, bytes.NewReader(topicsJSONBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "true", rr.Body.String())
+
+	// Wait for the subscription to be started
+	time.Sleep(1 * time.Second)
+
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: cTopic1,
+		Version:      0,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+	msgJsonBytes, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodPost, routeRelayV1AutoMessages, bytes.NewReader(msgJsonBytes))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	// Wait for the message to be received
+	time.Sleep(1 * time.Second)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", routeRelayV1AutoMessages, url.QueryEscape(cTopic1)), bytes.NewReader([]byte{}))
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var messages []*pb.WakuMessage
+	err = json.Unmarshal(rr.Body.Bytes(), &messages)
+	require.NoError(t, err)
+	require.Len(t, messages, 1)
+
+	rr = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", routeRelayV1AutoMessages, url.QueryEscape(cTopic1)), bytes.NewReader([]byte{}))
 	router1.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusNotFound, rr.Code)
 
