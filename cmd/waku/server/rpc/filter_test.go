@@ -50,6 +50,7 @@ func makeFilterService(t *testing.T, isFullNode bool) *FilterService {
 }
 
 func TestFilterSubscription(t *testing.T) {
+	t.Skip("skipping since it is legacy filter")
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
@@ -110,6 +111,8 @@ func TestFilterSubscription(t *testing.T) {
 }
 
 func TestFilterGetV1Messages(t *testing.T) {
+	t.Skip("skipping since it is legacy filter")
+
 	serviceA := makeFilterService(t, true)
 	var reply SuccessReply
 
