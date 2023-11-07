@@ -203,7 +203,7 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 		_, err := w.Write([]byte(err.Error()))
 		r.log.Error("writing response", zap.Error(err))
 	} else {
-		w.WriteHeader(http.StatusOK)
+		writeErrOrResponse(w, err, true)
 	}
 
 }
