@@ -47,7 +47,6 @@ func (pm *PeerManager) RegisterWakuProtocol(proto protocol.ID, bitField uint8) {
 	pm.wakuprotoToENRFieldMap[proto] = WakuProtoInfo{waku2ENRBitField: bitField}
 }
 
-
 // OnDemandPeerDiscovery initiates an on demand peer discovery and
 // filters peers based on cluster,shard and any wakuservice protocols specified
 func (pm *PeerManager) discoverOnDemand(cluster uint16,
@@ -107,9 +106,12 @@ func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto prot
 		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
 		return
 	}
-
-	err = pm.DiscoverAndConnectToPeers(ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto, maxCount)
-	if err != nil {
-		pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
+	if len(shardInfo) > 0 {
+		err = pm.DiscoverAndConnectToPeers(ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto, maxCount)
+		if err != nil {
+			pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
+		}
+	} else {
+		pm.logger.Debug("failed to convert pubsub topic to shard as topic is named pubsubTopic", zap.String("topic", pubsubTopic))
 	}
 }
