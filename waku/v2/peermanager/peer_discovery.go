@@ -47,7 +47,6 @@ func (pm *PeerManager) RegisterWakuProtocol(proto protocol.ID, bitField uint8) {
 	pm.wakuprotoToENRFieldMap[proto] = WakuProtoInfo{waku2ENRBitField: bitField}
 }
 
-//type Predicate func(enode.Iterator) enode.Iterator
 
 // OnDemandPeerDiscovery initiates an on demand peer discovery and
 // filters peers based on cluster,shard and any wakuservice protocols specified

@@ -319,7 +319,7 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 func (pm *PeerManager) processPeerENR(p *service.PeerData) []protocol.ID {
 	shards, err := wenr.RelaySharding(p.ENR.Record())
 	if err != nil {
-		pm.logger.Error("Could not derive relayShards from ENR", zap.Error(err),
+		pm.logger.Error("could not derive relayShards from ENR", zap.Error(err),
 			logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 	} else {
 		if shards != nil {
