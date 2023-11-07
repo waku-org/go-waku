@@ -18,7 +18,7 @@ import (
 )
 
 type Query struct {
-	Topic         string
+	PubsubTopic   string
 	ContentTopics []string
 	StartTime     *int64
 	EndTime       *int64
@@ -255,13 +255,18 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	for _, opt := range optList {
 		opt(params)
 	}
+
+	//if query.PubsubTopic == "" {
+	//Should we derive pubsub topic from contentTopic so that peer selection and discovery can be done accordingly?
+	//}
+
 	if store.pm != nil && params.selectedPeer == "" {
 		var err error
 		params.selectedPeer, err = store.pm.SelectPeer(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         StoreID_v20beta4,
-				PubsubTopic:   query.Topic,
+				PubsubTopic:   query.PubsubTopic,
 				SpecificPeers: params.preferredPeers,
 				Ctx:           ctx,
 			},
@@ -274,7 +279,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	historyRequest := &pb.HistoryRPC{
 		RequestId: hex.EncodeToString(params.requestID),
 		Query: &pb.HistoryQuery{
-			PubsubTopic:    query.Topic,
+			PubsubTopic:    query.PubsubTopic,
 			ContentFilters: []*pb.ContentFilter{},
 			StartTime:      query.StartTime,
 			EndTime:        query.EndTime,
