@@ -91,7 +91,7 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 		} else {
 			topicToSubscribe = topic
 		}
-		_, err = r.node.Relay().Subscribe(req.Context(), protocol.NewContentFilter(topicToSubscribe), relay.WithCacheSize(r.cacheCapacity))
+		_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter(topicToSubscribe), relay.WithCacheSize(r.cacheCapacity))
 
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
@@ -126,7 +126,14 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 	}
 	var response []*pb.WakuMessage
 	select {
-	case msg := <-sub.Ch:
+	case msg, open := <-sub.Ch:
+		if !open {
+			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", topic))
+			w.WriteHeader(http.StatusNotFound)
+			_, err = w.Write([]byte("consume channel is closed for subscription"))
+			r.log.Error("writing response", zap.Error(err))
+			return
+		}
 		response = append(response, msg.Message())
 	default:
 		break
