@@ -34,7 +34,7 @@ func getFlags() []cli.Flag {
 	// Defaults
 	options.Fleet = fleetProd
 
-	testCT, err := protocol.NewContentTopic("toy-chat", 3, "mingde", "proto")
+	testCT, err := protocol.NewContentTopic("toy-chat", "3", "mingde", "proto")
 	if err != nil {
 		panic("invalid contentTopic")
 	}
