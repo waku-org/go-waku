@@ -3,7 +3,6 @@ package relay
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -53,7 +52,6 @@ func TestWakuRelay(t *testing.T) {
 	bytesToSend := []byte{1}
 	go func() {
 		defer cancel()
-
 		env := <-subs[0].Ch
 		t.Log("received msg", logging.HexString("hash", env.Hash()))
 	}()
@@ -114,7 +112,7 @@ func TestGossipsubScore(t *testing.T) {
 			for {
 				_, err := sub.Next(context.Background())
 				if err != nil {
-					fmt.Println(err)
+					t.Log(err)
 				}
 			}
 		}()

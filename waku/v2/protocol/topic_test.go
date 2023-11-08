@@ -9,28 +9,28 @@ import (
 )
 
 func TestContentTopicAndSharding(t *testing.T) {
-	ct, err := NewContentTopic("waku", 2, "test", "proto")
+	ct, err := NewContentTopic("waku", "2", "test", "proto")
 	require.NoError(t, err)
 	require.Equal(t, ct.String(), "/waku/2/test/proto")
 
 	_, err = StringToContentTopic("/waku/-1/a/b")
-	require.Error(t, ErrInvalidFormat, err)
+	require.NoError(t, err)
 
 	_, err = StringToContentTopic("waku/1/a/b")
-	require.Error(t, ErrInvalidFormat, err)
+	require.Error(t, err, ErrInvalidFormat)
 
 	_, err = StringToContentTopic("////")
-	require.Error(t, ErrInvalidFormat, err)
+	require.Error(t, err, ErrInvalidFormat)
 
 	_, err = StringToContentTopic("/waku/1/a")
-	require.Error(t, ErrInvalidFormat, err)
+	require.Error(t, err, ErrInvalidFormat)
 
 	ct2, err := StringToContentTopic("/waku/2/test/proto")
 	require.NoError(t, err)
 	require.Equal(t, ct.String(), ct2.String())
 	require.True(t, ct.Equal(ct2))
 
-	ct3, err := NewContentTopic("waku", 2, "test2", "proto")
+	ct3, err := NewContentTopic("waku", "2a", "test2", "proto")
 	require.NoError(t, err)
 	require.False(t, ct.Equal(ct3))
 
@@ -45,12 +45,12 @@ func TestContentTopicAndSharding(t *testing.T) {
 	require.Equal(t, NewStaticShardingPubsubTopic(ClusterIndex, 3), nsPubSubT1)
 
 	_, err = StringToContentTopic("/abc/toychat/2/huilong/proto")
-	require.Error(t, ErrInvalidGeneration, err)
+	require.Error(t, err, ErrInvalidGeneration)
 
 	_, err = StringToContentTopic("/1/toychat/2/huilong/proto")
-	require.Error(t, ErrInvalidGeneration, err)
+	require.Error(t, err, ErrInvalidGeneration)
 
-	ct5, err := NewContentTopic("waku", 2, "test2", "proto", WithGeneration(0))
+	ct5, err := NewContentTopic("waku", "2b", "test2", "proto", WithGeneration(0))
 	require.NoError(t, err)
 	require.Equal(t, ct5.Generation, 0)
 }
@@ -65,7 +65,7 @@ func randomContentTopic() (ContentTopic, error) {
 		randomChar := 'a' + rune(rand.Intn(26))
 		app = app + string(randomChar)
 	}
-	version := uint32(1)
+	version := "1"
 
 	var name = ""
 
