@@ -53,18 +53,20 @@ type WakuPeerExchange struct {
 // Takes an optional peermanager if WakuPeerExchange is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil
 func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, pm *peermanager.PeerManager, reg prometheus.Registerer, log *zap.Logger) (*WakuPeerExchange, error) {
-	newEnrCache, err := newEnrCache(MaxCacheSize)
-	if err != nil {
-		return nil, err
-	}
 	wakuPX := new(WakuPeerExchange)
 	wakuPX.disc = disc
 	wakuPX.metrics = newMetrics(reg)
 	wakuPX.log = log.Named("wakupx")
-	wakuPX.enrCache = newEnrCache
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
 	wakuPX.CommonService = service.NewCommonService()
+
+	newEnrCache, err := newEnrCache(MaxCacheSize, wakuPX.log)
+	if err != nil {
+		return nil, err
+	}
+
+	wakuPX.enrCache = newEnrCache
 
 	return wakuPX, nil
 }
@@ -159,7 +161,6 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
 			continue
 		}
 
-		wakuPX.log.Debug("Discovered px peers via discv5")
 		wakuPX.enrCache.updateCache(iterator.Node())
 
 		select {
