@@ -225,7 +225,7 @@ func FromBitVector(buf []byte) (RelayShards, error) {
 // This is based on Autosharding algorithm defined in RFC 51
 func GetShardFromContentTopic(topic ContentTopic, shardCount int) StaticShardingPubsubTopic {
 	bytes := []byte(topic.ApplicationName)
-	bytes = append(bytes, []byte(fmt.Sprintf("%d", topic.ApplicationVersion))...)
+	bytes = append(bytes, []byte(topic.ApplicationVersion)...)
 
 	hash := hash.SHA256(bytes)
 	//We only use the last 64 bits of the hash as having more shards is unlikely.
