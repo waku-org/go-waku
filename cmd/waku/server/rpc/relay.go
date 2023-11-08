@@ -210,7 +210,6 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 	if err != nil {
 		return err
 	}
-	fmt.Println("subscription is ", sub)
 	select {
 	case msg, open := <-sub.Ch:
 		if !open {

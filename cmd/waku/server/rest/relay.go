@@ -131,7 +131,9 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", topic))
 			w.WriteHeader(http.StatusNotFound)
 			_, err = w.Write([]byte("consume channel is closed for subscription"))
-			r.log.Error("writing response", zap.Error(err))
+			if err != nil {
+				r.log.Error("writing response", zap.Error(err))
+			}
 			return
 		}
 		response = append(response, msg.Message())
