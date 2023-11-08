@@ -19,36 +19,36 @@ func TestIndexComputation(t *testing.T) {
 		Timestamp: utils.GetUnixEpoch(),
 	}
 
-	idx := protocol.NewEnvelope(msg, utils.GetUnixEpoch(), "test").Index()
+	idx := protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), "test").Index()
 	require.NotZero(t, idx.ReceiverTime)
-	require.Equal(t, msg.Timestamp, idx.SenderTime)
+	require.Equal(t, msg.GetTimestamp(), idx.SenderTime)
 	require.NotZero(t, idx.Digest)
 	require.Len(t, idx.Digest, 32)
 
 	msg1 := &wpb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
-		Timestamp:    123,
+		Timestamp:    proto.Int64(123),
 		ContentTopic: testContentTopic,
 	}
-	idx1 := protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), "test").Index()
+	idx1 := protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), "test").Index()
 
 	msg2 := &wpb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
-		Timestamp:    123,
+		Timestamp:    proto.Int64(123),
 		ContentTopic: testContentTopic,
 	}
-	idx2 := protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), "test").Index()
+	idx2 := protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), "test").Index()
 
 	require.Equal(t, idx1.Digest, idx2.Digest)
 }
 
 func createSampleList(s int) []*protocol.Envelope {
 	var result []*protocol.Envelope
-	for i := 0; i < s; i++ {
+	for i := 1; i <= s; i++ {
 		msg :=
 			&wpb.WakuMessage{
 				Payload:   []byte{byte(i)},
-				Timestamp: int64(i),
+				Timestamp: proto.Int64(int64(i)),
 			}
 		result = append(result, protocol.NewEnvelope(msg, int64(i), "abc"))
 	}
@@ -77,6 +77,8 @@ func TestForwardPagination(t *testing.T) {
 	messages, newPagingInfo, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.NoError(t, err)
 	require.Len(t, messages, 2)
+	require.Equal(t, msgList[0].Message(), messages[0])
+
 	require.True(t, proto.Equal(msgList[0].Message(), messages[0]))
 	require.True(t, proto.Equal(msgList[1].Message(), messages[1]))
 	require.Equal(t, msgList[1].Index(), newPagingInfo.Cursor)
@@ -120,7 +122,7 @@ func TestForwardPagination(t *testing.T) {
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for an invalid cursor
-	invalidIndex := protocol.NewEnvelope(&wpb.WakuMessage{Payload: []byte{255, 255, 255}}, utils.GetUnixEpoch(), "test").Index()
+	invalidIndex := protocol.NewEnvelope(&wpb.WakuMessage{Payload: []byte{255, 255, 255}}, *utils.GetUnixEpoch(), "test").Index()
 	pagingInfo = &pb.PagingInfo{PageSize: 10, Cursor: invalidIndex, Direction: pb.PagingInfo_FORWARD}
 	_, _, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.ErrorIs(t, err, persistence.ErrInvalidCursor)
@@ -207,7 +209,7 @@ func TestBackwardPagination(t *testing.T) {
 	require.Nil(t, newPagingInfo.Cursor)
 
 	// test for an invalid cursor
-	invalidIndex := protocol.NewEnvelope(&wpb.WakuMessage{Payload: []byte{255, 255, 255}}, utils.GetUnixEpoch(), "test").Index()
+	invalidIndex := protocol.NewEnvelope(&wpb.WakuMessage{Payload: []byte{255, 255, 255}}, *utils.GetUnixEpoch(), "test").Index()
 	pagingInfo = &pb.PagingInfo{PageSize: 10, Cursor: invalidIndex, Direction: pb.PagingInfo_BACKWARD}
 	_, _, err = findMessages(&pb.HistoryQuery{PagingInfo: pagingInfo}, db)
 	require.ErrorIs(t, err, persistence.ErrInvalidCursor)

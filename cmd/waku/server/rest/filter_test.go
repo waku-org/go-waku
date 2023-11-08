@@ -365,7 +365,7 @@ func TestFilterGetMessages(t *testing.T) {
 		router.ServeHTTP(rr, req)
 		require.Equal(t, http.StatusNotFound, rr.Code)
 		require.Equal(t,
-			fmt.Sprintf("Not subscribed to pubsubTopic:%s contentTopic: %s", notSubscibredPubsubTopic, contentTopic),
+			fmt.Sprintf("not subscribed to pubsubTopic:%s contentTopic: %s", notSubscibredPubsubTopic, contentTopic),
 			rr.Body.String(),
 		)
 	}
@@ -387,7 +387,6 @@ func genMessage(pubsubTopic, contentTopic string) *protocol.Envelope {
 		&pb.WakuMessage{
 			Payload:      []byte{1, 2, 3},
 			ContentTopic: contentTopic,
-			Version:      0,
 			Timestamp:    utils.GetUnixEpoch(),
 		},
 		0,

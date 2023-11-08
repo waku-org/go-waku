@@ -18,11 +18,13 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
 // WakuRelayID_v200 is the current protocol ID used for WakuRelay
 const WakuRelayID_v200 = protocol.ID("/vac/waku/relay/2.0.0")
+const WakuRelayENRField = uint8(1 << 0)
 
 // DefaultWakuTopic is the default pubsub topic used across all Waku protocols
 var DefaultWakuTopic string = waku_proto.DefaultPubsubTopic{}.String()
@@ -62,7 +64,7 @@ type WakuRelay struct {
 		EvtPeerTopic         event.Emitter
 	}
 	contentSubs map[string]map[int]*Subscription
-	*waku_proto.CommonService
+	*service.CommonService
 }
 
 // NewWakuRelay returns a new instance of a WakuRelay struct
@@ -76,7 +78,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.topicValidators = make(map[string][]validatorFn)
 	w.bcaster = bcaster
 	w.minPeersToPublish = minPeersToPublish
-	w.CommonService = waku_proto.NewCommonService()
+	w.CommonService = service.NewCommonService()
 	w.log = log.Named("relay")
 	w.events = eventbus.NewBus()
 	w.metrics = newMetrics(reg, w.log)
@@ -217,7 +219,7 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (subs *pubsub.Subscript
 			return nil, err
 		}
 
-		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
+		w.log.Info("gossipsub subscription", zap.String("pubsubTopic", sub.Topic()))
 	}
 
 	return sub, nil
@@ -279,13 +281,31 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts .
 	return hash, nil
 }
 
+// GetSubscriptionWithPubsubTopic fetches subscription matching pubsub and contentTopic
+func (w *WakuRelay) GetSubscriptionWithPubsubTopic(pubsubTopic string, contentTopic string) (*Subscription, error) {
+	var contentFilter waku_proto.ContentFilter
+	if contentTopic != "" {
+		contentFilter = waku_proto.NewContentFilter(pubsubTopic, contentTopic)
+	} else {
+		contentFilter = waku_proto.NewContentFilter(pubsubTopic)
+	}
+	cSubs := w.contentSubs[pubsubTopic]
+	for _, sub := range cSubs {
+		if sub.contentFilter.Equals(contentFilter) {
+			return sub, nil
+		}
+	}
+	return nil, errors.New("no subscription found for content topic")
+}
+
+// GetSubscription fetches subscription matching a contentTopic(via autosharding)
 func (w *WakuRelay) GetSubscription(contentTopic string) (*Subscription, error) {
-	pubSubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
+	pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
 	if err != nil {
 		return nil, err
 	}
-	contentFilter := waku_proto.NewContentFilter(pubSubTopic, contentTopic)
-	cSubs := w.contentSubs[pubSubTopic]
+	contentFilter := waku_proto.NewContentFilter(pubsubTopic, contentTopic)
+	cSubs := w.contentSubs[pubsubTopic]
 	for _, sub := range cSubs {
 		if sub.contentFilter.Equals(contentFilter) {
 			return sub, nil
@@ -331,6 +351,9 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			return nil, err
 		}
 	}
+	if params.cacheSize <= 0 {
+		params.cacheSize = uint(DefaultRelaySubscriptionBufferSize)
+	}
 
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		w.log.Info("subscribing to", zap.String("pubsubTopic", pubSubTopic), zap.Strings("contenTopics", cTopics))
@@ -347,7 +370,7 @@ func (w *WakuRelay) subscribe(ctx context.Context, contentFilter waku_proto.Cont
 			}
 		}
 
-		subscription := w.bcaster.Register(cFilter, WithBufferSize(DefaultRelaySubscriptionBufferSize),
+		subscription := w.bcaster.Register(cFilter, WithBufferSize(int(params.cacheSize)),
 			WithConsumerOption(params.dontConsume))
 
 		// Create Content subscription

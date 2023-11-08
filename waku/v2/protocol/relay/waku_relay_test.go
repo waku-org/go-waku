@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -53,15 +54,13 @@ func TestWakuRelay(t *testing.T) {
 	go func() {
 		defer cancel()
 
-		msg := <-subs[0].Ch
-		fmt.Println("msg received ", msg)
+		env := <-subs[0].Ch
+		t.Log("received msg", logging.HexString("hash", env.Hash()))
 	}()
 
 	msg := &pb.WakuMessage{
 		Payload:      bytesToSend,
-		Version:      0,
 		ContentTopic: "test",
-		Timestamp:    0,
 	}
 	_, err = relay.Publish(context.Background(), msg, WithPubSubTopic(testTopic))
 	require.NoError(t, err)
@@ -194,7 +193,6 @@ func waitForMsg(t *testing.T, ch chan *protocol.Envelope, cTopicExpected string)
 		defer wg.Done()
 		select {
 		case env := <-ch:
-			fmt.Println("msg received", env)
 			require.Equal(t, cTopicExpected, env.Message().GetContentTopic())
 		case <-time.After(5 * time.Second):
 			t.Error("Message timeout")
@@ -251,9 +249,7 @@ func TestWakuRelayAutoShard(t *testing.T) {
 
 	msg := &pb.WakuMessage{
 		Payload:      bytesToSend,
-		Version:      0,
 		ContentTopic: testcTopic,
-		Timestamp:    0,
 	}
 	_, err = relay.Publish(context.Background(), msg)
 	require.NoError(t, err)
@@ -268,9 +264,7 @@ func TestWakuRelayAutoShard(t *testing.T) {
 
 	msg1 := &pb.WakuMessage{
 		Payload:      bytesToSend,
-		Version:      0,
 		ContentTopic: testcTopic1,
-		Timestamp:    0,
 	}
 
 	_, err = relay.Publish(context.Background(), msg1, WithPubSubTopic(subs[0].contentFilter.PubsubTopic))
@@ -295,9 +289,8 @@ func TestWakuRelayAutoShard(t *testing.T) {
 
 	msg2 := &pb.WakuMessage{
 		Payload:      bytesToSend,
-		Version:      0,
 		ContentTopic: testcTopic1,
-		Timestamp:    1,
+		Timestamp:    utils.GetUnixEpoch(),
 	}
 
 	_, err = relay.Publish(context.Background(), msg2, WithPubSubTopic(subs[0].contentFilter.PubsubTopic))

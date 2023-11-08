@@ -17,6 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestGetMessages(t *testing.T) {
@@ -32,14 +33,14 @@ func TestGetMessages(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	now := utils.GetUnixEpoch()
-	msg1 := tests.CreateWakuMessage(topic1, now+1)
-	msg2 := tests.CreateWakuMessage(topic1, now+2)
-	msg3 := tests.CreateWakuMessage(topic1, now+3)
+	now := *utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, proto.Int64(now+1))
+	msg2 := tests.CreateWakuMessage(topic1, proto.Int64(now+2))
+	msg3 := tests.CreateWakuMessage(topic1, proto.Int64(now+3))
 
-	node1.Broadcaster().Submit(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1))
-	node1.Broadcaster().Submit(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1))
-	node1.Broadcaster().Submit(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1))
+	node1.Broadcaster().Submit(protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic1))
+	node1.Broadcaster().Submit(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic1))
+	node1.Broadcaster().Submit(protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic1))
 
 	n1HostInfo, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", node1.Host().ID().Pretty()))
 	n1Addr := node1.ListenAddresses()[0].Encapsulate(n1HostInfo)

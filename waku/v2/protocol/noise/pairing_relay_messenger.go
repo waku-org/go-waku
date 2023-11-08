@@ -8,6 +8,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"google.golang.org/protobuf/proto"
 )
 
 type NoiseMessenger interface {
@@ -106,7 +107,7 @@ func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-c
 					return
 				}
 
-				if env.Message().ContentTopic != contentTopic || env.Message().Version != 2 {
+				if env.Message().ContentTopic != contentTopic || env.Message().GetVersion() != NoiseEncryption {
 					continue
 				}
 
@@ -127,7 +128,7 @@ func (r *NoiseWakuRelay) Publish(ctx context.Context, contentTopic string, paylo
 	}
 
 	message.ContentTopic = contentTopic
-	message.Timestamp = r.timesource.Now().UnixNano()
+	message.Timestamp = proto.Int64(r.timesource.Now().UnixNano())
 
 	_, err = r.relay.Publish(ctx, message, relay.WithPubSubTopic(r.pubsubTopic))
 	return err

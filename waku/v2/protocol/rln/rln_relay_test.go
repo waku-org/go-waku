@@ -13,9 +13,11 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/static"
+	rlnpb "github.com/waku-org/go-waku/waku/v2/protocol/rln/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	r "github.com/waku-org/go-zerokit-rln/rln"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestWakuRLNRelaySuite(t *testing.T) {
@@ -114,13 +116,23 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 		shareY3[i] = shareX3[i]
 	}
 
-	wm1 := &pb.WakuMessage{RateLimitProof: &pb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier1[:], ShareX: shareX1[:], ShareY: shareY1[:]}}
-	wm2 := &pb.WakuMessage{RateLimitProof: &pb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier2[:], ShareX: shareX2[:], ShareY: shareY2[:]}}
-	wm3 := &pb.WakuMessage{RateLimitProof: &pb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier3[:], ShareX: shareX3[:], ShareY: shareY3[:]}}
+	rlpProof1, err := proto.Marshal(&rlnpb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier1[:], ShareX: shareX1[:], ShareY: shareY1[:]})
+	s.Require().NoError(err)
 
-	msgProof1 := toRateLimitProof(wm1)
-	msgProof2 := toRateLimitProof(wm2)
-	msgProof3 := toRateLimitProof(wm3)
+	rlpProof2, err := proto.Marshal(&rlnpb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier2[:], ShareX: shareX2[:], ShareY: shareY2[:]})
+	s.Require().NoError(err)
+
+	rlpProof3, err := proto.Marshal(&rlnpb.RateLimitProof{Epoch: epoch[:], Nullifier: nullifier3[:], ShareX: shareX3[:], ShareY: shareY3[:]})
+	s.Require().NoError(err)
+
+	msgProof1, err := BytesToRateLimitProof(rlpProof1)
+	s.Require().NoError(err)
+
+	msgProof2, err := BytesToRateLimitProof(rlpProof2)
+	s.Require().NoError(err)
+
+	msgProof3, err := BytesToRateLimitProof(rlpProof3)
+	s.Require().NoError(err)
 
 	md1, err := rlnInstance.ExtractMetadata(*msgProof1)
 	s.Require().NoError(err)

@@ -15,6 +15,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 // SimulateSubscription creates a subscription for a list of envelopes
@@ -46,12 +47,11 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: topic1,
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubsubTopic1)})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s1.Stop()
@@ -98,12 +98,11 @@ func TestWakuStoreProtocolLocalQuery(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: topic1,
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubsubTopic1)})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s1.Stop()
@@ -135,19 +134,19 @@ func TestWakuStoreProtocolNext(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	now := utils.GetUnixEpoch()
-	msg1 := tests.CreateWakuMessage(topic1, now+1)
-	msg2 := tests.CreateWakuMessage(topic1, now+2)
-	msg3 := tests.CreateWakuMessage(topic1, now+3)
-	msg4 := tests.CreateWakuMessage(topic1, now+4)
-	msg5 := tests.CreateWakuMessage(topic1, now+5)
+	now := *utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, proto.Int64(now+1))
+	msg2 := tests.CreateWakuMessage(topic1, proto.Int64(now+2))
+	msg3 := tests.CreateWakuMessage(topic1, proto.Int64(now+3))
+	msg4 := tests.CreateWakuMessage(topic1, proto.Int64(now+4))
+	msg5 := tests.CreateWakuMessage(topic1, proto.Int64(now+5))
 
 	sub := SimulateSubscription([]*protocol.Envelope{
-		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg4, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg5, *utils.GetUnixEpoch(), pubsubTopic1),
 	})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
@@ -212,19 +211,19 @@ func TestWakuStoreResult(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	now := utils.GetUnixEpoch()
-	msg1 := tests.CreateWakuMessage(topic1, now+1)
-	msg2 := tests.CreateWakuMessage(topic1, now+2)
-	msg3 := tests.CreateWakuMessage(topic1, now+3)
-	msg4 := tests.CreateWakuMessage(topic1, now+4)
-	msg5 := tests.CreateWakuMessage(topic1, now+5)
+	now := *utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, proto.Int64(now+1))
+	msg2 := tests.CreateWakuMessage(topic1, proto.Int64(now+2))
+	msg3 := tests.CreateWakuMessage(topic1, proto.Int64(now+3))
+	msg4 := tests.CreateWakuMessage(topic1, proto.Int64(now+4))
+	msg5 := tests.CreateWakuMessage(topic1, proto.Int64(now+5))
 
 	sub := SimulateSubscription([]*protocol.Envelope{
-		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg4, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg5, *utils.GetUnixEpoch(), pubsubTopic1),
 	})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)
@@ -304,27 +303,27 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	topic1 := "1"
 	pubsubTopic1 := "topic1"
 
-	now := utils.GetUnixEpoch()
-	msg1 := tests.CreateWakuMessage(topic1, now+1)
-	msg2 := tests.CreateWakuMessage(topic1, now+2)
-	msg3 := tests.CreateWakuMessage(topic1, now+3)
-	msg4 := tests.CreateWakuMessage(topic1, now+4)
-	msg5 := tests.CreateWakuMessage(topic1, now+5)
-	msg6 := tests.CreateWakuMessage(topic1, now+6)
-	msg7 := tests.CreateWakuMessage("hello", now+7)
-	msg8 := tests.CreateWakuMessage(topic1, now+8)
-	msg9 := tests.CreateWakuMessage(topic1, now+9)
+	now := *utils.GetUnixEpoch()
+	msg1 := tests.CreateWakuMessage(topic1, proto.Int64(now+1))
+	msg2 := tests.CreateWakuMessage(topic1, proto.Int64(now+2))
+	msg3 := tests.CreateWakuMessage(topic1, proto.Int64(now+3))
+	msg4 := tests.CreateWakuMessage(topic1, proto.Int64(now+4))
+	msg5 := tests.CreateWakuMessage(topic1, proto.Int64(now+5))
+	msg6 := tests.CreateWakuMessage(topic1, proto.Int64(now+6))
+	msg7 := tests.CreateWakuMessage("hello", proto.Int64(now+7))
+	msg8 := tests.CreateWakuMessage(topic1, proto.Int64(now+8))
+	msg9 := tests.CreateWakuMessage(topic1, proto.Int64(now+9))
 
 	sub := SimulateSubscription([]*protocol.Envelope{
-		protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg4, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg5, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg6, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg7, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg8, utils.GetUnixEpoch(), pubsubTopic1),
-		protocol.NewEnvelope(msg9, utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg4, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg5, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg6, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg7, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg8, *utils.GetUnixEpoch(), pubsubTopic1),
+		protocol.NewEnvelope(msg9, *utils.GetUnixEpoch(), pubsubTopic1),
 	})
 	err = s1.Start(ctx, sub)
 	require.NoError(t, err)

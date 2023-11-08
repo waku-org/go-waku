@@ -186,7 +186,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode, pairingObj *noise.P
 			continue
 		}
 
-		msg.Timestamp = wakuNode.Timesource().Now().UnixNano()
+		msg.Timestamp = utils.GetUnixEpoch(wakuNode.Timesource())
 
 		_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic())
 		if err != nil {
