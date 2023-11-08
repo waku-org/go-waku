@@ -274,8 +274,9 @@ func GenerateRandomUTF8String(minLength int, maxLength int) (string, error) {
 	}
 	length.SetInt64(length.Int64() + int64(minLength))
 
-	runes := make([]rune, length.Int64())
-	for i := range runes {
+	var runes []rune
+
+	for i := 0; int64(i) < length.Int64(); i++ {
 		// Define unicode range
 		start := 0x0020 // Space character
 		end := 0x007F   // Tilde (~)
@@ -286,10 +287,9 @@ func GenerateRandomUTF8String(minLength int, maxLength int) (string, error) {
 		}
 		char := rune(start + int(randNum.Int64()))
 		if !utf8.ValidRune(char) {
-			i-- // Skip invalid runes
 			continue
 		}
-		runes[i] = char
+		runes = append(runes, char)
 	}
 
 	return string(runes), nil
@@ -302,9 +302,10 @@ func GenerateRandomUncommonUTF8String(minLength int, maxLength int) (string, err
 	}
 	length.SetInt64(length.Int64() + int64(minLength))
 
-	runes := make([]rune, length.Int64())
-	for i := range runes {
-		// Define unicode range for uncommon or unprintable characters, the Private Use Area (E000–F8FF)
+	var runes []rune
+
+	for i := 0; int64(i) < length.Int64(); i++ {
+		// Unicode range for uncommon or unprintable characters, the Private Use Area (E000–F8FF)
 		start := 0xE000
 		end := 0xF8FF
 
@@ -315,10 +316,9 @@ func GenerateRandomUncommonUTF8String(minLength int, maxLength int) (string, err
 		}
 		char := rune(start + int(randNum.Int64()))
 		if !utf8.ValidRune(char) {
-			i-- // Skip invalid runes
 			continue
 		}
-		runes[i] = char
+		runes = append(runes, char)
 	}
 
 	return string(runes), nil
