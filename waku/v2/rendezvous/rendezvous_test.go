@@ -45,7 +45,7 @@ func TestRendezvous(t *testing.T) {
 	host1, err := tests.MakeHost(ctx, port1, rand.Reader)
 	require.NoError(t, err)
 
-	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", utils.Logger())
 	require.NoError(t, err)
 
 	err = sqlite.Migrations(db)

@@ -13,7 +13,7 @@ import (
 
 func MemoryDB(t *testing.T) *persistence.DBStore {
 	var db *sql.DB
-	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", utils.Logger())
 	require.NoError(t, err)
 
 	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
