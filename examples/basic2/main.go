@@ -25,7 +25,7 @@ import (
 var log = utils.Logger().Named("basic2")
 
 func main() {
-	var cTopic, err = protocol.NewContentTopic("basic2", 1, "test", "proto")
+	var cTopic, err = protocol.NewContentTopic("basic2", "1", "test", "proto")
 	if err != nil {
 		fmt.Println("Invalid contentTopic")
 		return
