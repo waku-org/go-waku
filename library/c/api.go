@@ -194,11 +194,10 @@ func waku_peer_cnt(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
 // Create a content topic string according to RFC 23
 //
 //export waku_content_topic
-func waku_content_topic(applicationName *C.char, applicationVersion C.uint, contentTopicName *C.char, encoding *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	contentTopic, _ := protocol.NewContentTopic(C.GoString(applicationName), uint32(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding))
+func waku_content_topic(applicationName *C.char, applicationVersion *C.char, contentTopicName *C.char, encoding *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	contentTopic, _ := protocol.NewContentTopic(C.GoString(applicationName), C.GoString(applicationVersion), C.GoString(contentTopicName), C.GoString(encoding))
 	return onSuccesfulResponse(contentTopic.String(), cb, userData)
 }
-
 
 // Get the default pubsub topic used in waku2: /waku/2/default-waku/proto
 //
