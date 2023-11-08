@@ -2,8 +2,6 @@ package pb
 
 import (
 	"errors"
-
-	"google.golang.org/protobuf/proto"
 )
 
 const MaxMetaAttrLength = 64
@@ -28,20 +26,4 @@ func (msg *WakuMessage) Validate() error {
 	}
 
 	return nil
-}
-
-func Unmarshal(data []byte) (*WakuMessage, error) {
-	msg := &WakuMessage{}
-	err := proto.Unmarshal(data, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	err = msg.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	return msg, nil
-
 }
