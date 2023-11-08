@@ -1,16 +1,23 @@
 package tests
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net"
+	"net/url"
 	"strconv"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -219,4 +226,186 @@ func ExtractIP(addr multiaddr.Multiaddr) (*net.TCPAddr, error) {
 		IP:   net.ParseIP(ipStr),
 		Port: port,
 	}, nil
+}
+
+func RandomInt(min, max int) (int, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
+	if err != nil {
+		return 0, err
+	}
+	return min + int(n.Int64()), nil
+}
+
+func RandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func GenerateRandomASCIIString(minLength int, maxLength int) (string, error) {
+	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
+	if err != nil {
+		return "", err
+	}
+	length.SetInt64(length.Int64() + int64(minLength))
+
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	result := make([]byte, length.Int64())
+	for i := range result {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		result[i] = chars[num.Int64()]
+	}
+
+	return string(result), nil
+}
+
+func GenerateRandomUTF8String(minLength int, maxLength int) (string, error) {
+	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
+	if err != nil {
+		return "", err
+	}
+	length.SetInt64(length.Int64() + int64(minLength))
+
+	runes := make([]rune, length.Int64())
+	for i := range runes {
+		// Define unicode range
+		start := 0x0020 // Space character
+		end := 0x007F   // Tilde (~)
+
+		randNum, err := rand.Int(rand.Reader, big.NewInt(int64(end-start+1)))
+		if err != nil {
+			return "", err
+		}
+		char := rune(start + int(randNum.Int64()))
+		if !utf8.ValidRune(char) {
+			i-- // Skip invalid runes
+			continue
+		}
+		runes[i] = char
+	}
+
+	return string(runes), nil
+}
+
+func GenerateRandomUncommonUTF8String(minLength int, maxLength int) (string, error) {
+	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
+	if err != nil {
+		return "", err
+	}
+	length.SetInt64(length.Int64() + int64(minLength))
+
+	runes := make([]rune, length.Int64())
+	for i := range runes {
+		// Define unicode range for uncommon or unprintable characters, the Private Use Area (E000–F8FF)
+		start := 0xE000
+		end := 0xF8FF
+
+		// Generate a random position within our range
+		randNum, err := rand.Int(rand.Reader, big.NewInt(int64(end-start+1)))
+		if err != nil {
+			return "", err
+		}
+		char := rune(start + int(randNum.Int64()))
+		if !utf8.ValidRune(char) {
+			i-- // Skip invalid runes
+			continue
+		}
+		runes[i] = char
+	}
+
+	return string(runes), nil
+}
+
+func GenerateRandomJSONString() (string, error) {
+	// With 5 key-value pairs
+	m := make(map[string]interface{})
+	for i := 0; i < 5; i++ {
+		key, err := GenerateRandomASCIIString(1, 20)
+		if err != nil {
+			return "", err
+		}
+		value, err := GenerateRandomASCIIString(1, 4097)
+		if err != nil {
+			return "", err
+		}
+
+		m[key] = value
+	}
+
+	// Marshal the map into a JSON string
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(m)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+func GenerateRandomBase64String(length int) (string, error) {
+	bytes, err := RandomBytes(length)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(bytes), nil
+}
+
+func GenerateRandomURLEncodedString(length int) (string, error) {
+	randomString, err := GenerateRandomASCIIString(1, 4097)
+	if err != nil {
+		return "", err
+	}
+
+	// URL-encode the random string
+	return url.QueryEscape(randomString), nil
+}
+
+func GenerateRandomSQLInsert() (string, error) {
+	// Random table name
+	tableName, err := GenerateRandomASCIIString(1, 10)
+	if err != nil {
+		return "", err
+	}
+
+	// Random column names
+	columnCount, err := RandomInt(3, 6)
+	if err != nil {
+		return "", err
+	}
+	columnNames := make([]string, columnCount)
+	for i := 0; i < columnCount; i++ {
+		columnName, err := GenerateRandomASCIIString(1, 20)
+		if err != nil {
+			return "", err
+		}
+		columnNames[i] = columnName
+	}
+
+	// Random values
+	values := make([]string, columnCount)
+	for i := 0; i < columnCount; i++ {
+		value, err := GenerateRandomASCIIString(1, 100)
+		if err != nil {
+			return "", err
+		}
+		values[i] = "'" + value + "'"
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s);",
+		tableName,
+		strings.Join(columnNames, ", "),
+		strings.Join(values, ", "))
+
+	return query, nil
 }
