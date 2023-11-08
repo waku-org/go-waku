@@ -18,8 +18,10 @@ char *bobPubKey =
     "0x045eef61a98ba1cf44a2736fac91183ea2bd86e67de20fe4bff467a71249a8a0c05f795d"
     "d7f28ced7c15eaa69c89d4212cc4f526ca5e9a62e88008f506d850cccd";
 
-void on_error(int ret, const char *result, void *user_data) {
-  if (ret == 0) {
+void on_error(int ret, const char *result, void *user_data)
+{
+  if (ret == 0)
+  {
     return;
   }
 
@@ -27,8 +29,10 @@ void on_error(int ret, const char *result, void *user_data) {
   exit(1);
 }
 
-void on_response(int ret, const char *result, void *user_data) {
-  if (ret != 0) {
+void on_response(int ret, const char *result, void *user_data)
+{
+  if (ret != 0)
+  {
     printf("function execution failed. Returned code: %d\n", ret);
     exit(1);
   }
@@ -46,7 +50,8 @@ void on_response(int ret, const char *result, void *user_data) {
   strcpy(*data_ref, result);
 }
 
-void callBack(int ret, const char *signal, void *user_data) {
+void callBack(int ret, const char *signal, void *user_data)
+{
   // This callback will be executed each time a new message is received
 
   // Example signal:
@@ -65,7 +70,8 @@ void callBack(int ret, const char *signal, void *user_data) {
       }
     }*/
 
-  if (ret != 0) {
+  if (ret != 0)
+  {
     printf("function execution failed. Returned code: %d\n", ret);
     exit(1);
   }
@@ -73,13 +79,15 @@ void callBack(int ret, const char *signal, void *user_data) {
   const nx_json *json = nx_json_parse((char *)signal, 0);
   const char *type = nx_json_get(json, "type")->text_value;
 
-  if (strcmp(type, "message") == 0) {
+  if (strcmp(type, "message") == 0)
+  {
     const nx_json *wakuMsgJson =
         nx_json_get(nx_json_get(json, "event"), "wakuMessage");
     const char *contentTopic =
         nx_json_get(wakuMsgJson, "contentTopic")->text_value;
 
-    if (strcmp(contentTopic, "/example/1/default/rfc26") == 0) {
+    if (strcmp(contentTopic, "/example/1/default/rfc26") == 0)
+    {
       char *msg = utils_extract_wakumessage_from_signal(wakuMsgJson);
 
       // Decode a message using asymmetric encryption
@@ -109,7 +117,8 @@ void callBack(int ret, const char *signal, void *user_data) {
   nx_json_free(json);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   // Set callback to be executed each time a message is received
   waku_set_event_callback(callBack);
 
@@ -134,7 +143,7 @@ int main(int argc, char *argv[]) {
 
   // Build a content topic
   char *contentTopic = NULL;
-  waku_content_topic("example", 1, "default", "rfc26", on_response,
+  waku_content_topic("example", "1", "default", "rfc26", on_response,
                      (void *)&contentTopic);
   printf("Content Topic: %s\n", contentTopic);
 
@@ -166,14 +175,15 @@ int main(int argc, char *argv[]) {
   // waku_store_query(query, NULL, 0, on_response, (void*)&query_result);
   // printf("%s\n", query_result);
   char contentFilter[1000];
-    sprintf(contentFilter,
-            "{\"pubsubTopic\":\"%s\",\"contentTopics\":[\"%s\"]}",
-            defaultPubsubTopic, contentTopic);
+  sprintf(contentFilter,
+          "{\"pubsubTopic\":\"%s\",\"contentTopics\":[\"%s\"]}",
+          defaultPubsubTopic, contentTopic);
   waku_relay_subscribe(contentFilter, on_error, NULL);
 
   int i = 0;
   int version = 1;
-  while (i < 5) {
+  while (i < 5)
+  {
     i++;
 
     char wakuMsg[1000];
