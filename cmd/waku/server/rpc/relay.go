@@ -13,6 +13,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var errChannelClosed = errors.New("consume channel is closed for subscription")
+
 // RelayService represents the JSON RPC service for WakuRelay
 type RelayService struct {
 	node *node.WakuNode
@@ -154,7 +156,7 @@ func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, rep
 	case msg, open := <-sub.Ch:
 		if !open {
 			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", args.Topic))
-			return errors.New("consume channel is closed for subscription")
+			return errChannelClosed
 		}
 		rpcMsg, err := ProtoToRPC(msg.Message())
 		if err != nil {
@@ -214,7 +216,7 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 	case msg, open := <-sub.Ch:
 		if !open {
 			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", args.Topic))
-			return errors.New("consume channel is closed for subscription")
+			return errChannelClosed
 		}
 		m, err := ProtoToRPC(msg.Message())
 		if err == nil {
