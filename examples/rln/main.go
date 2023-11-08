@@ -32,7 +32,7 @@ var contractAddress = "0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4"
 var keystorePath = "./rlnKeystore.json"
 var keystorePassword = "password"
 var membershipIndex = uint(0)
-var contentTopic, _ = protocol.NewContentTopic("rln", 1, "test", "proto")
+var contentTopic, _ = protocol.NewContentTopic("rln", "1", "test", "proto")
 var pubsubTopic = protocol.DefaultPubsubTopic{}
 
 // ============================================================================
