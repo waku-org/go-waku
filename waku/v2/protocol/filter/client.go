@@ -23,6 +23,7 @@ import (
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -37,7 +38,7 @@ var (
 )
 
 type WakuFilterLightNode struct {
-	*protocol.CommonService
+	*service.CommonService
 	h             host.Host
 	broadcaster   relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
 	timesource    timesource.Timesource
@@ -79,7 +80,7 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	wf.broadcaster = broadcaster
 	wf.timesource = timesource
 	wf.pm = pm
-	wf.CommonService = protocol.NewCommonService()
+	wf.CommonService = service.NewCommonService()
 	wf.metrics = newMetrics(reg)
 
 	return wf
@@ -138,7 +139,7 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(network.Strea
 
 		reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
-		messagePush := &pb.MessagePushV2{}
+		messagePush := &pb.MessagePush{}
 		err := reader.ReadMsg(messagePush)
 		if err != nil {
 			logger.Error("reading message push", zap.Error(err))
@@ -260,7 +261,11 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 
 	if filterSubscribeResponse.StatusCode != http.StatusOK {
 		wf.metrics.RecordError(errorResponse)
-		err := NewFilterError(int(filterSubscribeResponse.StatusCode), filterSubscribeResponse.StatusDesc)
+		errMessage := ""
+		if filterSubscribeResponse.StatusDesc != nil {
+			errMessage = *filterSubscribeResponse.StatusDesc
+		}
+		err := NewFilterError(int(filterSubscribeResponse.StatusCode), errMessage)
 		return &err
 	}
 

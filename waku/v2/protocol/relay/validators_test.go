@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	proto "google.golang.org/protobuf/proto"
 )
 
 type FakeTimesource struct {
@@ -46,8 +47,8 @@ func TestMsgHash(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      payload,
 		ContentTopic: contentTopic,
-		Timestamp:    timestamp.UnixNano(),
-		Ephemeral:    ephemeral,
+		Timestamp:    proto.Int64(timestamp.UnixNano()),
+		Ephemeral:    proto.Bool(ephemeral),
 	}
 
 	err := SignMessage(prvKey, msg, protectedPubSubTopic)

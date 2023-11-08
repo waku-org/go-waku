@@ -31,7 +31,7 @@ func TestValidateResponse(t *testing.T) {
 }
 
 func TestValidateMessagePush(t *testing.T) {
-	msgPush := &MessagePushV2{}
+	msgPush := &MessagePush{}
 	require.ErrorIs(t, msgPush.Validate(), errMissingMessage)
 	msgPush.WakuMessage = &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},

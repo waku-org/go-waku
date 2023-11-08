@@ -67,7 +67,7 @@ func (c *enrCache) getENRs(neededPeers int) ([]*pb.PeerInfo, error) {
 		}
 		writer.Flush()
 		result = append(result, &pb.PeerInfo{
-			ENR: b.Bytes(),
+			Enr: b.Bytes(),
 		})
 	}
 	return result, nil

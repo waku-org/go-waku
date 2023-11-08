@@ -7,13 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"google.golang.org/protobuf/proto"
 )
 
 func createTestMsg(version uint32) *pb.WakuMessage {
 	message := new(pb.WakuMessage)
 	message.Payload = []byte{0, 1, 2}
-	message.Version = version
-	message.Timestamp = 123456
+	message.Version = proto.Uint32(version)
+	message.Timestamp = proto.Int64(123456)
 	return message
 }
 
@@ -35,8 +36,8 @@ func TestEncodeDecodePayload(t *testing.T) {
 
 	message := new(pb.WakuMessage)
 	message.Payload = encodedPayload
-	message.Version = version
-	message.Timestamp = 123456
+	message.Version = proto.Uint32(version)
+	message.Timestamp = proto.Int64(123456)
 
 	decodedPayload, err := DecodePayload(message, keyInfo)
 	require.NoError(t, err)

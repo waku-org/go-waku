@@ -33,9 +33,12 @@ func TestV1Peers(t *testing.T) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
+	broadcaster := relay.NewBroadcaster(10)
+	require.NoError(t, broadcaster.Start(context.Background()))
+
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	relay := relay.NewWakuRelay(nil, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
 	err = relay.Start(context.Background())
 	require.NoError(t, err)

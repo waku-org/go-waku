@@ -12,7 +12,7 @@ import (
 func TestEnvelope(t *testing.T) {
 	e := NewEnvelope(
 		&pb.WakuMessage{ContentTopic: "ContentTopic"},
-		utils.GetUnixEpoch(),
+		*utils.GetUnixEpoch(),
 		"test",
 	)
 

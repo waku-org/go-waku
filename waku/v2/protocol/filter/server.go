@@ -17,6 +17,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,7 @@ import (
 // FilterSubscribeID_v20beta1 is the current Waku Filter protocol identifier for servers to
 // allow filter clients to subscribe, modify, refresh and unsubscribe a desired set of filter criteria
 const FilterSubscribeID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/2.0.0-beta1")
-
+const FilterSubscribeENRField = uint8(1 << 2)
 const peerHasNoSubscription = "peer has no subscriptions"
 
 type (
@@ -33,7 +34,7 @@ type (
 		msgSub  *relay.Subscription
 		metrics Metrics
 		log     *zap.Logger
-		*protocol.CommonService
+		*service.CommonService
 		subscriptions *SubscribersMap
 
 		maxSubscriptions int
@@ -52,11 +53,13 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 		opt(params)
 	}
 
-	wf.CommonService = protocol.NewCommonService()
+	wf.CommonService = service.NewCommonService()
 	wf.metrics = newMetrics(reg)
 	wf.subscriptions = NewSubscribersMap(params.Timeout)
 	wf.maxSubscriptions = params.MaxSubscribers
-
+	if params.pm != nil {
+		params.pm.RegisterWakuProtocol(FilterSubscribeID_v20beta1, FilterSubscribeENRField)
+	}
 	return wf
 }
 
@@ -133,9 +136,10 @@ func (wf *WakuFilterFullNode) reply(ctx context.Context, stream network.Stream, 
 	}
 
 	if len(description) != 0 {
-		response.StatusDesc = description[0]
+		response.StatusDesc = &description[0]
 	} else {
-		response.StatusDesc = http.StatusText(statusCode)
+		desc := http.StatusText(statusCode)
+		response.StatusDesc = &desc
 	}
 
 	writer := pbio.NewDelimitedWriter(stream)
@@ -253,7 +257,7 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, peerID peer.ID, e
 		zap.String("contentTopic", env.Message().ContentTopic),
 	)
 	pubSubTopic := env.PubsubTopic()
-	messagePush := &pb.MessagePushV2{
+	messagePush := &pb.MessagePush{
 		PubsubTopic: &pubSubTopic,
 		WakuMessage: env.Message(),
 	}

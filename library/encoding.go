@@ -12,6 +12,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func wakuMessage(messageJSON string) (*pb.WakuMessage, error) {
@@ -26,7 +27,7 @@ func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey
 		return "", err
 	}
 
-	payload := payload.Payload{
+	msgPayload := payload.Payload{
 		Data: msg.Payload,
 		Key: &payload.KeyInfo{
 			Kind: payload.Symmetric,
@@ -38,7 +39,7 @@ func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey
 		return "", err
 	}
 
-	payload.Key.SymKey = keyBytes
+	msgPayload.Key.SymKey = keyBytes
 
 	if optionalSigningKey != "" {
 		signingKeyBytes, err := utils.DecodeHexString(optionalSigningKey)
@@ -46,14 +47,14 @@ func EncodeSymmetric(messageJSON string, symmetricKey string, optionalSigningKey
 			return "", err
 		}
 
-		payload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
+		msgPayload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	msg.Version = 1
-	msg.Payload, err = payload.Encode(1)
+	msg.Version = proto.Uint32(payload.V1Encryption)
+	msg.Payload, err = msgPayload.Encode(1)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +73,7 @@ func EncodeAsymmetric(messageJSON string, publicKey string, optionalSigningKey s
 		return "", err
 	}
 
-	payload := payload.Payload{
+	msgPayload := payload.Payload{
 		Data: msg.Payload,
 		Key: &payload.KeyInfo{
 			Kind: payload.Asymmetric,
@@ -84,7 +85,7 @@ func EncodeAsymmetric(messageJSON string, publicKey string, optionalSigningKey s
 		return "", err
 	}
 
-	payload.Key.PubKey, err = unmarshalPubkey(keyBytes)
+	msgPayload.Key.PubKey, err = unmarshalPubkey(keyBytes)
 	if err != nil {
 		return "", err
 	}
@@ -95,14 +96,14 @@ func EncodeAsymmetric(messageJSON string, publicKey string, optionalSigningKey s
 			return "", err
 		}
 
-		payload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
+		msgPayload.Key.PrivKey, err = crypto.ToECDSA(signingKeyBytes)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	msg.Version = 1
-	msg.Payload, err = payload.Encode(1)
+	msg.Version = proto.Uint32(payload.V1Encryption)
+	msg.Payload, err = msgPayload.Encode(payload.V1Encryption)
 	if err != nil {
 		return "", err
 	}
@@ -148,11 +149,11 @@ func DecodeSymmetric(messageJSON string, symmetricKey string) (string, error) {
 		return "", err
 	}
 
-	if msg.Version == 0 {
+	if msg.GetVersion() == payload.Unencrypted {
 		return marshalJSON(v0Response{
 			Data: msg.Payload,
 		})
-	} else if msg.Version > 1 {
+	} else if msg.GetVersion() != payload.V1Encryption {
 		return "", errors.New("unsupported wakumessage version")
 	}
 
@@ -190,11 +191,11 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 		return "", err
 	}
 
-	if msg.Version == 0 {
+	if msg.GetVersion() == payload.Unencrypted {
 		return marshalJSON(v0Response{
 			Data: msg.Payload,
 		})
-	} else if msg.Version > 1 {
+	} else if msg.GetVersion() != payload.V1Encryption {
 		return "", errors.New("unsupported wakumessage version")
 	}
 

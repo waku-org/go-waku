@@ -111,7 +111,7 @@ func TestWakuLightPush(t *testing.T) {
 	// Checking that msg hash is correct
 	hash, err := client.Publish(ctx, msg2, lpOptions...)
 	require.NoError(t, err)
-	require.Equal(t, protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), string(testTopic)).Hash(), hash)
+	require.Equal(t, protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), string(testTopic)).Hash(), hash)
 	wg.Wait()
 }
 
@@ -221,7 +221,7 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 	// Verifying successful request
 	hash1, err := client.Publish(ctx, msg1, lpOptions...)
 	require.NoError(t, err)
-	require.Equal(t, protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash1)
+	require.Equal(t, protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), string(pubSubTopic)).Hash(), hash1)
 
 	wg.Wait()
 

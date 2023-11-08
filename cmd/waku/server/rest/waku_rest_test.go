@@ -13,7 +13,7 @@ func TestWakuRest(t *testing.T) {
 	n, err := node.New(options)
 	require.NoError(t, err)
 
-	rpc := NewWakuRest(n, "127.0.0.1", 8080, false, false, 10, 0, utils.Logger())
+	rpc := NewWakuRest(n, RestConfig{Address: "127.0.0.1", Port: 8080, EnablePProf: false, EnableAdmin: false, RelayCacheCapacity: 10}, utils.Logger())
 	require.NotNil(t, rpc.server)
 	require.Equal(t, rpc.server.Addr, "127.0.0.1:8080")
 }

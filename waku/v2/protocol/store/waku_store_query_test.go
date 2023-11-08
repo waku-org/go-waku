@@ -23,8 +23,8 @@ func TestStoreQuery(t *testing.T) {
 	msg2 := tests.CreateWakuMessage("2", utils.GetUnixEpoch())
 
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), defaultPubSubTopic))
-	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), defaultPubSubTopic))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{
@@ -50,9 +50,9 @@ func TestStoreQueryMultipleContentFilters(t *testing.T) {
 
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 
-	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), defaultPubSubTopic))
-	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), defaultPubSubTopic))
-	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), defaultPubSubTopic))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), defaultPubSubTopic))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{
@@ -82,9 +82,9 @@ func TestStoreQueryPubsubTopicFilter(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1))
-	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic2))
-	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic2))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -114,9 +114,9 @@ func TestStoreQueryPubsubTopicNoMatch(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic2))
-	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic2))
-	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic2))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic2))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -136,9 +136,9 @@ func TestStoreQueryPubsubTopicAllMessages(t *testing.T) {
 	msg3 := tests.CreateWakuMessage(topic3, utils.GetUnixEpoch())
 
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	_ = s.storeMessage(protocol.NewEnvelope(msg1, utils.GetUnixEpoch(), pubsubTopic1))
-	_ = s.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), pubsubTopic1))
-	_ = s.storeMessage(protocol.NewEnvelope(msg3, utils.GetUnixEpoch(), pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg1, *utils.GetUnixEpoch(), pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubsubTopic1))
+	_ = s.storeMessage(protocol.NewEnvelope(msg3, *utils.GetUnixEpoch(), pubsubTopic1))
 
 	response := s.FindMessages(&pb.HistoryQuery{
 		PubsubTopic: pubsubTopic1,
@@ -158,7 +158,7 @@ func TestStoreQueryForwardPagination(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		msg := tests.CreateWakuMessage(topic1, utils.GetUnixEpoch())
 		msg.Payload = []byte{byte(i)}
-		_ = s.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1))
+		_ = s.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubsubTopic1))
 	}
 
 	response := s.FindMessages(&pb.HistoryQuery{
@@ -183,10 +183,9 @@ func TestStoreQueryBackwardPagination(t *testing.T) {
 		msg := &wpb.WakuMessage{
 			Payload:      []byte{byte(i)},
 			ContentTopic: topic1,
-			Version:      0,
 			Timestamp:    utils.GetUnixEpoch(),
 		}
-		_ = s.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), pubsubTopic1))
+		_ = s.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubsubTopic1))
 
 	}
 
@@ -207,22 +206,22 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 
 	var messages []*wpb.WakuMessage
-	now := utils.GetUnixEpoch()
-	for i := 0; i < 10; i++ {
+	now := *utils.GetUnixEpoch()
+	for i := int64(0); i < 10; i++ {
 		contentTopic := "1"
 		if i%2 == 0 {
 			contentTopic = "2"
 		}
-		msg := tests.CreateWakuMessage(contentTopic, now+int64(i))
-		_ = s.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), "test"))
+		msg := tests.CreateWakuMessage(contentTopic, proto.Int64(now+i))
+		_ = s.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), "test"))
 		messages = append(messages, msg)
 	}
 
 	// handle temporal history query with a valid time window
 	response := s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      now + 2,
-		EndTime:        now + 5,
+		StartTime:      proto.Int64(now + 2),
+		EndTime:        proto.Int64(now + 5),
 	})
 
 	require.Len(t, response.Messages, 2)
@@ -232,8 +231,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with a zero-size time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      now + 2,
-		EndTime:        now + 2,
+		StartTime:      proto.Int64(now + 2),
+		EndTime:        proto.Int64(now + 2),
 	})
 
 	require.Len(t, response.Messages, 0)
@@ -241,8 +240,8 @@ func TestTemporalHistoryQueries(t *testing.T) {
 	// handle temporal history query with an invalid time window
 	response = s.FindMessages(&pb.HistoryQuery{
 		ContentFilters: []*pb.ContentFilter{{ContentTopic: "1"}},
-		StartTime:      now + 5,
-		EndTime:        now + 2,
+		StartTime:      proto.Int64(now + 5),
+		EndTime:        proto.Int64(now + 2),
 	})
 	// time window is invalid since start time > end time
 	// perhaps it should return an error?
