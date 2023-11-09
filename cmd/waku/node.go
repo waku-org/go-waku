@@ -19,12 +19,12 @@ import (
 	"github.com/urfave/cli/v2"
 
 	dbutils "github.com/waku-org/go-waku/waku/persistence/utils"
+	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	dssql "github.com/ipfs/go-ds-sql"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -44,7 +44,6 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
-	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
@@ -281,47 +280,6 @@ func Execute(options NodeOptions) error {
 		nodeOpts = append(nodeOpts, node.WithLightPush())
 	}
 
-	var discoveredNodes []dnsdisc.DiscoveredNode
-	if options.DNSDiscovery.Enable {
-		if len(options.DNSDiscovery.URLs.Value()) != 0 {
-			for _, url := range options.DNSDiscovery.URLs.Value() {
-				logger.Info("attempting DNS discovery with ", zap.String("URL", url))
-				nodes, err := dnsdisc.RetrieveNodes(ctx, url, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
-				if err != nil {
-					logger.Warn("dns discovery error ", zap.Error(err))
-				} else {
-					var discPeerInfo []peer.AddrInfo
-					for _, n := range nodes {
-						discPeerInfo = append(discPeerInfo, n.PeerInfo)
-					}
-					logger.Info("found dns entries ", zap.Any("nodes", discPeerInfo))
-					discoveredNodes = append(discoveredNodes, nodes...)
-				}
-			}
-		} else {
-			return nonRecoverErrorMsg("DNS discovery URL is required")
-		}
-	}
-
-	if options.DiscV5.Enable {
-		var bootnodes []*enode.Node
-		for _, addr := range options.DiscV5.Nodes.Value() {
-			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
-			if err != nil {
-				logger.Fatal("parsing ENR", zap.Error(err))
-			}
-			bootnodes = append(bootnodes, bootnode)
-		}
-
-		for _, n := range discoveredNodes {
-			if n.ENR != nil {
-				bootnodes = append(bootnodes, n.ENR)
-			}
-		}
-
-		nodeOpts = append(nodeOpts, node.WithDiscoveryV5(options.DiscV5.Port, bootnodes, options.DiscV5.AutoUpdate))
-	}
-
 	if options.PeerExchange.Enable {
 		nodeOpts = append(nodeOpts, node.WithPeerExchange())
 	}
@@ -357,6 +315,21 @@ func Execute(options NodeOptions) error {
 		if err := addStaticPeers(wakuNode, options.Filter.NodesV1, pubSubTopicMapKeys, legacy_filter.FilterID_v20beta1); err != nil {
 			return err
 		}
+	}
+
+	var discoveredNodes []dnsdisc.DiscoveredNode
+	if options.DNSDiscovery.Enable {
+		if len(options.DNSDiscovery.URLs.Value()) == 0 {
+			return nonRecoverErrorMsg("DNS discovery URL is required")
+		}
+		discoveredNodes = node.GetNodesFromDNSDiscovery(logger, ctx, options.DNSDiscovery.Nameserver, options.DNSDiscovery.URLs.Value())
+	}
+	if options.DiscV5.Enable {
+		discv5Opts, err := node.GetDiscv5Option(discoveredNodes, options.DiscV5.Nodes.Value(), options.DiscV5.Port, options.DiscV5.AutoUpdate)
+		if err != nil {
+			logger.Fatal("parsing ENR", zap.Error(err))
+		}
+		nodeOpts = append(nodeOpts, discv5Opts)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {

@@ -15,7 +15,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
@@ -145,15 +144,12 @@ func NewNode(configJSON string) error {
 	}
 
 	if *config.EnableDiscV5 {
-		var bootnodes []*enode.Node
-		for _, addr := range config.DiscV5BootstrapNodes {
-			bootnode, err := enode.Parse(enode.ValidSchemes, addr)
-			if err != nil {
-				return err
-			}
-			bootnodes = append(bootnodes, bootnode)
+		discoveredNodes := node.GetNodesFromDNSDiscovery(utils.Logger(), context.TODO(), config.DNSDiscoveryNameServer, config.DNSDiscoveryURLs)
+		discv5Opts, err := node.GetDiscv5Option(discoveredNodes, config.DiscV5BootstrapNodes, *config.DiscV5UDPPort, true)
+		if err != nil {
+			return err
 		}
-		opts = append(opts, node.WithDiscoveryV5(*config.DiscV5UDPPort, bootnodes, true))
+		opts = append(opts, discv5Opts)
 	}
 
 	wakuState.relayTopics = config.RelayTopics
