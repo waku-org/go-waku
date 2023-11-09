@@ -15,15 +15,16 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestFindLastSeenMessage(t *testing.T) {
-	now := utils.GetUnixEpoch()
-	msg1 := protocol.NewEnvelope(tests.CreateWakuMessage("1", now+1), utils.GetUnixEpoch(), "test")
-	msg2 := protocol.NewEnvelope(tests.CreateWakuMessage("2", now+2), utils.GetUnixEpoch(), "test")
-	msg3 := protocol.NewEnvelope(tests.CreateWakuMessage("3", now+3), utils.GetUnixEpoch(), "test")
-	msg4 := protocol.NewEnvelope(tests.CreateWakuMessage("4", now+4), utils.GetUnixEpoch(), "test")
-	msg5 := protocol.NewEnvelope(tests.CreateWakuMessage("5", now+5), utils.GetUnixEpoch(), "test")
+	now := *utils.GetUnixEpoch()
+	msg1 := protocol.NewEnvelope(tests.CreateWakuMessage("1", proto.Int64(now+1)), *utils.GetUnixEpoch(), "test")
+	msg2 := protocol.NewEnvelope(tests.CreateWakuMessage("2", proto.Int64(now+2)), *utils.GetUnixEpoch(), "test")
+	msg3 := protocol.NewEnvelope(tests.CreateWakuMessage("3", proto.Int64(now+3)), *utils.GetUnixEpoch(), "test")
+	msg4 := protocol.NewEnvelope(tests.CreateWakuMessage("4", proto.Int64(now+4)), *utils.GetUnixEpoch(), "test")
+	msg5 := protocol.NewEnvelope(tests.CreateWakuMessage("5", proto.Int64(now+5)), *utils.GetUnixEpoch(), "test")
 
 	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	_ = s.storeMessage(msg1)
@@ -35,7 +36,7 @@ func TestFindLastSeenMessage(t *testing.T) {
 	lastSeen, err := s.findLastSeen()
 	require.NoError(t, err)
 
-	require.Equal(t, msg5.Message().Timestamp, lastSeen)
+	require.Equal(t, msg5.Message().GetTimestamp(), lastSeen)
 }
 
 func TestResume(t *testing.T) {
@@ -53,15 +54,15 @@ func TestResume(t *testing.T) {
 
 	defer s1.Stop()
 
-	now := utils.GetUnixEpoch()
-	for i := 0; i < 10; i++ {
+	now := *utils.GetUnixEpoch()
+	for i := int64(0); i < 10; i++ {
 		var contentTopic = "1"
 		if i%2 == 0 {
 			contentTopic = "2"
 		}
 
-		wakuMessage := tests.CreateWakuMessage(contentTopic, now+int64(i+1))
-		msg := protocol.NewEnvelope(wakuMessage, utils.GetUnixEpoch(), "test")
+		wakuMessage := tests.CreateWakuMessage(contentTopic, proto.Int64(now+i+1))
+		msg := protocol.NewEnvelope(wakuMessage, *utils.GetUnixEpoch(), "test")
 		_ = s1.storeMessage(msg)
 	}
 
@@ -117,9 +118,9 @@ func TestResumeWithListOfPeers(t *testing.T) {
 
 	defer s1.Stop()
 
-	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: utils.GetUnixEpoch()}
+	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Timestamp: utils.GetUnixEpoch()}
 
-	_ = s1.storeMessage(protocol.NewEnvelope(msg0, utils.GetUnixEpoch(), "test"))
+	_ = s1.storeMessage(protocol.NewEnvelope(msg0, *utils.GetUnixEpoch(), "test"))
 
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)
@@ -162,9 +163,9 @@ func TestResumeWithoutSpecifyingPeer(t *testing.T) {
 
 	defer s1.Stop()
 
-	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2", Version: 0, Timestamp: 0}
+	msg0 := &pb.WakuMessage{Payload: []byte{1, 2, 3}, ContentTopic: "2"}
 
-	_ = s1.storeMessage(protocol.NewEnvelope(msg0, utils.GetUnixEpoch(), "test"))
+	_ = s1.storeMessage(protocol.NewEnvelope(msg0, *utils.GetUnixEpoch(), "test"))
 
 	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	require.NoError(t, err)

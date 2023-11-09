@@ -219,7 +219,7 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (subs *pubsub.Subscript
 			return nil, err
 		}
 
-		w.log.Info("subscribing to topic", zap.String("topic", sub.Topic()))
+		w.log.Info("gossipsub subscription", zap.String("pubsubTopic", sub.Topic()))
 	}
 
 	return sub, nil
@@ -292,6 +292,9 @@ func (w *WakuRelay) GetSubscriptionWithPubsubTopic(pubsubTopic string, contentTo
 	cSubs := w.contentSubs[pubsubTopic]
 	for _, sub := range cSubs {
 		if sub.contentFilter.Equals(contentFilter) {
+			if sub.noConsume { //This check is to ensure that default no-consumer subscription is not returned
+				continue
+			}
 			return sub, nil
 		}
 	}
@@ -308,6 +311,9 @@ func (w *WakuRelay) GetSubscription(contentTopic string) (*Subscription, error) 
 	cSubs := w.contentSubs[pubsubTopic]
 	for _, sub := range cSubs {
 		if sub.contentFilter.Equals(contentFilter) {
+			if sub.noConsume { //This check is to ensure that default no-consumer subscription is not returned
+				continue
+			}
 			return sub, nil
 		}
 	}

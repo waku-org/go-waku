@@ -109,7 +109,7 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(network.Stream) {
 		peerID := stream.Conn().RemotePeer()
 		logger := wf.log.With(logging.HostID("peer", peerID))
 
-		filterRPCRequest := &pb.FilterRPC{}
+		filterRPCRequest := &pb.FilterRpc{}
 
 		reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
@@ -166,7 +166,7 @@ func (wf *WakuFilter) onRequest(ctx context.Context) func(network.Stream) {
 }
 
 func (wf *WakuFilter) pushMessage(ctx context.Context, subscriber Subscriber, msg *wpb.WakuMessage) error {
-	pushRPC := &pb.FilterRPC{RequestId: subscriber.requestID, Push: &pb.MessagePush{Messages: []*wpb.WakuMessage{msg}}}
+	pushRPC := &pb.FilterRpc{RequestId: subscriber.requestID, Push: &pb.MessagePush{Messages: []*wpb.WakuMessage{msg}}}
 	logger := wf.log.With(logging.HostID("peer", subscriber.peer))
 
 	stream, err := wf.h.NewStream(ctx, subscriber.peer, FilterID_v20beta1)
@@ -288,7 +288,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 	requestID := hex.EncodeToString(protocol.GenerateRequestID())
 
 	writer := pbio.NewDelimitedWriter(stream)
-	filterRPC := &pb.FilterRPC{RequestId: requestID, Request: request}
+	filterRPC := &pb.FilterRpc{RequestId: requestID, Request: request}
 	wf.log.Debug("sending filterRPC", zap.Stringer("rpc", filterRPC))
 	err = writer.WriteMsg(filterRPC)
 	if err != nil {
@@ -332,7 +332,7 @@ func (wf *WakuFilter) Unsubscribe(ctx context.Context, contentFilter ContentFilt
 	}
 
 	writer := pbio.NewDelimitedWriter(stream)
-	filterRPC := &pb.FilterRPC{RequestId: hex.EncodeToString(id), Request: request}
+	filterRPC := &pb.FilterRpc{RequestId: hex.EncodeToString(id), Request: request}
 	err = writer.WriteMsg(filterRPC)
 	if err != nil {
 		wf.metrics.RecordError(writeRequestFailure)

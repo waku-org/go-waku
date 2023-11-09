@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +11,7 @@ import (
 func TestEnvelope(t *testing.T) {
 	e := NewEnvelope(
 		&pb.WakuMessage{ContentTopic: "ContentTopic"},
-		utils.GetUnixEpoch(),
+		*utils.GetUnixEpoch(),
 		"test",
 	)
 
@@ -22,7 +21,6 @@ func TestEnvelope(t *testing.T) {
 	topic := e.PubsubTopic()
 	require.Equal(t, "test", topic)
 	hash := e.Hash()
-	fmt.Println(hash)
 
 	require.Equal(
 		t,

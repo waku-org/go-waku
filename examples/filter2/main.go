@@ -21,6 +21,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logging.Logger("filter2")
@@ -144,7 +145,6 @@ func randomHex(n int) (string, error) {
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 	var version uint32 = 0
-	var timestamp int64 = utils.GetUnixEpoch(wakuNode.Timesource())
 
 	p := new(payload.Payload)
 	p.Data = []byte(wakuNode.ID() + ": " + msgContent)
@@ -154,9 +154,9 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 
 	msg := &pb.WakuMessage{
 		Payload:      payload,
-		Version:      version,
+		Version:      proto.Uint32(version),
 		ContentTopic: contentTopic,
-		Timestamp:    timestamp,
+		Timestamp:    utils.GetUnixEpoch(wakuNode.Timesource()),
 	}
 
 	_, err := wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic.String()))

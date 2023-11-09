@@ -22,20 +22,18 @@ func TestStorePersistence(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: defaultContentTopic,
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
-	err := s1.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), defaultPubSubTopic))
+	err := s1.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), defaultPubSubTopic))
 	require.NoError(t, err)
 
 	msg2 := &pb.WakuMessage{
 		Payload:      []byte{4, 5, 6},
 		ContentTopic: defaultContentTopic,
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
-		Ephemeral:    true, // Should not insert this message
+		Ephemeral:    proto.Bool(true), // Should not insert this message
 	}
-	err = s1.storeMessage(protocol.NewEnvelope(msg2, utils.GetUnixEpoch(), defaultPubSubTopic))
+	err = s1.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), defaultPubSubTopic))
 	require.NoError(t, err)
 
 	allMsgs, err := db.GetAll()
@@ -44,6 +42,6 @@ func TestStorePersistence(t *testing.T) {
 	require.True(t, proto.Equal(msg, allMsgs[0].Message))
 
 	// Storing a duplicated message should not crash. It's okay to generate an error log in this case
-	err = s1.storeMessage(protocol.NewEnvelope(msg, utils.GetUnixEpoch(), defaultPubSubTopic))
+	err = s1.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), defaultPubSubTopic))
 	require.Error(t, err)
 }

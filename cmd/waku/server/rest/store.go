@@ -39,7 +39,7 @@ type HistoryCursor struct {
 type StoreWakuMessage struct {
 	Payload      []byte `json:"payload"`
 	ContentTopic string `json:"content_topic"`
-	Version      int32  `json:"version"`
+	Version      uint32 `json:"version"`
 	Timestamp    int64  `json:"timestamp"`
 	Meta         []byte `json:"meta"`
 }
@@ -83,18 +83,20 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 
 	startTimeStr := r.URL.Query().Get("startTime")
 	if startTimeStr != "" {
-		query.StartTime, err = strconv.ParseInt(startTimeStr, 10, 64)
+		startTime, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		query.StartTime = &startTime
 	}
 
 	endTimeStr := r.URL.Query().Get("endTime")
 	if endTimeStr != "" {
-		query.EndTime, err = strconv.ParseInt(endTimeStr, 10, 64)
+		endTime, err := strconv.ParseInt(endTimeStr, 10, 64)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		query.EndTime = &endTime
 	}
 
 	var cursor *pb.Index
@@ -178,8 +180,8 @@ func toStoreResponse(result *store.Result) StoreResponse {
 		response.Messages = append(response.Messages, StoreWakuMessage{
 			Payload:      m.Payload,
 			ContentTopic: m.ContentTopic,
-			Version:      int32(m.Version),
-			Timestamp:    m.Timestamp,
+			Version:      m.GetVersion(),
+			Timestamp:    m.GetTimestamp(),
 			Meta:         m.Meta,
 		})
 	}

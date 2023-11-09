@@ -22,11 +22,11 @@ type storePagingOptions struct {
 }
 
 type storeMessagesArgs struct {
-	Topic         string             `json:"pubsubTopic,omitempty"`
-	ContentTopics []string           `json:"contentTopics,omitempty"`
-	StartTime     int64              `json:"startTime,omitempty"`
-	EndTime       int64              `json:"endTime,omitempty"`
-	PagingOptions storePagingOptions `json:"pagingOptions,omitempty"`
+	Topic         string              `json:"pubsubTopic,omitempty"`
+	ContentTopics []string            `json:"contentTopics,omitempty"`
+	StartTime     *int64              `json:"startTime,omitempty"`
+	EndTime       *int64              `json:"endTime,omitempty"`
+	PagingOptions *storePagingOptions `json:"pagingOptions,omitempty"`
 }
 
 type storeMessagesReply struct {

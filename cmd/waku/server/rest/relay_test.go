@@ -19,6 +19,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func makeRelayService(t *testing.T, mux *chi.Mux) *RelayService {
@@ -38,7 +39,6 @@ func TestPostV1Message(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "abc",
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 	msgJSONBytes, err := json.Marshal(msg)
@@ -70,16 +70,16 @@ func TestRelaySubscription(t *testing.T) {
 	require.Equal(t, "true", rr.Body.String())
 
 	// Test max messages in subscription
-	now := utils.GetUnixEpoch()
+	now := *utils.GetUnixEpoch()
 	_, err = r.node.Relay().Publish(context.Background(),
-		tests.CreateWakuMessage("test", now+1), relay.WithPubSubTopic("test"))
+		tests.CreateWakuMessage("test", proto.Int64(now+1)), relay.WithPubSubTopic("test"))
 	require.NoError(t, err)
 	_, err = r.node.Relay().Publish(context.Background(),
-		tests.CreateWakuMessage("test", now+2), relay.WithPubSubTopic("test"))
+		tests.CreateWakuMessage("test", proto.Int64(now+2)), relay.WithPubSubTopic("test"))
 	require.NoError(t, err)
 
 	_, err = r.node.Relay().Publish(context.Background(),
-		tests.CreateWakuMessage("test", now+3), relay.WithPubSubTopic("test"))
+		tests.CreateWakuMessage("test", proto.Int64(now+3)), relay.WithPubSubTopic("test"))
 	require.NoError(t, err)
 
 	// Wait for the messages to be processed
@@ -130,7 +130,6 @@ func TestRelayGetV1Messages(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "test",
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 	msgJsonBytes, err := json.Marshal(msg)
@@ -168,7 +167,6 @@ func TestPostAutoV1Message(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "/toychat/1/huilong/proto",
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 	msgJSONBytes, err := json.Marshal(msg)
@@ -201,9 +199,9 @@ func TestRelayAutoSubUnsub(t *testing.T) {
 	require.Equal(t, "true", rr.Body.String())
 
 	// Test publishing messages after subscription
-	now := utils.GetUnixEpoch()
+	now := *utils.GetUnixEpoch()
 	_, err = r.node.Relay().Publish(context.Background(),
-		tests.CreateWakuMessage(cTopic1, now+1))
+		tests.CreateWakuMessage(cTopic1, proto.Int64(now+1)))
 	require.NoError(t, err)
 
 	// Wait for the messages to be processed
@@ -267,7 +265,6 @@ func TestRelayGetV1AutoMessages(t *testing.T) {
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: cTopic1,
-		Version:      0,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 	msgJsonBytes, err := json.Marshal(msg)
