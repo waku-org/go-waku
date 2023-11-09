@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -292,7 +293,7 @@ func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessa
 
 	if response.IsSuccess {
 		hash := message.Hash(params.pubsubTopic)
-		wakuLP.log.Info("waku.lightpush published", logging.HexString("hash", hash))
+		utils.MessagesLogger("lightpush").Debug("waku.lightpush published", logging.HexBytes("hash", hash))
 		return hash, nil
 	}
 

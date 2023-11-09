@@ -53,7 +53,7 @@ func TestWakuRelay(t *testing.T) {
 	go func() {
 		defer cancel()
 		env := <-subs[0].Ch
-		t.Log("received msg", logging.HexString("hash", env.Hash()))
+		t.Log("received msg", logging.HexBytes("hash", env.Hash()))
 	}()
 
 	msg := &pb.WakuMessage{

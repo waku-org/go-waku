@@ -124,7 +124,7 @@ func register(ctx context.Context, web3Config *web3.Config, idComm rln.IDCommitm
 
 	var eventIDComm rln.IDCommitment = rln.BigIntToBytes32(evt.IdCommitment)
 
-	log.Debug("information extracted from tx log", zap.Uint64("blockNumber", evt.Raw.BlockNumber), logging.HexString("idCommitment", eventIDComm[:]), zap.Uint64("index", evt.Index.Uint64()))
+	log.Debug("information extracted from tx log", zap.Uint64("blockNumber", evt.Raw.BlockNumber), logging.HexBytes("idCommitment", eventIDComm[:]), zap.Uint64("index", evt.Index.Uint64()))
 
 	if eventIDComm != idComm {
 		return 0, errors.New("invalid id commitment key")

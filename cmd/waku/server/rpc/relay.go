@@ -160,7 +160,7 @@ func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, rep
 		}
 		rpcMsg, err := ProtoToRPC(msg.Message())
 		if err != nil {
-			r.log.Warn("could not include message in response", logging.HexString("hash", msg.Hash()), zap.Error(err))
+			r.log.Warn("could not include message in response", logging.HexBytes("hash", msg.Hash()), zap.Error(err))
 		} else {
 			*reply = append(*reply, rpcMsg)
 		}
