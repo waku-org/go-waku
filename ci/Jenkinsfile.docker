@@ -17,7 +17,7 @@ pipeline {
     string(
       name: 'IMAGE_TAG',
       description: 'Docker image tag.',
-      defaultValue: getDefaultImageTag()
+      defaultValue: getDefaultImageTag(params.IMAGE_TAG)
     )
     string(
       name: 'DOCKER_CRED',
@@ -109,10 +109,11 @@ def discordNotify(Map args=[:]) {
   }
 }
 
-def getDefaultImageTag() {
+def getDefaultImageTag(currentValue) {
   switch (env.JOB_BASE_NAME) {
     case 'docker-latest':  return 'latest'
     case 'docker-release': return 'stable'
-    default:               return ''
+    case 'docker-manual':  return ''
+    default:               return currentValue
   }
 }
