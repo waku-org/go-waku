@@ -1,10 +1,8 @@
 package postgres
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/pgx"
@@ -15,53 +13,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func executeVacuum(db *sql.DB, logger *zap.Logger) error {
-	logger.Info("starting PostgreSQL database vacuuming")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	errCh := make(chan error)
-
-	go func() {
-		defer cancel()
-		_, err := db.Exec("VACUUM FULL")
-		if err != nil {
-			errCh <- err
-		}
-	}()
-
-	t := time.NewTicker(2 * time.Minute)
-	defer t.Stop()
-
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			break loop
-		case err := <-errCh:
-			return err
-		case <-t.C:
-			logger.Info("still vacuuming...")
-		}
-	}
-
-	logger.Info("finished PostgreSQL database vacuuming")
-	return nil
-}
-
 // NewDB connects to postgres DB in the specified path
-func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, error) {
+func NewDB(dburl string, logger *zap.Logger) (*sql.DB, error) {
 	db, err := sql.Open("pgx", dburl)
 	if err != nil {
 		return nil, err
-	}
-
-	if shouldVacuum {
-		err := executeVacuum(db, logger)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return db, nil

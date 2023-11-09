@@ -81,7 +81,6 @@ type StoreOptions struct {
 	RetentionMaxMessages int
 	//ResumeNodes          []multiaddr.Multiaddr
 	Nodes     []multiaddr.Multiaddr
-	Vacuum    bool
 	Migration bool
 }
 

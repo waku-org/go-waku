@@ -1,11 +1,9 @@
 package sqlite
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -32,43 +30,8 @@ func addSqliteURLDefaults(dburl string) string {
 	return dburl
 }
 
-func executeVacuum(db *sql.DB, logger *zap.Logger) error {
-	logger.Info("starting sqlite database vacuuming")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	errCh := make(chan error)
-
-	go func() {
-		defer cancel()
-		_, err := db.Exec("VACUUM")
-		if err != nil {
-			errCh <- err
-		}
-	}()
-
-	t := time.NewTicker(2 * time.Minute)
-	defer t.Stop()
-
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			break loop
-		case err := <-errCh:
-			return err
-		case <-t.C:
-			logger.Info("still vacuuming...")
-		}
-	}
-
-	logger.Info("finished sqlite database vacuuming")
-	return nil
-}
-
 // NewDB creates a sqlite3 DB in the specified path
-func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, error) {
+func NewDB(dburl string, logger *zap.Logger) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", addSqliteURLDefaults(dburl))
 	if err != nil {
 		return nil, err
@@ -76,13 +39,6 @@ func NewDB(dburl string, shouldVacuum bool, logger *zap.Logger) (*sql.DB, error)
 
 	// Disable concurrent access as not supported by the driver
 	db.SetMaxOpenConns(1)
-
-	if shouldVacuum {
-		err := executeVacuum(db, logger)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	return db, nil
 }

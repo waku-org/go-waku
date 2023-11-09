@@ -70,7 +70,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	err = node2.Start(ctx)
 	require.NoError(t, err)
 
-	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", utils.Logger())
 	require.NoError(t, err)
 	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)
