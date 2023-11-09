@@ -245,3 +245,26 @@ func GetPubSubTopicFromContentTopic(cTopicString string) (string, error) {
 
 	return pTopic.String(), nil
 }
+
+func GeneratePubsubToContentTopicMap(pubsubTopic string, contentTopics []string) (map[string][]string, error) {
+
+	pubSubTopicMap := make(map[string][]string, 0)
+
+	if pubsubTopic == "" {
+		//Should we derive pubsub topic from contentTopic so that peer selection and discovery can be done accordingly?
+		for _, cTopic := range contentTopics {
+			pTopic, err := GetPubSubTopicFromContentTopic(cTopic)
+			if err != nil {
+				return nil, err
+			}
+			_, ok := pubSubTopicMap[pTopic]
+			if !ok {
+				pubSubTopicMap[pTopic] = []string{}
+			}
+			pubSubTopicMap[pTopic] = append(pubSubTopicMap[pTopic], cTopic)
+		}
+	} else {
+		pubSubTopicMap[pubsubTopic] = append(pubSubTopicMap[pubsubTopic], contentTopics...)
+	}
+	return pubSubTopicMap, nil
+}
