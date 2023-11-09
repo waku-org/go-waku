@@ -30,18 +30,18 @@ type StoreResponse struct {
 }
 
 type HistoryCursor struct {
-	PubsubTopic string `json:"pubsub_topic"`
-	SenderTime  string `json:"sender_time"`
-	StoreTime   string `json:"store_time"`
+	PubsubTopic string `json:"pubsubTopic"`
+	SenderTime  string `json:"senderTime"`
+	StoreTime   string `json:"storeTime"`
 	Digest      []byte `json:"digest"`
 }
 
 type StoreWakuMessage struct {
-	Payload      []byte `json:"payload"`
-	ContentTopic string `json:"content_topic"`
-	Version      uint32 `json:"version"`
-	Timestamp    int64  `json:"timestamp"`
-	Meta         []byte `json:"meta"`
+	Payload      []byte  `json:"payload"`
+	ContentTopic string  `json:"contentTopic"`
+	Version      *uint32 `json:"version,omitempty"`
+	Timestamp    *int64  `json:"timestamp,omitempty"`
+	Meta         []byte  `json:"meta,omitempty"`
 }
 
 const routeStoreMessagesV1 = "/store/v1/messages"
@@ -180,8 +180,8 @@ func toStoreResponse(result *store.Result) StoreResponse {
 		response.Messages = append(response.Messages, StoreWakuMessage{
 			Payload:      m.Payload,
 			ContentTopic: m.ContentTopic,
-			Version:      m.GetVersion(),
-			Timestamp:    m.GetTimestamp(),
+			Version:      m.Version,
+			Timestamp:    m.Timestamp,
 			Meta:         m.Meta,
 		})
 	}
