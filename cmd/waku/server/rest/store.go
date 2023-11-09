@@ -12,7 +12,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -60,20 +59,22 @@ func NewStoreService(node *node.WakuNode, m *chi.Mux) *StoreService {
 func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store.HistoryRequestOption, error) {
 	query := &store.Query{}
 	var options []store.HistoryRequestOption
-
+	var err error
 	peerAddrStr := r.URL.Query().Get("peerAddr")
-	m, err := multiaddr.NewMultiaddr(peerAddrStr)
-	if err != nil {
-		return nil, nil, nil, err
+	var m multiaddr.Multiaddr
+	if peerAddrStr != "" {
+		m, err = multiaddr.NewMultiaddr(peerAddrStr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		peerID, err := utils.GetPeerID(m)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		options = append(options, store.WithPeer(peerID))
 	}
-
-	peerID, err := utils.GetPeerID(m)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	options = append(options, store.WithPeer(peerID))
-
 	query.PubsubTopic = r.URL.Query().Get("pubsubTopic")
 
 	contentTopics := r.URL.Query().Get("contentTopics")
@@ -198,18 +199,25 @@ func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
-	_, err = d.node.AddPeer(peerAddr, peerstore.Static, d.node.Relay().Topics())
-	if err != nil {
-		writeStoreError(w, http.StatusInternalServerError, err)
-		return
+	if peerAddr != nil {
+		options = append(options, store.WithPeerAddr(peerAddr))
 	}
-
-	result, err := d.node.Store().Query(ctx, *query, options...)
-	if err != nil {
-		writeStoreError(w, http.StatusInternalServerError, err)
-		return
+	var results []*store.Result
+	var result *store.Result
+	if query.PubsubTopic == "" {
+		results, err = d.node.Store().QueryAutoSharding(ctx, *query, options...)
+		if err != nil {
+			writeStoreError(w, http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		result, err := d.node.Store().Query(ctx, *query, options...)
+		if err != nil {
+			writeStoreError(w, http.StatusInternalServerError, err)
+			return
+		}
+		results = append(results, result)
 	}
-
+	//TODO: How to respond with multiple query results??
 	writeErrOrResponse(w, nil, toStoreResponse(result))
 }

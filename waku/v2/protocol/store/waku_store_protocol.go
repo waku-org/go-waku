@@ -84,6 +84,7 @@ type Store interface {
 	SetHost(h host.Host)
 	Start(context.Context, *relay.Subscription) error
 	Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error)
+	QueryAutoSharding(ctx context.Context, query Query, opts ...HistoryRequestOption) ([]*Result, error)
 	Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error)
 	Next(ctx context.Context, r *Result) (*Result, error)
 	Resume(ctx context.Context, pubsubTopic string, peerList []peer.ID) (int, error)

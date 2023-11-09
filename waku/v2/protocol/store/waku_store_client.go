@@ -4,14 +4,19 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio/pbio"
+	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
@@ -82,6 +87,7 @@ type criteriaFN = func(msg *wpb.WakuMessage) (bool, error)
 
 type HistoryRequestParameters struct {
 	selectedPeer      peer.ID
+	peerAddr          multiaddr.Multiaddr
 	peerSelectionType peermanager.PeerSelection
 	preferredPeers    peer.IDSlice
 	localQuery        bool
@@ -99,6 +105,12 @@ type HistoryRequestOption func(*HistoryRequestParameters)
 func WithPeer(p peer.ID) HistoryRequestOption {
 	return func(params *HistoryRequestParameters) {
 		params.selectedPeer = p
+	}
+}
+
+func WithPeerAddr(pAddr multiaddr.Multiaddr) HistoryRequestOption {
+	return func(params *HistoryRequestParameters) {
+		params.peerAddr = pAddr
 	}
 }
 
@@ -246,6 +258,47 @@ func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResp
 	return historyResponseRPC.Response, nil
 }
 
+func (store *WakuStore) QueryAutoSharding(ctx context.Context, query Query, opts ...HistoryRequestOption) ([]*Result, error) {
+	var results []*Result
+	var failedContentTopics []string
+	pubSubTopicMap, err := protocol.GeneratePubsubToContentTopicMap(query.PubsubTopic, query.ContentTopics)
+	if err != nil {
+		return nil, err
+	}
+
+	//Duplicate processing of opts, which is done again in Query function below
+	// Not sure how to handle this, hence leaving it as of now
+	params := new(HistoryRequestParameters)
+	var optList []HistoryRequestOption
+	for _, opt := range optList {
+		opt(params)
+	}
+
+	//Add Peer to peerstore.
+	if store.pm != nil && params.peerAddr != nil {
+		_, err = store.pm.AddPeer(params.peerAddr, peerstore.Static, maps.Keys(pubSubTopicMap), StoreID_v20beta4)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for pubSubTopic, cTopics := range pubSubTopicMap {
+		query.ContentTopics = cTopics
+		query.PubsubTopic = pubSubTopic
+		//Invoke Query separately
+		result, err := store.Query(ctx, query, opts...)
+		if err != nil {
+			failedContentTopics = append(failedContentTopics, cTopics...)
+		}
+		results = append(results, result)
+	}
+	if len(failedContentTopics) > 0 {
+		return results, fmt.Errorf("subscriptions failed for contentTopics: %s", strings.Join(failedContentTopics, ","))
+	} else {
+		return results, nil
+	}
+}
+
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
 	params := new(HistoryRequestParameters)
 	params.s = store
@@ -255,10 +308,6 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	for _, opt := range optList {
 		opt(params)
 	}
-
-	//if query.PubsubTopic == "" {
-	//Should we derive pubsub topic from contentTopic so that peer selection and discovery can be done accordingly?
-	//}
 
 	if store.pm != nil && params.selectedPeer == "" {
 		var err error
