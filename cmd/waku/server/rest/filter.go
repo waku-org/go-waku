@@ -50,15 +50,17 @@ type FilterService struct {
 
 	log *zap.Logger
 
-	cache  *filterCache
+	cache  *MessageCache
 	runner *runnerService
 }
 
-// Start starts the RelayService
+// Start starts the FilterService
 func (s *FilterService) Start(ctx context.Context) {
-
 	for _, sub := range s.node.FilterLightnode().Subscriptions() {
-		s.cache.subscribe(sub.ContentFilter)
+		err := s.cache.Subscribe(sub.ContentFilter)
+		if err != nil {
+			s.log.Error("subscribing cache failed", zap.Error(err))
+		}
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -81,7 +83,7 @@ func NewFilterService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *z
 	s := &FilterService{
 		node:  node,
 		log:   logger,
-		cache: newFilterCache(cacheCapacity, logger),
+		cache: NewMessageCache(cacheCapacity, logger),
 	}
 
 	m.Get(filterv2Ping, s.ping)
@@ -91,7 +93,7 @@ func NewFilterService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *z
 	m.Get(filterv2MessagesByContentTopic, s.getMessagesByContentTopic)
 	m.Get(filterv2MessagesByPubsubTopic, s.getMessagesByPubsubTopic)
 
-	s.runner = newRunnerService(node.Broadcaster(), s.cache.addMessage)
+	s.runner = newRunnerService(node.Broadcaster(), s.cache.AddMessage)
 
 	return s
 }
@@ -180,7 +182,11 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// on success
-	s.cache.subscribe(contentFilter)
+	err = s.cache.Subscribe(contentFilter)
+	if err != nil {
+		s.log.Error("subscribing cache failed", zap.Error(err))
+	}
+
 	writeResponse(w, filterSubscriptionResponse{
 		RequestId:  message.RequestId,
 		StatusDesc: http.StatusText(http.StatusOK),
@@ -224,7 +230,10 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 	// on success
 	for cTopic := range contentFilter.ContentTopics {
 		if !s.node.FilterLightnode().IsListening(contentFilter.PubsubTopic, cTopic) {
-			s.cache.unsubscribe(contentFilter.PubsubTopic, cTopic)
+			err = s.cache.Unsubscribe(protocol.NewContentFilter(contentFilter.PubsubTopic, cTopic))
+			if err != nil {
+				s.log.Error("unsubscribe cache failed", zap.Error(err))
+			}
 		}
 	}
 	writeResponse(w, filterSubscriptionResponse{
@@ -357,7 +366,7 @@ func (s *FilterService) getMessagesByPubsubTopic(w http.ResponseWriter, req *htt
 // 200 on all successful unsubscribe
 // unsubscribe all subscriptions for a given peer
 func (s *FilterService) getMessages(w http.ResponseWriter, req *http.Request, pubsubTopic, contentTopic string) {
-	msgs, err := s.cache.getMessages(pubsubTopic, contentTopic)
+	msgs, err := s.cache.GetMessages(pubsubTopic, contentTopic)
 	if err != nil {
 		writeGetMessageErr(w, err, http.StatusNotFound, s.log)
 		return

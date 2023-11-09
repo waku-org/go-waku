@@ -25,15 +25,17 @@ type RelayService struct {
 
 	log *zap.Logger
 
-	cacheCapacity uint
+	cache *MessageCache
 }
 
 // NewRelayService returns an instance of RelayService
-func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity uint, log *zap.Logger) *RelayService {
+func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *zap.Logger) *RelayService {
+	logger := log.Named("relay")
+
 	s := &RelayService{
-		node:          node,
-		log:           log.Named("relay"),
-		cacheCapacity: cacheCapacity,
+		node:  node,
+		log:   logger,
+		cache: NewMessageCache(cacheCapacity, logger),
 	}
 
 	m.Post(routeRelayV1Subscriptions, s.postV1Subscriptions)
@@ -63,9 +65,15 @@ func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Re
 
 	var err error
 	for _, topic := range topics {
-		err = r.node.Relay().Unsubscribe(req.Context(), protocol.NewContentFilter(topic))
+		contentFilter := protocol.NewContentFilter(topic)
+		err = r.node.Relay().Unsubscribe(req.Context(), contentFilter)
 		if err != nil {
 			r.log.Error("unsubscribing from topic", zap.String("topic", strings.Replace(strings.Replace(topic, "\n", "", -1), "\r", "", -1)), zap.Error(err))
+		} else {
+			err = r.cache.Unsubscribe(contentFilter)
+			if err != nil {
+				r.log.Error("unsubscribing from topic", zap.String("topic", strings.Replace(strings.Replace(topic, "\n", "", -1), "\r", "", -1)), zap.Error(err))
+			}
 		}
 	}
 
@@ -90,13 +98,30 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 		} else {
 			topicToSubscribe = topic
 		}
-		_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter(topicToSubscribe), relay.WithCacheSize(r.cacheCapacity))
 
+		contentFilter := protocol.NewContentFilter(topicToSubscribe)
+		subscriptions, err := r.node.Relay().Subscribe(r.node.Relay().Context(), contentFilter)
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
 			continue
 		}
+
+		err = r.cache.Subscribe(contentFilter)
+		if err != nil {
+			r.log.Error("subscribing cache to topic", zap.String("topic", strings.Replace(topicToSubscribe, "\n", "", -1)), zap.Error(err))
+			continue
+		}
+
 		successCnt++
+
+		for _, sub := range subscriptions {
+			go func(sub *relay.Subscription) {
+				for msg := range sub.Ch {
+					r.cache.AddMessage(msg)
+				}
+			}(sub)
+		}
+
 	}
 
 	// on partial subscribe failure
@@ -111,43 +136,21 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 }
 
 func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
-	topic := topicFromPath(w, req, "topic", r.log)
-	if topic == "" {
+	pubsubTopic := topicFromPath(w, req, "topic", r.log)
+	if pubsubTopic == "" {
 		return
 	}
+
 	//TODO: Update the API to also take a contentTopic since relay now supports filtering based on contentTopic as well.
-	sub, err := r.node.Relay().GetSubscriptionWithPubsubTopic(topic, "")
+	messages, err := r.cache.GetMessagesWithPubsubTopic(pubsubTopic)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		_, err = w.Write([]byte("not subscribed to topic"))
 		r.log.Error("writing response", zap.Error(err))
 		return
 	}
-	var response []*RestWakuMessage
-	select {
-	case envelope, open := <-sub.Ch:
-		if !open {
-			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", topic))
-			w.WriteHeader(http.StatusNotFound)
-			_, err = w.Write([]byte("consume channel is closed for subscription"))
-			if err != nil {
-				r.log.Error("writing response", zap.Error(err))
-			}
-			return
-		}
 
-		message := &RestWakuMessage{}
-		if err := message.FromProto(envelope.Message()); err != nil {
-			r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
-		} else {
-			response = append(response, message)
-		}
-
-	default:
-		break
-	}
-
-	writeErrOrResponse(w, nil, response)
+	writeErrOrResponse(w, nil, messages)
 }
 
 func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
@@ -196,9 +199,15 @@ func (r *RelayService) deleteV1AutoSubscriptions(w http.ResponseWriter, req *htt
 	}
 	defer req.Body.Close()
 
-	err := r.node.Relay().Unsubscribe(req.Context(), protocol.NewContentFilter("", cTopics...))
+	contentFilter := protocol.NewContentFilter("", cTopics...)
+	err := r.node.Relay().Unsubscribe(req.Context(), contentFilter)
 	if err != nil {
 		r.log.Error("unsubscribing from topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
+	} else {
+		err = r.cache.Unsubscribe(contentFilter)
+		if err != nil {
+			r.log.Error("unsubscribing cache", zap.Strings("contentTopics", cTopics), zap.Error(err))
+		}
 	}
 
 	writeErrOrResponse(w, err, true)
@@ -213,46 +222,53 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 	}
 	defer req.Body.Close()
 
-	var err error
-	_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", cTopics...), relay.WithCacheSize(r.cacheCapacity))
+	contentFilter := protocol.NewContentFilter("", cTopics...)
+	subscriptions, err := r.node.Relay().Subscribe(r.node.Relay().Context(), contentFilter)
 	if err != nil {
 		r.log.Error("subscribing to topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
-	}
-
-	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := w.Write([]byte(err.Error()))
 		r.log.Error("writing response", zap.Error(err))
-	} else {
-		writeErrOrResponse(w, err, true)
+		return
 	}
+
+	err = r.cache.Subscribe(contentFilter)
+	if err != nil {
+		r.log.Error("subscribing cache failed", zap.Error(err))
+	}
+
+	for _, sub := range subscriptions {
+		go func(sub *relay.Subscription) {
+			for msg := range sub.Ch {
+				r.cache.AddMessage(msg)
+			}
+		}(sub)
+	}
+
+	writeErrOrResponse(w, nil, true)
 
 }
 
 func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Request) {
+	contentTopic := topicFromPath(w, req, "contentTopic", r.log)
 
-	cTopic := topicFromPath(w, req, "contentTopic", r.log)
-	sub, err := r.node.Relay().GetSubscription(cTopic)
+	pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(contentTopic)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err = w.Write([]byte("could not determine pubsubtopic"))
+		r.log.Error("writing response", zap.Error(err))
+		return
+	}
+
+	messages, err := r.cache.GetMessages(pubsubTopic, contentTopic)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		_, err = w.Write([]byte("not subscribed to topic"))
 		r.log.Error("writing response", zap.Error(err))
 		return
 	}
-	var response []*RestWakuMessage
-	select {
-	case envelope := <-sub.Ch:
-		message := &RestWakuMessage{}
-		if err := message.FromProto(envelope.Message()); err != nil {
-			r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
-		} else {
-			response = append(response, message)
-		}
-	default:
-		break
-	}
 
-	writeErrOrResponse(w, nil, response)
+	writeErrOrResponse(w, nil, messages)
 }
 
 func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Request) {

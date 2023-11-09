@@ -59,7 +59,7 @@ func NewWakuRest(node *node.WakuNode, config RestConfig, log *zap.Logger) *WakuR
 	wrpc.server = server
 
 	if node.Relay() != nil {
-		relayService := NewRelayService(node, mux, config.RelayCacheCapacity, log)
+		relayService := NewRelayService(node, mux, int(config.RelayCacheCapacity), log)
 		wrpc.relayService = relayService
 	}
 
