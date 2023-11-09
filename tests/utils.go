@@ -267,49 +267,29 @@ func GenerateRandomASCIIString(minLength int, maxLength int) (string, error) {
 	return string(result), nil
 }
 
-func GenerateRandomUTF8String(minLength int, maxLength int) (string, error) {
+func GenerateRandomUTF8String(minLength int, maxLength int, withUncommon bool) (string, error) {
 	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
 	if err != nil {
 		return "", err
 	}
 	length.SetInt64(length.Int64() + int64(minLength))
 
-	var runes []rune
+	var (
+		runes      []rune
+		start, end int
+	)
 
-	for i := 0; int64(i) < length.Int64(); i++ {
-		// Define unicode range
-		start := 0x0020 // Space character
-		end := 0x007F   // Tilde (~)
-
-		randNum, err := rand.Int(rand.Reader, big.NewInt(int64(end-start+1)))
-		if err != nil {
-			return "", err
-		}
-		char := rune(start + int(randNum.Int64()))
-		if !utf8.ValidRune(char) {
-			continue
-		}
-		runes = append(runes, char)
-	}
-
-	return string(runes), nil
-}
-
-func GenerateRandomUncommonUTF8String(minLength int, maxLength int) (string, error) {
-	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
-	if err != nil {
-		return "", err
-	}
-	length.SetInt64(length.Int64() + int64(minLength))
-
-	var runes []rune
-
-	for i := 0; int64(i) < length.Int64(); i++ {
+	if withUncommon {
 		// Unicode range for uncommon or unprintable characters, the Private Use Area (E000–F8FF)
-		start := 0xE000
-		end := 0xF8FF
+		start = 0xE000
+		end = 0xF8FF
+	} else {
+		// Define unicode range
+		start = 0x0020 // Space character
+		end = 0x007F   // Tilde (~)
+	}
 
-		// Generate a random position within our range
+	for i := 0; int64(i) < length.Int64(); i++ {
 		randNum, err := rand.Int(rand.Reader, big.NewInt(int64(end-start+1)))
 		if err != nil {
 			return "", err

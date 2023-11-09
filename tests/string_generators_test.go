@@ -18,11 +18,11 @@ func TestStringGenerators(t *testing.T) {
 		require.NoError(t, err)
 		log.Info("Generated random ASCII string", zap.String(strconv.Itoa(i), x))
 
-		x, err = GenerateRandomUTF8String(1, 4097)
+		x, err = GenerateRandomUTF8String(1, 4097, false)
 		require.NoError(t, err)
 		log.Info("Generated random UTF8 string", zap.String(strconv.Itoa(i), x))
 
-		x, err = GenerateRandomUncommonUTF8String(1, 4097)
+		x, err = GenerateRandomUTF8String(1, 4097, true)
 		require.NoError(t, err)
 		log.Info("Generated uncommon UTF8 string", zap.String(strconv.Itoa(i), x))
 
