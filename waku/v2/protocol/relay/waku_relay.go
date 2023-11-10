@@ -20,6 +20,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 // WakuRelayID_v200 is the current protocol ID used for WakuRelay
@@ -41,7 +42,8 @@ type WakuRelay struct {
 	timesource          timesource.Timesource
 	metrics             Metrics
 
-	log *zap.Logger
+	log         *zap.Logger
+	logMessages *zap.Logger
 
 	bcaster Broadcaster
 
@@ -80,8 +82,9 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	w.minPeersToPublish = minPeersToPublish
 	w.CommonService = service.NewCommonService()
 	w.log = log.Named("relay")
+	w.logMessages = utils.MessagesLogger("relay")
 	w.events = eventbus.NewBus()
-	w.metrics = newMetrics(reg, w.log)
+	w.metrics = newMetrics(reg, w.logMessages)
 
 	// default options required by WakuRelay
 	w.opts = append(w.defaultPubsubOptions(), opts...)
@@ -276,7 +279,7 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts .
 
 	hash := message.Hash(params.pubsubTopic)
 
-	w.log.Debug("waku.relay published", zap.String("pubsubTopic", params.pubsubTopic), logging.HexString("hash", hash), zap.Int64("publishTime", w.timesource.Now().UnixNano()), zap.Int("payloadSizeBytes", len(message.Payload)))
+	w.logMessages.Debug("waku.relay published", zap.String("pubsubTopic", params.pubsubTopic), logging.HexBytes("hash", hash), zap.Int64("publishTime", w.timesource.Now().UnixNano()), zap.Int("payloadSizeBytes", len(message.Payload)))
 
 	return hash, nil
 }

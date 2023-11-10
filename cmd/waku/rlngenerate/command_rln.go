@@ -77,14 +77,14 @@ func execute(ctx context.Context) error {
 
 	if logger.Level() == zap.DebugLevel {
 		logger.Info("registered credentials into the membership contract",
-			logging.HexString("IDCommitment", identityCredential.IDCommitment[:]),
-			logging.HexString("IDNullifier", identityCredential.IDNullifier[:]),
-			logging.HexString("IDSecretHash", identityCredential.IDSecretHash[:]),
-			logging.HexString("IDTrapDoor", identityCredential.IDTrapdoor[:]),
+			logging.HexBytes("IDCommitment", identityCredential.IDCommitment[:]),
+			logging.HexBytes("IDNullifier", identityCredential.IDNullifier[:]),
+			logging.HexBytes("IDSecretHash", identityCredential.IDSecretHash[:]),
+			logging.HexBytes("IDTrapDoor", identityCredential.IDTrapdoor[:]),
 			zap.Uint("index", membershipIndex),
 		)
 	} else {
-		logger.Info("registered credentials into the membership contract", logging.HexString("idCommitment", identityCredential.IDCommitment[:]), zap.Uint("index", membershipIndex))
+		logger.Info("registered credentials into the membership contract", logging.HexBytes("idCommitment", identityCredential.IDCommitment[:]), zap.Uint("index", membershipIndex))
 	}
 
 	web3Config.ETHClient.Close()

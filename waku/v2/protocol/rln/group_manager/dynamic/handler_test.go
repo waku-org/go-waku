@@ -31,8 +31,7 @@ func TestHandler(t *testing.T) {
 	rlnInstance, err := rln.NewRLN()
 	require.NoError(t, err)
 
-	rootTracker, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
-	require.NoError(t, err)
+	rootTracker := group_manager.NewMerkleRootTracker(5, rlnInstance)
 
 	_, cancel := context.WithCancel(context.TODO())
 	defer cancel()
