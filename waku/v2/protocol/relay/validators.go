@@ -67,9 +67,10 @@ func (w *WakuRelay) topicValidator(topic string) func(ctx context.Context, peerI
 		}
 
 		w.topicValidatorMutex.RLock()
-		validators, exists := w.topicValidators[topic]
+		validators := w.topicValidators[topic]
 		validators = append(validators, w.defaultTopicValidators...)
 		w.topicValidatorMutex.RUnlock()
+		exists := len(validators) > 0
 
 		if exists {
 			for _, v := range validators {

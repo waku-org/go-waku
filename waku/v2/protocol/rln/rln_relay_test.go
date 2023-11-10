@@ -88,8 +88,7 @@ func (s *WakuRLNRelaySuite) TestUpdateLogAndHasDuplicate() {
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
 
-	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
-	s.Require().NoError(err)
+	rootTracker := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
 
 	rlnRelay := &WakuRLNRelay{
 		nullifierLog: NewNullifierLog(context.TODO(), utils.Logger()),
@@ -184,10 +183,9 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	// Create a RLN instance
 	rlnInstance, err := r.NewRLN()
 	s.Require().NoError(err)
-	//
-	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
-	s.Require().NoError(err)
-	//
+
+	rootTracker := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
+
 	idCredential := groupKeyPairs[index]
 	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, rlnInstance, rootTracker, utils.Logger())
 	s.Require().NoError(err)
