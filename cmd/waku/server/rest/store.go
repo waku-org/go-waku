@@ -202,22 +202,11 @@ func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 	if peerAddr != nil {
 		options = append(options, store.WithPeerAddr(peerAddr))
 	}
-	var results []*store.Result
-	var result *store.Result
-	if query.PubsubTopic == "" {
-		results, err = d.node.Store().QueryAutoSharding(ctx, *query, options...)
-		if err != nil {
-			writeStoreError(w, http.StatusInternalServerError, err)
-			return
-		}
-	} else {
-		result, err := d.node.Store().Query(ctx, *query, options...)
-		if err != nil {
-			writeStoreError(w, http.StatusInternalServerError, err)
-			return
-		}
-		results = append(results, result)
+	result, err := d.node.Store().Query(ctx, *query, options...)
+	if err != nil {
+		writeStoreError(w, http.StatusInternalServerError, err)
+		return
 	}
-	//TODO: How to respond with multiple query results??
+
 	writeErrOrResponse(w, nil, toStoreResponse(result))
 }

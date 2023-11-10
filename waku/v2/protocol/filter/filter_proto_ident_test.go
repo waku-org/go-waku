@@ -178,7 +178,7 @@ func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFi
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
 					Proto:         FilterSubscribeID_v20beta1,
-					PubsubTopic:   pubSubTopic,
+					PubsubTopics:  []string{pubSubTopic},
 					SpecificPeers: params.preferredPeers,
 					Ctx:           ctx,
 				},
