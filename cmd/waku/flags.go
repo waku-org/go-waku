@@ -330,12 +330,6 @@ var (
 		Destination: &options.Store.DatabaseURL,
 		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_URL"},
 	})
-	StoreMessageDBVacuum = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "store-message-db-vacuum",
-		Usage:       "Enable database vacuuming at start.",
-		Destination: &options.Store.Vacuum,
-		EnvVars:     []string{"WAKUNODE2_STORE_MESSAGE_DB_VACUUM"},
-	})
 	StoreMessageDBMigration = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "store-message-db-migration",
 		Usage:       "Enable database migration at start.",

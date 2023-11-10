@@ -110,9 +110,7 @@ func Execute(options NodeOptions) error {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	if requiresDB(options) && options.Store.Migration {
-		dbSettings := dbutils.DBSettings{
-			Vacuum: options.Store.Vacuum,
-		}
+		dbSettings := dbutils.DBSettings{}
 		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL, dbSettings, logger)
 		if err != nil {
 			return nonRecoverErrorMsg("could not connect to DB: %w", err)

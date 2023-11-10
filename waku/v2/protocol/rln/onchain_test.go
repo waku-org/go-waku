@@ -140,8 +140,7 @@ func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagement() {
 	rlnInstance, err := rln.NewRLN()
 	s.Require().NoError(err)
 
-	rt, err := group_manager.NewMerkleRootTracker(5, rlnInstance)
-	s.Require().NoError(err)
+	rt := group_manager.NewMerkleRootTracker(5, rlnInstance)
 
 	u1Credentials := s.generateCredentials(rlnInstance)
 	appKeystore, err := keystore.New(s.tmpKeystorePath(), dynamic.RLNAppInfo, utils.Logger())
