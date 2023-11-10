@@ -459,7 +459,7 @@ var (
 	})
 	DNSDiscoveryUrl = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
 		Name:        "dns-discovery-url",
-		Usage:       "URL for DNS node list in format 'enrtree://<key>@<fqdn>'",
+		Usage:       "URL for DNS node list in format 'enrtree://<key>@<fqdn>'. Option may be repeated",
 		Destination: &options.DNSDiscovery.URLs,
 		EnvVars:     []string{"WAKUNODE2_DNS_DISCOVERY_URL"},
 	})
