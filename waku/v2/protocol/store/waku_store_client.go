@@ -281,12 +281,11 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 
 		//Add Peer to peerstore.
 		if store.pm != nil && params.peerAddr != nil {
-			peerId, err := store.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, StoreID_v20beta4)
+			peerId, err := store.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, true, StoreID_v20beta4)
 			if err != nil {
 				return nil, err
 			}
 			params.selectedPeer = peerId
-
 		}
 		if store.pm != nil && params.selectedPeer == "" {
 			var err error
