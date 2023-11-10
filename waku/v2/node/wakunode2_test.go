@@ -242,7 +242,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	defer subs[0].Unsubscribe()
 
 	// NODE2: Filter Client/Store
-	db, err := sqlite.NewDB(":memory:", false, utils.Logger())
+	db, err := sqlite.NewDB(":memory:", utils.Logger())
 	require.NoError(t, err)
 	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(db), persistence.WithMigrations(sqlite.Migrations))
 	require.NoError(t, err)

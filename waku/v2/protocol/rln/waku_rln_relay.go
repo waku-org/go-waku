@@ -47,10 +47,8 @@ func GetRLNInstanceAndRootTracker(treePath string) (*rln.RLN, *group_manager.Mer
 		return nil, nil, err
 	}
 
-	rootTracker, err := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
-	if err != nil {
-		return nil, nil, err
-	}
+	rootTracker := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
+
 	return rlnInstance, rootTracker, nil
 }
 func New(
