@@ -420,7 +420,7 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 }
 
 // AddPeer adds peer to the peerStore and also to service slots
-func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
+func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, connectNow bool, protocols ...protocol.ID) (peer.ID, error) {
 	//Assuming all addresses have peerId
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
@@ -436,6 +436,14 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTo
 	err = pm.addPeer(info.ID, info.Addrs, origin, pubSubTopics, protocols...)
 	if err != nil {
 		return "", err
+	}
+
+	if connectNow {
+		go pm.peerConnector.PushToChan(service.PeerData{
+			Origin:       origin,
+			AddrInfo:     *info,
+			PubSubTopics: pubSubTopics,
+		})
 	}
 
 	return info.ID, nil
