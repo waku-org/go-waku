@@ -20,12 +20,16 @@ import (
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol and contentTopic, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
-func (pm *PeerManager) SelectPeerByContentTopic(proto protocol.ID, contentTopic string, specificPeers ...peer.ID) (peer.ID, error) {
-	pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(contentTopic)
-	if err != nil {
-		return "", err
+func (pm *PeerManager) SelectPeerByContentTopics(proto protocol.ID, contentTopics []string, specificPeers ...peer.ID) (peer.ID, error) {
+	pubsubTopics := []string{}
+	for _, cTopic := range contentTopics {
+		pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(cTopic)
+		if err != nil {
+			return "", err
+		}
+		pubsubTopics = append(pubsubTopics, pubsubTopic)
 	}
-	return pm.SelectPeer(PeerSelectionCriteria{PubsubTopic: pubsubTopic, Proto: proto, SpecificPeers: specificPeers})
+	return pm.SelectPeer(PeerSelectionCriteria{PubsubTopics: pubsubTopics, Proto: proto, SpecificPeers: specificPeers})
 }
 
 // SelectRandomPeer is used to return a random peer that supports a given protocol.
@@ -40,12 +44,12 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	//  - which topics they track
 	//  - latency?
 
-	peerID, err := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopic, criteria.Ctx, criteria.SpecificPeers...)
+	peerID, err := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopics, criteria.Ctx, criteria.SpecificPeers...)
 	if err == nil {
 		return peerID, nil
 	} else if !errors.Is(err, ErrNoPeersAvailable) {
 		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)),
-			zap.String("pubsubTopic", criteria.PubsubTopic), zap.Error(err))
+			zap.Strings("pubsubTopics", criteria.PubsubTopics), zap.Error(err))
 		return "", err
 	}
 
@@ -54,34 +58,34 @@ func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID
 	if err != nil {
 		return "", err
 	}
-	if criteria.PubsubTopic != "" {
-		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(criteria.PubsubTopic, filteredPeers...)
+	if len(criteria.PubsubTopics) > 0 {
+		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, filteredPeers...)
 	}
 	return selectRandomPeer(filteredPeers, pm.logger)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubsubTopic string, ctx context.Context, specificPeers ...peer.ID) (peer.ID, error) {
+func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubsubTopics []string, ctx context.Context, specificPeers ...peer.ID) (peer.ID, error) {
 	var peerID peer.ID
 	var err error
 	for retryCnt := 0; retryCnt < 1; retryCnt++ {
 		//Try to fetch from serviceSlot
 		if slot := pm.serviceSlots.getPeers(proto); slot != nil {
-			if pubsubTopic == "" {
+			if len(pubsubTopics) == 0 || (len(pubsubTopics) == 1 && pubsubTopics[0] == "") {
 				return slot.getRandom()
 			} else { //PubsubTopic based selection
 				keys := make([]peer.ID, 0, len(slot.m))
 				for i := range slot.m {
 					keys = append(keys, i)
 				}
-				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(pubsubTopic, keys...)
+				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(pubsubTopics, keys...)
 				peerID, err = selectRandomPeer(selectedPeers, pm.logger)
 				if err == nil {
 					return peerID, nil
 				} else {
-					pm.logger.Debug("Discovering peers by pubsubTopic", zap.String("pubsubTopic", pubsubTopic))
+					pm.logger.Debug("Discovering peers by pubsubTopic", zap.Strings("pubsubTopics", pubsubTopics))
 					//Trigger on-demand discovery for this topic and connect to peer immediately.
 					//For now discover atleast 1 peer for the criteria
-					pm.discoverPeersByPubsubTopic(pubsubTopic, proto, ctx, 1)
+					pm.discoverPeersByPubsubTopics(pubsubTopics, proto, ctx, 1)
 					//Try to fetch peers again.
 					continue
 				}
@@ -98,7 +102,7 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubsubTopic string, 
 type PeerSelectionCriteria struct {
 	SelectionType PeerSelection
 	Proto         protocol.ID
-	PubsubTopic   string
+	PubsubTopics  []string
 	SpecificPeers peer.IDSlice
 	Ctx           context.Context
 }
@@ -135,8 +139,8 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 		criteria.Ctx = context.Background()
 	}
 
-	if criteria.PubsubTopic != "" {
-		peers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopic(criteria.PubsubTopic, criteria.SpecificPeers...)
+	if len(criteria.PubsubTopics) == 0 || (len(criteria.PubsubTopics) == 1 && criteria.PubsubTopics[0] == "") {
+		peers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, criteria.SpecificPeers...)
 	}
 
 	peers, err = pm.FilterPeersByProto(peers, criteria.Proto)

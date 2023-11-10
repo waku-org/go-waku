@@ -4,15 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"math"
-	"strings"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
@@ -258,47 +255,6 @@ func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResp
 	return historyResponseRPC.Response, nil
 }
 
-func (store *WakuStore) QueryAutoSharding(ctx context.Context, query Query, opts ...HistoryRequestOption) ([]*Result, error) {
-	var results []*Result
-	var failedContentTopics []string
-	pubSubTopicMap, err := protocol.GeneratePubsubToContentTopicMap(query.PubsubTopic, query.ContentTopics)
-	if err != nil {
-		return nil, err
-	}
-
-	//Duplicate processing of opts, which is done again in Query function below
-	// Not sure how to handle this, hence leaving it as of now
-	params := new(HistoryRequestParameters)
-	var optList []HistoryRequestOption
-	for _, opt := range optList {
-		opt(params)
-	}
-
-	//Add Peer to peerstore.
-	if store.pm != nil && params.peerAddr != nil {
-		_, err = store.pm.AddPeer(params.peerAddr, peerstore.Static, maps.Keys(pubSubTopicMap), StoreID_v20beta4)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	for pubSubTopic, cTopics := range pubSubTopicMap {
-		query.ContentTopics = cTopics
-		query.PubsubTopic = pubSubTopic
-		//Invoke Query separately
-		result, err := store.Query(ctx, query, opts...)
-		if err != nil {
-			failedContentTopics = append(failedContentTopics, cTopics...)
-		}
-		results = append(results, result)
-	}
-	if len(failedContentTopics) > 0 {
-		return results, fmt.Errorf("subscriptions failed for contentTopics: %s", strings.Join(failedContentTopics, ","))
-	} else {
-		return results, nil
-	}
-}
-
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
 	params := new(HistoryRequestParameters)
 	params.s = store
@@ -309,19 +265,43 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		opt(params)
 	}
 
-	if store.pm != nil && params.selectedPeer == "" {
-		var err error
-		params.selectedPeer, err = store.pm.SelectPeer(
-			peermanager.PeerSelectionCriteria{
-				SelectionType: params.peerSelectionType,
-				Proto:         StoreID_v20beta4,
-				PubsubTopic:   query.PubsubTopic,
-				SpecificPeers: params.preferredPeers,
-				Ctx:           ctx,
-			},
-		)
-		if err != nil {
-			return nil, err
+	if !params.localQuery {
+		pubsubTopics := []string{}
+		if query.PubsubTopic == "" {
+			for _, cTopic := range query.ContentTopics {
+				pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(cTopic)
+				if err != nil {
+					return nil, err
+				}
+				pubsubTopics = append(pubsubTopics, pubsubTopic)
+			}
+		} else {
+			pubsubTopics = append(pubsubTopics, query.PubsubTopic)
+		}
+
+		//Add Peer to peerstore.
+		if store.pm != nil && params.peerAddr != nil {
+			peerId, err := store.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, StoreID_v20beta4)
+			if err != nil {
+				return nil, err
+			}
+			params.selectedPeer = peerId
+
+		}
+		if store.pm != nil && params.selectedPeer == "" {
+			var err error
+			params.selectedPeer, err = store.pm.SelectPeer(
+				peermanager.PeerSelectionCriteria{
+					SelectionType: params.peerSelectionType,
+					Proto:         StoreID_v20beta4,
+					PubsubTopics:  pubsubTopics,
+					SpecificPeers: params.preferredPeers,
+					Ctx:           ctx,
+				},
+			)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

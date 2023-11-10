@@ -116,7 +116,7 @@ func TestServiceSlots(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, peerID, h4.ID())
 
-	_, err = pm.SelectPeerByContentTopic(protocol1, "")
+	_, err = pm.SelectPeerByContentTopics(protocol1, []string{""})
 	require.Error(t, wakuproto.ErrInvalidFormat, err)
 
 }
@@ -143,18 +143,18 @@ func TestPeerSelection(t *testing.T) {
 	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol})
 	require.NoError(t, err)
 
-	peerID, err := pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopic: "/waku/2/rs/2/2"})
+	peerID, err := pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/2"}})
 	require.NoError(t, err)
 	require.Equal(t, h2.ID(), peerID)
 
-	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopic: "/waku/2/rs/2/3"})
+	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/3"}})
 	require.Error(t, ErrNoPeersAvailable, err)
 
-	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopic: "/waku/2/rs/2/1"})
+	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}})
 	require.NoError(t, err)
 
 	//Test for selectWithLowestRTT
-	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: LowestRTT, Proto: protocol, PubsubTopic: "/waku/2/rs/2/1"})
+	_, err = pm.SelectPeer(PeerSelectionCriteria{SelectionType: LowestRTT, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}})
 	require.NoError(t, err)
 }
 
@@ -287,7 +287,7 @@ func TestOnDemandPeerDiscovery(t *testing.T) {
 	require.NoError(t, err)
 
 	//Discovery should fail for non-waku protocol
-	_, err = pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopic: topic, Proto: "/test"})
+	_, err = pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopics: []string{topic}, Proto: "/test"})
 	require.Error(t, err)
 
 	_, err = pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, Proto: "/test"})
@@ -299,7 +299,7 @@ func TestOnDemandPeerDiscovery(t *testing.T) {
 	var enrField uint8
 	enrField |= (1 << 1)
 	pm3.RegisterWakuProtocol("/vac/waku/store/2.0.0-beta4", enrField)
-	peerID, err := pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopic: topic, Proto: "/vac/waku/store/2.0.0-beta4", Ctx: ctx})
+	peerID, err := pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopics: []string{topic}, Proto: "/vac/waku/store/2.0.0-beta4", Ctx: ctx})
 	require.NoError(t, err)
 	require.Equal(t, peerID, host2.ID())
 
@@ -307,7 +307,7 @@ func TestOnDemandPeerDiscovery(t *testing.T) {
 
 	enrField1 |= (1 << 3)
 	pm3.RegisterWakuProtocol("/vac/waku/lightpush/2.0.0-beta1", enrField1)
-	peerID, err = pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopic: topic, Proto: "/vac/waku/lightpush/2.0.0-beta1", Ctx: ctx})
+	peerID, err = pm3.SelectPeer(PeerSelectionCriteria{SelectionType: Automatic, PubsubTopics: []string{topic}, Proto: "/vac/waku/lightpush/2.0.0-beta1", Ctx: ctx})
 	require.NoError(t, err)
 	require.Equal(t, peerID, host1.ID())
 

@@ -217,7 +217,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
-				pm.discoverPeersByPubsubTopic(topicStr, relay.WakuRelayID_v200, pm.ctx, 2)
+				pm.discoverPeersByPubsubTopics([]string{topicStr}, relay.WakuRelayID_v200, pm.ctx, 2)
 				continue
 			}
 			//Connect to eligible peers.
