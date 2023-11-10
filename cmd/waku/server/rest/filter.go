@@ -76,10 +76,12 @@ func (r *FilterService) Stop() {
 
 // NewFilterService returns an instance of FilterService
 func NewFilterService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *zap.Logger) *FilterService {
+	logger := log.Named("filter")
+
 	s := &FilterService{
 		node:  node,
-		log:   log.Named("filter"),
-		cache: newFilterCache(cacheCapacity),
+		log:   logger,
+		cache: newFilterCache(cacheCapacity, logger),
 	}
 
 	m.Get(filterv2Ping, s.ping)
@@ -129,9 +131,6 @@ func (s *FilterService) ping(w http.ResponseWriter, req *http.Request) {
 		StatusDesc: http.StatusText(http.StatusOK),
 	}, http.StatusOK)
 }
-
-///////////////////////
-///////////////////////
 
 // same for FilterUnsubscribeRequest
 type filterSubscriptionRequest struct {

@@ -9,7 +9,6 @@ import (
 	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
@@ -124,9 +123,9 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 		r.log.Error("writing response", zap.Error(err))
 		return
 	}
-	var response []*pb.WakuMessage
+	var response []*RestWakuMessage
 	select {
-	case msg, open := <-sub.Ch:
+	case envelope, open := <-sub.Ch:
 		if !open {
 			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", topic))
 			w.WriteHeader(http.StatusNotFound)
@@ -136,7 +135,14 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 			}
 			return
 		}
-		response = append(response, msg.Message())
+
+		message := &RestWakuMessage{}
+		if err := message.FromProto(envelope.Message()); err != nil {
+			r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
+		} else {
+			response = append(response, message)
+		}
+
 	default:
 		break
 	}
@@ -150,9 +156,9 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var message *pb.WakuMessage
+	var restMessage *RestWakuMessage
 	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&message); err != nil {
+	if err := decoder.Decode(&restMessage); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -162,12 +168,18 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		topic = relay.DefaultWakuTopic
 	}
 
+	message, err := restMessage.ToProto()
+	if err != nil {
+		writeErrOrResponse(w, err, nil)
+		return
+	}
+
 	if err := server.AppendRLNProof(r.node, message); err != nil {
 		writeErrOrResponse(w, err, nil)
 		return
 	}
 
-	_, err := r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
+	_, err = r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
 	}
@@ -227,10 +239,15 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 		r.log.Error("writing response", zap.Error(err))
 		return
 	}
-	var response []*pb.WakuMessage
+	var response []*RestWakuMessage
 	select {
-	case msg := <-sub.Ch:
-		response = append(response, msg.Message())
+	case envelope := <-sub.Ch:
+		message := &RestWakuMessage{}
+		if err := message.FromProto(envelope.Message()); err != nil {
+			r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
+		} else {
+			response = append(response, message)
+		}
 	default:
 		break
 	}
@@ -240,15 +257,21 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 
 func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Request) {
 
-	var message *pb.WakuMessage
+	var restMessage *RestWakuMessage
 	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&message); err != nil {
+	if err := decoder.Decode(&restMessage); err != nil {
 		r.log.Error("decoding message failure", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	defer req.Body.Close()
-	var err error
+
+	message, err := restMessage.ToProto()
+	if err != nil {
+		writeErrOrResponse(w, err, nil)
+		return
+	}
+
 	if err = server.AppendRLNProof(r.node, message); err != nil {
 		writeErrOrResponse(w, err, nil)
 		return
