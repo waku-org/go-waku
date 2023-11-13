@@ -128,7 +128,7 @@ func NewNode(configJSON string) error {
 	if *config.EnableStore {
 		var db *sql.DB
 		var migrationFn func(*sql.DB) error
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL, dbutils.DBSettings{Vacuum: true}, utils.Logger())
+		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL, dbutils.DBSettings{}, utils.Logger())
 		if err != nil {
 			return err
 		}
@@ -335,8 +335,8 @@ func PeerCnt() (int, error) {
 }
 
 // ContentTopic creates a content topic string according to RFC 23
-func ContentTopic(applicationName string, applicationVersion int, contentTopicName string, encoding string) string {
-	contentTopic, _ := protocol.NewContentTopic(applicationName, uint32(applicationVersion), contentTopicName, encoding)
+func ContentTopic(applicationName string, applicationVersion string, contentTopicName string, encoding string) string {
+	contentTopic, _ := protocol.NewContentTopic(applicationName, applicationVersion, contentTopicName, encoding)
 	return contentTopic.String()
 }
 

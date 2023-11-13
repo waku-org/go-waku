@@ -14,7 +14,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -46,7 +45,7 @@ func TestLightpushMessagev1(t *testing.T) {
 
 	msg := lightpushRequest{
 		PubSubTopic: pubSubTopic,
-		Message: &pb.WakuMessage{
+		Message: &RestWakuMessage{
 			Payload:      []byte{1, 2, 3},
 			ContentTopic: "abc",
 			Timestamp:    utils.GetUnixEpoch(),

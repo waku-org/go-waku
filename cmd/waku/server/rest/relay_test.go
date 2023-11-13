@@ -36,7 +36,7 @@ func TestPostV1Message(t *testing.T) {
 	router := chi.NewRouter()
 
 	_ = makeRelayService(t, router)
-	msg := &pb.WakuMessage{
+	msg := &RestWakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "abc",
 		Timestamp:    utils.GetUnixEpoch(),
@@ -127,7 +127,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
 
-	msg := &pb.WakuMessage{
+	msg := &RestWakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "test",
 		Timestamp:    utils.GetUnixEpoch(),
@@ -164,7 +164,7 @@ func TestPostAutoV1Message(t *testing.T) {
 	router := chi.NewRouter()
 
 	_ = makeRelayService(t, router)
-	msg := &pb.WakuMessage{
+	msg := &RestWakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "/toychat/1/huilong/proto",
 		Timestamp:    utils.GetUnixEpoch(),
@@ -262,7 +262,7 @@ func TestRelayGetV1AutoMessages(t *testing.T) {
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
 
-	msg := &pb.WakuMessage{
+	msg := &RestWakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: cTopic1,
 		Timestamp:    utils.GetUnixEpoch(),

@@ -142,7 +142,7 @@ func bridgeTopics(ctx context.Context, wg *sync.WaitGroup, wakuNode *node.WakuNo
 						env.Message().Meta = append(env.Message().Meta, fwdMetaTag...)
 						_, err := wakuNode.Relay().Publish(ctx, env.Message(), relay.WithPubSubTopic(topic))
 						if err != nil {
-							utils.Logger().Warn("could not bridge message", logging.HexString("hash", env.Hash()),
+							utils.Logger().Warn("could not bridge message", logging.HexBytes("hash", env.Hash()),
 								zap.String("fromTopic", env.PubsubTopic()), zap.String("toTopic", topic),
 								zap.String("contentTopic", env.Message().ContentTopic), zap.Error(err))
 						}

@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 
+	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	rlnpb "github.com/waku-org/go-waku/waku/v2/protocol/rln/pb"
 
@@ -20,12 +21,12 @@ type RateLimitProof struct {
 }
 
 type RPCWakuMessage struct {
-	Payload        Base64URLByte   `json:"payload,omitempty"`
-	ContentTopic   string          `json:"contentTopic,omitempty"`
-	Version        uint32          `json:"version"`
-	Timestamp      int64           `json:"timestamp,omitempty"`
-	RateLimitProof *RateLimitProof `json:"rateLimitProof,omitempty"`
-	Ephemeral      bool            `json:"ephemeral,omitempty"`
+	Payload        server.Base64URLByte `json:"payload,omitempty"`
+	ContentTopic   string               `json:"contentTopic,omitempty"`
+	Version        uint32               `json:"version"`
+	Timestamp      int64                `json:"timestamp,omitempty"`
+	RateLimitProof *RateLimitProof      `json:"rateLimitProof,omitempty"`
+	Ephemeral      bool                 `json:"ephemeral,omitempty"`
 }
 
 func ProtoToRPC(input *pb.WakuMessage) (*RPCWakuMessage, error) {

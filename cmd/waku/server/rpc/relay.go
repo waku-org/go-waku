@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
+
+var errChannelClosed = errors.New("consume channel is closed for subscription")
 
 // RelayService represents the JSON RPC service for WakuRelay
 type RelayService struct {
@@ -93,7 +96,7 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 // Note that this method takes contentTopics as an argument instead of pubsubtopics and uses autosharding to derive pubsubTopics.
 func (r *RelayService) PostV1AutoSubscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
 
-	_, err := r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", args.Topics...))
+	_, err := r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter("", args.Topics...), relay.WithCacheSize(uint(r.cacheCapacity)))
 	if err != nil {
 		r.log.Error("subscribing to topics", zap.Strings("topics", args.Topics), zap.Error(err))
 		return err
@@ -150,10 +153,14 @@ func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, rep
 		return err
 	}
 	select {
-	case msg := <-sub.Ch:
+	case msg, open := <-sub.Ch:
+		if !open {
+			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", args.Topic))
+			return errChannelClosed
+		}
 		rpcMsg, err := ProtoToRPC(msg.Message())
 		if err != nil {
-			r.log.Warn("could not include message in response", logging.HexString("hash", msg.Hash()), zap.Error(err))
+			r.log.Warn("could not include message in response", logging.HexBytes("hash", msg.Hash()), zap.Error(err))
 		} else {
 			*reply = append(*reply, rpcMsg)
 		}
@@ -165,14 +172,13 @@ func (r *RelayService) GetV1AutoMessages(req *http.Request, args *TopicArgs, rep
 
 // PostV1Subscription is invoked when the json rpc request uses the post_waku_v2_relay_v1_subscription method
 func (r *RelayService) PostV1Subscription(req *http.Request, args *TopicsArgs, reply *SuccessReply) error {
-	ctx := req.Context()
 
 	for _, topic := range args.Topics {
 		var err error
 		if topic == "" {
 			topic = relay.DefaultWakuTopic
 		}
-		_, err = r.node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
+		_, err = r.node.Relay().Subscribe(r.node.Relay().Context(), protocol.NewContentFilter(topic), relay.WithCacheSize(uint(r.cacheCapacity)))
 		if err != nil {
 			r.log.Error("subscribing to topic", zap.String("topic", topic), zap.Error(err))
 			return err
@@ -207,7 +213,11 @@ func (r *RelayService) GetV1Messages(req *http.Request, args *TopicArgs, reply *
 		return err
 	}
 	select {
-	case msg := <-sub.Ch:
+	case msg, open := <-sub.Ch:
+		if !open {
+			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", args.Topic))
+			return errChannelClosed
+		}
 		m, err := ProtoToRPC(msg.Message())
 		if err == nil {
 			*reply = append(*reply, m)
