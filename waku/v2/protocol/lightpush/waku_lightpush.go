@@ -254,7 +254,7 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         LightPushID_v20beta1,
-				PubsubTopic:   params.pubsubTopic,
+				PubsubTopics:  []string{params.pubsubTopic},
 				SpecificPeers: params.preferredPeers,
 				Ctx:           ctx,
 			},

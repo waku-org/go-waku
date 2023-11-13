@@ -217,7 +217,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
-				pm.discoverPeersByPubsubTopic(topicStr, relay.WakuRelayID_v200, pm.ctx, 2)
+				pm.discoverPeersByPubsubTopics([]string{topicStr}, relay.WakuRelayID_v200, pm.ctx, 2)
 				continue
 			}
 			//Connect to eligible peers.
@@ -321,11 +321,11 @@ func (pm *PeerManager) processPeerENR(p *service.PeerData) []protocol.ID {
 			logging.HostID("peer", p.AddrInfo.ID), zap.String("enr", p.ENR.String()))
 	} else {
 		if shards != nil {
-			p.PubSubTopics = make([]string, 0)
+			p.PubsubTopics = make([]string, 0)
 			topics := shards.Topics()
 			for _, topic := range topics {
 				topicStr := topic.String()
-				p.PubSubTopics = append(p.PubSubTopics, topicStr)
+				p.PubsubTopics = append(p.PubsubTopics, topicStr)
 			}
 		} else {
 			pm.logger.Debug("ENR doesn't have relay shards", logging.HostID("peer", p.AddrInfo.ID))
@@ -361,12 +361,12 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 		return
 	}
 	supportedProtos := []protocol.ID{}
-	if len(p.PubSubTopics) == 0 && p.ENR != nil {
+	if len(p.PubsubTopics) == 0 && p.ENR != nil {
 		// Try to fetch shard info and supported protocols from ENR to arrive at pubSub topics.
 		supportedProtos = pm.processPeerENR(&p)
 	}
 
-	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubSubTopics, supportedProtos...)
+	_ = pm.addPeer(p.AddrInfo.ID, p.AddrInfo.Addrs, p.Origin, p.PubsubTopics, supportedProtos...)
 
 	if p.ENR != nil {
 		err := pm.host.Peerstore().(wps.WakuPeerstore).SetENR(p.AddrInfo.ID, p.ENR)
@@ -419,12 +419,29 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 	return nil
 }
 
+func AddrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host, pubsubTopics ...string) *service.PeerData {
+	addrs := host.Peerstore().Addrs(peerID)
+	if len(addrs) == 0 {
+		//Addresses expired, remove peer from peerStore
+		host.Peerstore().RemovePeer(peerID)
+		return nil
+	}
+	return &service.PeerData{
+		Origin: origin,
+		AddrInfo: peer.AddrInfo{
+			ID:    peerID,
+			Addrs: addrs,
+		},
+		PubsubTopics: pubsubTopics,
+	}
+}
+
 // AddPeer adds peer to the peerStore and also to service slots
-func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
+func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubsubTopics []string, protocols ...protocol.ID) (*service.PeerData, error) {
 	//Assuming all addresses have peerId
 	info, err := peer.AddrInfoFromP2pAddr(address)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//Add Service peers to serviceSlots.
@@ -433,12 +450,26 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTo
 	}
 
 	//Add to the peer-store
-	err = pm.addPeer(info.ID, info.Addrs, origin, pubSubTopics, protocols...)
+	err = pm.addPeer(info.ID, info.Addrs, origin, pubsubTopics, protocols...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return info.ID, nil
+	pData := &service.PeerData{
+		Origin: origin,
+		AddrInfo: peer.AddrInfo{
+			ID:    info.ID,
+			Addrs: info.Addrs,
+		},
+		PubsubTopics: pubsubTopics,
+	}
+
+	return pData, nil
+}
+
+// Connect establishes a connection to a peer.
+func (pm *PeerManager) Connect(pData *service.PeerData) {
+	go pm.peerConnector.PushToChan(*pData)
 }
 
 // RemovePeer deletes peer from the peerStore after disconnecting it.
