@@ -27,8 +27,21 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	optList := DefaultOptions(wakuPX.h)
 	optList = append(optList, opts...)
 	for _, opt := range optList {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return err
+		}
 	}
+
+	if params.pm != nil && params.peerAddr != nil {
+		pData, err := wakuPX.pm.AddPeer(params.peerAddr, peerstore.Static, []string{}, PeerExchangeID_v20alpha1)
+		if err != nil {
+			return err
+		}
+		wakuPX.pm.Connect(pData)
+		params.selectedPeer = pData.AddrInfo.ID
+	}
+
 	if params.pm != nil && params.selectedPeer == "" {
 		var err error
 		params.selectedPeer, err = wakuPX.pm.SelectPeer(
