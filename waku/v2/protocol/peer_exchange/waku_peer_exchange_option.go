@@ -26,7 +26,7 @@ type PeerExchangeOption func(*PeerExchangeParameters) error
 func WithPeer(p peer.ID) PeerExchangeOption {
 	return func(params *PeerExchangeParameters) error {
 		params.selectedPeer = p
-		if params.selectedPeer != "" {
+		if params.peerAddr != nil {
 			return errors.New("peerAddr and peerId options are mutually exclusive")
 		}
 		return nil
