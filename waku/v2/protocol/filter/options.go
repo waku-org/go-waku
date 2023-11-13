@@ -80,7 +80,7 @@ func WithPeer(p peer.ID) FilterSubscribeOption {
 	}
 }
 
-// WithPeerAddr is an option used to specify a peerAddress to request the message history.
+// WithPeerAddr is an option used to specify a peerAddress.
 // This new peer will be added to peerStore.
 // Note that this option is mutually exclusive to WithPeerAddr, only one of them can be used.
 func WithPeerAddr(pAddr multiaddr.Multiaddr) FilterSubscribeOption {

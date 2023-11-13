@@ -30,7 +30,8 @@ func TestFilterOption(t *testing.T) {
 	params.log = utils.Logger()
 
 	for _, opt := range options {
-		_ = opt(params)
+		err = opt(params)
+		require.NoError(t, err)
 	}
 
 	require.Equal(t, host, params.host)
