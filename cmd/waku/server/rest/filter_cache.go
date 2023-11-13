@@ -5,19 +5,21 @@ import (
 	"sync"
 
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"go.uber.org/zap"
 )
 
 type filterCache struct {
 	capacity int
 	mu       sync.RWMutex
-	data     map[string]map[string][]*pb.WakuMessage
+	log      *zap.Logger
+	data     map[string]map[string][]*RestWakuMessage
 }
 
-func newFilterCache(capacity int) *filterCache {
+func newFilterCache(capacity int, log *zap.Logger) *filterCache {
 	return &filterCache{
 		capacity: capacity,
-		data:     make(map[string]map[string][]*pb.WakuMessage),
+		data:     make(map[string]map[string][]*RestWakuMessage),
+		log:      log.Named("cache"),
 	}
 }
 
@@ -28,11 +30,11 @@ func (c *filterCache) subscribe(contentFilter protocol.ContentFilter) {
 	pubSubTopicMap, _ := protocol.ContentFilterToPubSubTopicMap(contentFilter)
 	for pubsubTopic, contentTopics := range pubSubTopicMap {
 		if c.data[pubsubTopic] == nil {
-			c.data[pubsubTopic] = make(map[string][]*pb.WakuMessage)
+			c.data[pubsubTopic] = make(map[string][]*RestWakuMessage)
 		}
 		for _, topic := range contentTopics {
 			if c.data[pubsubTopic][topic] == nil {
-				c.data[pubsubTopic][topic] = []*pb.WakuMessage{}
+				c.data[pubsubTopic][topic] = []*RestWakuMessage{}
 			}
 		}
 	}
@@ -60,10 +62,16 @@ func (c *filterCache) addMessage(envelope *protocol.Envelope) {
 		c.data[pubsubTopic][contentTopic] = c.data[pubsubTopic][contentTopic][1:]
 	}
 
-	c.data[pubsubTopic][contentTopic] = append(c.data[pubsubTopic][contentTopic], envelope.Message())
+	message := &RestWakuMessage{}
+	if err := message.FromProto(envelope.Message()); err != nil {
+		c.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
+		return
+	}
+
+	c.data[pubsubTopic][contentTopic] = append(c.data[pubsubTopic][contentTopic], message)
 }
 
-func (c *filterCache) getMessages(pubsubTopic string, contentTopic string) ([]*pb.WakuMessage, error) {
+func (c *filterCache) getMessages(pubsubTopic string, contentTopic string) ([]*RestWakuMessage, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -71,6 +79,6 @@ func (c *filterCache) getMessages(pubsubTopic string, contentTopic string) ([]*p
 		return nil, fmt.Errorf("not subscribed to pubsubTopic:%s contentTopic: %s", pubsubTopic, contentTopic)
 	}
 	msgs := c.data[pubsubTopic][contentTopic]
-	c.data[pubsubTopic][contentTopic] = []*pb.WakuMessage{}
+	c.data[pubsubTopic][contentTopic] = []*RestWakuMessage{}
 	return msgs, nil
 }

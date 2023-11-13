@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"go.uber.org/zap"
 )
 
@@ -38,34 +37,39 @@ func (msg lightpushRequest) Check() error {
 }
 
 type lightpushRequest struct {
-	PubSubTopic string          `json:"pubsubTopic"`
-	Message     *pb.WakuMessage `json:"message"`
+	PubSubTopic string           `json:"pubsubTopic"`
+	Message     *RestWakuMessage `json:"message"`
 }
 
 // handled error codes are 200, 400, 500, 503
 func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Request) {
-	msg := &lightpushRequest{}
+	request := &lightpushRequest{}
 	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(msg); err != nil {
+	if err := decoder.Decode(request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	defer req.Body.Close()
 
-	if err := msg.Check(); err != nil {
+	if err := request.Check(); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_, err = w.Write([]byte(err.Error()))
 		serv.log.Error("writing response", zap.Error(err))
 		return
 	}
-	//
 
 	if serv.node.Lightpush() == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 
-	_, err := serv.node.Lightpush().Publish(req.Context(), msg.Message, lightpush.WithPubSubTopic(msg.PubSubTopic))
+	message, err := request.Message.ToProto()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	_, err = serv.node.Lightpush().Publish(req.Context(), message, lightpush.WithPubSubTopic(request.PubSubTopic))
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, err = w.Write([]byte(err.Error()))
