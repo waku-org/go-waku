@@ -14,7 +14,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
-	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type StoreService struct {
@@ -56,7 +55,7 @@ func NewStoreService(node *node.WakuNode, m *chi.Mux) *StoreService {
 	return s
 }
 
-func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store.HistoryRequestOption, error) {
+func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption, error) {
 	query := &store.Query{}
 	var options []store.HistoryRequestOption
 	var err error
@@ -65,15 +64,9 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 	if peerAddrStr != "" {
 		m, err = multiaddr.NewMultiaddr(peerAddrStr)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
-
-		peerID, err := utils.GetPeerID(m)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		options = append(options, store.WithPeer(peerID))
+		options = append(options, store.WithPeerAddr(m))
 	}
 	query.PubsubTopic = r.URL.Query().Get("pubsubTopic")
 
@@ -86,7 +79,7 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 	if startTimeStr != "" {
 		startTime, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		query.StartTime = &startTime
 	}
@@ -95,7 +88,7 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 	if endTimeStr != "" {
 		endTime, err := strconv.ParseInt(endTimeStr, 10, 64)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		query.EndTime = &endTime
 	}
@@ -112,21 +105,21 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 		if senderTimeStr != "" {
 			cursor.SenderTime, err = strconv.ParseInt(senderTimeStr, 10, 64)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		}
 
 		if storeTimeStr != "" {
 			cursor.ReceiverTime, err = strconv.ParseInt(storeTimeStr, 10, 64)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		}
 
 		if digestStr != "" {
 			cursor.Digest, err = base64.URLEncoding.DecodeString(digestStr)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		}
 
@@ -143,21 +136,21 @@ func getStoreParams(r *http.Request) (multiaddr.Multiaddr, *store.Query, []store
 		if ascendingStr != "" {
 			ascending, err = strconv.ParseBool(ascendingStr)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		}
 
 		if pageSizeStr != "" {
 			pageSize, err = strconv.ParseUint(pageSizeStr, 10, 64)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		}
 
 		options = append(options, store.WithPaging(ascending, pageSize))
 	}
 
-	return m, query, options, nil
+	return query, options, nil
 }
 
 func writeStoreError(w http.ResponseWriter, code int, err error) {
@@ -191,7 +184,7 @@ func toStoreResponse(result *store.Result) StoreResponse {
 }
 
 func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
-	peerAddr, query, options, err := getStoreParams(r)
+	query, options, err := getStoreParams(r)
 	if err != nil {
 		writeStoreError(w, http.StatusBadRequest, err)
 		return
@@ -199,9 +192,7 @@ func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	if peerAddr != nil {
-		options = append(options, store.WithPeerAddr(peerAddr))
-	}
+
 	result, err := d.node.Store().Query(ctx, *query, options...)
 	if err != nil {
 		writeStoreError(w, http.StatusInternalServerError, err)

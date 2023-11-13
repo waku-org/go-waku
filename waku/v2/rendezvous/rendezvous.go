@@ -107,7 +107,7 @@ func (r *Rendezvous) DiscoverWithNamespace(ctx context.Context, namespace string
 			peer := service.PeerData{
 				Origin:       peerstore.Rendezvous,
 				AddrInfo:     p,
-				PubSubTopics: []string{namespace},
+				PubsubTopics: []string{namespace},
 			}
 			if !r.PushToChan(peer) {
 				r.log.Error("could push to closed channel/context completed")

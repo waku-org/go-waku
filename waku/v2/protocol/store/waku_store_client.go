@@ -96,18 +96,31 @@ type HistoryRequestParameters struct {
 	s *WakuStore
 }
 
-type HistoryRequestOption func(*HistoryRequestParameters)
+type HistoryRequestOption func(*HistoryRequestParameters) error
 
-// WithPeer is an option used to specify the peerID to request the message history
+// WithPeer is an option used to specify the peerID to request the message history.
+// Note that this option is mutually exclusive to WithPeerAddr, only one of them can be used.
 func WithPeer(p peer.ID) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.selectedPeer = p
+		if params.peerAddr != nil {
+			return errors.New("peerId and peerAddr options are mutually exclusive")
+		}
+		return nil
 	}
 }
 
+//WithPeerAddr is an option used to specify a peerAddress to request the message history.
+// This new peer will be added to peerStore.
+// Note that this option is mutually exclusive to WithPeerAddr, only one of them can be used.
+
 func WithPeerAddr(pAddr multiaddr.Multiaddr) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.peerAddr = pAddr
+		if params.selectedPeer != "" {
+			return errors.New("peerAddr and peerId options are mutually exclusive")
+		}
+		return nil
 	}
 }
 
@@ -117,9 +130,10 @@ func WithPeerAddr(pAddr multiaddr.Multiaddr) HistoryRequestOption {
 // from the node peerstore
 // Note: This option is avaiable only with peerManager
 func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.peerSelectionType = peermanager.Automatic
 		params.preferredPeers = fromThesePeers
+		return nil
 	}
 }
 
@@ -129,44 +143,50 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption 
 // from the node peerstore
 // Note: This option is avaiable only with peerManager
 func WithFastestPeerSelection(fromThesePeers ...peer.ID) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.peerSelectionType = peermanager.LowestRTT
+		return nil
 	}
 }
 
 // WithRequestID is an option to set a specific request ID to be used when
 // creating a store request
 func WithRequestID(requestID []byte) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.requestID = requestID
+		return nil
 	}
 }
 
 // WithAutomaticRequestID is an option to automatically generate a request ID
 // when creating a store request
 func WithAutomaticRequestID() HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.requestID = protocol.GenerateRequestID()
+		return nil
 	}
 }
 
 func WithCursor(c *pb.Index) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.cursor = c
+		return nil
 	}
 }
 
 // WithPaging is an option used to specify the order and maximum number of records to return
 func WithPaging(asc bool, pageSize uint64) HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.asc = asc
 		params.pageSize = pageSize
+		return nil
 	}
 }
 
 func WithLocalQuery() HistoryRequestOption {
-	return func(params *HistoryRequestParameters) {
+	return func(params *HistoryRequestParameters) error {
 		params.localQuery = true
+		return nil
 	}
 }
 
@@ -262,7 +282,10 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	optList := DefaultOptions()
 	optList = append(optList, opts...)
 	for _, opt := range optList {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !params.localQuery {
@@ -281,11 +304,12 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 
 		//Add Peer to peerstore.
 		if store.pm != nil && params.peerAddr != nil {
-			peerId, err := store.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, true, StoreID_v20beta4)
+			pData, err := store.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, StoreID_v20beta4)
 			if err != nil {
 				return nil, err
 			}
-			params.selectedPeer = peerId
+			store.pm.Connect(pData)
+			params.selectedPeer = pData.AddrInfo.ID
 		}
 		if store.pm != nil && params.selectedPeer == "" {
 			var err error

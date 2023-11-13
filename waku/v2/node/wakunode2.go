@@ -714,7 +714,11 @@ func (w *WakuNode) startStore(ctx context.Context, sub *relay.Subscription) erro
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
 // TODO: Need to update this for autosharding, to only take contentTopics and optional pubSubTopics or provide an alternate API only for contentTopics.
 func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
-	return w.peermanager.AddPeer(address, origin, pubSubTopics, false, protocols...)
+	pData, err := w.peermanager.AddPeer(address, origin, pubSubTopics, protocols...)
+	if err != nil {
+		return "", err
+	}
+	return pData.AddrInfo.ID, nil
 }
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
@@ -725,7 +729,7 @@ func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wp
 			ID:    ID,
 			Addrs: addrs,
 		},
-		PubSubTopics: pubsubTopics,
+		PubsubTopics: pubsubTopics,
 	}
 	w.peermanager.AddDiscoveredPeer(p, connectNow)
 }

@@ -14,7 +14,7 @@ type PeerData struct {
 	Origin       wps.Origin
 	AddrInfo     peer.AddrInfo
 	ENR          *enode.Node
-	PubSubTopics []string
+	PubsubTopics []string
 }
 
 type CommonDiscoveryService struct {
