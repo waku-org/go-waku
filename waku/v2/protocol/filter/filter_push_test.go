@@ -1,15 +1,10 @@
 package filter
 
 import (
-	"context"
 	"github.com/waku-org/go-waku/tests"
-	"time"
 )
 
 func (s *FilterTestSuite) TestValidPayloadsASCII() {
-
-	// Create test context
-	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
 	// Subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -28,9 +23,6 @@ func (s *FilterTestSuite) TestValidPayloadsASCII() {
 }
 
 func (s *FilterTestSuite) TestValidPayloadsUTF8() {
-
-	// Create test context
-	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
 	// Subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
