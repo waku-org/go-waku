@@ -100,18 +100,20 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 	return peers, nil
 }
 
-func (pm *PeerManager) discoverPeersByPubsubTopic(pubsubTopic string, proto protocol.ID, ctx context.Context, maxCount int) {
-	shardInfo, err := waku_proto.TopicsToRelayShards(pubsubTopic)
+func (pm *PeerManager) discoverPeersByPubsubTopics(pubsubTopics []string, proto protocol.ID, ctx context.Context, maxCount int) {
+	shardsInfo, err := waku_proto.TopicsToRelayShards(pubsubTopics...)
 	if err != nil {
-		pm.logger.Error("failed to convert pubsub topic to shard", zap.String("topic", pubsubTopic), zap.Error(err))
+		pm.logger.Error("failed to convert pubsub topic to shard", zap.Strings("topics", pubsubTopics), zap.Error(err))
 		return
 	}
-	if len(shardInfo) > 0 {
-		err = pm.DiscoverAndConnectToPeers(ctx, shardInfo[0].ClusterID, shardInfo[0].ShardIDs[0], proto, maxCount)
-		if err != nil {
-			pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
+	if len(shardsInfo) > 0 {
+		for _, shardInfo := range shardsInfo {
+			err = pm.DiscoverAndConnectToPeers(ctx, shardInfo.ClusterID, shardInfo.ShardIDs[0], proto, maxCount)
+			if err != nil {
+				pm.logger.Error("failed to discover and conenct to peers", zap.Error(err))
+			}
 		}
 	} else {
-		pm.logger.Debug("failed to convert pubsub topic to shard as topic is named pubsubTopic", zap.String("topic", pubsubTopic))
+		pm.logger.Debug("failed to convert pubsub topics to shards as one of the topics is named pubsubTopic", zap.Strings("topics", pubsubTopics))
 	}
 }

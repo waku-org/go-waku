@@ -39,7 +39,7 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 	res, err := wakuState.node.Store().Query(
 		ctx,
 		store.Query{
-			Topic:         args.Topic,
+			PubsubTopic:   args.Topic,
 			ContentTopics: args.ContentTopics,
 			StartTime:     args.StartTime,
 			EndTime:       args.EndTime,

@@ -30,6 +30,7 @@ import (
 
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
+	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	wakuprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
@@ -713,7 +714,11 @@ func (w *WakuNode) startStore(ctx context.Context, sub *relay.Subscription) erro
 // AddPeer is used to add a peer and the protocols it support to the node peerstore
 // TODO: Need to update this for autosharding, to only take contentTopics and optional pubSubTopics or provide an alternate API only for contentTopics.
 func (w *WakuNode) AddPeer(address ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) (peer.ID, error) {
-	return w.peermanager.AddPeer(address, origin, pubSubTopics, protocols...)
+	pData, err := w.peermanager.AddPeer(address, origin, pubSubTopics, protocols...)
+	if err != nil {
+		return "", err
+	}
+	return pData.AddrInfo.ID, nil
 }
 
 // AddDiscoveredPeer to add a discovered peer to the node peerStore
@@ -724,7 +729,7 @@ func (w *WakuNode) AddDiscoveredPeer(ID peer.ID, addrs []ma.Multiaddr, origin wp
 			ID:    ID,
 			Addrs: addrs,
 		},
-		PubSubTopics: pubsubTopics,
+		PubsubTopics: pubsubTopics,
 	}
 	w.peermanager.AddDiscoveredPeer(p, connectNow)
 }
@@ -927,4 +932,42 @@ func (w *WakuNode) findRelayNodes(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func GetNodesFromDNSDiscovery(logger *zap.Logger, ctx context.Context, nameServer string, discoveryURLs []string) []dnsdisc.DiscoveredNode {
+	var discoveredNodes []dnsdisc.DiscoveredNode
+	for _, url := range discoveryURLs {
+		logger.Info("attempting DNS discovery with ", zap.String("URL", url))
+		nodes, err := dnsdisc.RetrieveNodes(ctx, url, dnsdisc.WithNameserver(nameServer))
+		if err != nil {
+			logger.Warn("dns discovery error ", zap.Error(err))
+		} else {
+			var discPeerInfo []peer.AddrInfo
+			for _, n := range nodes {
+				discPeerInfo = append(discPeerInfo, n.PeerInfo)
+			}
+			logger.Info("found dns entries ", zap.Any("nodes", discPeerInfo))
+			discoveredNodes = append(discoveredNodes, nodes...)
+		}
+	}
+	return discoveredNodes
+}
+
+func GetDiscv5Option(dnsDiscoveredNodes []dnsdisc.DiscoveredNode, discv5Nodes []string, port uint, autoUpdate bool) (WakuNodeOption, error) {
+	var bootnodes []*enode.Node
+	for _, addr := range discv5Nodes {
+		bootnode, err := enode.Parse(enode.ValidSchemes, addr)
+		if err != nil {
+			return nil, err
+		}
+		bootnodes = append(bootnodes, bootnode)
+	}
+
+	for _, n := range dnsDiscoveredNodes {
+		if n.ENR != nil {
+			bootnodes = append(bootnodes, n.ENR)
+		}
+	}
+
+	return WithDiscoveryV5(port, bootnodes, autoUpdate), nil
 }

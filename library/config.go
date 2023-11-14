@@ -10,26 +10,28 @@ import (
 
 // WakuConfig contains all the configuration settings exposed to users of mobile and c libraries
 type WakuConfig struct {
-	Host                 *string          `json:"host,omitempty"`
-	Port                 *int             `json:"port,omitempty"`
-	AdvertiseAddress     *string          `json:"advertiseAddr,omitempty"`
-	NodeKey              *string          `json:"nodeKey,omitempty"`
-	LogLevel             *string          `json:"logLevel,omitempty"`
-	KeepAliveInterval    *int             `json:"keepAliveInterval,omitempty"`
-	EnableRelay          *bool            `json:"relay"`
-	RelayTopics          []string         `json:"relayTopics,omitempty"`
-	GossipSubParams      *GossipSubParams `json:"gossipsubParams,omitempty"`
-	EnableLegacyFilter   *bool            `json:"legacyFilter,omitempty"`
-	MinPeersToPublish    *int             `json:"minPeersToPublish,omitempty"`
-	EnableDiscV5         *bool            `json:"discV5,omitempty"`
-	DiscV5BootstrapNodes []string         `json:"discV5BootstrapNodes,omitempty"`
-	DiscV5UDPPort        *uint            `json:"discV5UDPPort,omitempty"`
-	EnableStore          *bool            `json:"store,omitempty"`
-	DatabaseURL          *string          `json:"databaseURL,omitempty"`
-	RetentionMaxMessages *int             `json:"storeRetentionMaxMessages,omitempty"`
-	RetentionTimeSeconds *int             `json:"storeRetentionTimeSeconds,omitempty"`
-	DNS4DomainName       string           `json:"dns4DomainName,omitempty"`
-	Websockets           *WebsocketConfig `json:"websockets,omitempty"`
+	Host                   *string          `json:"host,omitempty"`
+	Port                   *int             `json:"port,omitempty"`
+	AdvertiseAddress       *string          `json:"advertiseAddr,omitempty"`
+	NodeKey                *string          `json:"nodeKey,omitempty"`
+	LogLevel               *string          `json:"logLevel,omitempty"`
+	KeepAliveInterval      *int             `json:"keepAliveInterval,omitempty"`
+	EnableRelay            *bool            `json:"relay"`
+	RelayTopics            []string         `json:"relayTopics,omitempty"`
+	GossipSubParams        *GossipSubParams `json:"gossipsubParams,omitempty"`
+	EnableLegacyFilter     *bool            `json:"legacyFilter,omitempty"`
+	MinPeersToPublish      *int             `json:"minPeersToPublish,omitempty"`
+	DNSDiscoveryURLs       []string         `json:"dnsDiscoveryURLs,omitempty"`
+	DNSDiscoveryNameServer string           `json:"dnsDiscoveryNameServer,omitempty"`
+	EnableDiscV5           *bool            `json:"discV5,omitempty"`
+	DiscV5BootstrapNodes   []string         `json:"discV5BootstrapNodes,omitempty"`
+	DiscV5UDPPort          *uint            `json:"discV5UDPPort,omitempty"`
+	EnableStore            *bool            `json:"store,omitempty"`
+	DatabaseURL            *string          `json:"databaseURL,omitempty"`
+	RetentionMaxMessages   *int             `json:"storeRetentionMaxMessages,omitempty"`
+	RetentionTimeSeconds   *int             `json:"storeRetentionTimeSeconds,omitempty"`
+	DNS4DomainName         string           `json:"dns4DomainName,omitempty"`
+	Websockets             *WebsocketConfig `json:"websockets,omitempty"`
 }
 
 // WebsocketConfig contains all the settings required to setup websocket support in waku

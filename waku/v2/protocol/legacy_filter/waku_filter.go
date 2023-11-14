@@ -256,7 +256,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         FilterID_v20beta1,
-				PubsubTopic:   filter.Topic,
+				PubsubTopics:  []string{filter.Topic},
 				SpecificPeers: params.preferredPeers,
 				Ctx:           ctx,
 			},

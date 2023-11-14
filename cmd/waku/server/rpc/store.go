@@ -48,7 +48,7 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 	res, err := s.node.Store().Query(
 		req.Context(),
 		store.Query{
-			Topic:         args.Topic,
+			PubsubTopic:   args.Topic,
 			ContentTopics: args.ContentFilters,
 			StartTime:     args.StartTime,
 			EndTime:       args.EndTime,
