@@ -124,27 +124,34 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var response []*RestWakuMessage
-	select {
-	case envelope, open := <-sub.Ch:
-		if !open {
-			r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", topic))
-			w.WriteHeader(http.StatusNotFound)
-			_, err = w.Write([]byte("consume channel is closed for subscription"))
-			if err != nil {
-				r.log.Error("writing response", zap.Error(err))
+	done := false
+	for {
+		if done || len(response) > int(r.cacheCapacity) {
+			break
+		}
+		select {
+		case envelope, open := <-sub.Ch:
+			if !open {
+				r.log.Error("consume channel is closed for subscription", zap.String("pubsubTopic", topic))
+				w.WriteHeader(http.StatusNotFound)
+				_, err = w.Write([]byte("consume channel is closed for subscription"))
+				if err != nil {
+					r.log.Error("writing response", zap.Error(err))
+				}
+				return
 			}
-			return
-		}
 
-		message := &RestWakuMessage{}
-		if err := message.FromProto(envelope.Message()); err != nil {
-			r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
-		} else {
-			response = append(response, message)
+			message := &RestWakuMessage{}
+			if err := message.FromProto(envelope.Message()); err != nil {
+				r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
+			} else {
+				response = append(response, message)
+			}
+		case <-req.Context().Done():
+			done = true
+		default:
+			done = true
 		}
-
-	default:
-		break
 	}
 
 	writeErrOrResponse(w, nil, response)
@@ -240,16 +247,24 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 		return
 	}
 	var response []*RestWakuMessage
-	select {
-	case envelope := <-sub.Ch:
-		message := &RestWakuMessage{}
-		if err := message.FromProto(envelope.Message()); err != nil {
-			r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
-		} else {
-			response = append(response, message)
+	done := false
+	for {
+		if done || len(response) > int(r.cacheCapacity) {
+			break
 		}
-	default:
-		break
+		select {
+		case envelope := <-sub.Ch:
+			message := &RestWakuMessage{}
+			if err := message.FromProto(envelope.Message()); err != nil {
+				r.log.Error("converting protobuffer msg into rest msg", zap.Error(err))
+			} else {
+				response = append(response, message)
+			}
+		case <-req.Context().Done():
+			done = true
+		default:
+			done = true
+		}
 	}
 
 	writeErrOrResponse(w, nil, response)
