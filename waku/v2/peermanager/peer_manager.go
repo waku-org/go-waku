@@ -467,7 +467,7 @@ func (pm *PeerManager) AddPeer(address ma.Multiaddr, origin wps.Origin, pubsubTo
 	return pData, nil
 }
 
-// Connect establishes a connection to a peer.
+// Connect establishes a connection to a
 func (pm *PeerManager) Connect(pData *service.PeerData) {
 	go pm.peerConnector.PushToChan(*pData)
 }
@@ -486,7 +486,7 @@ func (pm *PeerManager) RemovePeer(peerID peer.ID) {
 // If relay proto is passed, it is not added to serviceSlot.
 func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 	if proto == relay.WakuRelayID_v200 {
-		pm.logger.Warn("Cannot add Relay peer to service peer slots")
+		pm.logger.Debug("cannot add Relay peer to service peer slots")
 		return
 	}
 
