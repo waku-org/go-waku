@@ -10,6 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
 	go.uber.org/zap v1.24.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
@@ -123,8 +124,8 @@ require (
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	golang.org/x/tools v0.12.1-0.20230818130535-1517d1a3ba60 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
