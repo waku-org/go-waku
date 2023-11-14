@@ -14,19 +14,15 @@ func TestStringGenerators(t *testing.T) {
 
 	// Generate string and print out to console
 	for i := 0; i < 1000; i++ {
-		x, err := GenerateRandomASCIIString(1, 4097)
+		x, err := GenerateRandomASCIIString(4097)
 		require.NoError(t, err)
 		log.Info("Generated random ASCII string", zap.String(strconv.Itoa(i), x))
 
-		x, err = GenerateRandomUTF8String(1, 4097, false)
+		x, err = GenerateRandomUTF8String(4097)
 		require.NoError(t, err)
 		log.Info("Generated random UTF8 string", zap.String(strconv.Itoa(i), x))
 
-		x, err = GenerateRandomUTF8String(1, 4097, true)
-		require.NoError(t, err)
-		log.Info("Generated uncommon UTF8 string", zap.String(strconv.Itoa(i), x))
-
-		x, err = GenerateRandomJSONString()
+		x, err = GenerateRandomJSONString(4099)
 		require.NoError(t, err)
 		log.Info("Generated random JSON string", zap.String(strconv.Itoa(i), x))
 
@@ -38,7 +34,7 @@ func TestStringGenerators(t *testing.T) {
 		require.NoError(t, err)
 		log.Info("Generated random URL encoded string", zap.String(strconv.Itoa(i), x))
 
-		x, err = GenerateRandomSQLInsert()
+		x, err = GenerateRandomSQLInsert(4096)
 		require.NoError(t, err)
 		log.Info("Generated random SQL insert string", zap.String(strconv.Itoa(i), x))
 	}
