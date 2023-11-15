@@ -211,7 +211,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 		curPeers := topicInst.topic.ListPeers()
 		curPeerLen := len(curPeers)
 		if curPeerLen < waku_proto.GossipSubOptimalFullMeshSize {
-			pm.logger.Info("subscribed topic is unhealthy, initiating more connections to maintain health",
+			pm.logger.Debug("subscribed topic is unhealthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
 				zap.Int("optimumPeers", waku_proto.GossipSubOptimalFullMeshSize))
 			//Find not connected peers.
