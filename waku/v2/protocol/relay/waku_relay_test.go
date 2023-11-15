@@ -106,11 +106,11 @@ func TestGossipsubScore(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		sub, err := relay[i].subscribeToPubsubTopic(testTopic)
+		topicData, err := relay[i].subscribeToPubsubTopic(testTopic)
 		require.NoError(t, err)
 		go func() {
 			for {
-				_, err := sub.Next(context.Background())
+				_, err := topicData.subscription.Next(context.Background())
 				if err != nil {
 					t.Log(err)
 				}
