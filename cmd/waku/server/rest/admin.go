@@ -53,9 +53,12 @@ func NewAdminService(node *node.WakuNode, m *chi.Mux, log *zap.Logger) *AdminSer
 func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 	peers, err := a.node.Peers()
 	if err != nil {
+		a.log.Error("failed to fetch peers", zap.Error(err))
 		writeErrOrResponse(w, err, nil)
 		return
 	}
+	a.log.Error("fetched peers", zap.Int("count", len(peers)))
+
 	response := make([]WakuPeer, 0)
 	for _, peer := range peers {
 		wPeer := WakuPeer{
@@ -68,6 +71,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 		}
 		for _, proto := range peer.Protocols {
 			if !server.IsWakuProtocol(proto) {
+				a.log.Error("skipping protocol as it is a non-waku protocol", logging.HostID("peer", peer.ID), zap.String("protocol", string(proto)))
 				continue
 			}
 			wPeer.Protocols = append(wPeer.Protocols, string(proto))
@@ -85,6 +89,7 @@ func (a *AdminService) postV1Peer(w http.ResponseWriter, req *http.Request) {
 
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&pInfo); err != nil {
+		a.log.Error("failed to decode request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -100,6 +105,10 @@ func (a *AdminService) postV1Peer(w http.ResponseWriter, req *http.Request) {
 	for _, shard := range pInfo.Shards {
 		topic := waku_proto.NewStaticShardingPubsubTopic(waku_proto.ClusterIndex, uint16(shard))
 		topics = append(topics, topic.String())
+	}
+
+	for _, proto := range pInfo.Protocols {
+		protos = append(protos, protocol.ID(proto))
 	}
 
 	id, err := a.node.AddPeer(addr, peerstore.Static, topics, protos...)
