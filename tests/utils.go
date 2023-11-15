@@ -38,6 +38,8 @@ import (
 	"go.uber.org/zap"
 )
 
+type StringGenerator func(maxLength int) (string, error)
+
 // GetHostAddress returns the first listen address used by a host
 func GetHostAddress(ha host.Host) multiaddr.Multiaddr {
 	return ha.Addrs()[0]
@@ -247,12 +249,12 @@ func RandomBytes(n int) ([]byte, error) {
 	return b, nil
 }
 
-func GenerateRandomASCIIString(minLength int, maxLength int) (string, error) {
-	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
+func GenerateRandomASCIIString(maxLength int) (string, error) {
+	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength)))
 	if err != nil {
 		return "", err
 	}
-	length.SetInt64(length.Int64() + int64(minLength))
+	length.SetInt64(length.Int64() + 1)
 
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	result := make([]byte, length.Int64())
@@ -267,27 +269,21 @@ func GenerateRandomASCIIString(minLength int, maxLength int) (string, error) {
 	return string(result), nil
 }
 
-func GenerateRandomUTF8String(minLength int, maxLength int, withUncommon bool) (string, error) {
-	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength-minLength+1)))
+func GenerateRandomUTF8String(maxLength int) (string, error) {
+	length, err := rand.Int(rand.Reader, big.NewInt(int64(maxLength)))
 	if err != nil {
 		return "", err
 	}
-	length.SetInt64(length.Int64() + int64(minLength))
+	length.SetInt64(length.Int64() + 1)
 
 	var (
 		runes      []rune
 		start, end int
 	)
 
-	if withUncommon {
-		// Unicode range for uncommon or unprintable characters, the Private Use Area (E000–F8FF)
-		start = 0xE000
-		end = 0xF8FF
-	} else {
-		// Define unicode range
-		start = 0x0020 // Space character
-		end = 0x007F   // Tilde (~)
-	}
+	// Define unicode range
+	start = 0x0020 // Space character
+	end = 0x007F   // Tilde (~)
 
 	for i := 0; int64(i) < length.Int64(); i++ {
 		randNum, err := rand.Int(rand.Reader, big.NewInt(int64(end-start+1)))
@@ -304,15 +300,15 @@ func GenerateRandomUTF8String(minLength int, maxLength int, withUncommon bool) (
 	return string(runes), nil
 }
 
-func GenerateRandomJSONString() (string, error) {
+func GenerateRandomJSONString(maxLength int) (string, error) {
 	// With 5 key-value pairs
 	m := make(map[string]interface{})
 	for i := 0; i < 5; i++ {
-		key, err := GenerateRandomASCIIString(1, 20)
+		key, err := GenerateRandomASCIIString(20)
 		if err != nil {
 			return "", err
 		}
-		value, err := GenerateRandomASCIIString(1, 4097)
+		value, err := GenerateRandomASCIIString(maxLength)
 		if err != nil {
 			return "", err
 		}
@@ -332,8 +328,8 @@ func GenerateRandomJSONString() (string, error) {
 	return buf.String(), nil
 }
 
-func GenerateRandomBase64String(length int) (string, error) {
-	bytes, err := RandomBytes(length)
+func GenerateRandomBase64String(maxLength int) (string, error) {
+	bytes, err := RandomBytes(maxLength)
 	if err != nil {
 		return "", err
 	}
@@ -341,8 +337,8 @@ func GenerateRandomBase64String(length int) (string, error) {
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-func GenerateRandomURLEncodedString(length int) (string, error) {
-	randomString, err := GenerateRandomASCIIString(1, 4097)
+func GenerateRandomURLEncodedString(maxLength int) (string, error) {
+	randomString, err := GenerateRandomASCIIString(maxLength)
 	if err != nil {
 		return "", err
 	}
@@ -351,9 +347,9 @@ func GenerateRandomURLEncodedString(length int) (string, error) {
 	return url.QueryEscape(randomString), nil
 }
 
-func GenerateRandomSQLInsert() (string, error) {
+func GenerateRandomSQLInsert(maxLength int) (string, error) {
 	// Random table name
-	tableName, err := GenerateRandomASCIIString(1, 10)
+	tableName, err := GenerateRandomASCIIString(10)
 	if err != nil {
 		return "", err
 	}
@@ -365,7 +361,7 @@ func GenerateRandomSQLInsert() (string, error) {
 	}
 	columnNames := make([]string, columnCount)
 	for i := 0; i < columnCount; i++ {
-		columnName, err := GenerateRandomASCIIString(1, 20)
+		columnName, err := GenerateRandomASCIIString(maxLength)
 		if err != nil {
 			return "", err
 		}
@@ -375,7 +371,7 @@ func GenerateRandomSQLInsert() (string, error) {
 	// Random values
 	values := make([]string, columnCount)
 	for i := 0; i < columnCount; i++ {
-		value, err := GenerateRandomASCIIString(1, 100)
+		value, err := GenerateRandomASCIIString(maxLength)
 		if err != nil {
 			return "", err
 		}
