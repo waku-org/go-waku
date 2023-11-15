@@ -549,7 +549,7 @@ var (
 	})
 	RESTRelayCacheCapacity = altsrc.NewIntFlag(&cli.IntFlag{
 		Name:        "rest-relay-cache-capacity",
-		Value:       30,
+		Value:       1000,
 		Usage:       "Capacity of the Relay REST API message cache",
 		Destination: &options.RESTServer.RelayCacheCapacity,
 		EnvVars:     []string{"WAKUNODE2_REST_RELAY_CACHE_CAPACITY"},

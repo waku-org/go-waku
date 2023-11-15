@@ -52,7 +52,7 @@ func ExtractDBAndMigration(databaseURL string, dbSettings DBSettings, logger *za
 	case "sqlite3":
 		db, err = sqlite.NewDB(dbParams, logger)
 		migrationFn = sqlite.Migrations
-	case "postgresql":
+	case "postgres", "postgresql":
 		db, err = postgres.NewDB(dbURL, logger)
 		migrationFn = postgres.Migrations
 	default:
