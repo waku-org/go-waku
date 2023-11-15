@@ -92,6 +92,8 @@ func (pm *PeerManager) discoverOnDemand(cluster uint16,
 
 		select {
 		case <-ctx.Done():
+			pm.logger.Error("failed to find peers for shard and services", zap.Uint16("cluster", cluster),
+				zap.Uint16("shard", shard), zap.String("service", string(wakuProtocol)), zap.Error(ctx.Err()))
 			return nil, ctx.Err()
 		default:
 		}
