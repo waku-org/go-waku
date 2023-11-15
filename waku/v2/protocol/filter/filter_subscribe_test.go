@@ -95,7 +95,7 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
 
-	messages := prepareData(3, false, true, false)
+	messages := prepareData(3, false, true, false, nil)
 
 	// Subscribe
 	for _, m := range messages {
@@ -126,7 +126,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
-	messages := prepareData(2, true, true, false)
+	messages := prepareData(2, true, true, false, nil)
 
 	// Subscribe
 	for _, m := range messages {
@@ -156,7 +156,7 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 
-	messages := prepareData(10, false, true, true)
+	messages := prepareData(10, false, true, true, nil)
 
 	// Subscribe
 	for _, m := range messages {
@@ -175,7 +175,7 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 
 func (s *FilterTestSuite) TestSubscriptionRefresh() {
 
-	messages := prepareData(2, false, false, true)
+	messages := prepareData(2, false, false, true, nil)
 
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -207,7 +207,7 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 		}
 	}
 
-	messages := prepareData(maxContentTopics+1, false, true, true)
+	messages := prepareData(maxContentTopics+1, false, true, true, nil)
 
 	// Subscribe
 	for _, m := range messages[:len(messages)-1] {
@@ -311,7 +311,7 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 	// Connect node2
 	lightNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
 
-	messages := prepareData(2, true, true, true)
+	messages := prepareData(2, true, true, true, nil)
 
 	// Subscribe separately: light node 1 -> full node
 	contentFilter := protocol.ContentFilter{PubsubTopic: messages[0].pubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[0].contentTopic)}

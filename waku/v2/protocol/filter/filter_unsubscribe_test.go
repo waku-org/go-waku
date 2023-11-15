@@ -45,7 +45,7 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 
 func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
-	var messages = prepareData(3, false, true, true)
+	var messages = prepareData(3, false, true, true, nil)
 
 	// Subscribe with 3 content topics
 	for _, m := range messages {
@@ -92,7 +92,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
-	messages := prepareData(2, true, true, true)
+	messages := prepareData(2, true, true, true, nil)
 
 	// Subscribe
 	for _, m := range messages {
@@ -134,7 +134,7 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 	var messages, invalidMessages []WakuMsg
 
-	messages = prepareData(2, false, true, true)
+	messages = prepareData(2, false, true, true, nil)
 
 	// Prepare "invalid" data for unsubscribe
 	invalidMessages = append(invalidMessages,
@@ -196,7 +196,7 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 func (s *FilterTestSuite) TestUnsubscribeAllWithoutContentTopics() {
 
-	var messages = prepareData(2, false, true, true)
+	var messages = prepareData(2, false, true, true, nil)
 
 	// Subscribe with 2 content topics
 	for _, m := range messages {
@@ -233,7 +233,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
-	messages := prepareData(2, true, true, true)
+	messages := prepareData(2, true, true, true, nil)
 
 	// Subscribe
 	for _, m := range messages {

@@ -25,6 +25,7 @@ func (pm *PeerManager) SelectPeerByContentTopics(proto protocol.ID, contentTopic
 	for _, cTopic := range contentTopics {
 		pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(cTopic)
 		if err != nil {
+			pm.logger.Debug("selectPeer: failed to get contentTopic from pubsubTopic", zap.String("contentTopic", cTopic))
 			return "", err
 		}
 		pubsubTopics = append(pubsubTopics, pubsubTopic)
@@ -82,7 +83,7 @@ func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubsubTopics []strin
 				if err == nil {
 					return peerID, nil
 				} else {
-					pm.logger.Debug("Discovering peers by pubsubTopic", zap.Strings("pubsubTopics", pubsubTopics))
+					pm.logger.Debug("discovering peers by pubsubTopic", zap.Strings("pubsubTopics", pubsubTopics))
 					//Trigger on-demand discovery for this topic and connect to peer immediately.
 					//For now discover atleast 1 peer for the criteria
 					pm.discoverPeersByPubsubTopics(pubsubTopics, proto, ctx, 1)
