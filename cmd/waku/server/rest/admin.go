@@ -71,7 +71,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 		}
 		for _, proto := range peer.Protocols {
 			if !server.IsWakuProtocol(proto) {
-				a.log.Error("skipping protocol as it is a non-waku protocol", logging.HostID("peer", peer.ID), zap.String("protocol", string(proto)))
+				a.log.Debug("skipping protocol as it is a non-waku protocol", logging.HostID("peer", peer.ID), zap.String("protocol", string(proto)))
 				continue
 			}
 			wPeer.Protocols = append(wPeer.Protocols, string(proto))
