@@ -13,8 +13,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
  && apt install -yq ruby wget git rpm build-essential s3cmd curl
 
 # Installing Golang
-RUN GOLANG_SHA256="74b9640724fd4e6bb0ed2a1bc44ae813a03f1e72a4c76253e2d5c015494430ba" \
- && GOLANG_TARBALL="go1.19.3.linux-amd64.tar.gz" \
+RUN GOLANG_SHA256="ef79a11aa095a08772d2a69e4f152f897c4e96ee297b0dc20264b7dec2961abe" \
+ && GOLANG_TARBALL="go1.20.11.linux-amd64.tar.gz" \
  && wget -q "https://dl.google.com/go/${GOLANG_TARBALL}" \
  && echo "${GOLANG_SHA256} ${GOLANG_TARBALL}" | sha256sum -c \
  && tar -C /usr/local -xzf "${GOLANG_TARBALL}" \
