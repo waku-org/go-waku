@@ -57,7 +57,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 		writeErrOrResponse(w, err, nil)
 		return
 	}
-	a.log.Error("fetched peers", zap.Int("count", len(peers)))
+	a.log.Info("fetched peers", zap.Int("count", len(peers)))
 
 	response := make([]WakuPeer, 0)
 	for _, peer := range peers {
