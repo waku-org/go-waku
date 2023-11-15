@@ -293,6 +293,21 @@ func Execute(options NodeOptions) error {
 		return nonRecoverError(err)
 	}
 
+	var discoveredNodes []dnsdisc.DiscoveredNode
+	if options.DNSDiscovery.Enable {
+		if len(options.DNSDiscovery.URLs.Value()) == 0 {
+			return nonRecoverErrorMsg("DNS discovery URL is required")
+		}
+		discoveredNodes = node.GetNodesFromDNSDiscovery(logger, ctx, options.DNSDiscovery.Nameserver, options.DNSDiscovery.URLs.Value())
+	}
+	if options.DiscV5.Enable {
+		discv5Opts, err := node.GetDiscv5Option(discoveredNodes, options.DiscV5.Nodes.Value(), options.DiscV5.Port, options.DiscV5.AutoUpdate)
+		if err != nil {
+			logger.Fatal("parsing ENR", zap.Error(err))
+		}
+		nodeOpts = append(nodeOpts, discv5Opts)
+	}
+
 	wakuNode, err := node.New(nodeOpts...)
 	if err != nil {
 		return fmt.Errorf("could not instantiate waku: %w", err)
@@ -313,21 +328,6 @@ func Execute(options NodeOptions) error {
 		if err := addStaticPeers(wakuNode, options.Filter.NodesV1, pubSubTopicMapKeys, legacy_filter.FilterID_v20beta1); err != nil {
 			return err
 		}
-	}
-
-	var discoveredNodes []dnsdisc.DiscoveredNode
-	if options.DNSDiscovery.Enable {
-		if len(options.DNSDiscovery.URLs.Value()) == 0 {
-			return nonRecoverErrorMsg("DNS discovery URL is required")
-		}
-		discoveredNodes = node.GetNodesFromDNSDiscovery(logger, ctx, options.DNSDiscovery.Nameserver, options.DNSDiscovery.URLs.Value())
-	}
-	if options.DiscV5.Enable {
-		discv5Opts, err := node.GetDiscv5Option(discoveredNodes, options.DiscV5.Nodes.Value(), options.DiscV5.Port, options.DiscV5.AutoUpdate)
-		if err != nil {
-			logger.Fatal("parsing ENR", zap.Error(err))
-		}
-		nodeOpts = append(nodeOpts, discv5Opts)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {
