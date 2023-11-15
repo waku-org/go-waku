@@ -193,16 +193,13 @@ func iterateSubscriptionSet(logger *zap.Logger, subscriptions SubscriptionSet, e
 	}
 }
 
-func (m *SubscriptionsMap) GetSubscription(peerID peer.ID, contentFilter protocol.ContentFilter) ([]peer.ID, []*SubscriptionDetails) {
+func (m *SubscriptionsMap) GetSubscription(peerID peer.ID, contentFilter protocol.ContentFilter) []*SubscriptionDetails {
 	m.RLock()
 	defer m.RUnlock()
 
 	var output []*SubscriptionDetails
-
-	var peerIDs []peer.ID
 	for _, peerSubs := range m.items {
 		if peerID == "" || peerSubs.PeerID == peerID {
-			peerIDs = append(peerIDs, peerID)
 			for _, subs := range peerSubs.SubsPerPubsubTopic {
 				for _, subscriptionDetail := range subs {
 					if subscriptionDetail.isPartOf(contentFilter) {
@@ -212,5 +209,5 @@ func (m *SubscriptionsMap) GetSubscription(peerID peer.ID, contentFilter protoco
 			}
 		}
 	}
-	return peerIDs, output
+	return output
 }
