@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -29,7 +30,8 @@ func TestFilterOption(t *testing.T) {
 	params.log = utils.Logger()
 
 	for _, opt := range options {
-		_ = opt(params)
+		err = opt(params)
+		require.NoError(t, err)
 	}
 
 	require.Equal(t, host, params.host)
@@ -47,6 +49,28 @@ func TestFilterOption(t *testing.T) {
 	for _, opt := range options2 {
 		err := opt(params2)
 		require.NoError(t, err)
+	}
+
+	require.NotNil(t, params2.selectedPeer)
+	require.True(t, params2.unsubscribeAll)
+
+	// Mutually Exclusive options
+	maddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/12345/p2p/16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy")
+	require.NoError(t, err)
+	options3 := []FilterSubscribeOption{
+		WithPeer("16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy"),
+		WithPeerAddr(maddr),
+	}
+
+	params3 := new(FilterSubscribeParameters)
+
+	for idx, opt := range options3 {
+		err := opt(params3)
+		if idx == 0 {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+		}
 	}
 
 	require.NotNil(t, params2.selectedPeer)
