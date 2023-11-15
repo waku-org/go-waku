@@ -173,7 +173,7 @@ func (pm *PeerManager) GroupPeersByDirection(specificPeers ...peer.ID) (inPeers 
 				outPeers = append(outPeers, p)
 			}
 		} else {
-			pm.logger.Error("Failed to retrieve peer direction",
+			pm.logger.Error("failed to retrieve peer direction",
 				logging.HostID("peerID", p), zap.Error(err))
 		}
 	}
@@ -188,7 +188,7 @@ func (pm *PeerManager) getRelayPeers(specificPeers ...peer.ID) (inRelayPeers pee
 	if err != nil {
 		return
 	}
-	pm.logger.Debug("Number of peers connected", zap.Int("inPeers", inPeers.Len()),
+	pm.logger.Debug("number of peers connected", zap.Int("inPeers", inPeers.Len()),
 		zap.Int("outPeers", outPeers.Len()))
 
 	//Need to filter peers to check if they support relay
@@ -211,15 +211,17 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 		curPeers := topicInst.topic.ListPeers()
 		curPeerLen := len(curPeers)
 		if curPeerLen < waku_proto.GossipSubOptimalFullMeshSize {
-			pm.logger.Info("Subscribed topic is unhealthy, initiating more connections to maintain health",
+			pm.logger.Info("subscribed topic is unhealthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
 				zap.Int("optimumPeers", waku_proto.GossipSubOptimalFullMeshSize))
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
+				pm.logger.Debug("could not find any peers in peerstore to connect to, discovering more", zap.String("pubSubTopic", topicStr))
 				pm.discoverPeersByPubsubTopics([]string{topicStr}, relay.WakuRelayID_v200, pm.ctx, 2)
 				continue
 			}
+			pm.logger.Debug("connecting to eligible peers in peerstore", zap.String("pubSubTopic", topicStr))
 			//Connect to eligible peers.
 			numPeersToConnect := waku_proto.GossipSubOptimalFullMeshSize - curPeerLen
 
@@ -248,28 +250,10 @@ func (pm *PeerManager) connectToRelayPeers() {
 	}
 }
 
-// addrInfoToPeerData returns addressinfo for a peer
-// If addresses are expired, it removes the peer from host peerStore and returns nil.
-func addrInfoToPeerData(origin wps.Origin, peerID peer.ID, host host.Host) *service.PeerData {
-	addrs := host.Peerstore().Addrs(peerID)
-	if len(addrs) == 0 {
-		//Addresses expired, remove peer from peerStore
-		host.Peerstore().RemovePeer(peerID)
-		return nil
-	}
-	return &service.PeerData{
-		Origin: origin,
-		AddrInfo: peer.AddrInfo{
-			ID:    peerID,
-			Addrs: addrs,
-		},
-	}
-}
-
 // connectToPeers connects to peers provided in the list if the addresses have not expired.
 func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
 	for _, peerID := range peers {
-		peerData := addrInfoToPeerData(wps.PeerManager, peerID, pm.host)
+		peerData := AddrInfoToPeerData(wps.PeerManager, peerID, pm.host)
 		if peerData == nil {
 			continue
 		}
@@ -306,10 +290,10 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 		p := inRelayPeers[pruningStartIndex]
 		err := pm.host.Network().ClosePeer(p)
 		if err != nil {
-			pm.logger.Warn("Failed to disconnect connection towards peer",
+			pm.logger.Warn("failed to disconnect connection towards peer",
 				logging.HostID("peerID", p))
 		}
-		pm.logger.Debug("Successfully disconnected connection towards peer",
+		pm.logger.Debug("successfully disconnected connection towards peer",
 			logging.HostID("peerID", p))
 	}
 }
@@ -357,7 +341,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 	//Check if the peer is already present, if so skip adding
 	_, err := pm.host.Peerstore().(wps.WakuPeerstore).Origin(p.AddrInfo.ID)
 	if err == nil {
-		pm.logger.Debug("Found discovered peer already in peerStore", logging.HostID("peer", p.AddrInfo.ID))
+		pm.logger.Debug("peer already in peerStore", logging.HostID("peer", p.AddrInfo.ID))
 		return
 	}
 	supportedProtos := []protocol.ID{}
@@ -376,6 +360,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 		}
 	}
 	if connectNow {
+		pm.logger.Debug("connecting now to discovered peer", logging.HostID("peer", p.AddrInfo.ID))
 		go pm.peerConnector.PushToChan(p)
 	}
 }
@@ -384,6 +369,7 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 // It also sets additional metadata such as origin, ENR and supported protocols
 func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Origin, pubSubTopics []string, protocols ...protocol.ID) error {
 	if pm.maxPeers <= pm.host.Peerstore().Peers().Len() {
+		pm.logger.Error("could not add peer as peer store capacity is reached", logging.HostID("peer", ID), zap.Int("capacity", pm.maxPeers))
 		return errors.New("peer store capacity reached")
 	}
 	pm.logger.Info("adding peer to peerstore", logging.HostID("peer", ID))
@@ -403,6 +389,7 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 	if len(protocols) > 0 {
 		err = pm.host.Peerstore().AddProtocols(ID, protocols...)
 		if err != nil {
+			pm.logger.Error("could not set protocols", zap.Error(err), logging.HostID("peer", ID))
 			return err
 		}
 	}
@@ -492,7 +479,7 @@ func (pm *PeerManager) addPeerToServiceSlot(proto protocol.ID, peerID peer.ID) {
 
 	//For now adding the peer to serviceSlot which means the latest added peer would be given priority.
 	//TODO: Ideally we should sort the peers per service and return best peer based on peer score or RTT etc.
-	pm.logger.Info("Adding peer to service slots", logging.HostID("peer", peerID),
+	pm.logger.Info("adding peer to service slots", logging.HostID("peer", peerID),
 		zap.String("service", string(proto)))
 	// getPeers returns nil for WakuRelayIDv200 protocol, but we don't run this ServiceSlot code for WakuRelayIDv200 protocol
 	pm.serviceSlots.getPeers(proto).add(peerID)
