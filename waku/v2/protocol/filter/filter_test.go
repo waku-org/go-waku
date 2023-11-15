@@ -289,12 +289,14 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	}
 }
 
-func prepareData(quantity int, topics, contentTopics, payloads bool) []WakuMsg {
+func prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.StringGenerator) []WakuMsg {
 	var (
-		pubsubTopic  = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
-		contentTopic = "TopicA"                 // Has to be the same with initial s.testContentTopic
-		payload      = "test_msg"
-		messages     []WakuMsg
+		pubsubTopic     = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
+		contentTopic    = "TopicA"                 // Has to be the same with initial s.testContentTopic
+		payload         = "test_msg"
+		messages        []WakuMsg
+		strMaxLenght    = 4097
+		generatedString = ""
 	)
 
 	for i := 0; i < quantity; i++ {
@@ -304,16 +306,21 @@ func prepareData(quantity int, topics, contentTopics, payloads bool) []WakuMsg {
 			payload:      payload,
 		}
 
+		if sg != nil {
+			generatedString, _ = sg(strMaxLenght)
+
+		}
+
 		if topics {
-			msg.pubSubTopic = fmt.Sprintf("%s%02d", pubsubTopic, i)
+			msg.pubSubTopic = fmt.Sprintf("%s%02d%s", pubsubTopic, i, generatedString)
 		}
 
 		if contentTopics {
-			msg.contentTopic = fmt.Sprintf("%s%02d", contentTopic, i)
+			msg.contentTopic = fmt.Sprintf("%s%02d%s", contentTopic, i, generatedString)
 		}
 
 		if payloads {
-			msg.payload = fmt.Sprintf("%s%02d", payload, i)
+			msg.payload = fmt.Sprintf("%s%02d%s", payload, i, generatedString)
 		}
 
 		messages = append(messages, msg)
