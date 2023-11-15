@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -239,7 +240,10 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 
 	optList := append(DefaultOptions(wakuLP.h), opts...)
 	for _, opt := range optList {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if params.pubsubTopic == "" {
@@ -247,6 +251,15 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if params.pm != nil && params.peerAddr != nil {
+		pData, err := wakuLP.pm.AddPeer(params.peerAddr, peerstore.Static, []string{params.pubsubTopic}, LightPushID_v20beta1)
+		if err != nil {
+			return nil, err
+		}
+		wakuLP.pm.Connect(pData)
+		params.selectedPeer = pData.AddrInfo.ID
 	}
 
 	if params.pm != nil && params.selectedPeer == "" {

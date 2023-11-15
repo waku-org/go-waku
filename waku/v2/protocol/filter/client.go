@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -26,6 +27,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -272,6 +274,52 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	return nil
 }
 
+func (wf *WakuFilterLightNode) handleFilterSubscribeOptions(ctx context.Context, contentFilter protocol.ContentFilter, opts []FilterSubscribeOption) (*FilterSubscribeParameters, map[string][]string, error) {
+	params := new(FilterSubscribeParameters)
+	params.log = wf.log
+	params.host = wf.h
+	params.pm = wf.pm
+
+	optList := DefaultSubscriptionOptions()
+	optList = append(optList, opts...)
+	for _, opt := range optList {
+		err := opt(params)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	pubSubTopicMap, err := protocol.ContentFilterToPubSubTopicMap(contentFilter)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//Add Peer to peerstore.
+	if params.pm != nil && params.peerAddr != nil {
+		pData, err := wf.pm.AddPeer(params.peerAddr, peerstore.Static, maps.Keys(pubSubTopicMap), FilterSubscribeID_v20beta1)
+		if err != nil {
+			return nil, nil, err
+		}
+		wf.pm.Connect(pData)
+		params.selectedPeer = pData.AddrInfo.ID
+	}
+	if params.pm != nil && params.selectedPeer == "" {
+		params.selectedPeer, err = wf.pm.SelectPeer(
+			peermanager.PeerSelectionCriteria{
+				SelectionType: params.peerSelectionType,
+				Proto:         FilterSubscribeID_v20beta1,
+				PubsubTopics:  maps.Keys(pubSubTopicMap),
+				SpecificPeers: params.preferredPeers,
+				Ctx:           ctx,
+			},
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return params, pubSubTopicMap, nil
+}
+
 // Subscribe setups a subscription to receive messages that match a specific content filter
 // If contentTopics passed result in different pubSub topics (due to Auto/Static sharding), then multiple subscription requests are sent to the peer.
 // This may change if Filterv2 protocol is updated to handle such a scenario in a single request.
@@ -283,30 +331,15 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 		return nil, err
 	}
 
-	params := new(FilterSubscribeParameters)
-	params.log = wf.log
-	params.host = wf.h
-	params.pm = wf.pm
-
-	optList := DefaultSubscriptionOptions()
-	optList = append(optList, opts...)
-	for _, opt := range optList {
-		err := opt(params)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	pubSubTopicMap, err := protocol.ContentFilterToPubSubTopicMap(contentFilter)
-
+	params, pubSubTopicMap, err := wf.handleFilterSubscribeOptions(ctx, contentFilter, opts)
 	if err != nil {
 		return nil, err
 	}
+
 	failedContentTopics := []string{}
 	subscriptions := make([]*subscription.SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		var selectedPeer peer.ID
-		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
 		if params.pm != nil && params.selectedPeer == "" {
 			selectedPeer, err = wf.pm.SelectPeer(
 				peermanager.PeerSelectionCriteria{
