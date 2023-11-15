@@ -241,7 +241,7 @@ func (pm *PeerManager) connectToRelayPeers() {
 	pm.ensureMinRelayConnsPerTopic()
 
 	inRelayPeers, outRelayPeers := pm.getRelayPeers()
-	pm.logger.Info("number of relay peers connected",
+	pm.logger.Debug("number of relay peers connected",
 		zap.Int("in", inRelayPeers.Len()),
 		zap.Int("out", outRelayPeers.Len()))
 	if inRelayPeers.Len() > 0 &&
