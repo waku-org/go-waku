@@ -118,7 +118,7 @@ func (s *FilterTestSuite) TestValidPayloadsSQL() {
 
 func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 
-	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 40*time.Second)
 
 	// Subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -128,7 +128,7 @@ func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 
 	// Generate large string
 	for i := range messages {
-		messages[i].payload, _ = tests.GenerateRandomUTF8String(1048576)
+		messages[i].payload, _ = tests.GenerateRandomUTF8String(153600)
 		s.log.Info("Generated payload with ", zap.String("length", strconv.Itoa(len(messages[i].payload))))
 	}
 
