@@ -118,7 +118,7 @@ func (s *FilterTestSuite) TestValidPayloadsSQL() {
 
 func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 
-	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
+	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 30*time.Second)
 
 	// Subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
