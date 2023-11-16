@@ -215,8 +215,8 @@ test-onchain-with-race:
 
 test-postgres: PG_BUILD_TAGS = ${BUILD_TAGS} include_postgres_tests
 test-postgres:
-	${GOBIN} test -p 1 -v -count 1 -tags="${PG_BUILD_TAGS}" github.com/waku-org/go-waku/waku/persistence
+	${GOBIN} test -p 1 -v -count 1 -tags="${PG_BUILD_TAGS}" github.com/waku-org/go-waku/waku/persistence/...
 
 test-postgres-with-race:
-	${GOBIN} test -race -p 1 -v -count 1 -tags="${PG_BUILD_TAGS}" github.com/waku-org/go-waku/waku/persistence
+	${GOBIN} test -race -p 1 -v -count 1 -tags="${PG_BUILD_TAGS}" github.com/waku-org/go-waku/waku/persistence/...
 

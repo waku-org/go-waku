@@ -20,6 +20,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestStore(t *testing.T) {
@@ -62,7 +63,7 @@ func testDbStore(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
 	require.NoError(t, err)
 	require.Empty(t, res)
 
-	err = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test", utils.GetUnixEpoch()), utils.GetUnixEpoch(), "test"))
+	err = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test", utils.GetUnixEpoch()), *utils.GetUnixEpoch(), "test"))
 	require.NoError(t, err)
 
 	res, err = store.GetAll()
@@ -78,19 +79,18 @@ func testStoreRetention(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) erro
 	require.NoError(t, err)
 
 	insertTime := time.Now()
-	//////////////////////////////////
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test1", insertTime.Add(-70*time.Second).UnixNano()), insertTime.Add(-70*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test2", insertTime.Add(-60*time.Second).UnixNano()), insertTime.Add(-60*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", insertTime.Add(-50*time.Second).UnixNano()), insertTime.Add(-50*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test4", insertTime.Add(-40*time.Second).UnixNano()), insertTime.Add(-40*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", insertTime.Add(-30*time.Second).UnixNano()), insertTime.Add(-30*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test1", proto.Int64(insertTime.Add(-70*time.Second).UnixNano())), insertTime.Add(-70*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test2", proto.Int64(insertTime.Add(-60*time.Second).UnixNano())), insertTime.Add(-60*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", proto.Int64(insertTime.Add(-50*time.Second).UnixNano())), insertTime.Add(-50*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test4", proto.Int64(insertTime.Add(-40*time.Second).UnixNano())), insertTime.Add(-40*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", proto.Int64(insertTime.Add(-30*time.Second).UnixNano())), insertTime.Add(-30*time.Second).UnixNano(), "test"))
 
 	dbResults, err := store.GetAll()
 	require.NoError(t, err)
 	require.Len(t, dbResults, 5)
 
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test6", insertTime.Add(-20*time.Second).UnixNano()), insertTime.Add(-20*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test7", insertTime.Add(-10*time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test6", proto.Int64(insertTime.Add(-20*time.Second).UnixNano())), insertTime.Add(-20*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test7", proto.Int64(insertTime.Add(-10*time.Second).UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test"))
 
 	// This step simulates starting go-waku again from scratch
 
@@ -118,11 +118,11 @@ func testQuery(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
 
 	insertTime := time.Now()
 	//////////////////////////////////
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test1", insertTime.Add(-40*time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test2", insertTime.Add(-30*time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", insertTime.Add(-20*time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", insertTime.Add(-20*time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test2"))
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test4", insertTime.Add(-10*time.Second).UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test1", proto.Int64(insertTime.Add(-40*time.Second).UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test2", proto.Int64(insertTime.Add(-30*time.Second).UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", proto.Int64(insertTime.Add(-20*time.Second).UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test3", proto.Int64(insertTime.Add(-20*time.Second).UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test2"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test4", proto.Int64(insertTime.Add(-10*time.Second).UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test"))
 
 	//  Range [startTime-endTime]
 	// Check: matching ContentTopics and pubsubTopic, and ts of msg in range
@@ -135,13 +135,13 @@ func testQuery(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
 			{ContentTopic: "test3"},
 		},
 		PagingInfo: &pb.PagingInfo{PageSize: 10},
-		StartTime:  insertTime.Add(-40 * time.Second).UnixNano(),
-		EndTime:    insertTime.Add(-20 * time.Second).UnixNano(),
+		StartTime:  proto.Int64(insertTime.Add(-40 * time.Second).UnixNano()),
+		EndTime:    proto.Int64(insertTime.Add(-20 * time.Second).UnixNano()),
 	})
 	require.NoError(t, err)
 	require.Len(t, msgs, 3)
 
-	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", insertTime.UnixNano()), insertTime.Add(-10*time.Second).UnixNano(), "test"))
+	_ = store.Put(protocol.NewEnvelope(tests.CreateWakuMessage("test5", proto.Int64(insertTime.UnixNano())), insertTime.Add(-10*time.Second).UnixNano(), "test"))
 
 	// Range [cursor-endTime]
 	// Check:  matching ContentTopic,pubsubTopic, pageSize
@@ -157,7 +157,7 @@ func testQuery(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
 				{ContentTopic: "test5"},
 			},
 			PagingInfo: &pb.PagingInfo{Cursor: cursor, PageSize: uint64(pageSize), Direction: pb.PagingInfo_FORWARD},
-			EndTime:    insertTime.Add(1 * time.Second).UnixNano(),
+			EndTime:    proto.Int64(insertTime.Add(1 * time.Second).UnixNano()),
 		})
 		require.NoError(t, err)
 		require.Len(t, msgs, pageSize) // due to pageSize
@@ -180,7 +180,7 @@ func testQuery(t *testing.T, db *sql.DB, migrationFn func(*sql.DB) error) {
 			{ContentTopic: "test4"},
 		},
 		PagingInfo: &pb.PagingInfo{Cursor: cursor2, PageSize: 4, Direction: pb.PagingInfo_BACKWARD},
-		StartTime:  insertTime.Add(-39 * time.Second).UnixNano(),
+		StartTime:  proto.Int64(insertTime.Add(-39 * time.Second).UnixNano()),
 	})
 	require.NoError(t, err)
 	require.Len(t, msgs, 3) // due to pageSize
