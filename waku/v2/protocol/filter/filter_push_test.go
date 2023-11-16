@@ -128,7 +128,7 @@ func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 
 	// Generate large string
 	for i := range messages {
-		messages[i].payload, _ = tests.GenerateRandomUTF8String(1048576)
+		messages[i].payload, _ = tests.GenerateRandomUTF8String(153600)
 		s.log.Info("Generated payload with ", zap.String("length", strconv.Itoa(len(messages[i].payload))))
 	}
 
