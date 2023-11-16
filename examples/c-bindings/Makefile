@@ -18,7 +18,7 @@ all: build
 ifeq ($(detected_OS),Linux)
  PLATFORM_FLAGS_TEST_C ?= -ldl
 else ifeq ($(detected_OS),Darwin)
- PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names -framework CoreFoundation -framework Security
+ PLATFORM_FLAGS_TEST_C ?= -Wl,-headerpad_max_install_names -framework CoreFoundation -framework Security -lresolv
  ifeq ($(detected_arch),ARM)
  PLATFORM_FLAGS_TEST_C +=-lresolv -framework CoreServices
  endif

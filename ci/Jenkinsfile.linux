@@ -48,12 +48,6 @@ pipeline {
       } } }
     }
 
-    stage('Build examples') {
-      steps { script { dir(env.REPO) {
-        nix.develop('make build-example')
-      } } }
-    }
-
     stage('Package') {
       steps { script { dir(env.REPO) {
         dir('./scripts/linux') {

@@ -70,7 +70,7 @@ lint-install:
 
 lint:
 	@echo "lint"
-	@golangci-lint run ./... --deadline=5m
+	@$(shell ${GOBIN} env GOPATH)/bin/golangci-lint run ./... --deadline=5m
 
 lint-full:
 	@echo "lint"
