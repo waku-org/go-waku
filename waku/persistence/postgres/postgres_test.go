@@ -7,11 +7,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/waku-org/go-waku/waku/persistence"
 )
 
 func TestQueries(t *testing.T) {
-	db := persistence.NewMockPgDB()
+	db := NewMockPgDB()
 
 	queries, err := NewQueries("test_queries", db)
 	require.NoError(t, err)
@@ -45,7 +44,7 @@ func TestQueries(t *testing.T) {
 }
 
 func TestCreateTable(t *testing.T) {
-	db := persistence.NewMockPgDB()
+	db := NewMockPgDB()
 
 	err := CreateTable(db, "test_create_table")
 	require.NoError(t, err)
