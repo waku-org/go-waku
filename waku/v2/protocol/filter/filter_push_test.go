@@ -187,6 +187,23 @@ func (s *FilterTestSuite) TestEmptyContentTopicEmptyPayload() {
 
 }
 
+// Check message with non string payload is not received
+// Check message with extra parameter is not received
+// Check received message with extra option is received
+
+//type WakuMessage struct {
+//	state          protoimpl.MessageState
+//	sizeCache      protoimpl.SizeCache
+//	unknownFields  protoimpl.UnknownFields
+//	Payload        []byte  `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+//	ContentTopic   string  `protobuf:"bytes,2,opt,name=content_topic,json=contentTopic,proto3" json:"content_topic,omitempty"`
+//	Version        *uint32 `protobuf:"varint,3,opt,name=version,proto3,oneof" json:"version,omitempty"`
+//	Timestamp      *int64  `protobuf:"zigzag64,10,opt,name=timestamp,proto3,oneof" json:"timestamp,omitempty"`
+//	Meta           []byte  `protobuf:"bytes,11,opt,name=meta,proto3,oneof" json:"meta,omitempty"`
+//	Ephemeral      *bool   `protobuf:"varint,31,opt,name=ephemeral,proto3,oneof" json:"ephemeral,omitempty"`
+//	RateLimitProof []byte  `protobuf:"bytes,21,opt,name=rate_limit_proof,json=rateLimitProof,proto3,oneof" json:"rate_limit_proof,omitempty"`
+//}
+
 func (s *FilterTestSuite) TestTimestampInFuture() {
 
 	// Subscribe
@@ -237,4 +254,37 @@ func (s *FilterTestSuite) TestNegativeTimestamp() {
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 
+}
+
+func (s *FilterTestSuite) TestFuturePayloadEncryptionVersion() {
+
+	// Subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	message := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "test_payload")
+	futureVersion := uint32(100)
+	message.Version = &futureVersion
+
+	// Should get accepted
+	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
+	s.Require().NoError(err)
+
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+}
+
+func (s *FilterTestSuite) TestMetaSizeOverLimit() {
+
+	// Subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	message := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "test_payload")
+	message.Meta = make([]byte, 65)
+
+	// Should get accepted
+	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
+	s.Require().NoError(err)
+
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
 }
