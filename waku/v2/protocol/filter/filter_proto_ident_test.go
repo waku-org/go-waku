@@ -225,7 +225,7 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 
 	s.testTopic = "/waku/2/go/filter/test"
-	s.testContentTopic = "TopicA"
+	s.testContentTopic = "/test/10/my-app"
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
 
@@ -264,7 +264,7 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	s.ctxCancel = cancel
 
 	s.testTopic = "/waku/2/go/filter/test"
-	s.testContentTopic = "TopicA"
+	s.testContentTopic = "/test/10/my-app"
 
 	s.lightNode = s.makeWakuFilterLightNode(false, true)
 

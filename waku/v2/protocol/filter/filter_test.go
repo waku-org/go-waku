@@ -292,7 +292,7 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 func prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.StringGenerator) []WakuMsg {
 	var (
 		pubsubTopic     = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
-		contentTopic    = "TopicA"                 // Has to be the same with initial s.testContentTopic
+		contentTopic    = "/test/10/my-app"        // Has to be the same with initial s.testContentTopic
 		payload         = "test_msg"
 		messages        []WakuMsg
 		strMaxLenght    = 4097
@@ -342,7 +342,7 @@ func (s *FilterTestSuite) SetupTest() {
 	s.ctxCancel = cancel
 
 	s.testTopic = "/waku/2/go/filter/test"
-	s.testContentTopic = "TopicA"
+	s.testContentTopic = "/test/10/my-app"
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
 
