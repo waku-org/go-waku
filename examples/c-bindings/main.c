@@ -154,9 +154,7 @@ int main(int argc, char *argv[])
 
   // To use dns discovery, and retrieve nodes from a enrtree url
   char *discoveredNodes = NULL;
-  waku_dns_discovery("enrtree://"
-                     "AOGECG2SPND25EEFMAJ5WF3KSGJNSGV356DSTL2YVLLZWIV"
-                     "6SAYBM@test.waku.nodes.status.im",
+  waku_dns_discovery("enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
                      "", 0, on_response, (void *)&discoveredNodes);
   printf("Discovered nodes: %s\n", discoveredNodes);
 
