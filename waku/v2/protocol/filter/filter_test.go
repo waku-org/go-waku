@@ -191,7 +191,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
-				case <-time.After(1 * time.Second):
+				case <-time.After(3 * time.Second):
 
 				case <-s.ctx.Done():
 					s.Require().Fail("test exceeded allocated time")

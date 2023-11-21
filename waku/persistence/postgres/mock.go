@@ -35,7 +35,9 @@ func ResetDefaultTestPostgresDB(dropDBUrl string) error {
 
 func NewMockPgDB() *sql.DB {
 	mockPgDBPort := os.Getenv("TEST_DB_PORT")
-
+	if mockPgDBPort == "" {
+		mockPgDBPort = "5432"
+	}
 	//
 	dropDBUrl := fmt.Sprintf(dbUrlTemplate, mockPgDBPort, "template1")
 	if err := ResetDefaultTestPostgresDB(dropDBUrl); err != nil {
