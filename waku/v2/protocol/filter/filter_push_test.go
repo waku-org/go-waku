@@ -281,9 +281,9 @@ func (s *FilterTestSuite) TestMetaSizeOverLimit() {
 	message := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "test_payload")
 	message.Meta = make([]byte, 65)
 
-	// Should get accepted
+	// Should get rejected
 	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
-	s.Require().NoError(err)
+	s.Require().Error(err)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
