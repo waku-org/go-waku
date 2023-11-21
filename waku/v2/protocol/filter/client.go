@@ -482,15 +482,18 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 	result := &WakuFilterPushResult{}
 	for pTopic, cTopics := range pubSubTopicMap {
 		cFilter := protocol.NewContentFilter(pTopic, cTopics...)
-		peers, subs := wf.subscriptions.GetSubscription(params.selectedPeer, cFilter)
+
+		peers := make(map[peer.ID]struct{})
+		subs := wf.subscriptions.GetSubscription(params.selectedPeer, cFilter)
 		for _, sub := range subs {
 			sub.Remove(cTopics...)
+			peers[sub.PeerID] = struct{}{}
 		}
 		if params.wg != nil {
 			params.wg.Add(len(peers))
 		}
 		// send unsubscribe request to all the peers
-		for _, peerID := range peers {
+		for peerID := range peers {
 			go func(peerID peer.ID) {
 				defer func() {
 					if params.wg != nil {
@@ -516,7 +519,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 }
 
 func (wf *WakuFilterLightNode) Subscriptions() []*subscription.SubscriptionDetails {
-	_, subs := wf.subscriptions.GetSubscription("", protocol.ContentFilter{})
+	subs := wf.subscriptions.GetSubscription("", protocol.ContentFilter{})
 	return subs
 }
 
@@ -581,15 +584,17 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 		return nil, err
 	}
 
-	peerIds, subs := wf.subscriptions.GetSubscription(params.selectedPeer, protocol.ContentFilter{})
+	peers := make(map[peer.ID]struct{})
+	subs := wf.subscriptions.GetSubscription(params.selectedPeer, protocol.ContentFilter{})
 	for _, sub := range subs {
 		sub.Close()
+		peers[sub.PeerID] = struct{}{}
 	}
 	result := &WakuFilterPushResult{}
 	if params.wg != nil {
-		params.wg.Add(len(peerIds))
+		params.wg.Add(len(peers))
 	}
-	for _, peerId := range peerIds {
+	for peerId := range peers {
 		go func(peerID peer.ID) {
 			defer func() {
 				if params.wg != nil {
