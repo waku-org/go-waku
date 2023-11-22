@@ -249,6 +249,7 @@ func (s *FilterTestSuite) TestFuturePayloadEncryptionVersion() {
 	message.Version = &futureVersion
 
 	// Should get accepted
+
 	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
 	s.Require().NoError(err)
 
