@@ -166,12 +166,7 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		r.log.Debug("topic is not specified,using default waku topic")
 		topic = relay.DefaultWakuTopic
 	}
-	_, err := r.node.Relay().GetSubscriptionWithPubsubTopic(topic, "")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		writeErrResponse(w, r.log, err, http.StatusBadRequest)
-		return
-	}
+
 	var restMessage *RestWakuMessage
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&restMessage); err != nil {

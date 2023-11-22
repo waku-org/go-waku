@@ -72,10 +72,7 @@ func (r *RelayService) PostV1Message(req *http.Request, args *RelayMessageArgs, 
 	if args.Topic != "" {
 		topic = args.Topic
 	}
-	_, err = r.node.Relay().GetSubscriptionWithPubsubTopic(topic, "")
-	if err != nil {
-		return err
-	}
+
 	msg, err := args.Message.toProto()
 	if err != nil {
 		return err
