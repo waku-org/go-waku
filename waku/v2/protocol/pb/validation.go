@@ -7,22 +7,22 @@ import (
 const MaxMetaAttrLength = 64
 
 var (
-	errMissingPayload      = errors.New("missing Payload field")
-	errMissingContentTopic = errors.New("missing ContentTopic field")
-	errInvalidMetaLength   = errors.New("invalid length for Meta field")
+	ErrMissingPayload      = errors.New("missing Payload field")
+	ErrMissingContentTopic = errors.New("missing ContentTopic field")
+	ErrInvalidMetaLength   = errors.New("invalid length for Meta field")
 )
 
 func (msg *WakuMessage) Validate() error {
 	if len(msg.Payload) == 0 {
-		return errMissingPayload
+		return ErrMissingPayload
 	}
 
 	if msg.ContentTopic == "" {
-		return errMissingContentTopic
+		return ErrMissingContentTopic
 	}
 
 	if len(msg.Meta) > MaxMetaAttrLength {
-		return errInvalidMetaLength
+		return ErrInvalidMetaLength
 	}
 
 	return nil

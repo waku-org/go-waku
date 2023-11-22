@@ -9,6 +9,7 @@ import (
 	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
@@ -196,6 +197,9 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	_, err = r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
+		if err == pb.ErrMissingPayload || err == pb.ErrMissingContentTopic || err == pb.ErrInvalidMetaLength {
+			writeErrResponse(w, r.log, err, http.StatusBadRequest)
+		}
 	}
 
 	writeErrOrResponse(w, err, true)
