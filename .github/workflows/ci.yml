@@ -6,9 +6,6 @@ on:
     branches:
       - master
 
-env:
-  GO_VERSION: '1.20'
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -46,9 +43,24 @@ jobs:
       v2: ${{ steps.filter.outputs.v2 }}
       docker: ${{ steps.filter.outputs.docker }}
 
+  env:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: xom9ikk/dotenv@v2
+      with:
+        path: ".github/"
+    - run: |
+        echo "go_version=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
+
+    - run: |
+        VERSION=$(cat ./VERSION)
+        echo "waku_version=$VERSION" >> $GITHUB_OUTPUT
+
   golangci:
     name: lint
-    needs: changes
+    needs: [changes, env]
     if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +70,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }} 
+          go-version: ${{ needs.env.outputs.go_version }}
           cache: false
 
       - name: Execute golangci-lint
@@ -68,7 +80,7 @@ jobs:
           args: --deadline=5m
 
   build:
-    needs: changes
+    needs: [changes, env]
     if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
     strategy:
       matrix:
@@ -97,7 +109,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }} 
+          go-version: ${{ needs.env.outputs.go_version }}
           cache: false
 
       - name: Build binary
@@ -110,7 +122,7 @@ jobs:
         run: make build-example
 
   test:
-    needs: changes
+    needs: [changes, env]
     if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
     strategy:
       matrix:
@@ -139,7 +151,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }} 
+          go-version: ${{ needs.env.outputs.go_version }} 
           cache: false
 
       - name: "Run tests"
@@ -154,4 +166,3 @@ jobs:
         run: |
           docker compose -f .github/docker-compose/postgres.yml up -d
           make test-postgres${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}
-

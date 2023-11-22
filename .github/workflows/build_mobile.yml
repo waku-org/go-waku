@@ -88,12 +88,6 @@ jobs:
             .git/modules
           key: ${{ runner.os }}-vendor-modules-${{ steps.submodules.outputs.hash }}
 
-      - name: Read VERSION file
-        id: waku_version
-        run: |
-          VERSION=$(cat ./VERSION)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Install Go
         uses: actions/setup-go@v4
         with:
