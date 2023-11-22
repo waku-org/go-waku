@@ -199,6 +199,7 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 		r.log.Error("publishing message", zap.Error(err))
 		if err == pb.ErrMissingPayload || err == pb.ErrMissingContentTopic || err == pb.ErrInvalidMetaLength {
 			writeErrResponse(w, r.log, err, http.StatusBadRequest)
+			return
 		}
 	}
 
@@ -307,6 +308,10 @@ func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Reques
 	_, err = r.node.Relay().Publish(req.Context(), message)
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
+		if err == pb.ErrMissingPayload || err == pb.ErrMissingContentTopic || err == pb.ErrInvalidMetaLength {
+			writeErrResponse(w, r.log, err, http.StatusBadRequest)
+			return
+		}
 		writeErrResponse(w, r.log, err, http.StatusBadRequest)
 	} else {
 		w.WriteHeader(http.StatusOK)
