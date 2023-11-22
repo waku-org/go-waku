@@ -1,0 +1,217 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+env:
+  GO_VERSION: '1.20'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  changes: # changes detection
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+    - uses: actions/checkout@v3
+      name: Checkout code
+      id: checkout
+
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          common:
+          - '.github/workflows/**'
+          - 'Makefile'
+          - 'libs/**'
+
+          v2:
+          - 'waku/**'
+          - 'cmd/**'
+          - 'library/**'
+          - 'tests/**'
+
+          docker:
+          - 'docker/**'
+
+    outputs:
+      common: ${{ steps.filter.outputs.common }}
+      v2: ${{ steps.filter.outputs.v2 }}
+      docker: ${{ steps.filter.outputs.docker }}
+
+  golangci:
+    name: lint
+    needs: changes
+    if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }} 
+          cache: false
+
+      - name: Execute golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.55.2
+          args: --deadline=5m
+
+  build:
+    needs: changes
+    if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    name: build-${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get submodules hash
+        id: submodules
+        run: |
+          echo "hash=$(git submodule status | awk '{print $1}' | sort | shasum -a 256 | sed 's/[ -]*//g')" >> $GITHUB_OUTPUT
+
+      - name: Cache submodules
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/
+            .git/modules
+          key: ${{ runner.os }}-vendor-modules-${{ steps.submodules.outputs.hash }}
+      
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }} 
+          cache: false
+
+      - name: Build binary
+        run: make
+
+      - name: Build library
+        run: make static-library dynamic-library
+
+      - name: Build examples
+        run: make build-example
+
+  build-linux:
+    needs: changes
+    if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      matrix:
+        ext: [deb, rpm]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get submodules hash
+        id: submodules
+        run: |
+          echo "hash=$(git submodule status | awk '{print $1}' | sort | shasum -a 256 | sed 's/[ -]*//g')" >> $GITHUB_OUTPUT
+
+      - name: Cache submodules
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/
+            .git/modules
+          key: ${{ runner.os }}-vendor-modules-${{ steps.submodules.outputs.hash }}
+      
+      - name: Read VERSION file
+        id: waku_version
+        run: |
+          VERSION=$(cat ./VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }} 
+          cache: false
+
+      - name: Build
+        id: build
+        run: |
+          make build
+          mkdir ./build/linux
+          cp ./build/waku ./build/linux/.
+          strip --strip-unneeded ./build/linux/waku
+
+      - name: Package ${{ matrix.ext }}
+        uses: bpicode/github-action-fpm@master
+        with:
+          fpm_args: ./build/linux/waku=/usr/bin/waku
+          fpm_opts: '-p gowaku-${{ steps.waku_version.outputs.version }}-x86_64.${{ matrix.ext }} -n go-waku -t ${{ matrix.ext }} -s dir --license "MIT, Apache 2.0" --version ${{ steps.waku_version.outputs.version }} --architecture x86_64 --depends libc6 --description "Go implementation of Waku v2 protocols" --url "https://github.com/waku-org/go-waku" --maintainer "Richard Ramos <richard@status.im>"'
+
+      - name: Upload ${{ matrix.ext }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: gowaku-${{ steps.waku_version.outputs.version }}-x86_64.${{ matrix.ext }}
+          path: ./gowaku-${{ steps.waku_version.outputs.version }}-x86_64.${{ matrix.ext }}
+          if-no-files-found: error
+
+  test:
+    needs: changes
+    if: ${{ needs.changes.outputs.v2 == 'true' || needs.changes.outputs.common == 'true' }}
+    strategy:
+      matrix:
+        tests: [test-ci, test-with-race]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    name: ${{ matrix.tests }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get submodules hash
+        id: submodules
+        run: |
+          echo "hash=$(git submodule status | awk '{print $1}' | sort | shasum -a 256 | sed 's/[ -]*//g')" >> $GITHUB_OUTPUT
+
+      - name: Cache submodules
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/
+            .git/modules
+          key: ${{ runner.os }}-vendor-modules-${{ steps.submodules.outputs.hash }}
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }} 
+          cache: false
+
+      - name: "Run tests"
+        run: make ${{ matrix.tests }}
+
+      - name: "Run onchain-tests"
+        run: |
+          docker compose -f .github/docker-compose/ganache.yml up -d
+          make test-onchain${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}
+
+      - name: "Run tests with postgres"
+        run: |
+          docker compose -f .github/docker-compose/postgres.yml up -d
+          make test-postgres${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}
+
