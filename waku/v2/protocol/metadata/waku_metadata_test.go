@@ -3,12 +3,15 @@ package metadata
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"testing"
 	"time"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/multiformats/go-multistream"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -40,6 +43,11 @@ func createWakuMetadata(t *testing.T, rs *protocol.RelayShards) *WakuMetadata {
 	require.NoError(t, err)
 
 	return m1
+}
+
+func isProtocolNotSupported(err error) bool {
+	notSupportedErr := multistream.ErrNotSupported[libp2pProtocol.ID]{}
+	return errors.Is(err, notSupportedErr)
 }
 
 func TestWakuMetadataRequest(t *testing.T) {
@@ -79,11 +87,9 @@ func TestWakuMetadataRequest(t *testing.T) {
 	require.Equal(t, testShard16, result.ClusterID)
 	require.ElementsMatch(t, rs16_2.ShardIDs, result.ShardIDs)
 
-	// Query a peer not subscribed to a shard
-	result, err = m16_1.Request(context.Background(), m_noRS.h.ID())
-	require.NoError(t, err)
-	require.Equal(t, uint16(0), result.ClusterID)
-	require.Len(t, result.ShardIDs, 0)
+	// Query a peer not subscribed to any shard
+	_, err = m16_1.Request(context.Background(), m_noRS.h.ID())
+	require.True(t, isProtocolNotSupported(err))
 }
 
 func TestNoNetwork(t *testing.T) {
@@ -93,7 +99,7 @@ func TestNoNetwork(t *testing.T) {
 	require.NoError(t, err)
 	m1 := createWakuMetadata(t, &rs1)
 
-	// host2 does not support metadata protocol
+	// host2 does not support metadata protocol, so it should be dropped
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 	host2, err := tests.MakeHost(context.Background(), port, rand.Reader)
@@ -106,11 +112,9 @@ func TestNoNetwork(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Verifying peer connections
-	require.Len(t, m1.h.Network().Peers(), 1)
-	require.Len(t, host2.Network().Peers(), 1)
+	require.Len(t, m1.h.Network().Peers(), 0)
+	require.Len(t, host2.Network().Peers(), 0)
 }
-
-// go test -timeout 300s -run TestDropConnectionOnDiffNetworks github.com/waku-org/go-waku/waku/v2/protocol/metadata -count 1 -v
 
 func TestDropConnectionOnDiffNetworks(t *testing.T) {
 	cluster1 := uint16(1)
