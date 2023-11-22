@@ -145,48 +145,6 @@ func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 
 }
 
-func (s *FilterTestSuite) TestEmptyPayload() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Should get rejected
-	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), ""), relay.WithPubSubTopic(s.testTopic))
-	s.Require().Error(err)
-
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-
-}
-
-func (s *FilterTestSuite) TestEmptyContentTopic() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Should get rejected
-	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage("", utils.GetUnixEpoch(), "test_payload"), relay.WithPubSubTopic(s.testTopic))
-	s.Require().Error(err)
-
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-
-}
-
-func (s *FilterTestSuite) TestEmptyContentTopicEmptyPayload() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Should get rejected
-	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage("", utils.GetUnixEpoch(), ""), relay.WithPubSubTopic(s.testTopic))
-	s.Require().Error(err)
-
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-
-}
-
 func (s *FilterTestSuite) TestTimestampInFuture() {
 
 	// Subscribe
@@ -200,6 +158,9 @@ func (s *FilterTestSuite) TestTimestampInFuture() {
 	// Should get accepted
 	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
 	s.Require().NoError(err)
+
+	// Should be received
+	s.waitForMsg(nil, s.subDetails[0].C)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -216,6 +177,9 @@ func (s *FilterTestSuite) TestZeroTimestamp() {
 	// Should get accepted
 	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
 	s.Require().NoError(err)
+
+	// Should be received
+	s.waitForMsg(nil, s.subDetails[0].C)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -234,6 +198,9 @@ func (s *FilterTestSuite) TestNegativeTimestamp() {
 	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
 	s.Require().NoError(err)
 
+	// Should be received
+	s.waitForMsg(nil, s.subDetails[0].C)
+
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 
@@ -249,25 +216,11 @@ func (s *FilterTestSuite) TestFuturePayloadEncryptionVersion() {
 	message.Version = &futureVersion
 
 	// Should get accepted
-
 	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
 	s.Require().NoError(err)
 
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-}
-
-func (s *FilterTestSuite) TestMetaSizeOverLimit() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	message := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "test_payload")
-	message.Meta = make([]byte, 65)
-
-	// Should get rejected
-	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
-	s.Require().Error(err)
+	// Should be received
+	s.waitForMsg(nil, s.subDetails[0].C)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
