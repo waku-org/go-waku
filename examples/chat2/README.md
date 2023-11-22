@@ -17,6 +17,12 @@ To start the `chat2` application in its most basic form, run the following from 
 ./build/chat2
 ```
 
+You may need to set DNS server if behind a VPN,
+
+```
+./build/chat2 --dns-discovery-name-server 8.8.8.8
+```
+
 ## Specifying a static peer
 
 In order to connect to a *specific* node as [`relay`](https://specs.vac.dev/specs/waku/v2/waku-relay) peer, define that node's `multiaddr` as a `staticnode` when starting the app:

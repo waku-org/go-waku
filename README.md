@@ -85,7 +85,7 @@ make mobile-ios
 - [Send messages using Waku Lightpush](docs/api/lightpush.md)
 - [Encrypting and decrypting Waku Messages](docs/api/encoding.md)
 - [Retrieve message history using Waku Store](docs/api/store.md)
-- [C Bindings](library/README.md)
+- [C Bindings](library/c/README.md)
 - [Waku Specs](https://rfc.vac.dev/spec), has information of [waku topics](https://rfc.vac.dev/spec/23/), wakuv1/[wakuv2](https://rfc.vac.dev/spec/14/) message, [rln relay](https://rfc.vac.dev/spec/58/) etc.
 - [Enr](https://eips.ethereum.org/EIPS/eip-778), [Enrtree](https://eips.ethereum.org/EIPS/eip-1459)
 - [devp2p](https://github.com/ethereum/go-ethereum/tree/master/cmd/devp2p) tool for playing with enr/entree sync tree. [Tutorial](https://geth.ethereum.org/docs/developers/geth-developer/dns-discovery-setup)
