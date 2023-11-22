@@ -27,9 +27,9 @@ The app will run 2 nodes ("full" node and "light" node), with light node subscri
 3. Light node submits a FilterSubscribeRequest through WakuFilterLightNode.Subscribe. This request is submitted to a particular peer.
 Filter is stored in WakuFilterLightNode.subscriptions map. That's it.
 4. Now we wait on WakuFilterLightNode.onRequest to process any further messages.
-5. On receiving a message check and notify all subscribers on relevant channel (which is part of subscription obbject).
+5. On receiving a message check and notify all subscribers on relevant channel (which is part of subscription object).
 6. If a broadcaster is specified, 
-  WakuNode.Subscribe has a message loop extracting WakuMessages from a wakurelay.Subscription object.It denotes a pubsub topic subscription.All envelopes are then submitted to node.broadcaster.
+  WakuNode.Subscribe has a message loop extracting WakuMessages from a wakurelay.Subscription object. It denotes a pubsub topic subscription. All envelopes are then submitted to node.broadcaster.
 ### Full Node
 1. Full node is created with option WithWakuFilterFullNode.
 2. We read incoming messages in WithWakuFilterFullNode.onRequest(). It is set as a stream handler on wakunode.Host for WakuFilterProtocolId.
