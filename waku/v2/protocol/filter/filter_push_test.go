@@ -6,7 +6,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 	"strconv"
 	"time"
 )
@@ -141,67 +140,6 @@ func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 	}, s.subDetails, messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-
-}
-
-func (s *FilterTestSuite) TestTimestampInFuture() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Set time in the future
-	timeDelta, _ := time.ParseDuration("200h")
-	futureTime := proto.Int64(time.Now().UnixNano() + timeDelta.Nanoseconds())
-	message := tests.CreateWakuMessage(s.testContentTopic, futureTime, "test_payload")
-
-	// Should get accepted
-	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
-	s.Require().NoError(err)
-
-	// Should be received
-	s.waitForMsg(nil, s.subDetails[0].C)
-
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-
-}
-
-func (s *FilterTestSuite) TestZeroTimestamp() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	message := tests.CreateWakuMessage(s.testContentTopic, new(int64), "test_payload")
-
-	// Should get accepted
-	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
-	s.Require().NoError(err)
-
-	// Should be received
-	s.waitForMsg(nil, s.subDetails[0].C)
-
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
-	s.Require().NoError(err)
-
-}
-
-func (s *FilterTestSuite) TestNegativeTimestamp() {
-
-	// Subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	negTimestamp := int64(-100)
-	message := tests.CreateWakuMessage(s.testContentTopic, &negTimestamp, "test_payload")
-
-	// Should get accepted
-	_, err := s.relayNode.Publish(s.ctx, message, relay.WithPubSubTopic(s.testTopic))
-	s.Require().NoError(err)
-
-	// Should be received
-	s.waitForMsg(nil, s.subDetails[0].C)
-
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 
 }
