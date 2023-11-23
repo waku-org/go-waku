@@ -29,6 +29,9 @@ func TestFilterSuite(t *testing.T) {
 	suite.Run(t, new(FilterTestSuite))
 }
 
+const defaultTestPubSubTopic = "/waku/2/go/filter/test"
+const defaultTestContentTopic = "/test/10/my-app"
+
 type FilterTestSuite struct {
 	suite.Suite
 
@@ -291,8 +294,8 @@ func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 
 func prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.StringGenerator) []WakuMsg {
 	var (
-		pubsubTopic     = "/waku/2/go/filter/test" // Has to be the same with initial s.testTopic
-		contentTopic    = "TopicA"                 // Has to be the same with initial s.testContentTopic
+		pubsubTopic     = defaultTestPubSubTopic  // Has to be the same with initial s.testTopic
+		contentTopic    = defaultTestContentTopic // Has to be the same with initial s.testContentTopic
 		payload         = "test_msg"
 		messages        []WakuMsg
 		strMaxLenght    = 4097
@@ -341,8 +344,8 @@ func (s *FilterTestSuite) SetupTest() {
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
-	s.testTopic = "/waku/2/go/filter/test"
-	s.testContentTopic = "TopicA"
+	s.testTopic = defaultTestPubSubTopic
+	s.testContentTopic = defaultTestContentTopic
 
 	s.lightNode = s.makeWakuFilterLightNode(true, true)
 
