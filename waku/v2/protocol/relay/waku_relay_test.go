@@ -20,8 +20,11 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
+const defaultPubSubTopic = "/waku/2/go/relay/test"
+const defaultContentTopic = "/test/10/my-app"
+
 func TestWakuRelay(t *testing.T) {
-	testTopic := "/waku/2/go/relay/test"
+	testTopic := defaultPubSubTopic
 
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -85,7 +88,7 @@ func createRelayNode(t *testing.T) (host.Host, *WakuRelay) {
 }
 
 func TestGossipsubScore(t *testing.T) {
-	testTopic := "/waku/2/go/relay/test"
+	testTopic := defaultPubSubTopic
 
 	hosts := make([]host.Host, 5)
 	relay := make([]*WakuRelay, 5)
@@ -300,5 +303,55 @@ func TestWakuRelayAutoShard(t *testing.T) {
 
 	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
 	require.NoError(t, err)
+
+}
+
+func TestInvalidPushMessages(t *testing.T) {
+
+	testTopic := defaultPubSubTopic
+	testContentTopic := defaultContentTopic
+
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	bcaster := NewBroadcaster(10)
+	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay.SetHost(host)
+	err = relay.Start(context.Background())
+	require.NoError(t, err)
+
+	err = bcaster.Start(context.Background())
+	require.NoError(t, err)
+	defer relay.Stop()
+
+	ctx, ctxCancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+	require.NoError(t, err)
+
+	// Test empty contentTopic
+	_, err = relay.Publish(ctx, tests.CreateWakuMessage("", utils.GetUnixEpoch(), "test_payload"), WithPubSubTopic(testTopic))
+	require.Error(t, err)
+
+	// Test empty payload
+	_, err = relay.Publish(ctx, tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch(), ""), WithPubSubTopic(testTopic))
+	require.Error(t, err)
+
+	// Test empty contentTopic and payload
+	_, err = relay.Publish(ctx, tests.CreateWakuMessage("", utils.GetUnixEpoch(), ""), WithPubSubTopic(testTopic))
+	require.Error(t, err)
+
+	// Test Meta size over limit
+	message := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch(), "test_payload")
+	message.Meta = make([]byte, 65)
+	_, err = relay.Publish(ctx, message, WithPubSubTopic(testTopic))
+	require.Error(t, err)
+
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
+	require.NoError(t, err)
+
+	ctxCancel()
 
 }
