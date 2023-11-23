@@ -199,11 +199,13 @@ func (w *WakuRelay) upsertTopic(topic string) (*pubsub.Topic, error) {
 func (w *WakuRelay) subscribeToPubsubTopic(topic string) (*pubsubTopicSubscriptionDetails, error) {
 	w.topicsMutex.Lock()
 	defer w.topicsMutex.Unlock()
+	w.log.Info("subscribing to underlying pubsubTopic", zap.String("pubsubTopic", topic))
 
 	result, ok := w.topics[topic]
 	if !ok {
 		pubSubTopic, err := w.upsertTopic(topic)
 		if err != nil {
+			w.log.Info("failed to ", zap.String("pubsubTopic", topic))
 			return nil, err
 		}
 
@@ -484,10 +486,17 @@ func (w *WakuRelay) unsubscribeFromPubsubTopic(topicData *pubsubTopicSubscriptio
 
 	err := topicData.topic.Close()
 	if err != nil {
+		w.log.Error("failed to close the pubsubTopic", zap.String("topic", pubSubTopic))
 		return err
 	}
 
 	w.RemoveTopicValidator(pubSubTopic)
+
+	err = w.pubsub.UnregisterTopicValidator(pubSubTopic)
+	if err != nil {
+		w.log.Error("failed to unregister topic validator", zap.String("topic", pubSubTopic))
+		return err
+	}
 
 	delete(w.topics, pubSubTopic)
 
