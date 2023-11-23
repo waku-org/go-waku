@@ -20,11 +20,11 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-const defaultPubSubTopic = "/waku/2/go/relay/test"
-const defaultContentTopic = "/test/10/my-app"
+const defaultTestPubSubTopic = "/waku/2/go/relay/test"
+const defaultTestContentTopic = "/test/10/my-app"
 
 func TestWakuRelay(t *testing.T) {
-	testTopic := defaultPubSubTopic
+	testTopic := defaultTestPubSubTopic
 
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func createRelayNode(t *testing.T) (host.Host, *WakuRelay) {
 }
 
 func TestGossipsubScore(t *testing.T) {
-	testTopic := defaultPubSubTopic
+	testTopic := defaultTestPubSubTopic
 
 	hosts := make([]host.Host, 5)
 	relay := make([]*WakuRelay, 5)
@@ -306,10 +306,10 @@ func TestWakuRelayAutoShard(t *testing.T) {
 
 }
 
-func TestInvalidPushMessages(t *testing.T) {
+func TestInvalidMessagePublish(t *testing.T) {
 
-	testTopic := defaultPubSubTopic
-	testContentTopic := defaultContentTopic
+	testTopic := defaultTestPubSubTopic
+	testContentTopic := defaultTestContentTopic
 
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
