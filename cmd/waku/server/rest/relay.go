@@ -116,6 +116,7 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
+		r.log.Debug("topic is not specified, using default waku topic")
 		topic = relay.DefaultWakuTopic
 	}
 	//TODO: Update the API to also take a contentTopic since relay now supports filtering based on contentTopic as well.
@@ -163,7 +164,7 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
-		r.log.Debug("topic is not specified,using default waku topic")
+		r.log.Debug("topic is not specified, using default waku topic")
 		topic = relay.DefaultWakuTopic
 	}
 
