@@ -327,8 +327,11 @@ func (w *WakuRelay) GetSubscriptionWithPubsubTopic(pubsubTopic string, contentTo
 	} else {
 		contentFilter = waku_proto.NewContentFilter(pubsubTopic)
 	}
-
-	return w.getSubscription(contentFilter)
+	sub, err := w.getSubscription(contentFilter)
+	if err != nil {
+		err = errors.New("no subscription found for pubsubTopic")
+	}
+	return sub, err
 }
 
 // GetSubscription fetches subscription matching a contentTopic(via autosharding)

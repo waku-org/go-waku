@@ -10,6 +10,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// The functions writes error response in plain text format with specified statusCode
+func writeErrResponse(w http.ResponseWriter, log *zap.Logger, err error, statusCode int) {
+	w.WriteHeader(statusCode)
+	_, err = w.Write([]byte(err.Error()))
+	if err != nil {
+		log.Error("error while writing response", zap.Error(err))
+	}
+}
+
+// This function writes error or response in json format with statusCode as 500 in case of error
 func writeErrOrResponse(w http.ResponseWriter, err error, value interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -31,6 +41,7 @@ func writeErrOrResponse(w http.ResponseWriter, err error, value interface{}) {
 	}
 }
 
+// This function writes a response in json format
 func writeResponse(w http.ResponseWriter, value interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	jsonResponse, err := json.Marshal(value)

@@ -9,6 +9,7 @@ import (
 	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 )
@@ -56,6 +57,7 @@ func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Re
 	var topics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&topics); err != nil {
+		r.log.Error("decoding request failure", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -76,6 +78,7 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 	var topics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&topics); err != nil {
+		r.log.Error("decoding request failure", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -113,13 +116,14 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
-		return
+		r.log.Debug("topic is not specified, using default waku topic")
+		topic = relay.DefaultWakuTopic
 	}
 	//TODO: Update the API to also take a contentTopic since relay now supports filtering based on contentTopic as well.
 	sub, err := r.node.Relay().GetSubscriptionWithPubsubTopic(topic, "")
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		_, err = w.Write([]byte("not subscribed to topic"))
+		_, err = w.Write([]byte(err.Error()))
 		r.log.Error("writing response", zap.Error(err))
 		return
 	}
@@ -160,28 +164,28 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
-		return
+		r.log.Debug("topic is not specified, using default waku topic")
+		topic = relay.DefaultWakuTopic
 	}
 
 	var restMessage *RestWakuMessage
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&restMessage); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		r.log.Error("decoding request failure", zap.Error(err))
+		writeErrResponse(w, r.log, err, http.StatusBadRequest)
 		return
 	}
 	defer req.Body.Close()
 
-	if topic == "" {
-		topic = relay.DefaultWakuTopic
-	}
-
 	message, err := restMessage.ToProto()
 	if err != nil {
-		writeErrOrResponse(w, err, nil)
+		r.log.Error("failed to convert message to proto", zap.Error(err))
+		writeErrResponse(w, r.log, err, http.StatusBadRequest)
 		return
 	}
 
 	if err := server.AppendRLNProof(r.node, message); err != nil {
+		r.log.Error("failed to append RLN proof for the message", zap.Error(err))
 		writeErrOrResponse(w, err, nil)
 		return
 	}
@@ -189,6 +193,10 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 	_, err = r.node.Relay().Publish(req.Context(), message, relay.WithPubSubTopic(strings.Replace(topic, "\n", "", -1)))
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
+		if err == pb.ErrMissingPayload || err == pb.ErrMissingContentTopic || err == pb.ErrInvalidMetaLength {
+			writeErrResponse(w, r.log, err, http.StatusBadRequest)
+			return
+		}
 	}
 
 	writeErrOrResponse(w, err, true)
@@ -198,6 +206,7 @@ func (r *RelayService) deleteV1AutoSubscriptions(w http.ResponseWriter, req *htt
 	var cTopics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&cTopics); err != nil {
+		r.log.Error("decoding request failure", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -215,6 +224,7 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 	var cTopics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&cTopics); err != nil {
+		r.log.Error("decoding request failure", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -225,11 +235,11 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 	if err != nil {
 		r.log.Error("subscribing to topics", zap.Strings("contentTopics", cTopics), zap.Error(err))
 	}
+	r.log.Debug("subscribed to topics", zap.Strings("contentTopics", cTopics))
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write([]byte(err.Error()))
 		r.log.Error("writing response", zap.Error(err))
+		writeErrResponse(w, r.log, err, http.StatusBadRequest)
 	} else {
 		writeErrOrResponse(w, err, true)
 	}
@@ -241,9 +251,8 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 	cTopic := topicFromPath(w, req, "contentTopic", r.log)
 	sub, err := r.node.Relay().GetSubscription(cTopic)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_, err = w.Write([]byte("not subscribed to topic"))
 		r.log.Error("writing response", zap.Error(err))
+		writeErrResponse(w, r.log, err, http.StatusNotFound)
 		return
 	}
 	var response []*RestWakuMessage
@@ -275,7 +284,7 @@ func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Reques
 	var restMessage *RestWakuMessage
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&restMessage); err != nil {
-		r.log.Error("decoding message failure", zap.Error(err))
+		r.log.Error("decoding request failure", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -295,12 +304,11 @@ func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Reques
 	_, err = r.node.Relay().Publish(req.Context(), message)
 	if err != nil {
 		r.log.Error("publishing message", zap.Error(err))
-	}
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write([]byte(err.Error()))
-		r.log.Error("writing response", zap.Error(err))
+		if err == pb.ErrMissingPayload || err == pb.ErrMissingContentTopic || err == pb.ErrInvalidMetaLength {
+			writeErrResponse(w, r.log, err, http.StatusBadRequest)
+			return
+		}
+		writeErrResponse(w, r.log, err, http.StatusBadRequest)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
