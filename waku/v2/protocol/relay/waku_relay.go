@@ -208,7 +208,7 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (*pubsubTopicSubscripti
 	if !ok {
 		pubSubTopic, err := w.upsertTopic(topic)
 		if err != nil {
-			w.log.Error("failed to ", zap.String("pubsubTopic", topic))
+			w.log.Error("failed to upsert topic", zap.String("pubsubTopic", topic), zap.Error(err))
 			return nil, err
 		}
 
