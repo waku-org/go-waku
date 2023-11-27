@@ -8,16 +8,11 @@
 #include "_cgo_export.h"
 
 typedef void (*callback)(int retCode, const char *jsonEvent, void* userData);
-callback gCallback = 0;
 
-bool ServiceSignalEvent(const char *jsonEvent) {
-	if (gCallback) {
-		gCallback(0, jsonEvent, NULL);
+bool ServiceSignalEvent(void *cb, const char *jsonEvent) {
+	if (cb) {
+		((callback)cb)(0, jsonEvent, NULL);
 	}
 
 	return true;
-}
-
-void SetEventCallback(void *cb) {
-	gCallback = (callback)cb;
 }

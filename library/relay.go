@@ -11,9 +11,9 @@ import (
 )
 
 // RelayEnoughPeers determines if there are enough peers to publish a message on a topic
-func RelayEnoughPeers(topic string) (bool, error) {
-	if wakuState.node == nil {
-		return false, errWakuNodeNotReady
+func RelayEnoughPeers(instance *WakuInstance, topic string) (bool, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return false, err
 	}
 
 	topicToCheck := protocol.DefaultPubsubTopic{}.String()
@@ -21,45 +21,45 @@ func RelayEnoughPeers(topic string) (bool, error) {
 		topicToCheck = topic
 	}
 
-	return wakuState.node.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil
+	return instance.node.Relay().EnoughPeersToPublishToTopic(topicToCheck), nil
 }
 
-func relayPublish(msg *pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func relayPublish(instance *WakuInstance, msg *pb.WakuMessage, pubsubTopic string, ms int) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
-	hash, err := wakuState.node.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic))
+	hash, err := instance.node.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic))
 	return hexutil.Encode(hash), err
 }
 
 // RelayPublish publishes a message using waku relay and returns the message ID
-func RelayPublish(messageJSON string, topic string, ms int) (string, error) {
+func RelayPublish(instance *WakuInstance, messageJSON string, topic string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return "", err
 	}
 
-	return relayPublish(msg, topic, int(ms))
+	return relayPublish(instance, msg, topic, int(ms))
 }
 
-func relaySubscribe(filterJSON string) error {
+func relaySubscribe(instance *WakuInstance, filterJSON string) error {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
 		return err
 	}
 
-	subscriptions, err := wakuState.node.Relay().Subscribe(context.Background(), cf)
+	subscriptions, err := instance.node.Relay().Subscribe(context.Background(), cf)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func relaySubscribe(filterJSON string) error {
 	for _, sub := range subscriptions {
 		go func(subscription *relay.Subscription) {
 			for envelope := range subscription.Ch {
-				send("message", toSubscriptionMessage(envelope))
+				send(instance, "message", toSubscriptionMessage(envelope))
 			}
 		}(sub)
 	}
@@ -76,33 +76,33 @@ func relaySubscribe(filterJSON string) error {
 }
 
 // RelaySubscribe subscribes to a WakuRelay topic.
-func RelaySubscribe(contentFilterJSON string) error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func RelaySubscribe(instance *WakuInstance, contentFilterJSON string) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
-	return relaySubscribe(contentFilterJSON)
+	return relaySubscribe(instance, contentFilterJSON)
 }
 
 // RelayTopics returns a list of pubsub topics the node is subscribed to in WakuRelay
-func RelayTopics() (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func RelayTopics(instance *WakuInstance) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
-	return marshalJSON(wakuState.node.Relay().Topics())
+	return marshalJSON(instance.node.Relay().Topics())
 }
 
 // RelayUnsubscribe closes the pubsub subscription to a pubsub topic
-func RelayUnsubscribe(contentFilterJSON string) error {
+func RelayUnsubscribe(instance *WakuInstance, contentFilterJSON string) error {
 	cf, err := toContentFilter(contentFilterJSON)
 	if err != nil {
 		return err
 	}
 
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
-	return wakuState.node.Relay().Unsubscribe(context.Background(), cf)
+	return instance.node.Relay().Unsubscribe(context.Background(), cf)
 }

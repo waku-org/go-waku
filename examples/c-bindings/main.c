@@ -25,7 +25,7 @@ void on_error(int ret, const char *result, void *user_data)
     return;
   }
 
-  printf("function execution failed. Returned code: %d\n", ret);
+  printf("function execution failed. Returned code: %d, %s\n", ret, result);
   exit(1);
 }
 
@@ -33,7 +33,7 @@ void on_response(int ret, const char *result, void *user_data)
 {
   if (ret != 0)
   {
-    printf("function execution failed. Returned code: %d\n", ret);
+    printf("function execution failed. Returned code: %d, %s\n", ret, result);
     exit(1);
   }
 
@@ -119,26 +119,28 @@ void callBack(int ret, const char *signal, void *user_data)
 
 int main(int argc, char *argv[])
 {
+  void* ctx = waku_init();
+
   // Set callback to be executed each time a message is received
-  waku_set_event_callback(callBack);
+  waku_set_event_callback(ctx, callBack);
 
   // configJSON can be NULL too to use defaults. Any value not defined will have
   // a default set
   char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000, "
                      "\"logLevel\":\"error\", \"store\":true}";
-  waku_new(configJSON, on_error, NULL);
+  waku_new(ctx, configJSON, on_error, NULL);
 
   // Start the node, enabling the waku protocols
-  waku_start(on_error, NULL);
+  waku_start(ctx, on_error, NULL);
 
   // Obtain the node's peerID
   char *peerID = NULL;
-  waku_peerid(on_response, (void *)&peerID);
+  waku_peerid(ctx, on_response, (void *)&peerID);
   printf("PeerID: %s\n", peerID);
 
   // Obtain the node's multiaddresses
   char *addresses = NULL;
-  waku_listen_addresses(on_response, (void *)&addresses);
+  waku_listen_addresses(ctx, on_response, (void *)&addresses);
   printf("Addresses: %s\n", addresses);
 
   // Build a content topic
@@ -154,12 +156,12 @@ int main(int argc, char *argv[])
 
   // To use dns discovery, and retrieve nodes from a enrtree url
   char *discoveredNodes = NULL;
-  waku_dns_discovery("enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
+  waku_dns_discovery(ctx, "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
                      "", 0, on_response, (void *)&discoveredNodes);
   printf("Discovered nodes: %s\n", discoveredNodes);
 
   // Connect to a node
-  waku_connect("/dns4/node-01.do-ams3.wakuv2.test.statusim.net/tcp/30303/"
+  waku_connect(ctx, "/dns4/node-01.do-ams3.wakuv2.test.statusim.net/tcp/30303/"
                "p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ",
                0, on_response, NULL);
 
@@ -176,7 +178,7 @@ int main(int argc, char *argv[])
   sprintf(contentFilter,
           "{\"pubsubTopic\":\"%s\",\"contentTopics\":[\"%s\"]}",
           defaultPubsubTopic, contentTopic);
-  waku_relay_subscribe(contentFilter, on_error, NULL);
+  waku_relay_subscribe(ctx, contentFilter, on_error, NULL);
 
   int i = 0;
   int version = 1;
@@ -202,7 +204,7 @@ int main(int argc, char *argv[])
 
     // Broadcast via waku relay
     char *messageID = NULL;
-    waku_relay_publish(encodedMessage, defaultPubsubTopic, 0, on_response,
+    waku_relay_publish(ctx, encodedMessage, defaultPubsubTopic, 0, on_response,
                        (void *)&messageID);
     printf("MessageID: %s\n", messageID);
 
@@ -221,7 +223,10 @@ int main(int argc, char *argv[])
   // printf("%s\n", local_result);
 
   // Stop the node's execution
-  waku_stop(on_response, NULL);
+  waku_stop(ctx, on_response, NULL);
+
+  // Release resources allocated to waku
+  waku_free(ctx, on_response, NULL);
 
   // TODO: free all char*
 

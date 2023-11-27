@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"unsafe"
 
 	"go.uber.org/zap/zapcore"
 
@@ -29,19 +30,30 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-// WakuState represents the state of the waku node
-type WakuState struct {
+// WakuInstance represents the state of the waku node
+type WakuInstance struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	ID     uint
 
-	node *node.WakuNode
+	node                *node.WakuNode
+	cb                  unsafe.Pointer
+	mobileSignalHandler MobileSignalHandler
 
 	relayTopics []string
 }
 
-var wakuState WakuState
+var wakuInstances map[uint]*WakuInstance
 
-var errWakuNodeNotReady = errors.New("go-waku not initialized")
+var errWakuNodeNotReady = errors.New("not initialized")
+var errWakuNodeAlreadyConfigured = errors.New("already configured")
+var errWakuNodeNotConfigured = errors.New("not configured")
+var errWakuAlreadyStarted = errors.New("already started")
+var errWakuNodeNotStarted = errors.New("not started")
+
+func init() {
+	wakuInstances = make(map[uint]*WakuInstance)
+}
 
 func randomHex(n int) (string, error) {
 	bytes := make([]byte, n)
@@ -51,10 +63,66 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+func Init() *WakuInstance {
+	id := uint(len(wakuInstances))
+	instance := &WakuInstance{
+		ID: id,
+	}
+	wakuInstances[id] = instance
+	return instance
+}
+
+func GetInstance(id uint) (*WakuInstance, error) {
+	instance, ok := wakuInstances[id]
+	if !ok {
+		return nil, errors.New("instance not found")
+	}
+
+	return instance, nil
+}
+
+type ValidationType int64
+
+const (
+	None          ValidationType = iota
+	MustBeStarted ValidationType = iota
+	MustBeStopped
+	NotConfigured
+)
+
+func validateInstance(instance *WakuInstance, validationType ValidationType) error {
+	if instance == nil {
+		return errWakuNodeNotReady
+	}
+
+	switch validationType {
+	case NotConfigured:
+		if instance.node != nil {
+			return errWakuNodeAlreadyConfigured
+		}
+	case MustBeStarted:
+		if instance.node == nil {
+			return errWakuNodeNotConfigured
+		}
+		if instance.ctx == nil {
+			return errWakuNodeNotStarted
+		}
+	case MustBeStopped:
+		if instance.node == nil {
+			return errWakuNodeNotConfigured
+		}
+		if instance.ctx != nil {
+			return errWakuAlreadyStarted
+		}
+	}
+
+	return nil
+}
+
 // NewNode initializes a waku node. Receives a JSON string containing the configuration, and use default values for those config items not specified
-func NewNode(configJSON string) error {
-	if wakuState.node != nil {
-		return errors.New("go-waku already initialized. stop it first")
+func NewNode(instance *WakuInstance, configJSON string) error {
+	if err := validateInstance(instance, NotConfigured); err != nil {
+		return err
 	}
 
 	config, err := getConfig(configJSON)
@@ -152,7 +220,7 @@ func NewNode(configJSON string) error {
 		opts = append(opts, discv5Opts)
 	}
 
-	wakuState.relayTopics = config.RelayTopics
+	instance.relayTopics = config.RelayTopics
 
 	lvl, err := zapcore.ParseLevel(*config.LogLevel)
 	if err != nil {
@@ -167,34 +235,43 @@ func NewNode(configJSON string) error {
 		return err
 	}
 
-	wakuState.node = w
+	instance.node = w
 
 	return nil
 }
 
-// Start starts the waku node
-func Start() error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func stop(instance *WakuInstance) {
+	if instance.cancel != nil {
+		instance.node.Stop()
+		instance.cancel()
+		instance.cancel = nil
+		instance.ctx = nil
 	}
+}
 
-	wakuState.ctx, wakuState.cancel = context.WithCancel(context.Background())
-
-	if err := wakuState.node.Start(wakuState.ctx); err != nil {
+// Start starts the waku node
+func Start(instance *WakuInstance) error {
+	if err := validateInstance(instance, MustBeStopped); err != nil {
 		return err
 	}
 
-	if wakuState.node.DiscV5() != nil {
-		if err := wakuState.node.DiscV5().Start(context.Background()); err != nil {
-			wakuState.node.Stop()
+	instance.ctx, instance.cancel = context.WithCancel(context.Background())
+
+	if err := instance.node.Start(instance.ctx); err != nil {
+		return err
+	}
+
+	if instance.node.DiscV5() != nil {
+		if err := instance.node.DiscV5().Start(context.Background()); err != nil {
+			stop(instance)
 			return err
 		}
 	}
 
-	for _, topic := range wakuState.relayTopics {
-		err := relaySubscribe(topic)
+	for _, topic := range instance.relayTopics {
+		err := relaySubscribe(instance, topic)
 		if err != nil {
-			wakuState.node.Stop()
+			stop(instance)
 			return err
 		}
 	}
@@ -203,42 +280,53 @@ func Start() error {
 }
 
 // Stop stops a waku node
-func Stop() error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func Stop(instance *WakuInstance) error {
+	if err := validateInstance(instance, None); err != nil {
+		return err
 	}
 
-	wakuState.node.Stop()
+	stop(instance)
 
-	wakuState.cancel()
+	return nil
+}
 
-	wakuState.node = nil
+// Free stops a waku instance and frees the resources allocated to a waku node
+func Free(instance *WakuInstance) error {
+	if err := validateInstance(instance, None); err != nil {
+		return err
+	}
+
+	if instance.cancel != nil {
+		stop(instance)
+	}
+
+	delete(wakuInstances, instance.ID)
 
 	return nil
 }
 
 // IsStarted is used to determine is a node is started or not
-func IsStarted() bool {
-	return wakuState.node != nil
+func IsStarted(instance *WakuInstance) bool {
+	return instance != nil && instance.ctx != nil
 }
 
 // PeerID is used to obtain the peer ID of the waku node
-func PeerID() (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func PeerID(instance *WakuInstance) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
-	return wakuState.node.ID(), nil
+	return instance.node.ID(), nil
 }
 
 // ListenAddresses returns the multiaddresses the wakunode is listening to
-func ListenAddresses() (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func ListenAddresses(instance *WakuInstance) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var addresses []string
-	for _, addr := range wakuState.node.ListenAddresses() {
+	for _, addr := range instance.node.ListenAddresses() {
 		addresses = append(addresses, addr.String())
 	}
 
@@ -246,9 +334,9 @@ func ListenAddresses() (string, error) {
 }
 
 // AddPeer adds a node multiaddress and protocol to the wakunode peerstore
-func AddPeer(address string, protocolID string) (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func AddPeer(instance *WakuInstance, address string, protocolID string) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	ma, err := multiaddr.NewMultiaddr(address)
@@ -256,7 +344,7 @@ func AddPeer(address string, protocolID string) (string, error) {
 		return "", err
 	}
 
-	peerID, err := wakuState.node.AddPeer(ma, peerstore.Static, wakuState.relayTopics, libp2pProtocol.ID(protocolID))
+	peerID, err := instance.node.AddPeer(ma, peerstore.Static, instance.relayTopics, libp2pProtocol.ID(protocolID))
 	if err != nil {
 		return "", err
 	}
@@ -265,28 +353,28 @@ func AddPeer(address string, protocolID string) (string, error) {
 }
 
 // Connect is used to connect to a peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
-func Connect(address string, ms int) error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func Connect(instance *WakuInstance, address string, ms int) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
-	return wakuState.node.DialPeer(ctx, address)
+	return instance.node.DialPeer(ctx, address)
 }
 
 // ConnectPeerID is usedd to connect to a known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
-func ConnectPeerID(peerID string, ms int) error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func ConnectPeerID(instance *WakuInstance, peerID string, ms int) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	var ctx context.Context
@@ -298,19 +386,19 @@ func ConnectPeerID(peerID string, ms int) error {
 	}
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
-	return wakuState.node.DialPeerByID(ctx, pID)
+	return instance.node.DialPeerByID(ctx, pID)
 }
 
 // Disconnect closes a connection to a known peer by peerID
-func Disconnect(peerID string) error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func Disconnect(instance *WakuInstance, peerID string) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	pID, err := peer.Decode(peerID)
@@ -318,16 +406,16 @@ func Disconnect(peerID string) error {
 		return err
 	}
 
-	return wakuState.node.ClosePeerById(pID)
+	return instance.node.ClosePeerById(pID)
 }
 
 // PeerCnt returns the number of connected peers
-func PeerCnt() (int, error) {
-	if wakuState.node == nil {
-		return 0, errWakuNodeNotReady
+func PeerCnt(instance *WakuInstance) (int, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return 0, err
 	}
 
-	return wakuState.node.PeerCount(), nil
+	return instance.node.PeerCount(), nil
 }
 
 // ContentTopic creates a content topic string according to RFC 23
@@ -356,12 +444,12 @@ func toSubscriptionMessage(msg *protocol.Envelope) *subscriptionMsg {
 }
 
 // Peers retrieves the list of peers known by the waku node
-func Peers() (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func Peers(instance *WakuInstance) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
-	peers, err := wakuState.node.Peers()
+	peers, err := instance.node.Peers()
 	if err != nil {
 		return "", err
 	}

@@ -58,34 +58,37 @@ func DNSDiscovery(url string, nameserver string, ms int) (string, error) {
 }
 
 // StartDiscoveryV5 starts discv5 discovery
-func StartDiscoveryV5() error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func StartDiscoveryV5(instance *WakuInstance) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
-	if wakuState.node.DiscV5() == nil {
+
+	if instance.node.DiscV5() == nil {
 		return errors.New("DiscV5 is not mounted")
 	}
-	return wakuState.node.DiscV5().Start(context.Background())
+	return instance.node.DiscV5().Start(instance.ctx)
 }
 
 // StopDiscoveryV5 stops discv5 discovery
-func StopDiscoveryV5() error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func StopDiscoveryV5(instance *WakuInstance) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
-	if wakuState.node.DiscV5() == nil {
+
+	if instance.node.DiscV5() == nil {
 		return errors.New("DiscV5 is not mounted")
 	}
-	wakuState.node.DiscV5().Stop()
+	instance.node.DiscV5().Stop()
 	return nil
 }
 
 // SetBootnodes is used to update the bootnodes receiving a JSON array of ENRs
-func SetBootnodes(bootnodes string) error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func SetBootnodes(instance *WakuInstance, bootnodes string) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
-	if wakuState.node.DiscV5() == nil {
+
+	if instance.node.DiscV5() == nil {
 		return errors.New("DiscV5 is not mounted")
 	}
 
@@ -112,5 +115,5 @@ func SetBootnodes(bootnodes string) error {
 		nodes = append(nodes, node)
 	}
 
-	return wakuState.node.DiscV5().SetBootnodes(nodes)
+	return instance.node.DiscV5().SetBootnodes(nodes)
 }

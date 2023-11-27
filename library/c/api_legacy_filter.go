@@ -27,8 +27,13 @@ import (
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_legacy_filter_subscribe
-func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.LegacyFilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
+func waku_legacy_filter_subscribe(ctx unsafe.Pointer, filterJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.LegacyFilterSubscribe(instance, C.GoString(filterJSON), C.GoString(peerID), int(ms))
 	return onError(err, cb, userData)
 }
 
@@ -48,7 +53,12 @@ func waku_legacy_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, 
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_legacy_filter_unsubscribe
-func waku_legacy_filter_unsubscribe(filterJSON *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.LegacyFilterUnsubscribe(C.GoString(filterJSON), int(ms))
+func waku_legacy_filter_unsubscribe(ctx unsafe.Pointer, filterJSON *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.LegacyFilterUnsubscribe(instance, C.GoString(filterJSON), int(ms))
 	return onError(err, cb, userData)
 }

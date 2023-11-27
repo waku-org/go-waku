@@ -9,6 +9,8 @@ import "C"
 import (
 	"errors"
 	"unsafe"
+
+	"github.com/waku-org/go-waku/library"
 )
 
 const ret_ok = 0
@@ -50,4 +52,13 @@ func onError(err error, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
 	retCode = ret_ok
 	C._waku_execCB(cb, C.int(retCode), nil, userData)
 	return ret_ok
+}
+
+func getInstance(wakuCtx unsafe.Pointer) (*library.WakuInstance, error) {
+	pid := (*uint)(wakuCtx)
+	if pid == nil {
+		return nil, errors.New("invalid waku context")
+	}
+
+	return library.GetInstance(*pid)
 }

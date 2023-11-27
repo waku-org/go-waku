@@ -4,8 +4,7 @@ package library
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
-extern bool ServiceSignalEvent(const char *jsonEvent);
-extern void SetEventCallback(void *cb);
+extern bool ServiceSignalEvent(void *cb, const char *jsonEvent);
 */
 import "C"
 
@@ -36,7 +35,7 @@ func newEnvelope(signalType string, event interface{}) *signalEnvelope {
 }
 
 // send sends application signal (in JSON) upwards to application (via default notification handler)
-func send(signalType string, event interface{}) {
+func send(instance *WakuInstance, signalType string, event interface{}) {
 
 	signal := newEnvelope(signalType, event)
 	data, err := json.Marshal(&signal)
@@ -45,25 +44,33 @@ func send(signalType string, event interface{}) {
 		return
 	}
 	// If a Go implementation of signal handler is set, let's use it.
-	if mobileSignalHandler != nil {
-		mobileSignalHandler(data)
+	if instance.mobileSignalHandler != nil {
+		instance.mobileSignalHandler(data)
 	} else {
 		// ...and fallback to C implementation otherwise.
 		dataStr := string(data)
 		str := C.CString(dataStr)
-		C.ServiceSignalEvent(str)
+		C.ServiceSignalEvent(instance.cb, str)
 		C.free(unsafe.Pointer(str))
 	}
 }
 
 // SetEventCallback is to set a callback in order to receive application
 // signals which are used to react to asynchronous events in waku.
-func SetEventCallback(cb unsafe.Pointer) {
-	C.SetEventCallback(cb)
+func SetEventCallback(instance *WakuInstance, cb unsafe.Pointer) {
+	if err := validateInstance(instance, None); err != nil {
+		panic(err.Error())
+	}
+
+	instance.cb = cb
 }
 
 // SetMobileSignalHandler sets the callback to be executed when a signal
 // is received in a mobile device
-func SetMobileSignalHandler(m MobileSignalHandler) {
-	mobileSignalHandler = m
+func SetMobileSignalHandler(instance *WakuInstance, m MobileSignalHandler) {
+	if err := validateInstance(instance, None); err != nil {
+		panic(err.Error())
+	}
+
+	instance.mobileSignalHandler = m
 }
