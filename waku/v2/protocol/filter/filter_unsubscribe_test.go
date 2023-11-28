@@ -2,9 +2,13 @@ package filter
 
 import (
 	"context"
+	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -258,4 +262,42 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 		}, s.subDetails[i].C)
 	}
 
+}
+
+func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
+
+	var messages = prepareData(2, false, true, false, nil)
+
+	// Subscribe with 2 content topics
+	for _, m := range messages {
+		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+	}
+
+	// All messages should be received
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	// Create new host - not related to any node
+	host, err := tests.MakeHost(context.Background(), 12345, rand.Reader)
+	s.Require().NoError(err)
+
+	s.log.Info("Host ID", logging.HostID("FullNode", s.fullNodeHost.ID()))
+	s.log.Info("Host ID", logging.HostID("LightNode", s.lightNodeHost.ID()))
+	s.log.Info("Host ID", logging.HostID("Unrelated", host.ID()))
+
+	// Unsubscribe all with unrelated peer specification
+	pushResult, err := s.lightNode.UnsubscribeAll(s.ctx, WithPeer(host.ID()))
+
+	for e := range pushResult.errs {
+		s.log.Info("Push Result ", zap.String("error", strconv.Itoa(e)))
+	}
+
+	// All messages should be received because peer ID used was not related to any subscription
+	s.waitForMessages(func() {
+		s.publishMessages(messages)
+	}, s.subDetails, messages)
+
+	// Expect error for unsubscribe from non existing peer
+	s.Require().Error(err)
 }
