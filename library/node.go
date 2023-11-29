@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -44,6 +45,7 @@ type WakuInstance struct {
 }
 
 var wakuInstances map[uint]*WakuInstance
+var wakuInstancesMutex sync.RWMutex
 
 var errWakuNodeNotReady = errors.New("not initialized")
 var errWakuNodeAlreadyConfigured = errors.New("already configured")
@@ -64,6 +66,9 @@ func randomHex(n int) (string, error) {
 }
 
 func Init() *WakuInstance {
+	wakuInstancesMutex.Lock()
+	defer wakuInstancesMutex.Unlock()
+
 	id := uint(len(wakuInstances))
 	instance := &WakuInstance{
 		ID: id,
@@ -73,6 +78,9 @@ func Init() *WakuInstance {
 }
 
 func GetInstance(id uint) (*WakuInstance, error) {
+	wakuInstancesMutex.RLock()
+	defer wakuInstancesMutex.RUnlock()
+
 	instance, ok := wakuInstances[id]
 	if !ok {
 		return nil, errors.New("instance not found")
@@ -300,6 +308,8 @@ func Free(instance *WakuInstance) error {
 		stop(instance)
 	}
 
+	wakuInstancesMutex.Lock()
+	defer wakuInstancesMutex.Unlock()
 	delete(wakuInstances, instance.ID)
 
 	return nil
