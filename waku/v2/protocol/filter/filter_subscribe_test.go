@@ -426,3 +426,27 @@ func (s *FilterTestSuite) TestFilterSubscription() {
 	s.Require().Nil(nonSubscription)
 
 }
+
+func (s *FilterTestSuite) TestHandleFilterSubscribeOptions() {
+	contentFilter := protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+
+	// Subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// With valid peer
+	opts := []FilterSubscribeOption{WithPeer(s.fullNodeHost.ID())}
+
+	// Positive case
+	_, _, err := s.lightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)
+	s.Require().NoError(err)
+
+	addr := s.fullNodeHost.Addrs()[0]
+
+	// Combine mutually exclusive options
+	opts = []FilterSubscribeOption{WithPeer(s.fullNodeHost.ID()), WithPeerAddr(addr)}
+
+	// Should fail on wrong option combination
+	_, _, err = s.lightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)
+	s.Require().Error(err)
+
+}
