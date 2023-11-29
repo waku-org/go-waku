@@ -556,6 +556,29 @@ func (s *FilterTestSuite) TestAutoShard() {
 
 }
 
+func (s *FilterTestSuite) TestLightNodeIsListening() {
+
+	messages := prepareData(2, true, true, false, nil)
+
+	// Subscribe with the first message only
+	s.subDetails = s.subscribe(messages[0].pubSubTopic, messages[0].contentTopic, s.fullNodeHost.ID())
+
+	// IsListening returns true for the first message
+	listenStatus := s.lightNode.IsListening(messages[0].pubSubTopic, messages[0].contentTopic)
+	s.Require().True(listenStatus)
+
+	// IsListening returns false for the second message
+	listenStatus = s.lightNode.IsListening(messages[1].pubSubTopic, messages[1].contentTopic)
+	s.Require().False(listenStatus)
+
+	// IsListening returns false for combination as well
+	listenStatus = s.lightNode.IsListening(messages[0].pubSubTopic, messages[1].contentTopic)
+	s.Require().False(listenStatus)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+}
+
 func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {
 	s.log.Info("Executing ", zap.String("testName", testName))
 }
