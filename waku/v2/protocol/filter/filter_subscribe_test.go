@@ -398,3 +398,31 @@ func (s *FilterTestSuite) TestIsSubscriptionAlive() {
 	s.Require().Error(err)
 
 }
+
+func (s *FilterTestSuite) TestFilterSubscription() {
+	contentFilter := protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+
+	// Subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// Returns no error and SubscriptionDetails for existing subscription
+	_, err := s.lightNode.FilterSubscription(s.fullNodeHost.ID(), contentFilter)
+	s.Require().NoError(err)
+
+	otherFilter := protocol.ContentFilter{PubsubTopic: "34583495", ContentTopics: protocol.NewContentTopicSet("sjfa402")}
+
+	// Returns error and nil SubscriptionDetails for non existent subscription
+	nonSubscription, err := s.lightNode.FilterSubscription(s.fullNodeHost.ID(), otherFilter)
+	s.Require().Error(err)
+	s.Require().Nil(nonSubscription)
+
+	// Create new host/peer - not related to any node
+	host, err := tests.MakeHost(context.Background(), 54321, rand.Reader)
+	s.Require().NoError(err)
+
+	// Returns error and nil SubscriptionDetails for unrelated host/peer
+	nonSubscription, err = s.lightNode.FilterSubscription(host.ID(), contentFilter)
+	s.Require().Error(err)
+	s.Require().Nil(nonSubscription)
+
+}
