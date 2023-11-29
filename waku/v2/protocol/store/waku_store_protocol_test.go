@@ -79,7 +79,7 @@ func TestWakuStoreProtocolQuery(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 1)
-	require.Equal(t, msg, response.Messages[0])
+	require.True(t, proto.Equal(msg, response.Messages[0]))
 }
 
 func TestWakuStoreProtocolLocalQuery(t *testing.T) {
