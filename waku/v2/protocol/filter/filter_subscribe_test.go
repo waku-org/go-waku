@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"sync"
@@ -372,5 +373,28 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	// Check the content topic is what we have set
 	_, hasTestContentTopic := contentTopics[testContentTopic]
 	s.Require().True(hasTestContentTopic)
+
+}
+
+func (s *FilterTestSuite) TestIsSubscriptionAlive() {
+	messages := prepareData(2, false, true, false, nil)
+
+	// Subscribe with the first message only
+	s.subDetails = s.subscribe(messages[0].pubSubTopic, messages[0].contentTopic, s.fullNodeHost.ID())
+
+	// IsSubscriptionAlive returns no error for the first message
+	err := s.lightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
+	s.Require().NoError(err)
+
+	// Create new host/peer - not related to any node
+	host, err := tests.MakeHost(context.Background(), 54321, rand.Reader)
+	s.Require().NoError(err)
+
+	// Alter the existing peer ID in sub details
+	s.subDetails[0].PeerID = host.ID()
+
+	// IsSubscriptionAlive returns error for the second message, peer ID doesn't match
+	err = s.lightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
+	s.Require().Error(err)
 
 }
