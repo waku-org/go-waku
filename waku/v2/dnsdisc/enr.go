@@ -2,6 +2,7 @@ package dnsdisc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -18,18 +19,26 @@ type dnsDiscoveryParameters struct {
 	resolver   dnsdisc.Resolver
 }
 
-type DNSDiscoveryOption func(*dnsDiscoveryParameters)
+type DNSDiscoveryOption func(*dnsDiscoveryParameters) error
 
 // WithNameserver is a DnsDiscoveryOption that configures the nameserver to use
 func WithNameserver(nameserver string) DNSDiscoveryOption {
-	return func(params *dnsDiscoveryParameters) {
+	return func(params *dnsDiscoveryParameters) error {
+		if params.resolver != nil {
+			return errors.New("cannot set both nameserver and resolver")
+		}
 		params.nameserver = nameserver
+		return nil
 	}
 }
 
 func WithResolver(resolver dnsdisc.Resolver) DNSDiscoveryOption {
-	return func(params *dnsDiscoveryParameters) {
+	return func(params *dnsDiscoveryParameters) error {
+		if params.nameserver != "" {
+			return errors.New("cannot set both nameserver and resolver")
+		}
 		params.resolver = resolver
+		return nil
 	}
 }
 
