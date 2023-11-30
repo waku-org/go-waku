@@ -15,6 +15,7 @@ import (
 
 type dnsDiscoveryParameters struct {
 	nameserver string
+	resolver   dnsdisc.Resolver
 }
 
 type DNSDiscoveryOption func(*dnsDiscoveryParameters)
@@ -23,6 +24,12 @@ type DNSDiscoveryOption func(*dnsDiscoveryParameters)
 func WithNameserver(nameserver string) DNSDiscoveryOption {
 	return func(params *dnsDiscoveryParameters) {
 		params.nameserver = nameserver
+	}
+}
+
+func WithResolver(resolver dnsdisc.Resolver) DNSDiscoveryOption {
+	return func(params *dnsDiscoveryParameters) {
+		params.resolver = resolver
 	}
 }
 
@@ -52,8 +59,12 @@ func RetrieveNodes(ctx context.Context, url string, opts ...DNSDiscoveryOption) 
 		opt(params)
 	}
 
+	if params.resolver == nil {
+		params.resolver = GetResolver(ctx, params.nameserver)
+	}
+
 	client := dnsdisc.NewClient(dnsdisc.Config{
-		Resolver: GetResolver(ctx, params.nameserver),
+		Resolver: params.resolver,
 	})
 
 	tree, err := client.SyncTree(url)
