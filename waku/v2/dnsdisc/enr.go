@@ -21,11 +21,13 @@ type dnsDiscoveryParameters struct {
 
 type DNSDiscoveryOption func(*dnsDiscoveryParameters) error
 
+var ErrExclusiveOpts = errors.New("cannot set both nameserver and resolver")
+
 // WithNameserver is a DnsDiscoveryOption that configures the nameserver to use
 func WithNameserver(nameserver string) DNSDiscoveryOption {
 	return func(params *dnsDiscoveryParameters) error {
 		if params.resolver != nil {
-			return errors.New("cannot set both nameserver and resolver")
+			return ErrExclusiveOpts
 		}
 		params.nameserver = nameserver
 		return nil
@@ -35,7 +37,7 @@ func WithNameserver(nameserver string) DNSDiscoveryOption {
 func WithResolver(resolver dnsdisc.Resolver) DNSDiscoveryOption {
 	return func(params *dnsDiscoveryParameters) error {
 		if params.nameserver != "" {
-			return errors.New("cannot set both nameserver and resolver")
+			return ErrExclusiveOpts
 		}
 		params.resolver = resolver
 		return nil
@@ -65,7 +67,10 @@ func RetrieveNodes(ctx context.Context, url string, opts ...DNSDiscoveryOption) 
 
 	params := new(dnsDiscoveryParameters)
 	for _, opt := range opts {
-		opt(params)
+		err := opt(params)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if params.resolver == nil {
