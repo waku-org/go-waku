@@ -452,23 +452,9 @@ func (store *WakuStore) Next(ctx context.Context, r *Result) (*Result, error) {
 
 	historyRequest := &pb.HistoryRPC{
 		RequestId: hex.EncodeToString(protocol.GenerateRequestID()),
-		Query: &pb.HistoryQuery{
-			PubsubTopic:    r.Query().PubsubTopic,
-			ContentFilters: r.Query().ContentFilters,
-			StartTime:      r.Query().StartTime,
-			EndTime:        r.Query().EndTime,
-			PagingInfo: &pb.PagingInfo{
-				PageSize:  r.Query().PagingInfo.PageSize,
-				Direction: r.Query().PagingInfo.Direction,
-				Cursor: &pb.Index{
-					Digest:       r.Cursor().Digest,
-					ReceiverTime: r.Cursor().ReceiverTime,
-					SenderTime:   r.Cursor().SenderTime,
-					PubsubTopic:  r.Cursor().PubsubTopic,
-				},
-			},
-		},
+		Query:     r.Query(),
 	}
+	historyRequest.Query.PagingInfo.Cursor = r.Cursor()
 
 	response, err := store.queryFrom(ctx, historyRequest, r.PeerID())
 	if err != nil {
