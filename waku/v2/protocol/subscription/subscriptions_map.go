@@ -28,6 +28,10 @@ func NewSubscriptionMap(logger *zap.Logger) *SubscriptionsMap {
 	}
 }
 
+func (m *SubscriptionsMap) Count() int {
+	return len(m.items)
+}
+
 func (m *SubscriptionsMap) IsListening(pubsubTopic, contentTopic string) bool {
 	m.RLock()
 	defer m.RUnlock()
