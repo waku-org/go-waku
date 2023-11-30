@@ -1,3 +1,11 @@
+version: "2"
+
+checks:
+  return-statements:
+    enabled: true
+    config:
+      threshold: 6
+
 plugins:
 #  golint:
 #    enabled: true
@@ -7,6 +15,7 @@ plugins:
     enabled: true
 #  golangci-lint:
 #    enabled: true
+
 exclude_patterns:
   - "."
   - "**/*.pb.go"
