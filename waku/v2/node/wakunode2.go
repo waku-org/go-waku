@@ -562,11 +562,6 @@ func (w *WakuNode) ID() string {
 	return w.host.ID().Pretty()
 }
 
-// Timesource returns the timesource used by the WakuNode
-func (w *WakuNode) Timesource() timesource.Timesource {
-	return w.timesource
-}
-
 func (w *WakuNode) watchENRChanges(ctx context.Context) {
 	defer w.wg.Done()
 
