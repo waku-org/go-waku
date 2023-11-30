@@ -69,15 +69,12 @@ func TestExclusiveOpts(t *testing.T) {
 
 	tree, url := makeTestTree("n", nil, nil)
 	resolver := mapResolver(tree.ToTXT("n"))
+
 	opts = append(opts, WithNameserver("1.1.1.1"), WithResolver(resolver))
-
 	_, err := RetrieveNodes(context.Background(), url, opts...)
-
 	require.Equal(t, err, ErrExclusiveOpts)
 
 	opts = append(opts, WithResolver(resolver), WithNameserver("1.1.1.1"))
-
 	_, err = RetrieveNodes(context.Background(), url, opts...)
-
 	require.Equal(t, err, ErrExclusiveOpts)
 }
