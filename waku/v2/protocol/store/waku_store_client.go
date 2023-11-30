@@ -80,7 +80,7 @@ func (r *Result) GetMessages() []*wpb.WakuMessage {
 	return r.Messages
 }
 
-type criteriaFN = func(msg *wpb.WakuMessage) (bool, error)
+type CriteriaFN = func(msg *wpb.WakuMessage) (bool, error)
 
 type HistoryRequestParameters struct {
 	selectedPeer      peer.ID
@@ -399,7 +399,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 }
 
 // Find the first message that matches a criteria. criteriaCB is a function that will be invoked for each message and returns true if the message matches the criteria
-func (store *WakuStore) Find(ctx context.Context, query Query, cb criteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error) {
+func (store *WakuStore) Find(ctx context.Context, query Query, cb CriteriaFN, opts ...HistoryRequestOption) (*wpb.WakuMessage, error) {
 	if cb == nil {
 		return nil, errors.New("callback can't be null")
 	}
