@@ -289,6 +289,10 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts .
 		return nil, err
 	}
 
+	if len(out) > pubsub.DefaultMaxMessageSize {
+		return nil, errors.New("message size exceeds gossipsub max message size")
+	}
+
 	err = pubSubTopic.Publish(ctx, out)
 	if err != nil {
 		return nil, err

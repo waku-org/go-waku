@@ -43,7 +43,7 @@ func NewMetricsServer(address string, port int, log *zap.Logger) *Server {
 
 // Start executes the HTTP server in the background.
 func (p *Server) Start() {
-	p.log.Info("server stopped ", zap.Error(p.server.ListenAndServe()))
+	p.log.Info("server started ", zap.Error(p.server.ListenAndServe()))
 }
 
 // Stop shuts down the prometheus server
