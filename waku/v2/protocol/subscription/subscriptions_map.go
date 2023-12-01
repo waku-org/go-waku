@@ -29,6 +29,8 @@ func NewSubscriptionMap(logger *zap.Logger) *SubscriptionsMap {
 }
 
 func (m *SubscriptionsMap) Count() int {
+        m.RLock()
+	defer m.RUnlock()
 	return len(m.items)
 }
 
