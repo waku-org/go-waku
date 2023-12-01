@@ -190,7 +190,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						contentTopic: env.Message().GetContentTopic(),
 						payload:      string(env.Message().GetPayload()),
 					}
-					s.log.Info("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
+					s.log.Debug("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
