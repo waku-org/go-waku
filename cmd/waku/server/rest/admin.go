@@ -23,10 +23,11 @@ type AdminService struct {
 }
 
 type WakuPeer struct {
-	ID         string   `json:"id"`
-	MultiAddrs []string `json:"multiaddrs"`
-	Protocols  []string `json:"protocols"`
-	Connected  bool     `json:"connected"`
+	ID           string   `json:"id"`
+	MultiAddrs   []string `json:"multiaddrs"`
+	Protocols    []string `json:"protocols"`
+	Connected    bool     `json:"connected"`
+	PubsubTopics []string `json:"pubsubTopics"`
 }
 
 type WakuPeerInfo struct {
@@ -76,6 +77,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 			}
 			wPeer.Protocols = append(wPeer.Protocols, string(proto))
 		}
+		wPeer.PubsubTopics = peer.PubsubTopics
 		response = append(response, wPeer)
 	}
 
