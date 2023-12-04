@@ -860,7 +860,9 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 
 		addrs := utils.EncapsulatePeerID(peerId, w.host.Peerstore().Addrs(peerId)...)
 		topics, err := w.host.Peerstore().(*wps.WakuPeerstoreImpl).PubSubTopics(peerId)
-
+		if err != nil {
+			return nil, err
+		}
 		peers = append(peers, &Peer{
 			ID:           peerId,
 			Protocols:    protocols,
