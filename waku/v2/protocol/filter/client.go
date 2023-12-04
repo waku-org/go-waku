@@ -36,7 +36,8 @@ import (
 const FilterPushID_v20beta1 = libp2pProtocol.ID("/vac/waku/filter-push/2.0.0-beta1")
 
 var (
-	ErrNoPeersAvailable = errors.New("no suitable remote peers")
+	ErrNoPeersAvailable     = errors.New("no suitable remote peers")
+	ErrSubscriptionNotFound = errors.New("subscription not found")
 )
 
 type WakuFilterLightNode struct {
@@ -110,19 +111,21 @@ func (wf *WakuFilterLightNode) start() error {
 func (wf *WakuFilterLightNode) Stop() {
 	wf.CommonService.Stop(func() {
 		wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
-		res, err := wf.unsubscribeAll(wf.Context())
-		if err != nil {
-			wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
-		}
-
-		for _, r := range res.Errors() {
-			if r.Err != nil {
-				wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+		if wf.subscriptions.Count() > 0 {
+			res, err := wf.unsubscribeAll(wf.Context())
+			if err != nil {
+				wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
 			}
 
+			for _, r := range res.Errors() {
+				if r.Err != nil {
+					wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+				}
+
+			}
+			//
+			wf.subscriptions.Clear()
 		}
-		//
-		wf.subscriptions.Clear()
 	})
 }
 
@@ -485,6 +488,13 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 
 		peers := make(map[peer.ID]struct{})
 		subs := wf.subscriptions.GetSubscription(params.selectedPeer, cFilter)
+		if len(subs) == 0 {
+			result.Add(WakuFilterPushError{
+				Err:    ErrSubscriptionNotFound,
+				PeerID: params.selectedPeer,
+			})
+			continue
+		}
 		for _, sub := range subs {
 			sub.Remove(cTopics...)
 			peers[sub.PeerID] = struct{}{}
@@ -583,14 +593,21 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 	if err != nil {
 		return nil, err
 	}
+	result := &WakuFilterPushResult{}
 
 	peers := make(map[peer.ID]struct{})
 	subs := wf.subscriptions.GetSubscription(params.selectedPeer, protocol.ContentFilter{})
+	if len(subs) == 0 && params.selectedPeer != "" {
+		result.Add(WakuFilterPushError{
+			Err:    err,
+			PeerID: params.selectedPeer,
+		})
+		return result, ErrSubscriptionNotFound
+	}
 	for _, sub := range subs {
 		sub.Close()
 		peers[sub.PeerID] = struct{}{}
 	}
-	result := &WakuFilterPushResult{}
 	if params.wg != nil {
 		params.wg.Add(len(peers))
 	}
