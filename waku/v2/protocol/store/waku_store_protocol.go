@@ -30,7 +30,9 @@ func findMessages(query *pb.HistoryQuery, msgProvider MessageProvider) ([]*wpb.W
 		}
 	}
 
-	if query.PagingInfo.PageSize == 0 || query.PagingInfo.PageSize > uint64(MaxPageSize) {
+	if query.PagingInfo.PageSize == 0 {
+		query.PagingInfo.PageSize = DefaultPageSize
+	} else if query.PagingInfo.PageSize > uint64(MaxPageSize) {
 		query.PagingInfo.PageSize = MaxPageSize
 	}
 
