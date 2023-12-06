@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"sync"
@@ -372,5 +373,80 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	// Check the content topic is what we have set
 	_, hasTestContentTopic := contentTopics[testContentTopic]
 	s.Require().True(hasTestContentTopic)
+
+}
+
+func (s *FilterTestSuite) TestIsSubscriptionAlive() {
+	messages := prepareData(2, false, true, false, nil)
+
+	// Subscribe with the first message only
+	s.subDetails = s.subscribe(messages[0].pubSubTopic, messages[0].contentTopic, s.fullNodeHost.ID())
+
+	// IsSubscriptionAlive returns no error for the first message
+	err := s.lightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
+	s.Require().NoError(err)
+
+	// Create new host/peer - not related to any node
+	host, err := tests.MakeHost(context.Background(), 54321, rand.Reader)
+	s.Require().NoError(err)
+
+	// Alter the existing peer ID in sub details
+	s.subDetails[0].PeerID = host.ID()
+
+	// IsSubscriptionAlive returns error for the second message, peer ID doesn't match
+	err = s.lightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
+	s.Require().Error(err)
+
+}
+
+func (s *FilterTestSuite) TestFilterSubscription() {
+	contentFilter := protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+
+	// Subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// Returns no error and SubscriptionDetails for existing subscription
+	_, err := s.lightNode.FilterSubscription(s.fullNodeHost.ID(), contentFilter)
+	s.Require().NoError(err)
+
+	otherFilter := protocol.ContentFilter{PubsubTopic: "34583495", ContentTopics: protocol.NewContentTopicSet("sjfa402")}
+
+	// Returns error and nil SubscriptionDetails for non existent subscription
+	nonSubscription, err := s.lightNode.FilterSubscription(s.fullNodeHost.ID(), otherFilter)
+	s.Require().Error(err)
+	s.Require().Nil(nonSubscription)
+
+	// Create new host/peer - not related to any node
+	host, err := tests.MakeHost(context.Background(), 54321, rand.Reader)
+	s.Require().NoError(err)
+
+	// Returns error and nil SubscriptionDetails for unrelated host/peer
+	nonSubscription, err = s.lightNode.FilterSubscription(host.ID(), contentFilter)
+	s.Require().Error(err)
+	s.Require().Nil(nonSubscription)
+
+}
+
+func (s *FilterTestSuite) TestHandleFilterSubscribeOptions() {
+	contentFilter := protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
+
+	// Subscribe
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	// With valid peer
+	opts := []FilterSubscribeOption{WithPeer(s.fullNodeHost.ID())}
+
+	// Positive case
+	_, _, err := s.lightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)
+	s.Require().NoError(err)
+
+	addr := s.fullNodeHost.Addrs()[0]
+
+	// Combine mutually exclusive options
+	opts = []FilterSubscribeOption{WithPeer(s.fullNodeHost.ID()), WithPeerAddr(addr)}
+
+	// Should fail on wrong option combination
+	_, _, err = s.lightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)
+	s.Require().Error(err)
 
 }

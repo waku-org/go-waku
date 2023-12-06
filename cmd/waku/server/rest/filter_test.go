@@ -3,6 +3,7 @@ package rest
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,23 +62,23 @@ func TestFilterPingFailure(t *testing.T) {
 	router := chi.NewRouter()
 	_ = NewFilterService(node2, router, 0, utils.Logger())
 
-	// with malformed requestId
+	// with empty requestID
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", "invalid_request_id"), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", ""), nil)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  []byte{},
+		RequestID:  "",
 		StatusDesc: "bad request id",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusBadRequest, rr.Code)
 
 	// no subscription with peer
-	var requestId filterRequestId = protocol.GenerateRequestID()
+	requestID := hex.EncodeToString(protocol.GenerateRequestID())
 	rr = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", requestId), nil)
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", requestID), nil)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "ping request failed",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusServiceUnavailable, rr.Code)
@@ -88,9 +89,8 @@ func TestFilterPingFailure(t *testing.T) {
 func TestFilterSubscribeAndPing(t *testing.T) {
 	pubsubTopic := "/waku/2/test/proto"
 	contentTopics := []string{"test"}
-	var requestId filterRequestId = protocol.GenerateRequestID()
+	requestID := hex.EncodeToString(protocol.GenerateRequestID())
 
-	//
 	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
 	defer func() {
 		node1.Stop()
@@ -103,24 +103,24 @@ func TestFilterSubscribeAndPing(t *testing.T) {
 	// create subscription to peer
 	rr := httptest.NewRecorder()
 	reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
-		RequestId:      requestId,
+		RequestID:      requestID,
 		PubsubTopic:    pubsubTopic,
 		ContentFilters: contentTopics,
 	}))
-	req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
+	req, _ := http.NewRequest(http.MethodPost, filterV2Subscriptions, reqReader)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "OK",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	// trying pinging the peer once there is subscription to it
 	rr = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", requestId), nil)
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", filterV2Subscriptions, requestID), nil)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "OK",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -131,9 +131,8 @@ func TestFilterSubscribeAndPing(t *testing.T) {
 func TestFilterSubscribeAndUnsubscribe(t *testing.T) {
 	pubsubTopic := "/waku/2/test/proto"
 	contentTopics := []string{"test"}
-	var requestId filterRequestId = protocol.GenerateRequestID()
+	requestID := hex.EncodeToString(protocol.GenerateRequestID())
 
-	//
 	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
 	defer func() {
 		node1.Stop()
@@ -146,30 +145,30 @@ func TestFilterSubscribeAndUnsubscribe(t *testing.T) {
 	// create subscription to peer
 	rr := httptest.NewRecorder()
 	reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
-		RequestId:      requestId,
+		RequestID:      requestID,
 		PubsubTopic:    pubsubTopic,
 		ContentFilters: contentTopics,
 	}))
-	req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
+	req, _ := http.NewRequest(http.MethodPost, filterV2Subscriptions, reqReader)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "OK",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	// delete the subscription to the peer with matching pubSub and contentTopic
-	requestId = protocol.GenerateRequestID()
+	requestID = hex.EncodeToString(protocol.GenerateRequestID())
 	rr = httptest.NewRecorder()
 	reqReader = strings.NewReader(toString(t, filterSubscriptionRequest{
-		RequestId:      requestId,
+		RequestID:      requestID,
 		PubsubTopic:    pubsubTopic,
 		ContentFilters: contentTopics,
 	}))
-	req, _ = http.NewRequest(http.MethodDelete, filterv2Subscribe, reqReader)
+	req, _ = http.NewRequest(http.MethodDelete, filterV2Subscriptions, reqReader)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "OK",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -182,9 +181,7 @@ func TestFilterAllUnsubscribe(t *testing.T) {
 	pubsubTopic := "/waku/2/test/proto"
 	contentTopics1 := "ct_1"
 	contentTopics2 := "ct_2"
-	var requestId filterRequestId
 
-	//
 	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic)
 	defer func() {
 		node1.Stop()
@@ -196,43 +193,43 @@ func TestFilterAllUnsubscribe(t *testing.T) {
 
 	// create 2 different subscription to peer
 	for _, ct := range []string{contentTopics1, contentTopics2} {
-		requestId = protocol.GenerateRequestID()
+		requestID := hex.EncodeToString(protocol.GenerateRequestID())
 		rr := httptest.NewRecorder()
 		reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
-			RequestId:      requestId,
+			RequestID:      requestID,
 			PubsubTopic:    pubsubTopic,
 			ContentFilters: []string{ct},
 		}))
-		req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
+		req, _ := http.NewRequest(http.MethodPost, filterV2Subscriptions, reqReader)
 		router.ServeHTTP(rr, req)
 		checkJSON(t, filterSubscriptionResponse{
-			RequestId:  requestId,
+			RequestID:  requestID,
 			StatusDesc: "OK",
 		}, getFilterResponse(t, rr.Body))
 		require.Equal(t, http.StatusOK, rr.Code)
 	}
 
 	// delete all subscription to the peer
-	requestId = protocol.GenerateRequestID()
+	requestID := hex.EncodeToString(protocol.GenerateRequestID())
 	rr := httptest.NewRecorder()
 	reqReader := strings.NewReader(toString(t, filterUnsubscribeAllRequest{
-		RequestId: requestId,
+		RequestID: requestID,
 	}))
-	req, _ := http.NewRequest(http.MethodDelete, filterv2SubscribeAll, reqReader)
+	req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/all", filterV2Subscriptions), reqReader)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "OK",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	// check if all subscriptions are deleted to the peer are deleted
-	requestId = protocol.GenerateRequestID()
+	requestID = hex.EncodeToString(protocol.GenerateRequestID())
 	rr = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/filter/v2/subscriptions/%s", requestId), nil)
+	req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", filterV2Subscriptions, requestID), nil)
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
-		RequestId:  requestId,
+		RequestID:  requestID,
 		StatusDesc: "ping request failed",
 	}, getFilterResponse(t, rr.Body))
 	require.Equal(t, http.StatusServiceUnavailable, rr.Code)
@@ -280,17 +277,17 @@ func TestFilterGetMessages(t *testing.T) {
 
 	{ // create subscription so that messages are cached
 		for _, pubsubTopic := range []string{"", pubsubTopic} {
-			requestId := protocol.GenerateRequestID()
+			requestID := hex.EncodeToString(protocol.GenerateRequestID())
 			rr := httptest.NewRecorder()
 			reqReader := strings.NewReader(toString(t, filterSubscriptionRequest{
-				RequestId:      requestId,
+				RequestID:      requestID,
 				PubsubTopic:    pubsubTopic,
 				ContentFilters: []string{contentTopic},
 			}))
-			req, _ := http.NewRequest(http.MethodPost, filterv2Subscribe, reqReader)
+			req, _ := http.NewRequest(http.MethodPost, filterV2Subscriptions, reqReader)
 			router.ServeHTTP(rr, req)
 			checkJSON(t, filterSubscriptionResponse{
-				RequestId:  requestId,
+				RequestID:  requestID,
 				StatusDesc: "OK",
 			}, getFilterResponse(t, rr.Body))
 			require.Equal(t, http.StatusOK, rr.Code)
@@ -314,7 +311,7 @@ func TestFilterGetMessages(t *testing.T) {
 	{ // with malformed contentTopic
 		rr := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet,
-			fmt.Sprintf("/filter/v2/messages/%s", url.QueryEscape("/waku/2/wrongtopic")),
+			fmt.Sprintf("%s/%s", filterv2Messages, url.QueryEscape("/waku/2/wrongtopic")),
 			nil,
 		)
 		router.ServeHTTP(rr, req)
@@ -325,7 +322,7 @@ func TestFilterGetMessages(t *testing.T) {
 	{ // with check if the cache is working properly
 		rr := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet,
-			fmt.Sprintf("/filter/v2/messages/%s", url.QueryEscape(contentTopic)),
+			fmt.Sprintf("%s/%s", filterv2Messages, url.QueryEscape(contentTopic)),
 			nil,
 		)
 		router.ServeHTTP(rr, req)
@@ -336,7 +333,7 @@ func TestFilterGetMessages(t *testing.T) {
 	{ // check if pubsubTopic is present in the url
 		rr := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet,
-			fmt.Sprintf("/filter/v2/messages//%s", url.QueryEscape(contentTopic)),
+			fmt.Sprintf("%s//%s", filterv2Messages, url.QueryEscape(contentTopic)),
 			nil,
 		)
 		router.ServeHTTP(rr, req)
@@ -347,7 +344,7 @@ func TestFilterGetMessages(t *testing.T) {
 	{ // check messages by pubsub/contentTopic pair
 		rr := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodGet,
-			fmt.Sprintf("/filter/v2/messages/%s/%s", url.QueryEscape(pubsubTopic), url.QueryEscape(contentTopic)),
+			fmt.Sprintf("%s/%s/%s", filterv2Messages, url.QueryEscape(pubsubTopic), url.QueryEscape(contentTopic)),
 			nil,
 		)
 		router.ServeHTTP(rr, req)
@@ -359,7 +356,7 @@ func TestFilterGetMessages(t *testing.T) {
 		rr := httptest.NewRecorder()
 		notSubscibredPubsubTopic := "/waku/2/test2/proto"
 		req, _ := http.NewRequest(http.MethodGet,
-			fmt.Sprintf("/filter/v2/messages/%s/%s", url.QueryEscape(notSubscibredPubsubTopic), url.QueryEscape(contentTopic)),
+			fmt.Sprintf("%s/%s/%s", filterv2Messages, url.QueryEscape(notSubscibredPubsubTopic), url.QueryEscape(contentTopic)),
 			nil,
 		)
 		router.ServeHTTP(rr, req)

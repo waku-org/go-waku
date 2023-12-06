@@ -190,7 +190,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						contentTopic: env.Message().GetContentTopic(),
 						payload:      string(env.Message().GetPayload()),
 					}
-					s.log.Info("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
+					s.log.Debug("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
 					if matchOneOfManyMsg(received, expected) {
 						found++
 					}
@@ -554,6 +554,29 @@ func (s *FilterTestSuite) TestAutoShard() {
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 
+}
+
+func (s *FilterTestSuite) TestLightNodeIsListening() {
+
+	messages := prepareData(2, true, true, false, nil)
+
+	// Subscribe with the first message only
+	s.subDetails = s.subscribe(messages[0].pubSubTopic, messages[0].contentTopic, s.fullNodeHost.ID())
+
+	// IsListening returns true for the first message
+	listenStatus := s.lightNode.IsListening(messages[0].pubSubTopic, messages[0].contentTopic)
+	s.Require().True(listenStatus)
+
+	// IsListening returns false for the second message
+	listenStatus = s.lightNode.IsListening(messages[1].pubSubTopic, messages[1].contentTopic)
+	s.Require().False(listenStatus)
+
+	// IsListening returns false for combination as well
+	listenStatus = s.lightNode.IsListening(messages[0].pubSubTopic, messages[1].contentTopic)
+	s.Require().False(listenStatus)
+
+	_, err := s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {

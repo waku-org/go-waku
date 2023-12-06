@@ -86,3 +86,7 @@ components:
             type: string
         connected:
           type: boolean
+        pubsubTopics:
+          type: array
+          items:
+            type: string
