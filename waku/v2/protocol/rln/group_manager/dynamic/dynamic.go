@@ -98,7 +98,10 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) 
 		// this is not a fatal error, hence we don't raise an exception
 		gm.log.Warn("failed to persist rln metadata", zap.Error(err))
 	} else {
-		gm.log.Debug("rln metadata persisted", zap.Uint64("lastBlockProcessed", gm.lastBlockProcessed), zap.Uint64("chainID", gm.web3Config.ChainID.Uint64()), logging.HexBytes("contractAddress", gm.web3Config.RegistryContract.Address.Bytes()))
+		gm.log.Debug("rln metadata persisted", zap.Uint64("lastBlockProcessed", gm.lastBlockProcessed),
+			zap.Uint64("chainID", gm.web3Config.ChainID.Uint64()),
+			logging.HexBytes("contractAddress", gm.web3Config.RegistryContract.Address.Bytes()),
+		)
 	}
 
 	return nil
@@ -216,6 +219,13 @@ func (gm *DynamicGroupManager) loadCredential(ctx context.Context) error {
 	return nil
 }
 
+func ConvertToLittleEndian(b []byte) [32]byte {
+	for i := 0; i < len(b)/2; i++ {
+		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
+	}
+	return rln.Bytes32(b)
+}
+
 func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 	for pair := toInsert.Oldest(); pair != nil; pair = pair.Next() {
 		events := pair.Value.([]*contracts.RLNMemberRegistered) // TODO: should these be sortered by index? we assume all members arrive in order
@@ -225,7 +235,11 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 			if oldestIndexInBlock == nil {
 				oldestIndexInBlock = evt.Index
 			}
-			idCommitments = append(idCommitments, rln.BigIntToBytes32(evt.IdCommitment))
+			convertedIdCommittment := rln.BigIntToBytes32(evt.IdCommitment)
+			leIdCommittment := ConvertToLittleEndian(convertedIdCommittment[:])
+			idCommitments = append(idCommitments, leIdCommittment)
+
+			gm.log.Debug("processed committment", logging.HexBytes("id-committment", leIdCommittment[:]))
 		}
 
 		if len(idCommitments) == 0 {
@@ -235,6 +249,8 @@ func (gm *DynamicGroupManager) InsertMembers(toInsert *om.OrderedMap) error {
 		// TODO: should we track indexes to identify missing?
 		startIndex := rln.MembershipIndex(uint(oldestIndexInBlock.Int64()))
 		start := time.Now()
+		gm.log.Debug("inserting members at index", zap.Uint("index", startIndex))
+
 		err := gm.rln.InsertMembers(startIndex, idCommitments)
 		if err != nil {
 			gm.log.Error("inserting members into merkletree", zap.Error(err))

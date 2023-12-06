@@ -75,6 +75,7 @@ func (mf *MembershipFetcher) HandleGroupUpdates(ctx context.Context, handler Reg
 		return err
 	}
 	mf.log.Info("events loaded", zap.Duration("timeToLoad", time.Since(t)))
+	//TODO: Set latest block in gm to latestBlockNumber???
 
 	errCh := make(chan error)
 

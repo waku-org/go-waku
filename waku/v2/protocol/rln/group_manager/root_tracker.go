@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"sync"
 
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
@@ -109,7 +110,7 @@ func (m *MerkleRootTracker) UpdateLatestRoot(blockNumber uint64) rln.MerkleNode 
 	if err != nil {
 		utils.Logger().Named("root-tracker").Panic("could not retrieve merkle root", zap.Error(err))
 	}
-
+	utils.Logger().Named("root-tracker").Debug("pushing root", logging.HexBytes("root", root[:]))
 	m.pushRoot(blockNumber, root)
 
 	return root
