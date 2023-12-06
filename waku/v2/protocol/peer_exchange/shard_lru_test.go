@@ -35,9 +35,14 @@ func TestLruMoreThanSize(t *testing.T) {
 
 	lru := newShardLRU(2)
 
-	lru.Add(node1)
-	lru.Add(node2)
-	lru.Add(node3)
+	err := lru.Add(node1)
+	require.NoError(t, err)
+
+	err = lru.Add(node2)
+	require.NoError(t, err)
+
+	err = lru.Add(node3)
+	require.NoError(t, err)
 
 	nodes := lru.GetRandomNodes(&ShardInfo{1, 1}, 1)
 
@@ -50,8 +55,12 @@ func TestLruMoreThanSize(t *testing.T) {
 
 	// node 2 is removed from lru for cluster 1/shard 1 but it is still being maintained for cluster1,index2
 	{
-		lru.Add(getEnode(t, nil, 1, 1)) // add two more nodes to 1/1 cluster shard
-		lru.Add(getEnode(t, nil, 1, 1))
+		err = lru.Add(getEnode(t, nil, 1, 1)) // add two more nodes to 1/1 cluster shard
+		require.NoError(t, err)
+
+		err = lru.Add(getEnode(t, nil, 1, 1))
+		require.NoError(t, err)
+
 	}
 
 	// node2 still present in lru
@@ -59,8 +68,11 @@ func TestLruMoreThanSize(t *testing.T) {
 
 	// now node2 is removed from all shards' cache
 	{
-		lru.Add(getEnode(t, nil, 1, 2)) // add two more nodes to 1/2 cluster shard
-		lru.Add(getEnode(t, nil, 1, 2))
+		err = lru.Add(getEnode(t, nil, 1, 2)) // add two more nodes to 1/2 cluster shard
+		require.NoError(t, err)
+
+		err = lru.Add(getEnode(t, nil, 1, 2))
+		require.NoError(t, err)
 	}
 
 	// node2 still present in lru
@@ -74,10 +86,12 @@ func TestLruNodeWithNewSeq(t *testing.T) {
 	require.NoError(t, err)
 
 	node1 := getEnode(t, key, 1, 1)
-	lru.Add(node1)
+	err = lru.Add(node1)
+	require.NoError(t, err)
 
 	node1 = getEnode(t, key, 1, 2, 3)
-	lru.Add(node1)
+	err = lru.Add(node1)
+	require.NoError(t, err)
 
 	//
 	nodes := lru.GetRandomNodes(&ShardInfo{1, 1}, 2)
@@ -96,8 +110,11 @@ func TestLruNoShard(t *testing.T) {
 	node1 := getEnode(t, nil, 0)
 	node2 := getEnode(t, nil, 0)
 
-	lru.Add(node1)
-	lru.Add(node2)
+	err := lru.Add(node1)
+	require.NoError(t, err)
+
+	err = lru.Add(node2)
+	require.NoError(t, err)
 
 	// check returned nodes
 	require.Equal(t, 2, lru.len(nil))
@@ -113,12 +130,16 @@ func TestLruMixedNodes(t *testing.T) {
 	lru := newShardLRU(2)
 
 	node1 := getEnode(t, nil, 0)
-	lru.Add(node1)
+	err := lru.Add(node1)
+	require.NoError(t, err)
 
 	node2 := getEnode(t, nil, 1, 1)
-	lru.Add(node2)
+	err = lru.Add(node2)
+	require.NoError(t, err)
+
 	node3 := getEnode(t, nil, 1, 2)
-	lru.Add(node3)
+	err = lru.Add(node3)
+	require.NoError(t, err)
 
 	// check that default
 	require.Equal(t, 3, lru.len(nil))

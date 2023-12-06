@@ -62,20 +62,29 @@ func (l *shardLRU) removeFromIdToNode(ele *list.Element) {
 	}
 }
 
-func nodeToRelayShard(node *enode.Node) *protocol.RelayShards {
+func nodeToRelayShard(node *enode.Node) (*protocol.RelayShards, error) {
 	shard, err := wenr.RelaySharding(node.Record())
-	if shard == nil || err != nil { // if no shard info, then add to node to Cluster 0, Index 0
+	if err != nil {
+		return nil, err
+	}
+
+	if shard == nil { // if no shard info, then add to node to Cluster 0, Index 0
 		shard = &protocol.RelayShards{
 			ClusterID: 0,
 			ShardIDs:  []uint16{0},
 		}
 	}
-	return shard
+
+	return shard, nil
 }
 
 // time complexity: O(new number of indexes in node's shard)
-func (l *shardLRU) add(node *enode.Node) {
-	shard := nodeToRelayShard(node)
+func (l *shardLRU) add(node *enode.Node) error {
+	shard, err := nodeToRelayShard(node)
+	if err != nil {
+		return err
+	}
+
 	elements := []*list.Element{}
 	for _, index := range shard.ShardIDs {
 		key := ShardInfo{
@@ -98,15 +107,17 @@ func (l *shardLRU) add(node *enode.Node) {
 
 	}
 	l.idToNode[node.ID()] = elements
+
+	return nil
 }
 
 // this will be called when the seq number of node is more than the one in cache
-func (l *shardLRU) Add(node *enode.Node) {
+func (l *shardLRU) Add(node *enode.Node) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	// removing bcz previous node might be subscribed to different shards, we need to remove node from those shards
 	l.remove(node)
-	l.add(node)
+	return l.add(node)
 }
 
 // clusterIndex is nil when peers for no specific shard are requested
@@ -138,7 +149,7 @@ func (l *shardLRU) GetRandomNodes(clusterIndex *ShardInfo, neededPeers int) (nod
 		nodes = append(nodes, node)
 		// this removes the node from all list (all cluster/shard pair that the node has) and adds it to the front
 		l.remove(node)
-		l.add(node)
+		_ = l.add(node)
 	}
 	return nodes
 }

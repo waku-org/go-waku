@@ -57,7 +57,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, 
 	wakuPX.disc = disc
 	wakuPX.metrics = newMetrics(reg)
 	wakuPX.log = log.Named("wakupx")
-	wakuPX.enrCache = newEnrCache(MaxCacheSize, log)
+	wakuPX.enrCache = newEnrCache(MaxCacheSize)
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
 	wakuPX.CommonService = service.NewCommonService()
@@ -155,7 +155,11 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
 			continue
 		}
 
-		wakuPX.enrCache.updateCache(iterator.Node())
+		err = wakuPX.enrCache.updateCache(iterator.Node())
+		if err != nil {
+			wakuPX.log.Error("adding peer to cache", zap.Error(err))
+			continue
+		}
 
 		select {
 		case <-ctx.Done():
