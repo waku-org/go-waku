@@ -6,3 +6,9 @@ issues:
 linters:
   enable:
     - revive
+  govet:
+    check-shadowing: true
+    shadow:
+      strict: true
+
+
