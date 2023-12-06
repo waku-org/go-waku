@@ -5,7 +5,9 @@ toolchain go1.21.4
 use (
 	.
 	./examples/filter2
-
+	./examples/chat2
+	./examples/noise
+	./examples/rln
 )
 
 replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
