@@ -132,7 +132,7 @@ func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption
 	ascendingStr := r.URL.Query().Get("ascending")
 	if ascendingStr != "" || pageSizeStr != "" {
 		ascending := true
-		pageSize := uint64(store.MaxPageSize)
+		pageSize := uint64(store.DefaultPageSize)
 		if ascendingStr != "" {
 			ascending, err = strconv.ParseBool(ascendingStr)
 			if err != nil {
@@ -144,6 +144,9 @@ func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption
 			pageSize, err = strconv.ParseUint(pageSizeStr, 10, 64)
 			if err != nil {
 				return nil, nil, err
+			}
+			if pageSize > store.MaxPageSize {
+				pageSize = store.MaxPageSize
 			}
 		}
 
