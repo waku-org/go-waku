@@ -46,6 +46,7 @@ func NewWakuRest(node *node.WakuNode, config RestConfig, log *zap.Logger) *WakuR
 	_ = NewDebugService(node, mux)
 	_ = NewHealthService(node, mux)
 	_ = NewStoreService(node, mux)
+	_ = NewGetMessagesService(node, mux)
 	_ = NewLightpushService(node, mux, log)
 
 	listenAddr := fmt.Sprintf("%s:%d", config.Address, config.Port)
