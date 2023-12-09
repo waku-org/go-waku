@@ -195,7 +195,7 @@ func DefaultOptions() []HistoryRequestOption {
 	return []HistoryRequestOption{
 		WithAutomaticRequestID(),
 		WithAutomaticPeerSelection(),
-		WithPaging(true, MaxPageSize),
+		WithPaging(true, DefaultPageSize),
 	}
 }
 
@@ -359,7 +359,9 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 	}
 
 	pageSize := params.pageSize
-	if pageSize == 0 || pageSize > uint64(MaxPageSize) {
+	if pageSize == 0 {
+		pageSize = DefaultPageSize
+	} else if pageSize > uint64(MaxPageSize) {
 		pageSize = MaxPageSize
 	}
 	historyRequest.Query.PagingInfo.PageSize = pageSize
