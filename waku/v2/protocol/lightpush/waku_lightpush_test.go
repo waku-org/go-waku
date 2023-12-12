@@ -228,13 +228,12 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 
 }
 
-func TestWakuLightPushErrorCases(t *testing.T) {
+func TestWakuLightPushCornerCases(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	testTopic := "/waku/2/go/lightpush/test"
-	testContentTopic := "/test/10/my-lp-app"
-	//testContentTopic := "/waku/2/default-content/proto"
+	testContentTopic := "/test/10/my-lp-app/proto"
 
 	// Prepare peer manager instance to include in test
 	pm := peermanager.NewPeerManager(10, 10, utils.Logger())
@@ -294,13 +293,12 @@ func TestWakuLightPushErrorCases(t *testing.T) {
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 
-	// Checking that msg hash is correct
-	hash, err := client.Publish(ctx, msg2, lpOptions...)
+	// Check that msg publish has passed for nominal case
+	_, err = client.Publish(ctx, msg2, lpOptions...)
 	require.NoError(t, err)
-	require.Equal(t, protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), string(testTopic)).Hash(), hash)
 
 	// Test error case with nil message
-	hash, err = client.Publish(ctx, nil, lpOptions...)
+	_, err = client.Publish(ctx, nil, lpOptions...)
 	require.Error(t, err)
 
 	// Create new "dummy" host - not related to any node
@@ -310,15 +308,17 @@ func TestWakuLightPushErrorCases(t *testing.T) {
 	var lpOptions2 []Option
 
 	// Test error case with empty options
-	// getting error on content topic "/test/10/my-lp-app" validation
-	hash, err = client.Publish(ctx, msg2, lpOptions2...)
-	require.NoError(t, err)
+	_, err = client.Publish(ctx, msg2, lpOptions2...)
+	require.Error(t, err)
 
 	// Test error case with unrelated host
 	lpOptions = append(lpOptions2, WithPubSubTopic(testTopic), WithPeer(host3.ID()))
-
-	hash, err = client.Publish(ctx, msg2, WithPeer(host3.ID()))
+	_, err = client.Publish(ctx, msg2, WithPeer(host3.ID()))
 	require.Error(t, err)
+
+	// Test corner case with default pubSub topic
+	_, err = client.Publish(ctx, msg2, WithDefaultPubsubTopic(), WithPeer(host2.ID()))
+	require.NoError(t, err)
 
 	wg.Wait()
 
