@@ -312,8 +312,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	require.Error(t, err)
 
 	// Test error case with unrelated host
-	lpOptions = append(lpOptions2, WithPubSubTopic(testTopic), WithPeer(host3.ID()))
-	_, err = client.Publish(ctx, msg2, WithPeer(host3.ID()))
+	_, err = client.Publish(ctx, msg2, WithPubSubTopic(testTopic), WithPeer(host3.ID()))
 	require.Error(t, err)
 
 	// Test corner case with default pubSub topic
