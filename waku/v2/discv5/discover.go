@@ -272,16 +272,14 @@ func (d *DiscoveryV5) evaluateNode() func(node *enode.Node) bool {
 		if node == nil {
 			return false
 		}
-		d.log.Debug("found a peer", logging.ENode("enr", node))
 
 		//  node filtering based on ENR; we do not filter based on ENR in the first waku discv5 beta stage
 		if !isWakuNode(node) {
 			d.log.Debug("peer is not waku node", logging.ENode("enr", node))
 			return false
 		}
-		d.log.Debug("peer is a waku node", logging.ENode("enr", node))
-		_, err := wenr.EnodeToPeerInfo(node)
 
+		_, err := wenr.EnodeToPeerInfo(node)
 		if err != nil {
 			d.metrics.RecordError(peerInfoFailure)
 			d.log.Error("obtaining peer info from enode", logging.ENode("enr", node), zap.Error(err))
