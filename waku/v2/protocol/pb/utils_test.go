@@ -70,7 +70,7 @@ func TestZeroLenPayload(t *testing.T) {
 	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", hex.EncodeToString(messageHash))
 }
 
-func TestNoTimestamp(t *testing.T) {
+func TestHashWithTimestamp(t *testing.T) {
 	pubsubTopic := "/waku/2/default-waku/proto"
 	msg := new(WakuMessage)
 	msg.ContentTopic = "/waku/2/default-content/proto"
@@ -79,8 +79,11 @@ func TestNoTimestamp(t *testing.T) {
 	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
-
 	require.Equal(t, "58e2fc032a82c4adeb967a8b87086d0d6fb304912f120d4404e6236add8f1f56", hex.EncodeToString(messageHash))
+
+	msg.Timestamp = proto.Int64(123456789123456789)
+	messageHash = msg.Hash(pubsubTopic)
+	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", hex.EncodeToString(messageHash))
 }
 
 func TestIntToBytes(t *testing.T) {
