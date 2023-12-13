@@ -409,20 +409,17 @@ func (d *DiscoveryV5) DefaultPredicate() Predicate {
 		}
 
 		if nodeRS == nil {
-			d.log.Debug("node has no shards registered", logging.ENode("node", n))
 			// Node has no shards registered.
 			return false
 		}
 
 		if nodeRS.ClusterID != localRS.ClusterID {
-			d.log.Debug("cluster id mismatch from local clusterid", logging.ENode("node", n), zap.Error(err))
 			return false
 		}
 
 		// Contains any
 		for _, idx := range localRS.ShardIDs {
 			if nodeRS.Contains(localRS.ClusterID, idx) {
-				d.log.Debug("shards match for discovered node", logging.ENode("node", n))
 				return true
 			}
 		}
