@@ -22,7 +22,7 @@ func TestEnvelopeHash(t *testing.T) {
 	msg.Timestamp = proto.Int64(123456789123456789)
 	msg.Version = proto.Uint32(1)
 
-	expected := []byte{0xee, 0xcf, 0xf5, 0xb7, 0xdd, 0x54, 0x2d, 0x68, 0x9e, 0x7d, 0x64, 0xa3, 0xb8, 0x50, 0x8b, 0xba, 0xc, 0xf1, 0xac, 0xb6, 0xf7, 0x1c, 0x9f, 0xf2, 0x32, 0x7, 0x5b, 0xfd, 0x90, 0x5c, 0xe5, 0xa1}
+	expected := []byte{0xb6, 0x59, 0x60, 0x7f, 0x2a, 0xae, 0x18, 0x84, 0x8d, 0xca, 0xa7, 0xd5, 0x1c, 0xb3, 0x7e, 0x6c, 0xc6, 0xfc, 0x33, 0x40, 0x2c, 0x70, 0x4f, 0xf0, 0xc0, 0x16, 0x33, 0x7d, 0x83, 0xad, 0x61, 0x50}
 	result := msg.Hash("test")
 	require.Equal(t, expected, result)
 }
@@ -39,7 +39,7 @@ func TestEmptyMeta(t *testing.T) {
 
 	messageHash := msg.Hash(pubsubTopic)
 
-	require.Equal(t, "87619d05e563521d9126749b45bd4cc2430df0607e77e23572d874ed9c1aaa62", hex.EncodeToString(messageHash))
+	require.Equal(t, "f0183c2e370e473ff471bbe1028d0d8a940949c02f3007a1ccd21fed356852a0", hex.EncodeToString(messageHash))
 }
 
 func Test13ByteMeta(t *testing.T) {
@@ -48,11 +48,12 @@ func Test13ByteMeta(t *testing.T) {
 	msg.ContentTopic = "/waku/2/default-content/proto"
 	msg.Payload = []byte("\x01\x02\x03\x04TEST\x05\x06\x07\x08")
 	msg.Meta = []byte("\x73\x75\x70\x65\x72\x2d\x73\x65\x63\x72\x65\x74")
+	msg.Timestamp = proto.Int64(123456789123456789)
 	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
 
-	require.Equal(t, "4fdde1099c9f77f6dae8147b6b3179aba1fc8e14a7bf35203fc253ee479f135f", hex.EncodeToString(messageHash))
+	require.Equal(t, "f673cd2c9c973d685b52ca74c2559e001733a3a31a49ffc7b6e8713decba5a55", hex.EncodeToString(messageHash))
 }
 
 func TestZeroLenPayload(t *testing.T) {
@@ -61,9 +62,31 @@ func TestZeroLenPayload(t *testing.T) {
 	msg.ContentTopic = "/waku/2/default-content/proto"
 	msg.Payload = []byte{}
 	msg.Meta = []byte("\x73\x75\x70\x65\x72\x2d\x73\x65\x63\x72\x65\x74")
+	msg.Timestamp = proto.Int64(123456789123456789)
 	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
 
-	require.Equal(t, "e1a9596237dbe2cc8aaf4b838c46a7052df6bc0d42ba214b998a8bfdbe8487d6", hex.EncodeToString(messageHash))
+	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", hex.EncodeToString(messageHash))
+}
+
+func TestHashWithTimestamp(t *testing.T) {
+	pubsubTopic := "/waku/2/default-waku/proto"
+	msg := new(WakuMessage)
+	msg.ContentTopic = "/waku/2/default-content/proto"
+	msg.Payload = []byte{}
+	msg.Meta = []byte("\x73\x75\x70\x65\x72\x2d\x73\x65\x63\x72\x65\x74")
+	msg.Version = proto.Uint32(1)
+
+	messageHash := msg.Hash(pubsubTopic)
+	require.Equal(t, "58e2fc032a82c4adeb967a8b87086d0d6fb304912f120d4404e6236add8f1f56", hex.EncodeToString(messageHash))
+
+	msg.Timestamp = proto.Int64(123456789123456789)
+	messageHash = msg.Hash(pubsubTopic)
+	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", hex.EncodeToString(messageHash))
+}
+
+func TestIntToBytes(t *testing.T) {
+	require.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x27, 0x10}, toBytes(10000))
+	require.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x98, 0x96, 0x80}, toBytes(10000000))
 }
