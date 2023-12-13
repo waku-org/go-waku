@@ -56,7 +56,6 @@ func main() {
 		Topics,
 		ContentTopics,
 		PubSubTopics,
-		BridgeTopics,
 		ProtectedTopics,
 		RelayPeerExchange,
 		MinRelayPeersToPublish,
