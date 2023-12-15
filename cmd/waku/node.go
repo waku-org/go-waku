@@ -55,8 +55,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
-const MaxWakuMessageSize = 150 * 1024 //150KB as per https://rfc.vac.dev/spec/64/#message-size
-
 func requiresDB(options NodeOptions) bool {
 	return options.Store.Enable || options.Rendezvous.Enable
 }
@@ -239,7 +237,7 @@ func Execute(options NodeOptions) error {
 	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
-		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(MaxWakuMessageSize))
+		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(options.Relay.MaxMsgSize*1024))
 
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
 	}
