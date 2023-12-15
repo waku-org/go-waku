@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"go.uber.org/zap"
 	"sync"
 	"testing"
 	"time"
@@ -38,6 +39,22 @@ func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Su
 	require.NoError(t, err)
 
 	return relay, sub[0], host
+}
+
+func waitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	log := utils.Logger()
+	go func() {
+		defer wg.Done()
+		select {
+		case env := <-ch:
+			msg := env.Message()
+			log.Info("Received ", zap.String("msg", msg.String()))
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "Message timeout")
+		}
+	}()
+	wg.Wait()
 }
 
 // Node1: Relay
@@ -275,19 +292,8 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 
 	// Wait for the mesh connection to happen between node1 and node2
 	time.Sleep(2 * time.Second)
+
 	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-sub1.Ch
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-sub2.Ch
-	}()
 
 	var lpOptions []Option
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
@@ -296,6 +302,9 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	// Check that msg publish has passed for nominal case
 	_, err = client.Publish(ctx, msg2, lpOptions...)
 	require.NoError(t, err)
+
+	// Wait for the nominal case message at node1
+	waitForMsg(t, &wg, sub1.Ch)
 
 	// Test error case with nil message
 	_, err = client.Publish(ctx, nil, lpOptions...)
@@ -318,8 +327,6 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	// Test corner case with default pubSub topic
 	_, err = client.Publish(ctx, msg2, WithDefaultPubsubTopic(), WithPeer(host2.ID()))
 	require.NoError(t, err)
-
-	wg.Wait()
 
 	// Test situation when cancel func is nil
 	lightPushNode2.cancel = nil
