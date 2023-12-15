@@ -7,21 +7,16 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
-// Allocate resources for a waku node
-func Init() uint {
-	instance := library.Init()
-	return instance.ID
-}
-
-// NewNode initializes a waku node. Receives a JSON string containing the configuration, and use default values for those config items not specified
+// NewNode initializes a waku node.
+// Receives a JSON string containing the configuration, and use default values for those config items not specified
+// Returns an instance id
 func NewNode(instanceID uint, configJSON string) string {
-	instance, err := library.GetInstance(instanceID)
+	instance := library.Init()
+	err := library.NewNode(instance, configJSON)
 	if err != nil {
-		return makeJSONResponse(err)
+		_ = library.Free(instance)
 	}
-
-	err = library.NewNode(instance, configJSON)
-	return makeJSONResponse(err)
+	return prepareJSONResponse(instance.ID, err)
 }
 
 // Start starts the waku node

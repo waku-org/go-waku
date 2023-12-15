@@ -119,16 +119,14 @@ void callBack(int ret, const char *signal, void *user_data)
 
 int main(int argc, char *argv[])
 {
-  void* ctx = waku_init();
-
-  // Set callback to be executed each time a message is received
-  waku_set_event_callback(ctx, callBack);
-
   // configJSON can be NULL too to use defaults. Any value not defined will have
   // a default set
   char *configJSON = "{\"host\": \"0.0.0.0\", \"port\": 60000, "
                      "\"logLevel\":\"error\", \"store\":true}";
-  waku_new(ctx, configJSON, on_error, NULL);
+  void* ctx = waku_new(configJSON, on_error, NULL);
+
+    // Set callback to be executed each time a message is received
+  waku_set_event_callback(ctx, callBack);
 
   // Start the node, enabling the waku protocols
   waku_start(ctx, on_error, NULL);

@@ -23,18 +23,6 @@ import (
 
 func main() {}
 
-// Allocate memory for a waku node. The result of this function must be passed
-// to all waku_* functions
-//
-//export waku_init
-func waku_init() unsafe.Pointer {
-	cid := C.malloc(C.size_t(unsafe.Sizeof(uintptr(0))))
-	pid := (*uint)(cid)
-	instance := library.Init()
-	*pid = instance.ID
-	return cid
-}
-
 // Initialize a waku node. Receives a JSON string containing the configuration
 // for the node. It can be NULL. Example configuration:
 // ```
@@ -100,14 +88,23 @@ func waku_init() unsafe.Pointer {
 // - dns4DomainName: the domain name resolving to the node's public IPv4 address.
 //
 //export waku_new
-func waku_new(ctx unsafe.Pointer, configJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	instance, err := getInstance(ctx)
-	if err != nil {
-		onError(err, cb, userData)
+func waku_new(configJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) unsafe.Pointer {
+	if cb == nil {
+		panic("error: missing callback in waku_new")
 	}
 
-	err = library.NewNode(instance, C.GoString(configJSON))
-	return onError(err, cb, userData)
+	cid := C.malloc(C.size_t(unsafe.Sizeof(uintptr(0))))
+	pid := (*uint)(cid)
+	instance := library.Init()
+	*pid = instance.ID
+
+	err := library.NewNode(instance, C.GoString(configJSON))
+	if err != nil {
+		onError(err, cb, userData)
+		return nil
+	}
+
+	return cid
 }
 
 // Starts the waku node
@@ -146,6 +143,15 @@ func waku_free(ctx unsafe.Pointer, onErr C.WakuCallBack, userData unsafe.Pointer
 	}
 
 	err = library.Stop(instance)
+	if err != nil {
+		return onError(err, onErr, userData)
+	}
+
+	err = library.Free(instance)
+	if err == nil {
+		C.free(ctx)
+	}
+
 	return onError(err, onErr, userData)
 }
 
