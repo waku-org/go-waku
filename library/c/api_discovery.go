@@ -21,17 +21,22 @@ import (
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_dns_discovery
-func waku_dns_discovery(url *C.char, nameserver *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
+func waku_dns_discovery(ctx unsafe.Pointer, url *C.char, nameserver *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
 		return library.DNSDiscovery(C.GoString(url), C.GoString(nameserver), int(ms))
-	}, cb, userData)
+	}, ctx, cb, userData)
 }
 
 // Update the bootnode list used for discovering new peers via DiscoveryV5
 // The bootnodes param should contain a JSON array containing the bootnode ENRs i.e. `["enr:...", "enr:..."]`
 //
 //export waku_discv5_update_bootnodes
-func waku_discv5_update_bootnodes(bootnodes *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.SetBootnodes(C.GoString(bootnodes))
+func waku_discv5_update_bootnodes(ctx unsafe.Pointer, bootnodes *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.SetBootnodes(instance, C.GoString(bootnodes))
 	return onError(err, cb, userData)
 }

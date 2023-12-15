@@ -36,24 +36,24 @@ type subscribeResult struct {
 }
 
 // FilterSubscribe is used to create a subscription to a filter node to receive messages
-func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
+func FilterSubscribe(instance *WakuInstance, filterJSON string, peerID string, ms int) (string, error) {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
 		return "", err
 	}
 
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
 	var fOptions []filter.FilterSubscribeOption
@@ -67,7 +67,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 		fOptions = append(fOptions, filter.WithAutomaticPeerSelection())
 	}
 
-	subscriptions, err := wakuState.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
+	subscriptions, err := instance.node.FilterLightnode().Subscribe(ctx, cf, fOptions...)
 	if err != nil && subscriptions == nil {
 		return "", err
 	}
@@ -75,7 +75,7 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 	for _, subscriptionDetails := range subscriptions {
 		go func(subscriptionDetails *subscription.SubscriptionDetails) {
 			for envelope := range subscriptionDetails.C {
-				send("message", toSubscriptionMessage(envelope))
+				send(instance, "message", toSubscriptionMessage(envelope))
 			}
 		}(subscriptionDetails)
 	}
@@ -89,19 +89,19 @@ func FilterSubscribe(filterJSON string, peerID string, ms int) (string, error) {
 }
 
 // FilterPing is used to determine if a peer has an active subscription
-func FilterPing(peerID string, ms int) error {
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+func FilterPing(instance *WakuInstance, peerID string, ms int) error {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
 	var pID peer.ID
@@ -115,28 +115,28 @@ func FilterPing(peerID string, ms int) error {
 		return errors.New("peerID is required")
 	}
 
-	return wakuState.node.FilterLightnode().Ping(ctx, pID)
+	return instance.node.FilterLightnode().Ping(ctx, pID)
 }
 
 // FilterUnsubscribe is used to remove a filter criteria from an active subscription with a filter node
-func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
+func FilterUnsubscribe(instance *WakuInstance, filterJSON string, peerID string, ms int) error {
 	cf, err := toContentFilter(filterJSON)
 	if err != nil {
 		return err
 	}
 
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
 	var fOptions []filter.FilterSubscribeOption
@@ -150,7 +150,7 @@ func FilterUnsubscribe(filterJSON string, peerID string, ms int) error {
 		return errors.New("peerID is required")
 	}
 
-	result, err := wakuState.node.FilterLightnode().Unsubscribe(ctx, cf, fOptions...)
+	result, err := instance.node.FilterLightnode().Unsubscribe(ctx, cf, fOptions...)
 	if err != nil {
 		return err
 	}
@@ -168,19 +168,19 @@ type unsubscribeAllResult struct {
 }
 
 // FilterUnsubscribeAll is used to remove an active subscription to a peer. If no peerID is defined, it will stop all active filter subscriptions
-func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func FilterUnsubscribeAll(instance *WakuInstance, peerID string, ms int) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
 	var fOptions []filter.FilterSubscribeOption
@@ -194,7 +194,7 @@ func FilterUnsubscribeAll(peerID string, ms int) (string, error) {
 		fOptions = append(fOptions, filter.UnsubscribeAll())
 	}
 
-	result, err := wakuState.node.FilterLightnode().UnsubscribeAll(ctx, fOptions...)
+	result, err := instance.node.FilterLightnode().UnsubscribeAll(ctx, fOptions...)
 	if err != nil {
 		return "", err
 	}

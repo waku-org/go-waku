@@ -7,68 +7,135 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 )
 
-// NewNode initializes a waku node. Receives a JSON string containing the configuration, and use default values for those config items not specified
-func NewNode(configJSON string) string {
-	err := library.NewNode(configJSON)
-	return makeJSONResponse(err)
+// NewNode initializes a waku node.
+// Receives a JSON string containing the configuration, and use default values for those config items not specified
+// Returns an instance id
+func NewNode(instanceID uint, configJSON string) string {
+	instance := library.Init()
+	err := library.NewNode(instance, configJSON)
+	if err != nil {
+		_ = library.Free(instance)
+	}
+	return prepareJSONResponse(instance.ID, err)
 }
 
 // Start starts the waku node
-func Start() string {
-	err := library.Start()
+func Start(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	err = library.Start(instance)
 	return makeJSONResponse(err)
 }
 
 // Stop stops a waku node
-func Stop() string {
-	err := library.Stop()
+func Stop(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	err = library.Stop(instance)
+	return makeJSONResponse(err)
+}
+
+// Release resources allocated to a waku node
+func Free(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	err = library.Free(instance)
 	return makeJSONResponse(err)
 }
 
 // IsStarted is used to determine is a node is started or not
-func IsStarted() string {
-	return prepareJSONResponse(library.IsStarted(), nil)
+func IsStarted(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	return prepareJSONResponse(library.IsStarted(instance), nil)
 }
 
 // PeerID is used to obtain the peer ID of the waku node
-func PeerID() string {
-	peerID, err := library.PeerID()
+func PeerID(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	peerID, err := library.PeerID(instance)
 	return prepareJSONResponse(peerID, err)
 }
 
 // ListenAddresses returns the multiaddresses the wakunode is listening to
-func ListenAddresses() string {
-	addresses, err := library.ListenAddresses()
+func ListenAddresses(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	addresses, err := library.ListenAddresses(instance)
 	return prepareJSONResponse(addresses, err)
 }
 
 // AddPeer adds a node multiaddress and protocol to the wakunode peerstore
-func AddPeer(address string, protocolID string) string {
-	peerID, err := library.AddPeer(address, protocolID)
+func AddPeer(instanceID uint, address string, protocolID string) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	peerID, err := library.AddPeer(instance, address, protocolID)
 	return prepareJSONResponse(peerID, err)
 }
 
 // Connect is used to connect to a peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
-func Connect(address string, ms int) string {
-	err := library.Connect(address, ms)
+func Connect(instanceID uint, address string, ms int) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	err = library.Connect(instance, address, ms)
 	return makeJSONResponse(err)
 }
 
 // ConnectPeerID is usedd to connect to a known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
-func ConnectPeerID(peerID string, ms int) string {
-	err := library.ConnectPeerID(peerID, ms)
+func ConnectPeerID(instanceID uint, peerID string, ms int) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	err = library.ConnectPeerID(instance, peerID, ms)
 	return makeJSONResponse(err)
 }
 
 // Disconnect closes a connection to a known peer by peerID
-func Disconnect(peerID string) string {
-	err := library.Disconnect(peerID)
+func Disconnect(instanceID uint, peerID string) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	err = library.Disconnect(instance, peerID)
 	return makeJSONResponse(err)
 }
 
 // PeerCnt returns the number of connected peers
-func PeerCnt() string {
-	peerCnt, err := library.PeerCnt()
+func PeerCnt(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	peerCnt, err := library.PeerCnt(instance)
 	return prepareJSONResponse(peerCnt, err)
 }
 
@@ -84,7 +151,12 @@ func DefaultPubsubTopic() string {
 }
 
 // Peers retrieves the list of peers known by the waku node
-func Peers() string {
-	peers, err := library.Peers()
+func Peers(instanceID uint) string {
+	instance, err := library.GetInstance(instanceID)
+	if err != nil {
+		return makeJSONResponse(err)
+	}
+
+	peers, err := library.Peers(instance)
 	return prepareJSONResponse(peers, err)
 }

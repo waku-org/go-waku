@@ -39,10 +39,10 @@ import (
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_store_query
-func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.StoreQuery(C.GoString(queryJSON), C.GoString(peerID), int(ms))
-	}, cb, userData)
+func waku_store_query(ctx unsafe.Pointer, queryJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.StoreQuery(instance, C.GoString(queryJSON), C.GoString(peerID), int(ms))
+	}, ctx, cb, userData)
 }
 
 // Query historic messages stored in the localDB using waku store protocol.
@@ -72,8 +72,8 @@ func waku_store_query(queryJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCall
 // Requires the `store` option to be passed when setting up the initial configuration
 //
 //export waku_store_local_query
-func waku_store_local_query(queryJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.StoreLocalQuery(C.GoString(queryJSON))
-	}, cb, userData)
+func waku_store_local_query(ctx unsafe.Pointer, queryJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.StoreLocalQuery(instance, C.GoString(queryJSON))
+	}, ctx, cb, userData)
 }
