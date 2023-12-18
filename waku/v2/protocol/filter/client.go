@@ -112,19 +112,20 @@ func (wf *WakuFilterLightNode) Stop() {
 	wf.CommonService.Stop(func() {
 		wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
 		if wf.subscriptions.Count() > 0 {
-			res, err := wf.unsubscribeAll(wf.Context())
-			if err != nil {
-				wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
-			}
-
-			for _, r := range res.Errors() {
-				if r.Err != nil {
-					wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+			go func() {
+				res, err := wf.unsubscribeAll(wf.Context())
+				if err != nil {
+					wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
 				}
 
-			}
-			//
-			wf.subscriptions.Clear()
+				for _, r := range res.Errors() {
+					if r.Err != nil {
+						wf.log.Warn("unsubscribing from full nodes", zap.Error(r.Err), logging.HostID("peerID", r.PeerID))
+					}
+
+				}
+				wf.subscriptions.Clear()
+			}()
 		}
 	})
 }
