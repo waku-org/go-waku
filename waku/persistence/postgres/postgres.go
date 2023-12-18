@@ -25,12 +25,12 @@ func NewDB(dburl string, logger *zap.Logger) (*sql.DB, error) {
 
 func migrationDriver(db *sql.DB) (database.Driver, error) {
 	return pgx.WithInstance(db, &pgx.Config{
-		MigrationsTable: "gowaku_" + pgx.DefaultMigrationsTable,
+		MigrationsTable: pgx.DefaultMigrationsTable,
 	})
 }
 
 // Migrations is the function used for DB migration with postgres driver
-func Migrations(db *sql.DB) error {
+func Migrations(db *sql.DB, logger *zap.Logger) error {
 	migrationDriver, err := migrationDriver(db)
 	if err != nil {
 		return err

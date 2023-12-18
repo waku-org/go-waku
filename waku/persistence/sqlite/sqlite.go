@@ -45,17 +45,43 @@ func NewDB(dburl string, logger *zap.Logger) (*sql.DB, error) {
 
 func migrationDriver(db *sql.DB) (database.Driver, error) {
 	return sqlite3.WithInstance(db, &sqlite3.Config{
-		MigrationsTable: "gowaku_" + sqlite3.DefaultMigrationsTable,
+		MigrationsTable: sqlite3.DefaultMigrationsTable,
 	})
 }
 
 // Migrations is the function used for DB migration with sqlite driver
-func Migrations(db *sql.DB) error {
+func Migrations(db *sql.DB, logger *zap.Logger) error {
 	migrationDriver, err := migrationDriver(db)
 	if err != nil {
 		return err
 	}
-	return migrate.Migrate(db, migrationDriver, migrations.AssetNames(), migrations.Asset)
+
+	isNwaku, err := handleNWakuPreMigration(db)
+	if err != nil {
+		return err
+	}
+
+	err = migrate.Migrate(db, migrationDriver, migrations.AssetNames(), migrations.Asset)
+	if err != nil {
+		if isNwaku {
+			migrationErr := migrate.MigrateDown(db, migrationDriver, migrations.AssetNames(), migrations.Asset)
+			if migrationErr != nil {
+				logger.Fatal("could not revert table changes in nwaku database", zap.Error(err))
+			}
+			revertErr := revertNWakuPreMigration(db)
+			if revertErr != nil {
+				logger.Fatal("could not revert table changes in nwaku database", zap.Error(err))
+			}
+		}
+
+		return err
+	}
+
+	if isNwaku {
+		return handleNWakuPostMigration(db)
+	}
+
+	return nil
 }
 
 // CreateTable creates the table that will persist the peers
