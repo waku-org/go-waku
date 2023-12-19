@@ -113,7 +113,9 @@ func (wf *WakuFilterLightNode) Stop() {
 		wf.h.RemoveStreamHandler(FilterPushID_v20beta1)
 		if wf.subscriptions.Count() > 0 {
 			go func() {
-				defer func() { recover() }()
+				defer func() {
+					_ = recover()
+				}()
 				res, err := wf.unsubscribeAll(wf.Context())
 				if err != nil {
 					wf.log.Warn("unsubscribing from full nodes", zap.Error(err))
@@ -619,7 +621,7 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 				if params.wg != nil {
 					params.wg.Done()
 				}
-				recover()
+				_ = recover()
 			}()
 
 			paramsCopy := params.Copy()
