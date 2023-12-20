@@ -25,8 +25,8 @@ type DBSettings struct {
 	// TODO: add any DB specific setting here
 }
 
-// ExtractDBAndMigration will return a database connection, and migration function that should be used depending on a database connection string
-func ExtractDBAndMigration(databaseURL string, dbSettings DBSettings, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
+// ParseURL will return a database connection, and migration function that should be used depending on a database connection string
+func ParseURL(databaseURL string, dbSettings DBSettings, logger *zap.Logger) (*sql.DB, func(*sql.DB) error, error) {
 	var db *sql.DB
 	var migrationFn func(*sql.DB) error
 	var err error
