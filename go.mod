@@ -33,6 +33,7 @@ require (
 )
 
 require (
+	github.com/avast/retry-go/v4 v4.5.1
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/jackc/pgx/v5 v5.4.1
