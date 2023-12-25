@@ -287,9 +287,9 @@ var (
 		EnvVars:     []string{"WAKUNODE2_MIN_RELAY_PEERS_TO_PUBLISH"},
 	})
 	MaxRelayMsgSize = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "max-relay-msg-size",
-		Value:       150,
-		Usage:       "Maximum size allowed for message in KB.",
+		Name:        "max-num-bytes-msg-size",
+		Value:       150 * 1024,
+		Usage:       "Maximum message size in bytes.",
 		Destination: &options.Relay.MaxMsgSize,
 		EnvVars:     []string{"WAKUNODE2_MAX_RELAY_MSG_SIZE"},
 	})

@@ -234,12 +234,17 @@ func Execute(options NodeOptions) error {
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 	nodeOpts = append(nodeOpts, node.WithNTP())
 
+	/* 	maxMsgSize, err := parseMsgSizeConfig(options.Relay.MaxMsgSize)
+	   	if err != nil {
+	   		return nonRecoverErrorMsg("invalid format for max msg size bytes: %w", err)
+	   	} */
 	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
-		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(options.Relay.MaxMsgSize*1024))
+		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(options.Relay.MaxMsgSize))
 
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
+		nodeOpts = append(nodeOpts, node.WithMaxMsgSize(options.Relay.MaxMsgSize))
 	}
 
 	nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
@@ -579,3 +584,9 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 	}
 
 }
+
+/* func parseMsgSizeConfig(msgSizeConfig string) (int, error) {
+	msgSize := 0
+	//TODO: Parse config
+	return msgSize, nil
+} */
