@@ -24,10 +24,10 @@ import (
 // It returns a json object containing the details of the subscriptions along with any errors in case of partial failures
 //
 //export waku_filter_subscribe
-func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.FilterSubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
-	}, cb, userData)
+func waku_filter_subscribe(ctx unsafe.Pointer, filterJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.FilterSubscribe(instance, C.GoString(filterJSON), C.GoString(peerID), int(ms))
+	}, ctx, cb, userData)
 }
 
 // Used to know if a service node has an active subscription for this client
@@ -36,8 +36,13 @@ func waku_filter_subscribe(filterJSON *C.char, peerID *C.char, ms C.int, cb C.Wa
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_ping
-func waku_filter_ping(peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.FilterPing(C.GoString(peerID), int(ms))
+func waku_filter_ping(ctx unsafe.Pointer, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.FilterPing(instance, C.GoString(peerID), int(ms))
 	return onError(err, cb, userData)
 }
 
@@ -55,8 +60,13 @@ func waku_filter_ping(peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsa
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_unsubscribe
-func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.FilterUnsubscribe(C.GoString(filterJSON), C.GoString(peerID), int(ms))
+func waku_filter_unsubscribe(ctx unsafe.Pointer, filterJSON *C.char, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.FilterUnsubscribe(instance, C.GoString(filterJSON), C.GoString(peerID), int(ms))
 	return onError(err, cb, userData)
 }
 
@@ -67,8 +77,8 @@ func waku_filter_unsubscribe(filterJSON *C.char, peerID *C.char, ms C.int, cb C.
 // (in milliseconds) is reached, or an error will be returned
 //
 //export waku_filter_unsubscribe_all
-func waku_filter_unsubscribe_all(peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.FilterUnsubscribeAll(C.GoString(peerID), int(ms))
-	}, cb, userData)
+func waku_filter_unsubscribe_all(ctx unsafe.Pointer, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.FilterUnsubscribeAll(instance, C.GoString(peerID), int(ms))
+	}, ctx, cb, userData)
 }

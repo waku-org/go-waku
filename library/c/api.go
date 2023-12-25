@@ -88,41 +88,106 @@ func main() {}
 // - dns4DomainName: the domain name resolving to the node's public IPv4 address.
 //
 //export waku_new
-func waku_new(configJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.NewNode(C.GoString(configJSON))
-	return onError(err, cb, userData)
+func waku_new(configJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) unsafe.Pointer {
+	if cb == nil {
+		panic("error: missing callback in waku_new")
+	}
+
+	cid := C.malloc(C.size_t(unsafe.Sizeof(uintptr(0))))
+	pid := (*uint)(cid)
+	instance := library.Init()
+	*pid = instance.ID
+
+	err := library.NewNode(instance, C.GoString(configJSON))
+	if err != nil {
+		onError(err, cb, userData)
+		return nil
+	}
+
+	return cid
 }
 
 // Starts the waku node
 //
 //export waku_start
-func waku_start(onErr C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.Start()
+func waku_start(ctx unsafe.Pointer, onErr C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, onErr, userData)
+	}
+
+	err = library.Start(instance)
 	return onError(err, onErr, userData)
 }
 
 // Stops a waku node
 //
 //export waku_stop
-func waku_stop(onErr C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.Stop()
+func waku_stop(ctx unsafe.Pointer, onErr C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, onErr, userData)
+	}
+
+	err = library.Stop(instance)
+	return onError(err, onErr, userData)
+}
+
+// Release the resources allocated to a waku node (stopping the node first if necessary)
+//
+//export waku_free
+func waku_free(ctx unsafe.Pointer, onErr C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		return onError(err, onErr, userData)
+	}
+
+	err = library.Stop(instance)
+	if err != nil {
+		return onError(err, onErr, userData)
+	}
+
+	err = library.Free(instance)
+	if err == nil {
+		C.free(ctx)
+	}
+
 	return onError(err, onErr, userData)
 }
 
 // Determine is a node is started or not
 //
 //export waku_is_started
-func waku_is_started() C.int {
-	started := library.IsStarted()
+func waku_is_started(ctx unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		return 0
+	}
+
+	started := library.IsStarted(instance)
 	if started {
 		return 1
 	}
 	return 0
 }
 
-type fn func() (string, error)
+type fn func(instance *library.WakuInstance) (string, error)
+type fnNoInstance func() (string, error)
 
-func singleFnExec(f fn, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+func singleFnExec(f fn, ctx unsafe.Pointer, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	result, err := f(instance)
+	if err != nil {
+		return onError(err, cb, userData)
+	}
+	return onSuccesfulResponse(result, cb, userData)
+}
+
+func singleFnExecNoCtx(f fnNoInstance, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
 	result, err := f()
 	if err != nil {
 		return onError(err, cb, userData)
@@ -133,62 +198,77 @@ func singleFnExec(f fn, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
 // Obtain the peer ID of the waku node
 //
 //export waku_peerid
-func waku_peerid(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.PeerID()
-	}, cb, userData)
+func waku_peerid(ctx unsafe.Pointer, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.PeerID(instance)
+	}, ctx, cb, userData)
 }
 
 // Obtain the multiaddresses the wakunode is listening to
 //
 //export waku_listen_addresses
-func waku_listen_addresses(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.ListenAddresses()
-	}, cb, userData)
+func waku_listen_addresses(ctx unsafe.Pointer, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.ListenAddresses(instance)
+	}, ctx, cb, userData)
 }
 
 // Add node multiaddress and protocol to the wakunode peerstore
 //
 //export waku_add_peer
-func waku_add_peer(address *C.char, protocolID *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.AddPeer(C.GoString(address), C.GoString(protocolID))
-	}, cb, userData)
+func waku_add_peer(ctx unsafe.Pointer, address *C.char, protocolID *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.AddPeer(instance, C.GoString(address), C.GoString(protocolID))
+	}, ctx, cb, userData)
 }
 
 // Connect to peer at multiaddress. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 //
 //export waku_connect
-func waku_connect(address *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.Connect(C.GoString(address), int(ms))
+func waku_connect(ctx unsafe.Pointer, address *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.Connect(instance, C.GoString(address), int(ms))
 	return onError(err, cb, userData)
 }
 
 // Connect to known peer by peerID. if ms > 0, cancel the function execution if it takes longer than N milliseconds
 //
 //export waku_connect_peerid
-func waku_connect_peerid(peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.ConnectPeerID(C.GoString(peerID), int(ms))
+func waku_connect_peerid(ctx unsafe.Pointer, peerID *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.ConnectPeerID(instance, C.GoString(peerID), int(ms))
 	return onError(err, cb, userData)
 }
 
 // Close connection to a known peer by peerID
 //
 //export waku_disconnect
-func waku_disconnect(peerID *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.Disconnect(C.GoString(peerID))
+func waku_disconnect(ctx unsafe.Pointer, peerID *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.Disconnect(instance, C.GoString(peerID))
 	return onError(err, cb, userData)
 }
 
 // Get number of connected peers
 //
 //export waku_peer_cnt
-func waku_peer_cnt(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		peerCnt, err := library.PeerCnt()
+func waku_peer_cnt(ctx unsafe.Pointer, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		peerCnt, err := library.PeerCnt(instance)
 		return fmt.Sprintf("%d", peerCnt), err
-	}, cb, userData)
+	}, ctx, cb, userData)
 }
 
 // Create a content topic string according to RFC 23
@@ -211,15 +291,20 @@ func waku_default_pubsub_topic(cb C.WakuCallBack, userData unsafe.Pointer) C.int
 // signature for the callback should be `void myCallback(char* signalJSON)`
 //
 //export waku_set_event_callback
-func waku_set_event_callback(cb C.WakuCallBack) {
-	library.SetEventCallback(unsafe.Pointer(cb))
+func waku_set_event_callback(ctx unsafe.Pointer, cb C.WakuCallBack) {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		panic(err.Error()) // TODO: refactor to return an error instead of panic
+	}
+
+	library.SetEventCallback(instance, unsafe.Pointer(cb))
 }
 
 // Retrieve the list of peers known by the waku node
 //
 //export waku_peers
-func waku_peers(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.Peers()
-	}, cb, userData)
+func waku_peers(ctx unsafe.Pointer, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.Peers(instance)
+	}, ctx, cb, userData)
 }

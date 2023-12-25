@@ -14,7 +14,7 @@ import (
 //
 //export waku_decode_symmetric
 func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
+	return singleFnExecNoCtx(func() (string, error) {
 		return library.DecodeSymmetric(C.GoString(messageJSON), C.GoString(symmetricKey))
 	}, cb, userData)
 }
@@ -23,7 +23,7 @@ func waku_decode_symmetric(messageJSON *C.char, symmetricKey *C.char, cb C.WakuC
 //
 //export waku_decode_asymmetric
 func waku_decode_asymmetric(messageJSON *C.char, privateKey *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
+	return singleFnExecNoCtx(func() (string, error) {
 		return library.DecodeAsymmetric(C.GoString(messageJSON), C.GoString(privateKey))
 	}, cb, userData)
 }
@@ -35,7 +35,7 @@ func waku_decode_asymmetric(messageJSON *C.char, privateKey *C.char, cb C.WakuCa
 //
 //export waku_encode_asymmetric
 func waku_encode_asymmetric(messageJSON *C.char, publicKey *C.char, optionalSigningKey *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
+	return singleFnExecNoCtx(func() (string, error) {
 		return library.EncodeAsymmetric(C.GoString(messageJSON), C.GoString(publicKey), C.GoString(optionalSigningKey))
 	}, cb, userData)
 }
@@ -47,7 +47,7 @@ func waku_encode_asymmetric(messageJSON *C.char, publicKey *C.char, optionalSign
 //
 //export waku_encode_symmetric
 func waku_encode_symmetric(messageJSON *C.char, symmetricKey *C.char, optionalSigningKey *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
+	return singleFnExecNoCtx(func() (string, error) {
 		return library.EncodeSymmetric(C.GoString(messageJSON), C.GoString(symmetricKey), C.GoString(optionalSigningKey))
 	}, cb, userData)
 }

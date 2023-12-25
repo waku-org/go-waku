@@ -14,14 +14,14 @@ import (
 // to verify the number of peers in the default pubsub topic
 //
 //export waku_relay_enough_peers
-func waku_relay_enough_peers(topic *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		result, err := library.RelayEnoughPeers(C.GoString(topic))
+func waku_relay_enough_peers(ctx unsafe.Pointer, topic *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		result, err := library.RelayEnoughPeers(instance, C.GoString(topic))
 		if result {
 			return "true", err
 		}
 		return "false", err
-	}, cb, userData)
+	}, ctx, cb, userData)
 }
 
 // Publish a message using waku relay and returns the message ID. Use NULL for topic to derive the pubsub topic from the contentTopic.
@@ -29,10 +29,10 @@ func waku_relay_enough_peers(topic *C.char, cb C.WakuCallBack, userData unsafe.P
 // (in milliseconds) is reached, or an error will be returned.
 //
 //export waku_relay_publish
-func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.RelayPublish(C.GoString(messageJSON), C.GoString(topic), int(ms))
-	}, cb, userData)
+func waku_relay_publish(ctx unsafe.Pointer, messageJSON *C.char, topic *C.char, ms C.int, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.RelayPublish(instance, C.GoString(messageJSON), C.GoString(topic), int(ms))
+	}, ctx, cb, userData)
 }
 
 // Subscribe to WakuRelay to receive messages matching a content filter.
@@ -47,8 +47,13 @@ func waku_relay_publish(messageJSON *C.char, topic *C.char, ms C.int, cb C.WakuC
 // the message was received
 //
 //export waku_relay_subscribe
-func waku_relay_subscribe(filterJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.RelaySubscribe(C.GoString(filterJSON))
+func waku_relay_subscribe(ctx unsafe.Pointer, filterJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.RelaySubscribe(instance, C.GoString(filterJSON))
 	return onError(err, cb, userData)
 }
 
@@ -56,10 +61,10 @@ func waku_relay_subscribe(filterJSON *C.char, cb C.WakuCallBack, userData unsafe
 // is subscribed to in WakuRelay
 //
 //export waku_relay_topics
-func waku_relay_topics(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	return singleFnExec(func() (string, error) {
-		return library.RelayTopics()
-	}, cb, userData)
+func waku_relay_topics(ctx unsafe.Pointer, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	return singleFnExec(func(instance *library.WakuInstance) (string, error) {
+		return library.RelayTopics(instance)
+	}, ctx, cb, userData)
 }
 
 // Closes the pubsub subscription to stop receiving messages matching a content filter
@@ -71,7 +76,12 @@ func waku_relay_topics(cb C.WakuCallBack, userData unsafe.Pointer) C.int {
 //		}
 //
 //export waku_relay_unsubscribe
-func waku_relay_unsubscribe(filterJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
-	err := library.RelayUnsubscribe(C.GoString(filterJSON))
+func waku_relay_unsubscribe(ctx unsafe.Pointer, filterJSON *C.char, cb C.WakuCallBack, userData unsafe.Pointer) C.int {
+	instance, err := getInstance(ctx)
+	if err != nil {
+		onError(err, cb, userData)
+	}
+
+	err = library.RelayUnsubscribe(instance, C.GoString(filterJSON))
 	return onError(err, cb, userData)
 }

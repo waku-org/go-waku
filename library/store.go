@@ -35,8 +35,8 @@ type storeMessagesReply struct {
 	Error      string             `json:"error,omitempty"`
 }
 
-func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.HistoryRequestOption) (string, error) {
-	res, err := wakuState.node.Store().Query(
+func queryResponse(ctx context.Context, instance *WakuInstance, args storeMessagesArgs, options []store.HistoryRequestOption) (string, error) {
+	res, err := instance.node.Store().Query(
 		ctx,
 		store.Query{
 			PubsubTopic:   args.Topic,
@@ -64,9 +64,9 @@ func queryResponse(ctx context.Context, args storeMessagesArgs, options []store.
 }
 
 // StoreQuery is used to retrieve historic messages using waku store protocol.
-func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func StoreQuery(instance *WakuInstance, queryJSON string, peerID string, ms int) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var args storeMessagesArgs
@@ -95,19 +95,19 @@ func StoreQuery(queryJSON string, peerID string, ms int) (string, error) {
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
-	return queryResponse(ctx, args, options)
+	return queryResponse(ctx, instance, args, options)
 }
 
 // StoreLocalQuery is used to retrieve historic messages stored in the localDB using waku store protocol.
-func StoreLocalQuery(queryJSON string) (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func StoreLocalQuery(instance *WakuInstance, queryJSON string) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var args storeMessagesArgs
@@ -123,5 +123,5 @@ func StoreLocalQuery(queryJSON string) (string, error) {
 		store.WithLocalQuery(),
 	}
 
-	return queryResponse(context.TODO(), args, options)
+	return queryResponse(instance.ctx, instance, args, options)
 }

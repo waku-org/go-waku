@@ -34,24 +34,24 @@ func toLegacyContentFilter(filterJSON string) (legacy_filter.ContentFilter, erro
 
 // LegacyFilterSubscribe is used to create a subscription to a filter node to receive messages
 // Deprecated: Use FilterSubscribe instead
-func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) error {
+func LegacyFilterSubscribe(instance *WakuInstance, filterJSON string, peerID string, ms int) error {
 	cf, err := toLegacyContentFilter(filterJSON)
 	if err != nil {
 		return err
 	}
 
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
 	var fOptions []legacy_filter.FilterSubscribeOption
@@ -65,14 +65,14 @@ func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) error {
 		fOptions = append(fOptions, legacy_filter.WithAutomaticPeerSelection())
 	}
 
-	_, f, err := wakuState.node.LegacyFilter().Subscribe(ctx, cf, fOptions...)
+	_, f, err := instance.node.LegacyFilter().Subscribe(ctx, cf, fOptions...)
 	if err != nil {
 		return err
 	}
 
 	go func(f legacy_filter.Filter) {
 		for envelope := range f.Chan {
-			send("message", toSubscriptionMessage(envelope))
+			send(instance, "message", toSubscriptionMessage(envelope))
 		}
 	}(f)
 
@@ -81,25 +81,25 @@ func LegacyFilterSubscribe(filterJSON string, peerID string, ms int) error {
 
 // LegacyFilterUnsubscribe is used to remove a filter criteria from an active subscription with a filter node
 // Deprecated: Use FilterUnsubscribe or FilterUnsubscribeAll instead
-func LegacyFilterUnsubscribe(filterJSON string, ms int) error {
+func LegacyFilterUnsubscribe(instance *WakuInstance, filterJSON string, ms int) error {
 	cf, err := toLegacyContentFilter(filterJSON)
 	if err != nil {
 		return err
 	}
 
-	if wakuState.node == nil {
-		return errWakuNodeNotReady
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
-	return wakuState.node.LegacyFilter().UnsubscribeFilter(ctx, cf)
+	return instance.node.LegacyFilter().UnsubscribeFilter(ctx, cf)
 }

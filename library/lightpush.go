@@ -11,19 +11,19 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 )
 
-func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms int) (string, error) {
-	if wakuState.node == nil {
-		return "", errWakuNodeNotReady
+func lightpushPublish(instance *WakuInstance, msg *pb.WakuMessage, pubsubTopic string, peerID string, ms int) (string, error) {
+	if err := validateInstance(instance, MustBeStarted); err != nil {
+		return "", err
 	}
 
 	var ctx context.Context
 	var cancel context.CancelFunc
 
 	if ms > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(int(ms))*time.Millisecond)
+		ctx, cancel = context.WithTimeout(instance.ctx, time.Duration(int(ms))*time.Millisecond)
 		defer cancel()
 	} else {
-		ctx = context.Background()
+		ctx = instance.ctx
 	}
 
 	var lpOptions []lightpush.Option
@@ -41,16 +41,16 @@ func lightpushPublish(msg *pb.WakuMessage, pubsubTopic string, peerID string, ms
 		lpOptions = append(lpOptions, lightpush.WithPubSubTopic(pubsubTopic))
 	}
 
-	hash, err := wakuState.node.Lightpush().Publish(ctx, msg, lpOptions...)
+	hash, err := instance.node.Lightpush().Publish(ctx, msg, lpOptions...)
 	return hexutil.Encode(hash), err
 }
 
 // LightpushPublish is used to publish a WakuMessage in a pubsub topic using Lightpush protocol
-func LightpushPublish(messageJSON string, pubsubTopic string, peerID string, ms int) (string, error) {
+func LightpushPublish(instance *WakuInstance, messageJSON string, pubsubTopic string, peerID string, ms int) (string, error) {
 	msg, err := wakuMessage(messageJSON)
 	if err != nil {
 		return "", err
 	}
 
-	return lightpushPublish(msg, pubsubTopic, peerID, ms)
+	return lightpushPublish(instance, msg, pubsubTopic, peerID, ms)
 }

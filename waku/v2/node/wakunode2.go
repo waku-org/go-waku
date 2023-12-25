@@ -529,6 +529,7 @@ func (w *WakuNode) Stop() {
 	w.store.Stop()
 	w.legacyFilter.Stop()
 	w.filterFullNode.Stop()
+	w.filterLightNode.Stop()
 
 	if w.opts.enableDiscV5 {
 		w.discoveryV5.Stop()
