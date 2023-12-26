@@ -178,10 +178,14 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		s.log.Error("subscription failed", zap.Error(err))
+		code := filter.ExtractCodeFromFilterError(err.Error())
+		if code == -1 {
+			code = http.StatusBadRequest
+		}
 		writeResponse(w, filterSubscriptionResponse{
 			RequestID:  message.RequestID,
 			StatusDesc: "subscription failed",
-		}, http.StatusServiceUnavailable)
+		}, code)
 		return
 	}
 
@@ -220,6 +224,12 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		s.log.Error("unsubscribe failed", zap.Error(err))
+		if result == nil {
+			writeResponse(w, filterSubscriptionResponse{
+				RequestID:  message.RequestID,
+				StatusDesc: err.Error(),
+			}, http.StatusBadRequest)
+		}
 		writeResponse(w, filterSubscriptionResponse{
 			RequestID:  message.RequestID,
 			StatusDesc: err.Error(),
