@@ -78,6 +78,27 @@ func NewFilterService(node *node.WakuNode, m *chi.Mux, cacheCapacity int, log *z
 	return s
 }
 
+func convertFilterErrorToHttpStatus(err error) (int, string) {
+	code := http.StatusInternalServerError
+	statusDesc := "ping request failed"
+
+	filterErrorCode := filter.ExtractCodeFromFilterError(err.Error())
+	switch filterErrorCode {
+	case 404:
+		code = http.StatusNotFound
+		statusDesc = "peer has no subscription"
+	case 300:
+	case 400:
+		code = http.StatusBadRequest
+		statusDesc = "bad request format"
+	case 504:
+		code = http.StatusGatewayTimeout
+	case 503:
+		code = http.StatusServiceUnavailable
+	}
+	return code, statusDesc
+}
+
 // 400 for bad requestId
 // 404 when request failed or no suitable peers
 // 200 when ping successful
@@ -99,10 +120,14 @@ func (s *FilterService) ping(w http.ResponseWriter, req *http.Request) {
 
 	if err := s.node.FilterLightnode().Ping(req.Context(), peerId, filter.WithPingRequestId([]byte(requestID))); err != nil {
 		s.log.Error("ping request failed", zap.Error(err))
+
+		code, statusDesc := convertFilterErrorToHttpStatus(err)
+
 		writeResponse(w, &filterSubscriptionResponse{
 			RequestID:  requestID,
-			StatusDesc: "ping request failed",
-		}, http.StatusServiceUnavailable)
+			StatusDesc: statusDesc,
+		}, code)
+
 		return
 	}
 
