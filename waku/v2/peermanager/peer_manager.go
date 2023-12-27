@@ -350,8 +350,9 @@ func (pm *PeerManager) AddDiscoveredPeer(p service.PeerData, connectNow bool) {
 	_, err := pm.host.Peerstore().(wps.WakuPeerstore).Origin(p.AddrInfo.ID)
 	if err == nil {
 		enr, err := pm.host.Peerstore().(wps.WakuPeerstore).ENR(p.AddrInfo.ID)
+		pm.logger.Info("already found peer in peerstore", logging.HostID("peer", p.AddrInfo.ID), zap.Error(err), zap.Uint64("p.ENR.Seq()", p.ENR.Seq()), zap.Uint64("enr.Record().Seq()", enr.Record().Seq()))
 		// Verifying if the enr record is more recent (DiscV5 and peer exchange can return peers already seen)
-		if err == nil && enr.Record().Seq() > p.ENR.Seq() {
+		if err == nil && enr.Record().Seq() >= p.ENR.Seq() {
 			return
 		}
 	}
