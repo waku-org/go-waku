@@ -53,6 +53,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 func requiresDB(options NodeOptions) bool {
@@ -234,17 +236,17 @@ func Execute(options NodeOptions) error {
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 	nodeOpts = append(nodeOpts, node.WithNTP())
 
-	/* 	maxMsgSize, err := parseMsgSizeConfig(options.Relay.MaxMsgSize)
-	   	if err != nil {
-	   		return nonRecoverErrorMsg("invalid format for max msg size bytes: %w", err)
-	   	} */
+	maxMsgSize, err := parseMsgSizeConfig(options.Relay.MaxMsgSize)
+	if err != nil {
+		return nonRecoverErrorMsg("invalid format for max msg size bytes: %w", err)
+	}
 	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
-		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(options.Relay.MaxMsgSize))
+		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(maxMsgSize))
 
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
-		nodeOpts = append(nodeOpts, node.WithMaxMsgSize(options.Relay.MaxMsgSize))
+		nodeOpts = append(nodeOpts, node.WithMaxMsgSize(maxMsgSize))
 	}
 
 	nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
@@ -585,8 +587,11 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 
 }
 
-/* func parseMsgSizeConfig(msgSizeConfig string) (int, error) {
-	msgSize := 0
-	//TODO: Parse config
-	return msgSize, nil
-} */
+func parseMsgSizeConfig(msgSizeConfig string) (int, error) {
+
+	msgSize, err := humanize.ParseBytes(msgSizeConfig)
+	if err != nil {
+		msgSize = 0
+	}
+	return int(msgSize), nil
+}

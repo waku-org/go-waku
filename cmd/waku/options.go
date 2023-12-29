@@ -30,7 +30,7 @@ type RelayOptions struct {
 	ContentTopics          cli.StringSlice
 	PeerExchange           bool
 	MinRelayPeersToPublish int
-	MaxMsgSize             int
+	MaxMsgSize             string
 }
 
 // RLNRelayOptions are settings used to enable RLN Relay. This is a protocol
