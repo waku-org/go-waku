@@ -38,6 +38,9 @@ func WithPubSubOptions(opts []pubsub.Option) RelayOption {
 
 func WithMaxMsgSize(maxMsgSizeBytes int) RelayOption {
 	return func(params *relayParameters) {
+		if maxMsgSizeBytes == 0 {
+			maxMsgSizeBytes = defaultMaxMsgSizeBytes
+		}
 		params.maxMsgSizeBytes = maxMsgSizeBytes
 	}
 }
