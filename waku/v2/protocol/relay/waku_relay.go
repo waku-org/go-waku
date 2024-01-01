@@ -235,7 +235,7 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (*pubsubTopicSubscripti
 		}
 
 		w.log.Info("gossipsub subscription", zap.String("pubsubTopic", subscription.Topic()))
-
+		w.metrics.SetPubSubTopics(len(w.topics))
 		result = w.topics[topic]
 	}
 
@@ -483,6 +483,7 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 			if err != nil {
 				return err
 			}
+			w.metrics.SetPubSubTopics(len(w.topics))
 		}
 	}
 	return nil
