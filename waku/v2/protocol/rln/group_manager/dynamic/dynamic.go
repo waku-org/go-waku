@@ -45,13 +45,15 @@ type DynamicGroupManager struct {
 	membershipIndexToLoad *uint
 }
 
-func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered) error {
+func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered, latestProcessBlock uint64) error {
 	gm.lastBlockProcessedMutex.Lock()
 	defer gm.lastBlockProcessedMutex.Unlock()
 
 	toRemoveTable := om.New()
 	toInsertTable := om.New()
-
+	if gm.lastBlockProcessed == 0 {
+		gm.lastBlockProcessed = latestProcessBlock
+	}
 	lastBlockProcessed := gm.lastBlockProcessed
 	for _, event := range events {
 		if event.Raw.Removed {
