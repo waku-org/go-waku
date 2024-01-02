@@ -248,3 +248,48 @@ func TestTemporalHistoryQueries(t *testing.T) {
 
 	require.Len(t, response.Messages, 0)
 }
+
+func TestSetMessageProvider(t *testing.T) {
+	pubSubTopic := "/waku/2/go/store/test"
+	contentTopic := "/test/2/my-app"
+	contentTopic2 := "/test/2/my-app2"
+
+	msg := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
+	msg2 := tests.CreateWakuMessage(contentTopic2, utils.GetUnixEpoch())
+
+	msgProvider := MemoryDB(t)
+	msgProvider2 := MemoryDB(t)
+
+	s := NewWakuStore(msgProvider, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	_ = s.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubSubTopic))
+
+	s2 := NewWakuStore(msgProvider2, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	_ = s2.storeMessage(protocol.NewEnvelope(msg2, *utils.GetUnixEpoch(), pubSubTopic))
+
+	// Swap providers -> messages should follow regardless of the store object values
+	s.SetMessageProvider(msgProvider2)
+	s2.SetMessageProvider(msgProvider)
+
+	response := s.FindMessages(&pb.HistoryQuery{
+		ContentFilters: []*pb.ContentFilter{
+			{
+				ContentTopic: contentTopic2,
+			},
+		},
+	})
+
+	require.Len(t, response.Messages, 1)
+	require.True(t, proto.Equal(msg2, response.Messages[0]))
+
+	response2 := s2.FindMessages(&pb.HistoryQuery{
+		ContentFilters: []*pb.ContentFilter{
+			{
+				ContentTopic: contentTopic,
+			},
+		},
+	})
+
+	require.Len(t, response2.Messages, 1)
+	require.True(t, proto.Equal(msg, response2.Messages[0]))
+
+}
