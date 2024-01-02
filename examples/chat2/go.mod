@@ -17,8 +17,6 @@ require (
 	github.com/multiformats/go-multiaddr v0.10.1
 	github.com/urfave/cli/v2 v2.24.4
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
-	github.com/waku-org/go-zerokit-rln v0.1.14-0.20230916173259-d284a3d8f2fd
-	golang.org/x/crypto v0.12.0
 	golang.org/x/term v0.11.0
 	google.golang.org/protobuf v1.31.0
 )
@@ -126,6 +124,7 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98 // indirect
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20230628220917-7b4e5ae4c0e7 // indirect
+	github.com/waku-org/go-zerokit-rln v0.1.14-0.20240102145250-fa738c0bdf59 // indirect
 	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230916172309-ee0ee61dde2b // indirect
 	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230916171929-1dd9494ff065 // indirect
 	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230916171518-2a77c3734dd1 // indirect
@@ -136,6 +135,7 @@ require (
 	go.uber.org/fx v1.20.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
+	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
