@@ -105,7 +105,7 @@ func (a *AdminService) postV1Peer(w http.ResponseWriter, req *http.Request) {
 	}
 
 	for _, shard := range pInfo.Shards {
-		topic := waku_proto.NewStaticShardingPubsubTopic(waku_proto.ClusterIndex, uint16(shard))
+		topic := waku_proto.NewStaticShardingPubsubTopic(a.node.ClusterID(), uint16(shard))
 		topics = append(topics, topic.String())
 	}
 

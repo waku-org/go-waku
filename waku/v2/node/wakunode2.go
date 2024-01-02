@@ -978,3 +978,7 @@ func GetDiscv5Option(dnsDiscoveredNodes []dnsdisc.DiscoveredNode, discv5Nodes []
 
 	return WithDiscoveryV5(port, bootnodes, autoUpdate), nil
 }
+
+func (w *WakuNode) ClusterID() uint16 {
+	return w.opts.clusterID
+}
