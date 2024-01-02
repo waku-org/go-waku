@@ -79,9 +79,9 @@ func TestFilterPingFailure(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
 		RequestID:  requestID,
-		StatusDesc: "ping request failed",
+		StatusDesc: "peer has no subscription",
 	}, getFilterResponse(t, rr.Body))
-	require.Equal(t, http.StatusServiceUnavailable, rr.Code)
+	require.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 // create a filter subscription to the peer and try peer that peer
@@ -230,9 +230,9 @@ func TestFilterAllUnsubscribe(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	checkJSON(t, filterSubscriptionResponse{
 		RequestID:  requestID,
-		StatusDesc: "ping request failed",
+		StatusDesc: "peer has no subscription",
 	}, getFilterResponse(t, rr.Body))
-	require.Equal(t, http.StatusServiceUnavailable, rr.Code)
+	require.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func checkJSON(t *testing.T, expected, actual interface{}) {
