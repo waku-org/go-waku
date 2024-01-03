@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"testing"
 	"time"
 
@@ -365,4 +367,58 @@ func TestWakuStoreProtocolFind(t *testing.T) {
 	foundMsg, err = s2.Find(ctx, q, fn2, WithPeer(host1.ID()), WithAutomaticRequestID(), WithPaging(true, 2))
 	require.NoError(t, err)
 	require.Nil(t, foundMsg)
+}
+
+func TestWakuStoreStart(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	require.NoError(t, err)
+
+	messageProvider := MemoryDB(t)
+
+	s := NewWakuStore(messageProvider, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	s.SetHost(host)
+
+	topic1 := "1"
+	pubsubTopic1 := "topic1"
+
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		ContentTopic: topic1,
+		Timestamp:    utils.GetUnixEpoch(),
+	}
+
+	// Simulate a message has been received via relay protocol
+	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubsubTopic1)})
+
+	// Store has nil message provider -> Start should return nil/no error
+	s.msgProvider = nil
+	err = s.Start(ctx, sub)
+	require.NoError(t, err)
+	s.Stop()
+
+	// Start again already started store -> Start should return nil/no error
+	s.msgProvider = messageProvider
+	err = s.Start(ctx, sub)
+	require.NoError(t, err)
+	err = s.Start(ctx, sub)
+	require.NoError(t, err)
+	defer s.Stop()
+
+	// Store Start cannot start its message provider -> return error
+	var brokenDB *sql.DB
+	brokenDB, err = sqlite.NewDB("sqlite:///no.db", utils.Logger())
+	require.NoError(t, err)
+
+	persistence.SetStoreDB(t, brokenDB, messageProvider)
+	persistence.SetMaxMessages(t, 10, messageProvider)
+
+	s2 := NewWakuStore(messageProvider, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	s2.SetHost(host)
+
+	err = s2.Start(ctx, sub)
+	require.Error(t, err)
+	defer s2.Stop()
 }
