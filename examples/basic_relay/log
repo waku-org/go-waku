@@ -1,0 +1,25 @@
+2023-11-30T14:22:24.782+0530	[34mINFO[0m	gowaku.node2	peermanager/peer_manager.go:110	PeerManager init values	{"maxConnections": 50, "maxRelayPeers": 40, "outRelayPeersTarget": 13, "inRelayPeersTarget": 27, "maxPeers": 250}
+2023-11-30T14:22:24.783+0530	[34mINFO[0m	gowaku.node2	peermanager/peer_manager.go:110	PeerManager init values	{"maxConnections": 50, "maxRelayPeers": 40, "outRelayPeersTarget": 13, "inRelayPeersTarget": 27, "maxPeers": 250}
+2023-11-30T14:22:24.789+0530	[33mWARN[0m	gowaku.node2.metadata	metadata/waku_metadata.go:58	no clusterID is specified. Protocol will not be initialized
+2023-11-30T14:22:24.789+0530	[34mINFO[0m	gowaku.node2.timesource	timesource/ntp.go:170	starting service
+2023-11-30T14:22:24.789+0530	[34mINFO[0m	gowaku.node2	node/wakunode2.go:327	listening	{"multiaddr": ["/ip4/127.0.0.1/tcp/64150/p2p/16Uiu2HAmBbfRVT8J6iFSKpLm1VfQ7PGTDVEHMZqCDWSkK3fRXyAt", "/ip4/192.168.1.4/tcp/64150/p2p/16Uiu2HAmBbfRVT8J6iFSKpLm1VfQ7PGTDVEHMZqCDWSkK3fRXyAt"]}
+2023-11-30T14:22:24.789+0530	[34mINFO[0m	gowaku.node2.relay	relay/waku_relay.go:137	Relay protocol started
+2023-11-30T14:22:24.790+0530	[34mINFO[0m	gowaku.node2	node/wakunode2.go:578	enr record	{"enr": "enr:-JG4QOqt1rXaF2cmgfl8gctevzLRGKJi8uXYTgMVjBVreAF9VWXIvhV5JCscWr0-lAsPxK-MOdt-dk1QkTxZ_Vasr22GAYwfbeRPgmlkgnY0gmlwhMCoAQSJc2VjcDI1NmsxoQLwSitPtd26VoLAV4G6OkSwe2pzkbdfTuhm1Mut1VbEjYN0Y3CC-paFd2FrdTIB"}
+2023-11-30T14:22:24.790+0530	[34mINFO[0m	gowaku.node2	node/wakunode2.go:333	listening addresses update received	{"multiaddr": ["/ip4/127.0.0.1/tcp/64150/p2p/16Uiu2HAmBbfRVT8J6iFSKpLm1VfQ7PGTDVEHMZqCDWSkK3fRXyAt", "/ip4/192.168.1.4/tcp/64150/p2p/16Uiu2HAmBbfRVT8J6iFSKpLm1VfQ7PGTDVEHMZqCDWSkK3fRXyAt"]}
+2023-11-30T14:22:24.793+0530	[33mWARN[0m	gowaku.node2.metadata	metadata/waku_metadata.go:58	no clusterID is specified. Protocol will not be initialized
+2023-11-30T14:22:24.793+0530	[34mINFO[0m	gowaku.node2.timesource	timesource/ntp.go:170	starting service
+2023-11-30T14:22:24.793+0530	[34mINFO[0m	gowaku.node2.relay	relay/waku_relay.go:137	Relay protocol started
+2023-11-30T14:22:24.794+0530	[34mINFO[0m	gowaku.node2	node/wakunode2.go:327	listening	{"multiaddr": ["/ip4/127.0.0.1/tcp/64151/p2p/16Uiu2HAmFQiLb9wbN6dij4YMKNyDWmX2UEP6mvj3nDTSkZio2KHy", "/ip4/192.168.1.4/tcp/64151/p2p/16Uiu2HAmFQiLb9wbN6dij4YMKNyDWmX2UEP6mvj3nDTSkZio2KHy"]}
+2023-11-30T14:22:24.794+0530	[34mINFO[0m	gowaku.node2	node/wakunode2.go:578	enr record	{"enr": "enr:-JG4QHPIYnIzyL7siW5P4beiO5SBmMFM4DpsvW2-pjoelPQpNWAmFHz10bJyvx1qtIhxRsg-zH2HMzcmRirBOBfm4COGAYwfbeRQgmlkgnY0gmlwhMCoAQSJc2VjcDI1NmsxoQMo6tMVUqHC9j1_JlyglSYDL4GLmZghaU9LhCUQY0R6iIN0Y3CC-peFd2FrdTIB"}
+2023-11-30T14:22:24.794+0530	[34mINFO[0m	gowaku.node2	node/wakunode2.go:333	listening addresses update received	{"multiaddr": ["/ip4/192.168.1.4/tcp/64151/p2p/16Uiu2HAmFQiLb9wbN6dij4YMKNyDWmX2UEP6mvj3nDTSkZio2KHy", "/ip4/127.0.0.1/tcp/64151/p2p/16Uiu2HAmFQiLb9wbN6dij4YMKNyDWmX2UEP6mvj3nDTSkZio2KHy"]}
+2023-11-30T14:22:24.795+0530	[34mINFO[0m	gowaku.node2.connection-notifier	node/connectedness.go:70	peer connected	{"peer": "16Uiu2HAmFQiLb9wbN6dij4YMKNyDWmX2UEP6mvj3nDTSkZio2KHy", "direction": "Outbound"}
+2023-11-30T14:22:24.795+0530	[34mINFO[0m	gowaku.node2.connection-notifier	node/connectedness.go:70	peer connected	{"peer": "16Uiu2HAmBbfRVT8J6iFSKpLm1VfQ7PGTDVEHMZqCDWSkK3fRXyAt", "direction": "Inbound"}
+2023-11-30T14:22:25.022+0530	[34mINFO[0m	gowaku.node2.timesource	timesource/ntp.go:158	Difference with ntp servers	{"offset": 0.054344645}
+2023-11-30T14:22:25.032+0530	[34mINFO[0m	gowaku.node2.timesource	timesource/ntp.go:158	Difference with ntp servers	{"offset": 0.054646018}
+connected peers for node1 [16Uiu2HAmFQiLb9wbN6dij4YMKNyDWmX2UEP6mvj3nDTSkZio2KHy]
+2023-11-30T14:22:26.797+0530	[34mINFO[0m	gowaku.node2.relay	relay/waku_relay.go:396	subscribing to	{"pubsubTopic": "/waku/2/default-waku/proto", "contentTopics": []}
+2023-11-30T14:22:26.797+0530	[34mINFO[0m	gowaku.node2.relay	relay/waku_relay.go:205	subscribing to underlying pubsubTopic	{"pubsubTopic": "/waku/2/default-waku/proto"}
+2023-11-30T14:22:26.797+0530	[34mINFO[0m	gowaku.node2.relay	relay/waku_relay.go:237	gossipsub subscription	{"pubsubTopic": "/waku/2/default-waku/proto"}
+2023-11-30T14:22:26.797+0530	[34mINFO[0m	gowaku.node2.peer-manager	peermanager/topic_event_handler.go:24	handleNewRelayTopicSubscription	{"pubSubTopic": "/waku/2/default-waku/proto"}
+2023-11-30T14:22:28.810+0530	[31mERROR[0m	gowaku.basic2	basic2/main.go:147	Error sending a message	{"error": "message size exceeds gossipsub max message size"}
+2023-11-30T14:22:28.810+0530	[34mINFO[0m	gowaku.basic2	basic2/main.go:160	sending message

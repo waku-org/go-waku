@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -24,23 +27,72 @@ import (
 
 var log = utils.Logger().Named("basic2")
 
+var ClusterID = altsrc.NewUintFlag(&cli.UintFlag{
+	Name:        "cluster-id",
+	Value:       1,
+	Usage:       "Cluster id that the node is running in. Node in a different cluster id is disconnected.",
+	Destination: &clusterID,
+})
+
+var Shard = altsrc.NewUintFlag(&cli.UintFlag{
+	Name:        "shard",
+	Value:       0,
+	Usage:       "shard that the node wants to subscribe and publish to.",
+	Destination: &shard,
+})
+
+var clusterID, shard uint
+var pubsubTopicStr string
+
 func main() {
+
+	cliFlags := []cli.Flag{
+		ClusterID,
+		Shard,
+	}
+
+	app := &cli.App{
+		Name:  "basic-relay-example",
+		Flags: cliFlags,
+		Action: func(c *cli.Context) error {
+			err := Execute()
+			if err != nil {
+				utils.Logger().Error("failure while executing wakunode", zap.Error(err))
+				switch e := err.(type) {
+				case cli.ExitCoder:
+					return e
+				case error:
+					return cli.Exit(err.Error(), 1)
+				}
+			}
+			return nil
+		},
+	}
+	err := app.Run(os.Args)
+	if err != nil {
+		panic(err)
+	}
+
+}
+
+func Execute() error {
+
 	var cTopic, err = protocol.NewContentTopic("basic2", "1", "test", "proto")
 	if err != nil {
 		fmt.Println("Invalid contentTopic")
-		return
+		return errors.New("invalid contentTopic")
 	}
 	contentTopic := cTopic.String()
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	key, err := randomHex(32)
 	if err != nil {
 		log.Error("Could not generate random key", zap.Error(err))
-		return
+		return err
 	}
 	prvKey, err := crypto.HexToECDSA(key)
 	if err != nil {
 		log.Error("Could not convert hex into ecdsa key", zap.Error(err))
-		return
+		return err
 	}
 
 	ctx := context.Background()
@@ -50,15 +102,22 @@ func main() {
 		node.WithHostAddress(hostAddr),
 		node.WithNTP(),
 		node.WithWakuRelay(),
+		node.WithClusterID(uint16(clusterID)),
 	)
 	if err != nil {
 		log.Error("Error creating wakunode", zap.Error(err))
-		return
+		return err
 	}
 
 	if err := wakuNode.Start(ctx); err != nil {
 		log.Error("Error starting wakunode", zap.Error(err))
-		return
+		return err
+	}
+
+	//Populate pubsubTopic if shard is specified. Otherwise it is derived via autosharing algorithm
+	if shard != 0 {
+		pubsubTopic := protocol.NewStaticShardingPubsubTopic(uint16(clusterID), uint16(shard))
+		pubsubTopicStr = pubsubTopic.String()
 	}
 
 	go writeLoop(ctx, wakuNode, contentTopic)
@@ -72,7 +131,7 @@ func main() {
 
 	// shut the node down
 	wakuNode.Stop()
-
+	return nil
 }
 
 func randomHex(n int) (string, error) {
@@ -103,10 +162,11 @@ func write(ctx context.Context, wakuNode *node.WakuNode, contentTopic string, ms
 		Timestamp:    utils.GetUnixEpoch(wakuNode.Timesource()),
 	}
 
-	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithDefaultPubsubTopic())
+	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopicStr))
 	if err != nil {
 		log.Error("Error sending a message", zap.Error(err))
 	}
+	log.Info("Published msg,", zap.String("data", string(msg.Payload)))
 }
 
 func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
@@ -117,7 +177,7 @@ func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string
 }
 
 func readLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
-	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
+	sub, err := wakuNode.Relay().Subscribe(ctx, protocol.NewContentFilter(pubsubTopicStr, contentTopic))
 	if err != nil {
 		log.Error("Could not subscribe", zap.Error(err))
 		return
