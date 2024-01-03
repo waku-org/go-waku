@@ -20,7 +20,7 @@ import (
 )
 
 // RegistrationEventHandler represents the types of inputs to this handler matches the MemberRegistered event/proc defined in the MembershipContract interface
-type RegistrationEventHandler = func([]*contracts.RLNMemberRegistered) error
+type RegistrationEventHandler = func([]*contracts.RLNMemberRegistered, uint64) error
 
 // MembershipFetcher is used for getting membershipRegsitered Events from the eth rpc
 type MembershipFetcher struct {
@@ -94,7 +94,7 @@ func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 		t1Since := time.Since(t1)
 
 		t2 := time.Now()
-		if err := handler(events); err != nil {
+		if err := handler(events, fromBlock+maxBatchSize); err != nil {
 			return err
 		}
 
@@ -110,7 +110,7 @@ func (mf *MembershipFetcher) loadOldEvents(ctx context.Context, fromBlock, toBlo
 
 	// process all the fetched events
 	t2 := time.Now()
-	err = handler(events)
+	err = handler(events, toBlock)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (mf *MembershipFetcher) watchNewEvents(ctx context.Context, fromBlock uint6
 				fromBlock = toBlock + 1
 			}
 
-			err = handler(events)
+			err = handler(events, toBlock)
 			if err != nil {
 				mf.log.Error("processing rln log", zap.Error(err))
 			}

@@ -38,7 +38,7 @@ func TestFetchingLogic(t *testing.T) {
 	}
 
 	counts := []int{}
-	mockFn := func(events []*contracts.RLNMemberRegistered) error {
+	mockFn := func(events []*contracts.RLNMemberRegistered, latestProcessedBlock uint64) error {
 		counts = append(counts, len(events))
 		return nil
 	}
