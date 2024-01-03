@@ -26,7 +26,7 @@ pkg/*
 
 # output binaries
 go-waku
-examples/basic_relay/build/basic_relay
+examples/basic-relay/build/basic-relay
 examples/filter2/build/filter2
 examples/noise/build/
 examples/noise/noise
