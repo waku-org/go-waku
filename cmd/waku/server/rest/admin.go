@@ -62,6 +62,10 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 
 	response := make([]WakuPeer, 0)
 	for _, peer := range peers {
+		if peer.ID.String() == a.node.Host().ID().String() {
+			//Skip own node id
+			continue
+		}
 		wPeer := WakuPeer{
 			ID:        peer.ID.Pretty(),
 			Connected: peer.Connected,

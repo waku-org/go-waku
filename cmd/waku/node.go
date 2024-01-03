@@ -53,6 +53,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 func requiresDB(options NodeOptions) bool {
@@ -110,7 +112,7 @@ func Execute(options NodeOptions) error {
 	var migrationFn func(*sql.DB) error
 	if requiresDB(options) && options.Store.Migration {
 		dbSettings := dbutils.DBSettings{}
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL, dbSettings, logger)
+		db, migrationFn, err = dbutils.ParseURL(options.Store.DatabaseURL, dbSettings, logger)
 		if err != nil {
 			return nonRecoverErrorMsg("could not connect to DB: %w", err)
 		}
@@ -234,10 +236,15 @@ func Execute(options NodeOptions) error {
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 	nodeOpts = append(nodeOpts, node.WithNTP())
 
+	maxMsgSize := parseMsgSizeConfig(options.Relay.MaxMsgSize)
+
 	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
+		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(maxMsgSize))
+
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
+		nodeOpts = append(nodeOpts, node.WithMaxMsgSize(maxMsgSize))
 	}
 
 	nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
@@ -576,4 +583,13 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		fmt.Println(addr)
 	}
 
+}
+
+func parseMsgSizeConfig(msgSizeConfig string) int {
+
+	msgSize, err := humanize.ParseBytes(msgSizeConfig)
+	if err != nil {
+		msgSize = 0
+	}
+	return int(msgSize)
 }
