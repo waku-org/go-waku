@@ -96,7 +96,7 @@ func NewWakuRelay(bcaster Broadcaster, minPeersToPublish int, timesource timesou
 	for _, opt := range options {
 		opt(w.relayParams)
 	}
-	w.log.Info("Relay Config:", zap.Int("max-msg-size-bytes", w.relayParams.maxMsgSizeBytes),
+	w.log.Info("relay config", zap.Int("max-msg-size-bytes", w.relayParams.maxMsgSizeBytes),
 		zap.Int("min-peers-to-publish", w.minPeersToPublish))
 	return w
 }
