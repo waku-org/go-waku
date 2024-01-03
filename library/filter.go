@@ -203,7 +203,7 @@ func FilterUnsubscribeAll(instance *WakuInstance, peerID string, ms int) (string
 
 	for _, err := range result.Errors() {
 		ur := unsubscribeAllResult{
-			PeerID: err.PeerID.Pretty(),
+			PeerID: err.PeerID.String(),
 		}
 		if err.Err != nil {
 			ur.Error = err.Err.Error()

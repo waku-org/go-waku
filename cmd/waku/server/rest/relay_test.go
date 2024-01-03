@@ -101,7 +101,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	serviceB := makeRelayService(t, router1)
 
-	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().String()))
 	require.NoError(t, err)
 
 	var addr multiaddr.Multiaddr
@@ -233,7 +233,7 @@ func TestRelayGetV1AutoMessages(t *testing.T) {
 
 	serviceB := makeRelayService(t, router1)
 
-	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().Pretty()))
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", serviceB.node.Host().ID().String()))
 	require.NoError(t, err)
 
 	var addr multiaddr.Multiaddr
