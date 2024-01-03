@@ -57,6 +57,10 @@ func (a *AdminService) GetV1Peers(req *http.Request, args *GetPeersArgs, reply *
 		return nil
 	}
 	for _, peer := range peers {
+		if peer.ID.String() == a.node.Host().ID().String() {
+			//Skip own node id
+			continue
+		}
 		for _, addr := range peer.Addrs {
 			for _, proto := range peer.Protocols {
 				if !server.IsWakuProtocol(proto) {

@@ -286,6 +286,13 @@ var (
 		Destination: &options.Relay.MinRelayPeersToPublish,
 		EnvVars:     []string{"WAKUNODE2_MIN_RELAY_PEERS_TO_PUBLISH"},
 	})
+	MaxRelayMsgSize = altsrc.NewStringFlag(&cli.StringFlag{
+		Name:        "max-msg-size",
+		Value:       "150KB",
+		Usage:       "Maximum message size. Supported formats are B, KiB, KB, MiB. If no suffix, default is bytes",
+		Destination: &options.Relay.MaxMsgSize,
+		EnvVars:     []string{"WAKUNODE2_MAX_RELAY_MSG_SIZE"},
+	})
 	StoreNodeFlag = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "storenode",
 		Usage: "Multiaddr of a peer that supports store protocol. Option may be repeated",
