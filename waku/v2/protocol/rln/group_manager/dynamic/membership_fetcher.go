@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
@@ -207,26 +208,30 @@ func (mf *MembershipFetcher) getEvents(ctx context.Context, fromBlock uint64, to
 }
 
 func (mf *MembershipFetcher) fetchEvents(ctx context.Context, from uint64, to uint64) ([]*contracts.RLNMemberRegistered, error) {
-	logIterator, err := mf.web3Config.RLNContract.FilterMemberRegistered(&bind.FilterOpts{Start: from, End: &to, Context: ctx})
-	if err != nil {
-		return nil, err
-	}
+	return retry.DoWithData(
+		func() ([]*contracts.RLNMemberRegistered, error) {
+			logIterator, err := mf.web3Config.RLNContract.FilterMemberRegistered(&bind.FilterOpts{Start: from, End: &to, Context: ctx})
+			if err != nil {
+				return nil, err
+			}
 
-	var results []*contracts.RLNMemberRegistered
+			var results []*contracts.RLNMemberRegistered
 
-	for {
-		if !logIterator.Next() {
-			break
-		}
+			for {
+				if !logIterator.Next() {
+					break
+				}
 
-		if logIterator.Error() != nil {
-			return nil, logIterator.Error()
-		}
+				if logIterator.Error() != nil {
+					return nil, logIterator.Error()
+				}
 
-		results = append(results, logIterator.Event)
-	}
+				results = append(results, logIterator.Event)
+			}
 
-	return results, nil
+			return results, nil
+		}, retry.Attempts(3),
+	)
 }
 
 // GetMetadata retrieves metadata from the zerokit's RLN database
