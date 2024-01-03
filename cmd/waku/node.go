@@ -112,7 +112,7 @@ func Execute(options NodeOptions) error {
 	var migrationFn func(*sql.DB) error
 	if requiresDB(options) && options.Store.Migration {
 		dbSettings := dbutils.DBSettings{}
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL, dbSettings, logger)
+		db, migrationFn, err = dbutils.ParseURL(options.Store.DatabaseURL, dbSettings, logger)
 		if err != nil {
 			return nonRecoverErrorMsg("could not connect to DB: %w", err)
 		}
@@ -485,7 +485,7 @@ func processTopics(options NodeOptions) (map[string][]string, error) {
 		pubSubTopicMap[pTopic.String()] = append(pubSubTopicMap[pTopic.String()], cTopic)
 	}
 	//If no topics are passed, then use default waku topic.
-	if len(pubSubTopicMap) == 0 {
+	if len(pubSubTopicMap) == 0 && options.ClusterID == 0 {
 		pubSubTopicMap[relay.DefaultWakuTopic] = []string{}
 	}
 

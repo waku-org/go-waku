@@ -203,7 +203,7 @@ func NewNode(instance *WakuInstance, configJSON string) error {
 	if *config.EnableStore {
 		var db *sql.DB
 		var migrationFn func(*sql.DB) error
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(*config.DatabaseURL, dbutils.DBSettings{}, utils.Logger())
+		db, migrationFn, err = dbutils.ParseURL(*config.DatabaseURL, dbutils.DBSettings{}, utils.Logger())
 		if err != nil {
 			return err
 		}
