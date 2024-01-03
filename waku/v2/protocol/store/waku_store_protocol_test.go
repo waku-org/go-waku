@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"testing"
 	"time"
@@ -412,13 +413,15 @@ func TestWakuStoreStart(t *testing.T) {
 	brokenDB, err = sqlite.NewDB("sqlite:///no.db", utils.Logger())
 	require.NoError(t, err)
 
-	persistence.SetStoreDB(t, brokenDB, messageProvider)
-	persistence.SetMaxMessages(t, 10, messageProvider)
+	dbStore, err := persistence.NewDBStore(prometheus.DefaultRegisterer, utils.Logger(), persistence.WithDB(brokenDB),
+		persistence.WithRetentionPolicy(10, 0))
+	require.NoError(t, err)
 
-	s2 := NewWakuStore(messageProvider, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	s2 := NewWakuStore(dbStore, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host)
 
 	err = s2.Start(ctx, sub)
 	require.Error(t, err)
 	defer s2.Stop()
+
 }
