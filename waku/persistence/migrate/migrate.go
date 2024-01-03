@@ -14,11 +14,19 @@ func Migrate(db *sql.DB, driver database.Driver, assetNames []string, assetFunc 
 	return migrateDB(db, bindata.Resource(
 		assetNames,
 		assetFunc,
-	), driver)
+	), driver, true)
+}
+
+// Migrate applies migrations.
+func MigrateDown(db *sql.DB, driver database.Driver, assetNames []string, assetFunc bindata.AssetFunc) error {
+	return migrateDB(db, bindata.Resource(
+		assetNames,
+		assetFunc,
+	), driver, false)
 }
 
 // Migrate database using provided resources.
-func migrateDB(db *sql.DB, resources *bindata.AssetSource, driver database.Driver) error {
+func migrateDB(db *sql.DB, resources *bindata.AssetSource, driver database.Driver, up bool) error {
 	source, err := bindata.WithInstance(resources)
 	if err != nil {
 		return err
@@ -33,7 +41,12 @@ func migrateDB(db *sql.DB, resources *bindata.AssetSource, driver database.Drive
 		return err
 	}
 
-	if err = m.Up(); err != migrate.ErrNoChange {
+	fn := m.Up
+	if !up {
+		fn = m.Down
+	}
+
+	if err = fn(); err != migrate.ErrNoChange {
 		return err
 	}
 	return nil

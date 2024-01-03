@@ -109,7 +109,7 @@ func Execute(options NodeOptions) error {
 	logger := utils.Logger().With(logging.HostID("node", id))
 
 	var db *sql.DB
-	var migrationFn func(*sql.DB) error
+	var migrationFn func(*sql.DB, *zap.Logger) error
 	if requiresDB(options) && options.Store.Migration {
 		dbSettings := dbutils.DBSettings{}
 		db, migrationFn, err = dbutils.ParseURL(options.Store.DatabaseURL, dbSettings, logger)

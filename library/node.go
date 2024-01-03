@@ -13,6 +13,7 @@ import (
 	"time"
 	"unsafe"
 
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -202,7 +203,7 @@ func NewNode(instance *WakuInstance, configJSON string) error {
 
 	if *config.EnableStore {
 		var db *sql.DB
-		var migrationFn func(*sql.DB) error
+		var migrationFn func(*sql.DB, *zap.Logger) error
 		db, migrationFn, err = dbutils.ParseURL(*config.DatabaseURL, dbutils.DBSettings{}, utils.Logger())
 		if err != nil {
 			return err
