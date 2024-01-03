@@ -25,7 +25,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = utils.Logger().Named("basic2")
+var log = utils.Logger().Named("basic-relay")
 
 var ClusterID = altsrc.NewUintFlag(&cli.UintFlag{
 	Name:        "cluster-id",
@@ -77,7 +77,7 @@ func main() {
 
 func Execute() error {
 
-	var cTopic, err = protocol.NewContentTopic("basic2", "1", "test", "proto")
+	var cTopic, err = protocol.NewContentTopic("basic-relay", "1", "test", "proto")
 	if err != nil {
 		fmt.Println("Invalid contentTopic")
 		return errors.New("invalid contentTopic")
