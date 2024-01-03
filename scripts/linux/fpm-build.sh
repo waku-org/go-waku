@@ -18,28 +18,28 @@ cp ${parent_path}/build/waku ${tmpdir}
 
 strip --strip-unneeded ${tmpdir}/waku
 
+cp ${parent_path}/scripts/linux/waku.service ${tmpdir}
+
 pushd ${tmpdir}
 
-fpm_build () {
-    fpm \
-    -s dir -t $1 \
-    -p gowaku-${VERSION}-x86_64.$1 \
-    --name go-waku \
-    --license "MIT, Apache 2.0" \
-    --version ${VERSION} \
-    --architecture x86_64 \
-    --depends libc6 \
-    --description "Go implementation of Waku v2 protocol" \
-    --url "https://github.com/waku-org/go-waku" \
-    --maintainer "Richard Ramos <richard@status.im>" \
-    waku=/usr/bin/waku
-}
+fpm \
+  -s dir -t deb \
+  -p gowaku-${VERSION}-x86_64.deb \
+  --name go-waku \
+  --license "MIT, Apache 2.0" \
+  --version ${VERSION} \
+  --architecture x86_64 \
+  --depends libc6 \
+  --description "Go implementation of Waku v2 protocol" \
+  --url "https://github.com/waku-org/go-waku" \
+  --maintainer "Richard Ramos <richard@status.im>" \
+  --deb-systemd=waku.service \
+  waku=/usr/bin/waku
 
-fpm_build "deb"
-fpm_build "rpm"
-
-ls
+fpm -s deb -t rpm -p gowaku-${VERSION}-x86_64.rpm *.deb
 
 mv *.deb *.rpm ${parent_path}/build/.
+
+ls ${parent_path}/build/.
 
 popd

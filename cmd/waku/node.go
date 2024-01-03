@@ -73,13 +73,15 @@ func scalePerc(value float64) float64 {
 
 const dialTimeout = 7 * time.Second
 
+const nonRecoverableErrorCode = 166
+
 func nonRecoverErrorMsg(format string, a ...any) error {
 	err := fmt.Errorf(format, a...)
 	return nonRecoverError(err)
 }
 
 func nonRecoverError(err error) error {
-	return cli.Exit(err.Error(), 166)
+	return cli.Exit(err.Error(), nonRecoverableErrorCode)
 }
 
 // Execute starts a go-waku node with settings determined by the Options parameter

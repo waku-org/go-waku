@@ -1,0 +1,44 @@
+# To configure the service, use `systemctl edit waku.service`
+# and override the environment variables in this file
+#
+# To completely override the start command, override the `ExecStart` value
+# instead by first emptying it, then specifying a new one:
+#
+# [Service]
+# ExecStart=
+# ExecStart=/usr/bin/waku --cluster-id=1
+
+[Unit]
+Description=Waku
+Wants=network-online.target
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+# TWN
+Environment=CLUSTER_ID=1
+
+# Default ports
+Environment=TCP_PORT=9000
+Environment=REST_ENABLED=true
+Environment=REST_PORT=8645
+Environment=METRICS_ENABLED=true
+Environment=METRICS_PORT=8008
+
+# Default group = waku
+WorkingDirectory=/var/lib/waku
+TimeoutSec=1200
+Restart=always
+
+# List of non-recoverable error codes
+RestartPreventExitStatus=166
+
+ExecStart=/usr/bin/waku \
+  --cluster-id=${CLUSTER_ID} \
+  --port=${TCP_PORT} \
+  --rest=${REST_ENABLED} \
+  --rest-port=${REST_PORT} \
+  --metrics=${METRICS_ENABLED} \
+  --metrics-port=${METRICS_PORT}
