@@ -18,8 +18,8 @@ func TestMetadata(t *testing.T) {
 		ValidRootsPerBlock: []group_manager.RootsPerBlock{{Root: [32]byte{1}, BlockNumber: 100}, {Root: [32]byte{2}, BlockNumber: 200}},
 	}
 
-	serializedMetadata := metadata.Serialize()
-
+	serializedMetadata, err := metadata.Serialize()
+	require.NoError(t, err)
 	unserializedMetadata, err := DeserializeMetadata(serializedMetadata)
 	require.NoError(t, err)
 	require.Equal(t, metadata.ChainID.Uint64(), unserializedMetadata.ChainID.Uint64())
@@ -34,8 +34,14 @@ func TestMetadata(t *testing.T) {
 	// Handle cases where the chainId is not specified (for some reason?) or no valid roots were specified
 	metadata.ChainID = nil
 	metadata.ValidRootsPerBlock = nil
-	serializedMetadata = metadata.Serialize()
+	_, err = metadata.Serialize()
+	require.Error(t, err)
+
+	metadata.ChainID = big.NewInt(1)
+	serializedMetadata, err = metadata.Serialize()
+	require.NoError(t, err)
+
 	unserializedMetadata, err = DeserializeMetadata(serializedMetadata)
 	require.NoError(t, err)
-	require.Equal(t, uint64(0), unserializedMetadata.ChainID.Uint64())
+	require.Equal(t, uint64(1), unserializedMetadata.ChainID.Uint64())
 }
