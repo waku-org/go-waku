@@ -250,7 +250,7 @@ func (w *WakuRelay) subscribeToPubsubTopic(topic string) (*pubsubTopicSubscripti
 	return result, nil
 }
 
-// PublishToTopic is used to broadcast a WakuMessage to a pubsub topic. The pubsubTopic is derived from contentTopic
+// Publish is used to broadcast a WakuMessage to a pubsub topic. The pubsubTopic is derived from contentTopic
 // specified in the message via autosharding. To publish to a specific pubsubTopic, the `WithPubSubTopic` option should
 // be provided
 func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts ...PublishOption) ([]byte, error) {
