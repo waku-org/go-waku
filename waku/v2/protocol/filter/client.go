@@ -136,7 +136,9 @@ func (wf *WakuFilterLightNode) Stop() {
 func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(network.Stream) {
 	return func(stream network.Stream) {
 		peerID := stream.Conn().RemotePeer()
-		logger := wf.log.With(logging.HostID("peer", peerID))
+
+		logger := wf.log.With(logging.HostID("peerID", peerID))
+
 		if !wf.subscriptions.IsSubscribedTo(peerID) {
 			logger.Warn("received message push from unknown peer", logging.HostID("peerID", peerID))
 			wf.metrics.RecordError(unknownPeerMessagePush)
@@ -181,10 +183,11 @@ func (wf *WakuFilterLightNode) onRequest(ctx context.Context) func(network.Strea
 		} else {
 			pubSubTopic = *messagePush.PubsubTopic
 		}
+
+		logger = messagePush.WakuMessage.Logger(logger, pubSubTopic)
+
 		if !wf.subscriptions.Has(peerID, protocol.NewContentFilter(pubSubTopic, messagePush.WakuMessage.ContentTopic)) {
-			logger.Warn("received messagepush with invalid subscription parameters",
-				zap.String("topic", pubSubTopic),
-				zap.String("contentTopic", messagePush.WakuMessage.ContentTopic))
+			logger.Warn("received messagepush with invalid subscription parameters")
 			wf.metrics.RecordError(invalidSubscriptionMessage)
 			return
 		}
@@ -222,6 +225,8 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 		return err
 	}
 
+	logger := wf.log.With(logging.HostID("peerID", params.selectedPeer))
+
 	stream, err := wf.h.NewStream(ctx, params.selectedPeer, FilterSubscribeID_v20beta1)
 	if err != nil {
 		wf.metrics.RecordError(dialFailure)
@@ -231,13 +236,13 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	writer := pbio.NewDelimitedWriter(stream)
 	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
-	wf.log.Debug("sending FilterSubscribeRequest", zap.Stringer("request", request))
+	logger.Debug("sending FilterSubscribeRequest", zap.Stringer("request", request))
 	err = writer.WriteMsg(request)
 	if err != nil {
 		wf.metrics.RecordError(writeRequestFailure)
-		wf.log.Error("sending FilterSubscribeRequest", zap.Error(err))
+		logger.Error("sending FilterSubscribeRequest", zap.Error(err))
 		if err := stream.Reset(); err != nil {
-			wf.log.Error("resetting connection", zap.Error(err))
+			logger.Error("resetting connection", zap.Error(err))
 		}
 		return err
 	}
@@ -245,10 +250,10 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 	filterSubscribeResponse := &pb.FilterSubscribeResponse{}
 	err = reader.ReadMsg(filterSubscribeResponse)
 	if err != nil {
-		wf.log.Error("receiving FilterSubscribeResponse", zap.Error(err))
+		logger.Error("receiving FilterSubscribeResponse", zap.Error(err))
 		wf.metrics.RecordError(decodeRPCFailure)
 		if err := stream.Reset(); err != nil {
-			wf.log.Error("resetting connection", zap.Error(err))
+			logger.Error("resetting connection", zap.Error(err))
 		}
 		return err
 	}
@@ -257,6 +262,7 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, params *FilterSubscr
 
 	if err = filterSubscribeResponse.Validate(); err != nil {
 		wf.metrics.RecordError(decodeRPCFailure)
+		logger.Error("validating response", zap.Error(err))
 		return err
 
 	}
