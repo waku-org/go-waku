@@ -112,8 +112,8 @@ docker-image:
 	docker build --tag $(DOCKER_IMAGE_NAME) \
 		--build-arg="GIT_COMMIT=$(shell git rev-parse HEAD)" .
 
-build-example-basic2:
-	cd examples/basic2 && $(MAKE)
+build-example-basic-relay:
+	cd examples/basic-relay && $(MAKE)
 
 build-example-chat-2:
 	cd examples/chat2 && $(MAKE)
@@ -130,7 +130,7 @@ build-example-noise:
 build-example-rln:
 	cd examples/rln && $(MAKE)
 
-build-example: build-example-basic2 build-example-chat-2 build-example-filter2 build-example-c-bindings build-example-noise build-example-rln
+build-example: build-example-basic-relay build-example-chat-2 build-example-filter2 build-example-c-bindings build-example-noise build-example-rln
 
 static-library:
 	@echo "Building static library..."

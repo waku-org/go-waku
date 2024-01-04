@@ -57,7 +57,7 @@ func TestHandler(t *testing.T) {
 
 	events := []*contracts.RLNMemberRegistered{eventBuilder(1, false, 0xaaaa, 1)}
 
-	err = gm.handler(events)
+	err = gm.handler(events, 1)
 	require.NoError(t, err)
 
 	roots = gm.rootTracker.Roots()
@@ -73,7 +73,7 @@ func TestHandler(t *testing.T) {
 		eventBuilder(4, false, 0xeeee, 5),
 	}
 
-	err = gm.handler(events)
+	err = gm.handler(events, 4)
 	require.NoError(t, err)
 
 	// Root[1] should become [0]
@@ -97,7 +97,7 @@ func TestHandler(t *testing.T) {
 		eventBuilder(3, false, 0xeeee, 5),
 	}
 
-	err = gm.handler(events)
+	err = gm.handler(events, 3)
 	require.NoError(t, err)
 
 	roots = gm.rootTracker.Roots()
@@ -111,7 +111,7 @@ func TestHandler(t *testing.T) {
 	// Adding multiple events for same block
 	events = []*contracts.RLNMemberRegistered{}
 
-	err = gm.handler(events)
+	err = gm.handler(events, 0)
 	require.NoError(t, err)
 
 	roots = gm.rootTracker.Roots()

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/avast/retry-go/v4"
 )
 
 var dbUrlTemplate = "postgres://postgres@localhost:%s/%s?sslmode=disable"
@@ -39,8 +41,16 @@ func NewMockPgDB() *sql.DB {
 		mockPgDBPort = "5432"
 	}
 	//
-	dropDBUrl := fmt.Sprintf(dbUrlTemplate, mockPgDBPort, "template1")
-	if err := ResetDefaultTestPostgresDB(dropDBUrl); err != nil {
+	err := retry.Do(
+		func() error {
+
+			dropDBUrl := fmt.Sprintf(dbUrlTemplate, mockPgDBPort, "template1")
+			if err := ResetDefaultTestPostgresDB(dropDBUrl); err != nil {
+				return err
+			}
+			return nil
+		}, retry.Attempts(3))
+	if err != nil {
 		log.Fatalf("an error '%s' while reseting the db", err)
 	}
 	mockDBUrl := fmt.Sprintf(dbUrlTemplate, mockPgDBPort, "postgres")

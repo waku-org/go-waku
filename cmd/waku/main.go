@@ -59,6 +59,7 @@ func main() {
 		ProtectedTopics,
 		RelayPeerExchange,
 		MinRelayPeersToPublish,
+		MaxRelayMsgSize,
 		StoreNodeFlag,
 		StoreFlag,
 		StoreMessageDBURL,
