@@ -140,6 +140,7 @@ func Execute(options NodeOptions) error {
 		node.WithMaxPeerConnections(options.MaxPeerConnections),
 		node.WithPrometheusRegisterer(prometheus.DefaultRegisterer),
 		node.WithPeerStoreCapacity(options.PeerStoreCapacity),
+		node.WithMaxConnectionsPerIP(options.IPColocationLimit),
 		node.WithClusterID(uint16(options.ClusterID)),
 	}
 	if len(options.AdvertiseAddresses) != 0 {

@@ -6,6 +6,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
 var (
@@ -234,10 +235,17 @@ var (
 	})
 	AgentString = altsrc.NewStringFlag(&cli.StringFlag{
 		Name:        "agent-string",
-		Value:       "go-waku",
+		Value:       node.UserAgent,
 		Usage:       "client id to advertise",
 		Destination: &options.UserAgent,
 		EnvVars:     []string{"WAKUNODE2_AGENT_STRING"},
+	})
+	IPColocationLimit = altsrc.NewIntFlag(&cli.IntFlag{
+		Name:        "ip-colocation-limit",
+		Value:       node.DefaultMaxConnectionsPerIP,
+		Usage:       "max number of allowed peers from the same IP. Set it to 0 to remove the limitation.",
+		Destination: &options.IPColocationLimit,
+		EnvVars:     []string{"WAKUNODE2_IP_COLOCATION_LIMIT"},
 	})
 	Relay = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "relay",

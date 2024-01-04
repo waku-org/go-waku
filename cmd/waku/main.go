@@ -48,6 +48,7 @@ func main() {
 		ForceReachability,
 		ResourceScalingMemoryPercent,
 		ResourceScalingFDPercent,
+		IPColocationLimit,
 		LogLevel,
 		LogEncoding,
 		LogOutput,

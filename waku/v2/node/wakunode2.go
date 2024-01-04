@@ -344,7 +344,7 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start(ctx context.Context) error {
-	connGater := peermanager.NewConnectionGater(w.log)
+	connGater := peermanager.NewConnectionGater(w.opts.maxConnectionsPerIP, w.log)
 
 	ctx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
