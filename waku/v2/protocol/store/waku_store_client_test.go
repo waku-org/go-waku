@@ -2,15 +2,17 @@ package store
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p"
+	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"google.golang.org/protobuf/proto"
 	"testing"
 )
 
@@ -19,34 +21,47 @@ func TestQueryOptions(t *testing.T) {
 	defer cancel()
 
 	pubSubTopic := "/waku/2/go/store/test"
-	contentTopic := "/test/2/my-app"
+	contentTopic := "/test/2/my-app/proto"
 
-	host, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	// Init hosts with unique ports
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+	host, err := tests.MakeHost(ctx, port, rand.Reader)
 	require.NoError(t, err)
 
-	host2, err := libp2p.New(libp2p.DefaultTransports, libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	port2, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+	host2, err := tests.MakeHost(ctx, port2, rand.Reader)
 	require.NoError(t, err)
 
-	host2.Peerstore().AddAddr(host.ID(), tests.GetHostAddress(host), peerstore.PermanentAddrTTL)
-	err = host2.Peerstore().AddProtocols(host.ID(), StoreID_v20beta4)
+	// Let peer manager reside at host
+	pm := peermanager.NewPeerManager(5, 5, utils.Logger())
+	pm.SetHost(host)
+
+	// Add host2 to peerstore
+	host.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
+	err = host.Peerstore().AddProtocols(host2.ID(), StoreID_v20beta4)
 	require.NoError(t, err)
 
+	// Create message and subscription
 	msg := tests.CreateWakuMessage(contentTopic, utils.GetUnixEpoch())
-
-	s := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-	s.SetHost(host)
-	_ = s.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubSubTopic))
-
 	sub := SimulateSubscription([]*protocol.Envelope{
 		protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubSubTopic),
 	})
+
+	// Create store and save our msg into it
+	s := NewWakuStore(MemoryDB(t), pm, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	s.SetHost(host)
+	_ = s.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubSubTopic))
 
 	err = s.Start(ctx, sub)
 	require.NoError(t, err)
 	defer s.Stop()
 
-	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	// Create store2 and save our msg into it
+	s2 := NewWakuStore(MemoryDB(t), pm, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
+	_ = s2.storeMessage(protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubSubTopic))
 
 	sub2 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
 
@@ -61,13 +76,46 @@ func TestQueryOptions(t *testing.T) {
 		EndTime:       nil,
 	}
 
-	_, err = s.Query(ctx, q, WithPeer(host.ID()), WithPeerAddr(tests.GetHostAddress(host)))
+	// Test no peers available
+	_, err = s2.Query(ctx, q)
 	require.Error(t, err)
 
-	_, err = s.Query(ctx, q, WithPeerAddr(tests.GetHostAddress(host)), WithPeer(host.ID()))
+	// Test peerId and peerAddr options are mutually exclusive
+	_, err = s.Query(ctx, q, WithPeer(host2.ID()), WithPeerAddr(tests.GetHostAddress(host2)))
 	require.Error(t, err)
 
-	_, err = s2.Query(ctx, q, WithPeer(host.ID()), WithRequestID([]byte("requestID")))
+	// Test peerAddr and peerId options are mutually exclusive
+	_, err = s.Query(ctx, q, WithPeerAddr(tests.GetHostAddress(host2)), WithPeer(host2.ID()))
+	require.Error(t, err)
+
+	// Test WithRequestID
+	result, err := s.Query(ctx, q, WithPeer(host2.ID()), WithRequestID([]byte("requestID")))
 	require.NoError(t, err)
+	require.True(t, proto.Equal(msg, result.Messages[0]))
+
+	// Save cursor to use it in query with cursor option
+	c := result.Cursor()
+
+	// Test WithCursor
+	result, err = s.Query(ctx, q, WithPeer(host2.ID()), WithCursor(c))
+	require.NoError(t, err)
+	require.True(t, proto.Equal(msg, result.Messages[0]))
+
+	// Test WithFastestPeerSelection
+	_, err = s.Query(ctx, q, WithFastestPeerSelection())
+	require.NoError(t, err)
+	require.True(t, proto.Equal(msg, result.Messages[0]))
+
+	emptyPubSubTopicQuery := Query{
+		PubsubTopic:   "",
+		ContentTopics: []string{contentTopic},
+		StartTime:     nil,
+		EndTime:       nil,
+	}
+
+	// Test empty PubSubTopic provided in Query
+	result, err = s.Query(ctx, emptyPubSubTopicQuery, WithPeer(host2.ID()))
+	require.NoError(t, err)
+	require.True(t, proto.Equal(msg, result.Messages[0]))
 
 }
