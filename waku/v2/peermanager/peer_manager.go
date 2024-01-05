@@ -22,6 +22,7 @@ import (
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
 
 	"go.uber.org/zap"
 )
@@ -47,6 +48,7 @@ type PeerManager struct {
 	InRelayPeersTarget     int
 	OutRelayPeersTarget    int
 	host                   host.Host
+	timesource             timesource.Timesource
 	serviceSlots           *ServiceSlots
 	ctx                    context.Context
 	sub                    event.Subscription
@@ -54,6 +56,7 @@ type PeerManager struct {
 	subRelayTopics         map[string]*NodeTopicDetails
 	discoveryService       *discv5.DiscoveryV5
 	wakuprotoToENRFieldMap map[protocol.ID]WakuProtoInfo
+	rttCache               *RTTCache
 }
 
 // PeerSelection provides various options based on which Peer is selected from a list of peers.
@@ -88,7 +91,7 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 }
 
 // NewPeerManager creates a new peerManager instance.
-func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerManager {
+func NewPeerManager(maxConnections int, maxPeers int, timesource timesource.Timesource, logger *zap.Logger) *PeerManager {
 
 	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
 	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
@@ -106,6 +109,8 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 		subRelayTopics:         make(map[string]*NodeTopicDetails),
 		maxPeers:               maxPeers,
 		wakuprotoToENRFieldMap: map[protocol.ID]WakuProtoInfo{},
+		timesource:             timesource,
+		rttCache:               NewRTTCache(timesource, logger),
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
@@ -124,6 +129,7 @@ func (pm *PeerManager) SetDiscv5(discv5 *discv5.DiscoveryV5) {
 // SetHost sets the host to be used in order to access the peerStore.
 func (pm *PeerManager) SetHost(host host.Host) {
 	pm.host = host
+	pm.rttCache.SetHost(host)
 }
 
 // SetPeerConnector sets the peer connector to be used for establishing relay connections.
@@ -133,7 +139,6 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
-
 	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
 	pm.ctx = ctx

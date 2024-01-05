@@ -261,7 +261,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.metadata = metadata.NewWakuMetadata(w.opts.clusterID, w.localNode, w.log)
 
 	//Initialize peer manager.
-	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.opts.peerStoreCapacity, w.log)
+	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.opts.peerStoreCapacity, w.timesource, w.log)
 
 	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(w.peermanager, discoveryConnectTimeout, w.log)
 	if err != nil {
