@@ -382,17 +382,17 @@ func TestWakuStoreStart(t *testing.T) {
 	s := NewWakuStore(messageProvider, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s.SetHost(host)
 
-	topic1 := "1"
-	pubsubTopic1 := "topic1"
+	pubSubTopic := "/waku/2/go/store/test"
+	contentTopic := "/test/2/my-app"
 
 	msg := &pb.WakuMessage{
 		Payload:      []byte{1, 2, 3},
-		ContentTopic: topic1,
+		ContentTopic: contentTopic,
 		Timestamp:    utils.GetUnixEpoch(),
 	}
 
 	// Simulate a message has been received via relay protocol
-	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubsubTopic1)})
+	sub := SimulateSubscription([]*protocol.Envelope{protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), pubSubTopic)})
 
 	// Store has nil message provider -> Start should return nil/no error
 	s.msgProvider = nil
