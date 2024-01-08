@@ -172,6 +172,7 @@ type NodeOptions struct {
 	PProf                        bool
 	MaxPeerConnections           int
 	PeerStoreCapacity            int
+	IPColocationLimit            int
 
 	PeerExchange PeerExchangeOptions
 	Websocket    WSOptions
