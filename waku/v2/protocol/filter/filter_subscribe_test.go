@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"sync"
 	"time"
+
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/waku-org/go-waku/tests"
@@ -195,7 +196,7 @@ func (s *FilterTestSuite) TestSubscriptionRefresh() {
 }
 
 func (s *FilterTestSuite) TestContentTopicsLimit() {
-	var maxContentTopics = 30
+	var maxContentTopics = pb.MaxContentTopicsPerRequest
 
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
