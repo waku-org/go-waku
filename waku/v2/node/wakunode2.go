@@ -200,7 +200,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
 	w.keepAliveFails = make(map[peer.ID]int)
-	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
+	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilterFullNode || w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
 	w.circuitRelayNodes = make(chan peer.AddrInfo)
 	w.metrics = newMetrics(params.prometheusReg)
 
