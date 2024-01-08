@@ -7,7 +7,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const MaxContentTopicsPerRequest = 30
+const MaxContentTopicsPerRequest = 100
 
 var (
 	errMissingRequestID   = errors.New("missing RequestId field")
