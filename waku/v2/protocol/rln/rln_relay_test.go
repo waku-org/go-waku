@@ -246,3 +246,66 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	s.Require().Equal(validMessage, msgValidate3)
 	s.Require().Equal(invalidMessage, msgValidate4)
 }
+
+func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {
+	port, err := tests.FindFreePort(s.T(), "", 5)
+	s.Require().NoError(err)
+
+	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	s.Require().NoError(err)
+	bcaster := relay.NewBroadcaster(1024)
+	relay := relay.NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay.SetHost(host)
+	err = bcaster.Start(context.Background())
+	s.Require().NoError(err)
+	err = relay.Start(context.Background())
+	s.Require().NoError(err)
+	defer relay.Stop()
+
+	groupKeyPairs, _, err := r.CreateMembershipList(100)
+	s.Require().NoError(err)
+
+	var groupIDCommitments []r.IDCommitment
+	for _, c := range groupKeyPairs {
+		groupIDCommitments = append(groupIDCommitments, c.IDCommitment)
+	}
+
+	rlnInstance, rootTracker, err := GetRLNInstanceAndRootTracker("")
+	s.Require().NoError(err)
+
+	// Set index
+	index := r.MembershipIndex(5)
+
+	idCredential := groupKeyPairs[index]
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, rlnInstance, rootTracker, utils.Logger())
+	s.Require().NoError(err)
+
+	wakuRLNRelay := New(group_manager.Details{
+		GroupManager: groupManager,
+		RootTracker:  rootTracker,
+		RLN:          rlnInstance,
+	}, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = wakuRLNRelay.Start(ctx)
+	s.Require().NoError(err)
+
+	// Test IdentityCredential
+	_, err = wakuRLNRelay.IdentityCredential()
+	s.Require().NoError(err)
+
+	// Test MembershipIndex
+	i := wakuRLNRelay.MembershipIndex()
+	s.Require().Equal(i, uint(5))
+
+	// Test IsReady
+	_, err = wakuRLNRelay.IsReady(ctx)
+	s.Require().NoError(err)
+
+	// Test Stop
+	err = wakuRLNRelay.Stop()
+	s.Require().NoError(err)
+
+}
