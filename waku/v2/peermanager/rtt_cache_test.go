@@ -25,7 +25,7 @@ func TestRTT(t *testing.T) {
 	h1.Peerstore().AddAddrs(h2.ID(), h2.Addrs(), peerstore.PermanentAddrTTL)
 	h1.Peerstore().AddAddrs(h3.ID(), h3.Addrs(), peerstore.PermanentAddrTTL)
 
-	rtt := NewRTTCache(timesource.NewDefaultClock(), utils.Logger())
+	rtt := NewRTTCache(500*time.Millisecond, timesource.NewDefaultClock(), utils.Logger())
 	rtt.SetHost(h1)
 	go rtt.start(ctx, 500*time.Millisecond)
 
@@ -44,7 +44,7 @@ func TestRTT(t *testing.T) {
 
 	rtt.RLock()
 	h3RTT := rtt.peers[h3.ID()]
-	require.Equal(t, h3RTT.PingRTT, time.Hour) // Should have 1hr
+	require.Equal(t, time.Hour, h3RTT.PingRTT) // Should have 1hr
 
 	// Determine next verification ordering is correct
 	currN := rtt.pingQueue[0].nextVerification

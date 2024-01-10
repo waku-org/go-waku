@@ -90,6 +90,8 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 	return relayPeers - outRelayPeers, outRelayPeers
 }
 
+const rttVerificationTime = 30 * time.Second
+
 // NewPeerManager creates a new peerManager instance.
 func NewPeerManager(maxConnections int, maxPeers int, timesource timesource.Timesource, logger *zap.Logger) *PeerManager {
 
@@ -110,7 +112,7 @@ func NewPeerManager(maxConnections int, maxPeers int, timesource timesource.Time
 		maxPeers:               maxPeers,
 		wakuprotoToENRFieldMap: map[protocol.ID]WakuProtoInfo{},
 		timesource:             timesource,
-		rttCache:               NewRTTCache(timesource, logger),
+		rttCache:               NewRTTCache(rttVerificationTime, timesource, logger),
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),

@@ -45,11 +45,12 @@ type RTTCache struct {
 	logger     *zap.Logger
 }
 
-func NewRTTCache(timesource timesource.Timesource, logger *zap.Logger) *RTTCache {
+func NewRTTCache(verificationInterval time.Duration, timesource timesource.Timesource, logger *zap.Logger) *RTTCache {
 	return &RTTCache{
-		timesource: timesource,
-		logger:     logger.Named("ping-manager"),
-		peers:      make(map[peer.ID]*PeerRTT),
+		timesource:           timesource,
+		logger:               logger.Named("rtt-cache"),
+		peers:                make(map[peer.ID]*PeerRTT),
+		verificationInterval: verificationInterval,
 	}
 }
 
@@ -58,7 +59,11 @@ func (r *RTTCache) SetHost(h host.Host) {
 }
 
 func (r *RTTCache) Start(ctx context.Context) {
-	go r.start(ctx, 10*time.Second)
+	if r.verificationInterval == 0 {
+		return
+	}
+
+	go r.start(ctx, r.verificationInterval)
 }
 
 func (r *RTTCache) pingPeers(ctx context.Context) {
@@ -68,18 +73,23 @@ func (r *RTTCache) pingPeers(ctx context.Context) {
 		toPing = r.host.Peerstore().Peers()
 	} else {
 		for _, p := range r.pingQueue {
-			if p.IsStale() {
+			if p.IsStale() && len(r.host.Peerstore().PeerInfo(p.PeerID).Addrs) > 0 { // Does peer exist in peerstore?
 				toPing = append(toPing, p.PeerID)
 			}
 		}
 	}
 	r.RUnlock()
 	for _, p := range toPing {
-		go r.PingPeer(ctx, p)
+		go func() {
+			_, _ = r.PingPeer(ctx, p)
+		}()
 	}
 }
 
 func (r *RTTCache) start(ctx context.Context, pingInterval time.Duration) {
+	// Initial ping
+	r.pingPeers(ctx)
+
 	ticker := time.NewTicker(pingInterval)
 	defer ticker.Stop()
 	for {
@@ -90,7 +100,18 @@ func (r *RTTCache) start(ctx context.Context, pingInterval time.Duration) {
 			r.pingPeers(ctx)
 		}
 	}
+}
 
+func (r *RTTCache) updatePeer(peerID peer.ID, newRTT time.Duration, nextVerification time.Duration) *PeerRTT {
+	peerRTT, exists := r.getOrDefault(peerID)
+	peerRTT.PingRTT = newRTT
+	peerRTT.nextVerification = r.timesource.Now().Add(nextVerification)
+	if exists {
+		r.pingQueue.Update(peerRTT)
+	} else {
+		r.pingQueue.Push(peerRTT)
+	}
+	return peerRTT
 }
 
 func (r *RTTCache) PingPeer(ctx context.Context, peer peer.ID) (*PeerRTT, error) {
@@ -98,16 +119,18 @@ func (r *RTTCache) PingPeer(ctx context.Context, peer peer.ID) (*PeerRTT, error)
 		return nil, nil // Don't ping yourself
 	}
 
+	forcePing := r.verificationInterval == 0
+
 	r.RLock()
 	peerRTT, ok := r.peers[peer]
 	r.RUnlock()
 
-	if ok && !peerRTT.IsStale() {
+	if ok && !forcePing && !peerRTT.IsStale() {
 		// We already have a ping recorded
 		return peerRTT, nil
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, r.verificationInterval)
 	defer cancel()
 
 	select {
@@ -118,30 +141,15 @@ func (r *RTTCache) PingPeer(ctx context.Context, peer peer.ID) (*PeerRTT, error)
 		r.Lock()
 		defer r.Unlock()
 
-		peerRTT, exists := r.getOrDefault(peer)
 		if result.Error == nil {
-			peerRTT.PingRTT = result.RTT
-			peerRTT.nextVerification = time.Now().Add(r.verificationInterval)
-			if exists {
-				r.pingQueue.Update(peerRTT)
-			} else {
-				r.pingQueue.Push(peerRTT)
-			}
-			return peerRTT, nil
+			return r.updatePeer(peer, result.RTT, r.verificationInterval), nil
 		} else {
-			peerRTT.PingRTT = time.Hour // This is just so we don't choose this peer again since the RTT is unreasonable
-			peerRTT.nextVerification = time.Now().Add(peerRTT.bkf.Delay())
-			if exists {
-				r.pingQueue.Update(peerRTT)
-			} else {
-				r.pingQueue.Push(peerRTT)
-			}
-
+			r.updatePeer(peer, time.Hour, peerRTT.bkf.Delay())
 			r.logger.Debug("could not ping", logging.HostID("peer", peer), zap.Error(result.Error))
-
 			return nil, result.Error
 		}
 	}
+
 }
 
 func (r *RTTCache) PeersRTT(ctx context.Context, peers peer.IDSlice) []*PeerRTT {
@@ -172,12 +180,8 @@ func (r *RTTCache) PeersRTT(ctx context.Context, peers peer.IDSlice) []*PeerRTT 
 func (r *RTTCache) FastestPeer(ctx context.Context, peers peer.IDSlice) (*PeerRTT, error) {
 	var min *PeerRTT
 	for _, p := range r.PeersRTT(ctx, peers) {
-		if min == nil {
+		if min == nil || p.PingRTT < min.PingRTT {
 			min = p
-		} else {
-			if p.PingRTT < min.PingRTT {
-				min = p
-			}
 		}
 	}
 	if min == nil || min.PingRTT == time.Hour {
@@ -194,7 +198,7 @@ func (r *RTTCache) getOrDefault(peerID peer.ID) (*PeerRTT, bool) {
 	if !ok {
 
 		rngSrc := rand.NewSource(rand.Int63())
-		minBackoff, maxBackoff := time.Second*5, time.Hour
+		minBackoff, maxBackoff := r.verificationInterval, time.Hour
 		bkf := backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 5.0, 0, rand.New(rngSrc))()
 
 		peerRTT = &PeerRTT{
