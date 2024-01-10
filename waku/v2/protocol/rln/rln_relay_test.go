@@ -170,6 +170,11 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	groupKeyPairs, _, err := r.CreateMembershipList(100)
 	s.Require().NoError(err)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pubSubTopic := "/waku/2/go/rln/test"
+
 	var groupIDCommitments []r.IDCommitment
 	for _, c := range groupKeyPairs {
 		groupIDCommitments = append(groupIDCommitments, c.IDCommitment)
@@ -191,6 +196,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	s.Require().NoError(err)
 
 	rlnRelay := &WakuRLNRelay{
+		timesource: timesource.NewDefaultClock(),
 		Details: group_manager.Details{
 			GroupManager: groupManager,
 			RootTracker:  rootTracker,
@@ -207,8 +213,11 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	err = groupManager.Start(context.Background())
 	s.Require().NoError(err)
 
-	// create some messages from the same peer and append rln proof to them, except wm4
+	// Get Validator func instance
+	validator := rlnRelay.Validator(nil)
+	s.Require().NotNil(validator)
 
+	// create some messages from the same peer and append rln proof to them, except wm4
 	wm1 := &pb.WakuMessage{Payload: []byte("Valid message")}
 	err = rlnRelay.AppendRLNProof(wm1, now)
 	s.Require().NoError(err)
@@ -245,6 +254,14 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 	s.Require().Equal(spamMessage, msgValidate2)
 	s.Require().Equal(validMessage, msgValidate3)
 	s.Require().Equal(invalidMessage, msgValidate4)
+
+	// Create valid message and check it with validator func
+	wm10 := &pb.WakuMessage{Payload: []byte("Valid message 2")}
+	err = rlnRelay.AppendRLNProof(wm10, time.Now())
+	s.Require().NoError(err)
+
+	isValid := validator(ctx, wm10, pubSubTopic)
+	s.Require().True(isValid)
 }
 
 func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {

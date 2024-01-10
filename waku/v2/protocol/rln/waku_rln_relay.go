@@ -114,14 +114,14 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 
 	if msgProof == nil {
 		// message does not contain a proof
-		rlnRelay.log.Debug("invalid message: message does not contain a proof")
+		rlnRelay.log.Info("invalid message: message does not contain a proof")
 		rlnRelay.metrics.RecordInvalidMessage(invalidNoProof)
 		return invalidMessage, nil
 	}
 
 	proofMD, err := rlnRelay.RLN.ExtractMetadata(*msgProof)
 	if err != nil {
-		rlnRelay.log.Debug("could not extract metadata", zap.Error(err))
+		rlnRelay.log.Info("could not extract metadata", zap.Error(err))
 		rlnRelay.metrics.RecordError(proofMetadataExtractionErr)
 		return invalidMessage, nil
 	}
@@ -131,14 +131,14 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	if int64(math.Abs(float64(gap))) > maxEpochGap {
 		// message's epoch is too old or too ahead
 		// accept messages whose epoch is within +-MAX_EPOCH_GAP from the current epoch
-		rlnRelay.log.Debug("invalid message: epoch gap exceeds a threshold", zap.Int64("gap", gap))
+		rlnRelay.log.Info("invalid message: epoch gap exceeds a threshold", zap.Int64("gap", gap))
 		rlnRelay.metrics.RecordInvalidMessage(invalidEpoch)
 
 		return invalidMessage, nil
 	}
 
 	if !(rlnRelay.RootTracker.ContainsRoot(msgProof.MerkleRoot)) {
-		rlnRelay.log.Debug("invalid message: unexpected root", logging.HexBytes("msgRoot", msgProof.MerkleRoot[:]))
+		rlnRelay.log.Info("invalid message: unexpected root", logging.HexBytes("msgRoot", msgProof.MerkleRoot[:]))
 		rlnRelay.metrics.RecordInvalidMessage(invalidRoot)
 		return invalidMessage, nil
 	}
@@ -146,7 +146,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	start := time.Now()
 	valid, err := rlnRelay.verifyProof(msg, msgProof)
 	if err != nil {
-		rlnRelay.log.Debug("could not verify proof", zap.Error(err))
+		rlnRelay.log.Info("could not verify proof", zap.Error(err))
 		rlnRelay.metrics.RecordError(proofVerificationErr)
 		return invalidMessage, nil
 	}
@@ -154,7 +154,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 
 	if !valid {
 		// invalid proof
-		rlnRelay.log.Debug("Invalid proof")
+		rlnRelay.log.Info("Invalid proof")
 		rlnRelay.metrics.RecordInvalidMessage(invalidProof)
 		return invalidMessage, nil
 	}
@@ -168,7 +168,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	}
 
 	if hasDup {
-		rlnRelay.log.Debug("spam received")
+		rlnRelay.log.Info("spam received")
 		return spamMessage, nil
 	}
 
@@ -252,13 +252,13 @@ func (rlnRelay *WakuRLNRelay) Validator(
 
 		switch validationRes {
 		case validMessage:
-			log.Debug("message verified")
+			log.Info("message verified")
 			return true
 		case invalidMessage:
-			log.Debug("message could not be verified")
+			log.Info("message could not be verified")
 			return false
 		case spamMessage:
-			log.Debug("spam message found")
+			log.Info("spam message found")
 
 			rlnRelay.metrics.RecordSpam(msg.ContentTopic)
 
@@ -270,7 +270,7 @@ func (rlnRelay *WakuRLNRelay) Validator(
 
 			return false
 		default:
-			log.Debug("unhandled validation result", zap.Int("validationResult", int(validationRes)))
+			log.Info("unhandled validation result", zap.Int("validationResult", int(validationRes)))
 			return false
 		}
 	}
