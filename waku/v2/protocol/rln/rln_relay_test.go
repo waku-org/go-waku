@@ -341,3 +341,73 @@ func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {
 	s.Require().NoError(err)
 
 }
+
+func (s *WakuRLNRelaySuite) TestEdgeCasesValidateMessage() {
+	groupKeyPairs, _, err := r.CreateMembershipList(10)
+	s.Require().NoError(err)
+
+	var groupIDCommitments []r.IDCommitment
+	for _, c := range groupKeyPairs {
+		groupIDCommitments = append(groupIDCommitments, c.IDCommitment)
+	}
+
+	index := r.MembershipIndex(5)
+
+	// Create a RLN instance
+	rlnInstance, err := r.NewRLN()
+	s.Require().NoError(err)
+
+	rootTracker := group_manager.NewMerkleRootTracker(acceptableRootWindowSize, rlnInstance)
+
+	idCredential := groupKeyPairs[index]
+	groupManager, err := static.NewStaticGroupManager(groupIDCommitments, idCredential, index, rlnInstance, rootTracker, utils.Logger())
+	s.Require().NoError(err)
+
+	rlnRelay := &WakuRLNRelay{
+		timesource: timesource.NewDefaultClock(),
+		Details: group_manager.Details{
+			GroupManager: groupManager,
+			RootTracker:  rootTracker,
+			RLN:          rlnInstance,
+		},
+		nullifierLog: NewNullifierLog(context.TODO(), utils.Logger()),
+		log:          utils.Logger(),
+		metrics:      newMetrics(prometheus.DefaultRegisterer),
+	}
+
+	// Get the current epoch time
+	now := time.Now()
+
+	err = groupManager.Start(context.Background())
+	s.Require().NoError(err)
+
+	// Valid message
+	wm1 := &pb.WakuMessage{Payload: []byte("Valid message")}
+	err = rlnRelay.AppendRLNProof(wm1, now)
+	s.Require().NoError(err)
+
+	// Valid message with very old epoch
+	wm2 := &pb.WakuMessage{Payload: []byte("Invalid message")}
+	err = rlnRelay.AppendRLNProof(wm2, now.Add(-100*time.Second*time.Duration(r.EPOCH_UNIT_SECONDS)))
+	s.Require().NoError(err)
+
+	// Test when no msg is provided
+	_, err = rlnRelay.ValidateMessage(nil, &now)
+	s.Require().Error(err)
+
+	// Test valid message with no optionalTime provided
+	msgValidate1, err := rlnRelay.ValidateMessage(wm1, nil)
+	s.Require().NoError(err)
+	s.Require().Equal(validMessage, msgValidate1)
+
+	// Test corrupted RateLimitProof case
+	wm1.RateLimitProof[1] = 'o'
+	_, err = rlnRelay.ValidateMessage(wm1, &now)
+	s.Require().Error(err)
+
+	// Test message's epoch is too old
+	msgValidate2, err := rlnRelay.ValidateMessage(wm2, nil)
+	s.Require().NoError(err)
+	s.Require().Equal(invalidMessage, msgValidate2)
+
+}
