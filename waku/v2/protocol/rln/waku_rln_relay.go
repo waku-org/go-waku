@@ -147,9 +147,9 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	start := time.Now()
 	valid, err := rlnRelay.verifyProof(msg, msgProof)
 	if err != nil {
-		rlnRelay.log.Debug("could not verify proof", zap.Error(err))
+		rlnRelay.log.Debug("could not verify proof")
 		rlnRelay.metrics.RecordError(proofVerificationErr)
-		return invalidMessage, nil
+		return validationError, err
 	}
 	rlnRelay.metrics.RecordProofVerification(time.Since(start))
 
