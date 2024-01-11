@@ -207,7 +207,7 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 		metrics:      newMetrics(prometheus.DefaultRegisterer),
 	}
 
-	//get the current epoch time
+	// get the current epoch time
 	now := time.Now()
 
 	err = groupManager.Start(context.Background())
@@ -257,11 +257,26 @@ func (s *WakuRLNRelaySuite) TestValidateMessage() {
 
 	// Create valid message and check it with validator func
 	wm10 := &pb.WakuMessage{Payload: []byte("Valid message 2")}
-	err = rlnRelay.AppendRLNProof(wm10, time.Now())
+	err = rlnRelay.AppendRLNProof(wm10, now.Add(2*time.Second*time.Duration(r.EPOCH_UNIT_SECONDS)))
 	s.Require().NoError(err)
 
 	isValid := validator(ctx, wm10, pubSubTopic)
 	s.Require().True(isValid)
+
+	// Detect spam message with validator func
+	wm11 := &pb.WakuMessage{Payload: []byte("Spam 2")}
+	err = rlnRelay.AppendRLNProof(wm11, now.Add(2*time.Second*time.Duration(r.EPOCH_UNIT_SECONDS)))
+	s.Require().NoError(err)
+
+	isValid = validator(ctx, wm11, pubSubTopic)
+	s.Require().False(isValid)
+
+	// Detect invalid message (no proof) with validator func
+	wm12 := &pb.WakuMessage{Payload: []byte("Invalid message 2")}
+
+	isValid = validator(ctx, wm12, pubSubTopic)
+	s.Require().False(isValid)
+
 }
 
 func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {
