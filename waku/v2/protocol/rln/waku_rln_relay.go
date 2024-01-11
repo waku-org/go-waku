@@ -108,8 +108,9 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 
 	msgProof, err := BytesToRateLimitProof(msg.RateLimitProof)
 	if err != nil {
-		rlnRelay.log.Debug("invalid message: could not extract proof", zap.Error(err))
+		rlnRelay.log.Info("invalid message: could not extract proof")
 		rlnRelay.metrics.RecordInvalidMessage(proofExtractionErr)
+		return validationError, err
 	}
 
 	if msgProof == nil {
