@@ -283,14 +283,16 @@ func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {
 	port, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
-	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	ctx := context.Background()
+
+	host, err := tests.MakeHost(ctx, port, rand.Reader)
 	s.Require().NoError(err)
 	bcaster := relay.NewBroadcaster(1024)
 	relay := relay.NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	relay.SetHost(host)
-	err = bcaster.Start(context.Background())
+	err = bcaster.Start(ctx)
 	s.Require().NoError(err)
-	err = relay.Start(context.Background())
+	err = relay.Start(ctx)
 	s.Require().NoError(err)
 	defer relay.Stop()
 
@@ -302,7 +304,7 @@ func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {
 		groupIDCommitments = append(groupIDCommitments, c.IDCommitment)
 	}
 
-	rlnInstance, rootTracker, err := GetRLNInstanceAndRootTracker("")
+	rlnInstance, rootTracker, err := GetRLNInstanceAndRootTracker("root")
 	s.Require().NoError(err)
 
 	// Set index
@@ -317,9 +319,6 @@ func (s *WakuRLNRelaySuite) TestRLNRelayGetters() {
 		RootTracker:  rootTracker,
 		RLN:          rlnInstance,
 	}, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	err = wakuRLNRelay.Start(ctx)
 	s.Require().NoError(err)
