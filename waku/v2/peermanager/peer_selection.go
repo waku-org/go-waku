@@ -3,7 +3,6 @@ package peermanager
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -240,35 +239,6 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 		return "", ErrNoPeersAvailable
 	}
 }
-
-// selectRandomPeer selects randomly a peer from the list of peers passed.
-func selectRandomPeer(peers peer.IDSlice, log *zap.Logger) (peer.ID, error) {
-	if len(peers) >= 1 {
-		peerID := peers[rand.Intn(len(peers))]
-		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-		return peerID, nil // nolint: gosec
-	}
-	return "", ErrNoPeersAvailable
-}
-
-/* // selectRandom selects at most cnt unique peers randomly from the list of peers passed.
-func selectRandom(peers peer.IDSlice, cnt int, log *zap.Logger) (peer.IDSlice, error) {
-	var selectedPeers peer.IDSlice
-	var peerMap map[peer.ID]struct{}
-
-	for i := 0; i < cnt; i++ {
-		if len(peers) >= 1 {
-			peerID := peers[rand.Intn(len(peers))]
-			// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
-			if peerMap[]
-		}
-	}
-	if selectedPeers.Len() == 0 {
-		return "", ErrNoPeersAvailable
-	} else {
-		return selectedPeers, nil
-	}
-} */
 
 // FilterPeersByProto filters list of peers that support specified protocols.
 // If specificPeers is nil, all peers in the host's peerStore are considered for filtering.
