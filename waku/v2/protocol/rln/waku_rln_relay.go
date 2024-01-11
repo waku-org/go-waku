@@ -271,7 +271,7 @@ func (rlnRelay *WakuRLNRelay) Validator(
 
 			return false
 		default:
-			log.Debug("unhandled validation result", zap.Int("validationResult", int(validationRes)))
+			log.Error("unhandled validation result", zap.Int("validationResult", int(validationRes)))
 			return false
 		}
 	}
