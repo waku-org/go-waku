@@ -325,10 +325,11 @@ func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request)
 
 func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId string, w http.ResponseWriter) peer.ID {
 	// selecting random peer that supports filter protocol
-	peerId, err := s.node.PeerManager().SelectPeer(peermanager.PeerSelectionCriteria{
+	peerIds, err := s.node.PeerManager().SelectPeers(peermanager.PeerSelectionCriteria{
 		SelectionType: peermanager.Automatic,
 		Proto:         filter.FilterSubscribeID_v20beta1,
 		Ctx:           ctx,
+		MaxPeers:      1,
 	})
 	if err != nil {
 		s.log.Error("selecting peer", zap.Error(err))
@@ -338,7 +339,7 @@ func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId string
 		}, http.StatusServiceUnavailable)
 		return ""
 	}
-	return peerId
+	return peerIds[0]
 }
 
 func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *http.Request) {

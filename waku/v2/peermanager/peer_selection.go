@@ -16,6 +16,8 @@ import (
 	"go.uber.org/zap"
 )
 
+type peersMap map[peer.ID]struct{}
+
 // SelectPeerByContentTopic is used to return a random peer that supports a given protocol for given contentTopic.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol and contentTopic, otherwise it will chose a peer from the service slot.
@@ -30,7 +32,11 @@ func (pm *PeerManager) SelectPeerByContentTopics(proto protocol.ID, contentTopic
 		}
 		pubsubTopics = append(pubsubTopics, pubsubTopic)
 	}
-	return pm.SelectPeer(PeerSelectionCriteria{PubsubTopics: pubsubTopics, Proto: proto, SpecificPeers: specificPeers})
+	peers, err := pm.SelectPeers(PeerSelectionCriteria{PubsubTopics: pubsubTopics, Proto: proto, SpecificPeers: specificPeers})
+	if err != nil {
+		return "", err
+	}
+	return peers[0], nil
 }
 
 // SelectRandomPeer is used to return a random peer that supports a given protocol.
@@ -38,65 +44,95 @@ func (pm *PeerManager) SelectPeerByContentTopics(proto protocol.ID, contentTopic
 // it supports the chosen protocol, otherwise it will chose a peer from the service slot.
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
 // if pubSubTopic is specified, peer is selected from list that support the pubSubTopic
-func (pm *PeerManager) SelectRandomPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
+func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlice, error) {
 	// @TODO We need to be more strategic about which peers we dial. Right now we just set one on the service.
 	// Ideally depending on the query and our set  of peers we take a subset of ideal peers.
 	// This will require us to check for various factors such as:
 	//  - which topics they track
 	//  - latency?
 
-	peerID, err := pm.selectServicePeer(criteria.Proto, criteria.PubsubTopics, criteria.Ctx, criteria.SpecificPeers...)
-	if err == nil {
-		return peerID, nil
+	peerIDs, err := pm.selectServicePeer(criteria)
+	if err == nil && peerIDs.Len() == criteria.MaxPeers {
+		return peerIDs, nil
 	} else if !errors.Is(err, ErrNoPeersAvailable) {
 		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)),
 			zap.Strings("pubsubTopics", criteria.PubsubTopics), zap.Error(err))
-		return "", err
+		return nil, err
 	}
 
 	// if not found in serviceSlots or proto == WakuRelayIDv200
 	filteredPeers, err := pm.FilterPeersByProto(criteria.SpecificPeers, criteria.Proto)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(criteria.PubsubTopics) > 0 {
 		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, filteredPeers...)
 	}
-	return selectRandomPeer(filteredPeers, pm.logger)
+	//TODO: Deal with peer exclusion
+	//excludePeers := []peer.ID{criteria.ExcludePeer}
+
+	return selectRandomPeers(filteredPeers, criteria.MaxPeers)
 }
 
-func (pm *PeerManager) selectServicePeer(proto protocol.ID, pubsubTopics []string, ctx context.Context, specificPeers ...peer.ID) (peer.ID, error) {
-	var peerID peer.ID
+// selects count random peers from list of peers
+func selectRandomPeers(peers peer.IDSlice, count int) (peer.IDSlice, error) {
+	filteredPeerMap := peerSliceToMap(peers)
+	i := 0
+	var selectedPeers peer.IDSlice
+	for pID := range filteredPeerMap {
+		selectedPeers = append(selectedPeers, pID)
+		i++
+		if i == count {
+			break
+		}
+	}
+	if selectedPeers.Len() == 0 {
+		return nil, ErrNoPeersAvailable
+	}
+	return selectedPeers, nil
+}
+
+func peerSliceToMap(peers peer.IDSlice) peersMap {
+	peerSet := make(peersMap, peers.Len())
+	for _, peer := range peers {
+		peerSet[peer] = struct{}{}
+	}
+	return peerSet
+}
+
+func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peer.IDSlice, error) {
+	var peers peer.IDSlice
 	var err error
 	for retryCnt := 0; retryCnt < 1; retryCnt++ {
 		//Try to fetch from serviceSlot
-		if slot := pm.serviceSlots.getPeers(proto); slot != nil {
-			if len(pubsubTopics) == 0 || (len(pubsubTopics) == 1 && pubsubTopics[0] == "") {
-				return slot.getRandom()
+		if slot := pm.serviceSlots.getPeers(criteria.Proto); slot != nil {
+			if len(criteria.PubsubTopics) == 0 || (len(criteria.PubsubTopics) == 1 && criteria.PubsubTopics[0] == "") {
+				return slot.getRandom(criteria.MaxPeers)
 			} else { //PubsubTopic based selection
 				keys := make([]peer.ID, 0, len(slot.m))
 				for i := range slot.m {
 					keys = append(keys, i)
 				}
-				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(pubsubTopics, keys...)
-				peerID, err = selectRandomPeer(selectedPeers, pm.logger)
-				if err == nil {
-					return peerID, nil
+				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, keys...)
+				tmpPeers, err := selectRandomPeers(selectedPeers, criteria.MaxPeers)
+				peers = append(peers, tmpPeers...)
+				if err == nil && peers.Len() == criteria.MaxPeers {
+					return peers, nil
 				} else {
-					pm.logger.Debug("discovering peers by pubsubTopic", zap.Strings("pubsubTopics", pubsubTopics))
+					pm.logger.Debug("discovering peers by pubsubTopic", zap.Strings("pubsubTopics", criteria.PubsubTopics))
 					//Trigger on-demand discovery for this topic and connect to peer immediately.
 					//For now discover atleast 1 peer for the criteria
-					pm.discoverPeersByPubsubTopics(pubsubTopics, proto, ctx, 1)
+					pm.discoverPeersByPubsubTopics(criteria.PubsubTopics, criteria.Proto, criteria.Ctx, 1)
 					//Try to fetch peers again.
 					continue
 				}
 			}
 		}
 	}
-	if peerID == "" {
+	if peers.Len() == 0 {
 		pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
 	}
-	return "", ErrNoPeersAvailable
+	return peers, ErrNoPeersAvailable
 }
 
 // PeerSelectionCriteria is the selection Criteria that is used by PeerManager to select peers.
@@ -105,20 +141,27 @@ type PeerSelectionCriteria struct {
 	Proto         protocol.ID
 	PubsubTopics  []string
 	SpecificPeers peer.IDSlice
+	ExcludePeer   peer.ID
+	MaxPeers      int
 	Ctx           context.Context
 }
 
-// SelectPeer selects a peer based on selectionType specified.
+// SelectPeers selects a peer based on selectionType specified.
 // Context is required only in case of selectionType set to LowestRTT
-func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, error) {
+func (pm *PeerManager) SelectPeers(criteria PeerSelectionCriteria) (peer.IDSlice, error) {
 
 	switch criteria.SelectionType {
 	case Automatic:
-		return pm.SelectRandomPeer(criteria)
+		return pm.SelectRandom(criteria)
 	case LowestRTT:
-		return pm.SelectPeerWithLowestRTT(criteria)
+		peerID, err := pm.SelectPeerWithLowestRTT(criteria)
+		if err != nil {
+			return nil, err
+		}
+		//TODO: Update this once peer Ping cache PR is merged into this code.
+		return []peer.ID{peerID}, nil
 	default:
-		return "", errors.New("unknown peer selection type specified")
+		return nil, errors.New("unknown peer selection type specified")
 	}
 }
 
@@ -205,9 +248,27 @@ func selectRandomPeer(peers peer.IDSlice, log *zap.Logger) (peer.ID, error) {
 		// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
 		return peerID, nil // nolint: gosec
 	}
-
 	return "", ErrNoPeersAvailable
 }
+
+/* // selectRandom selects at most cnt unique peers randomly from the list of peers passed.
+func selectRandom(peers peer.IDSlice, cnt int, log *zap.Logger) (peer.IDSlice, error) {
+	var selectedPeers peer.IDSlice
+	var peerMap map[peer.ID]struct{}
+
+	for i := 0; i < cnt; i++ {
+		if len(peers) >= 1 {
+			peerID := peers[rand.Intn(len(peers))]
+			// TODO: proper heuristic here that compares peer scores and selects "best" one. For now a random peer for the given protocol is returned
+			if peerMap[]
+		}
+	}
+	if selectedPeers.Len() == 0 {
+		return "", ErrNoPeersAvailable
+	} else {
+		return selectedPeers, nil
+	}
+} */
 
 // FilterPeersByProto filters list of peers that support specified protocols.
 // If specificPeers is nil, all peers in the host's peerStore are considered for filtering.
