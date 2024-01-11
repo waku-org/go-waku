@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -119,11 +118,6 @@ func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, erro
 	}
 }
 
-type pingResult struct {
-	p   peer.ID
-	rtt time.Duration
-}
-
 // SelectPeerWithLowestRTT will select a peer that supports a specific protocol with the lowest reply time
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the node peerstore
@@ -146,12 +140,7 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 		return "", err
 	}
 
-	rtt, err := pm.rttCache.FastestPeer(criteria.Ctx, peers)
-	if err != nil {
-		return "", err
-	}
-
-	return rtt.PeerID, nil
+	return pm.rttCache.FastestPeer(criteria.Ctx, peers)
 }
 
 // selectRandomPeer selects randomly a peer from the list of peers passed.

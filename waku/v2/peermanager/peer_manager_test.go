@@ -22,7 +22,6 @@ import (
 	wakuproto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -46,7 +45,7 @@ func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	require.NoError(t, err)
 
 	// host 1 is used by peer manager
-	pm := NewPeerManager(10, 20, timesource.NewDefaultClock(), utils.Logger())
+	pm := NewPeerManager(10, 20, utils.Logger())
 	pm.SetHost(h1)
 
 	return ctx, pm, func() {
@@ -245,7 +244,7 @@ func createHostWithDiscv5AndPM(t *testing.T, hostName string, topic string, enrF
 
 	err = wenr.Update(localNode, wenr.WithWakuRelaySharding(rs[0]))
 	require.NoError(t, err)
-	pm := NewPeerManager(10, 20, timesource.NewDefaultClock(), logger)
+	pm := NewPeerManager(10, 20, logger)
 	pm.SetHost(host)
 	peerconn, err := NewPeerConnectionStrategy(pm, 30*time.Second, logger)
 	require.NoError(t, err)

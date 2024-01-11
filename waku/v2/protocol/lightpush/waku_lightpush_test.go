@@ -254,7 +254,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	testContentTopic := "/test/10/my-lp-app/proto"
 
 	// Prepare peer manager instance to include in test
-	pm := peermanager.NewPeerManager(10, 10, timesource.NewDefaultClock(), utils.Logger())
+	pm := peermanager.NewPeerManager(10, 10, utils.Logger())
 
 	node1, sub1, host1 := makeWakuRelay(t, testTopic)
 	defer node1.Stop()
