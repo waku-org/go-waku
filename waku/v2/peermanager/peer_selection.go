@@ -67,10 +67,14 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 	if len(criteria.PubsubTopics) > 0 {
 		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, filteredPeers...)
 	}
-	//TODO: Deal with peer exclusion
-	//excludePeers := []peer.ID{criteria.ExcludePeer}
+	randomPeers, err := selectRandomPeers(filteredPeers, criteria.MaxPeers-peerIDs.Len())
+	if err != nil && peerIDs.Len() == 0 {
+		return nil, err
+	}
 
-	return selectRandomPeers(filteredPeers, criteria.MaxPeers)
+	peerIDs = append(peerIDs, randomPeers...)
+
+	return peerIDs, nil
 }
 
 // selects count random peers from list of peers
@@ -140,7 +144,6 @@ type PeerSelectionCriteria struct {
 	Proto         protocol.ID
 	PubsubTopics  []string
 	SpecificPeers peer.IDSlice
-	ExcludePeer   peer.ID
 	MaxPeers      int
 	Ctx           context.Context
 }
