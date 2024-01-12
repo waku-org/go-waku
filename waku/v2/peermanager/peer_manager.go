@@ -67,7 +67,6 @@ const (
 // ErrNoPeersAvailable is emitted when no suitable peers are found for
 // some protocol
 var ErrNoPeersAvailable = errors.New("no suitable peers found")
-var ErrMaxPeersNotSpecified = errors.New("max peers cannot be zero")
 
 const peerConnectivityLoopSecs = 15
 const maxConnsToPeerRatio = 5

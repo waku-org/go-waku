@@ -329,7 +329,6 @@ func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId string
 		SelectionType: peermanager.Automatic,
 		Proto:         filter.FilterSubscribeID_v20beta1,
 		Ctx:           ctx,
-		MaxPeers:      1,
 	})
 	if err != nil {
 		s.log.Error("selecting peer", zap.Error(err))
