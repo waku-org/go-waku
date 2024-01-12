@@ -13,6 +13,7 @@ import (
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 type peersMap map[peer.ID]struct{}
@@ -49,16 +50,16 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 	// This will require us to check for various factors such as:
 	//  - which topics they track
 	//  - latency?
-
 	peerIDs, err := pm.selectServicePeer(criteria)
-	if err == nil && peerIDs.Len() == criteria.MaxPeers {
-		return peerIDs, nil
+	if err == nil && len(peerIDs) == criteria.MaxPeers {
+		return maps.Keys(peerIDs), nil
 	} else if !errors.Is(err, ErrNoPeersAvailable) {
 		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)),
 			zap.Strings("pubsubTopics", criteria.PubsubTopics), zap.Error(err))
 		return nil, err
+	} else {
+		peerIDs = make(peersMap)
 	}
-
 	// if not found in serviceSlots or proto == WakuRelayIDv200
 	filteredPeers, err := pm.FilterPeersByProto(criteria.SpecificPeers, criteria.Proto)
 	if err != nil {
@@ -67,29 +68,30 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 	if len(criteria.PubsubTopics) > 0 {
 		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, filteredPeers...)
 	}
-	randomPeers, err := selectRandomPeers(filteredPeers, criteria.MaxPeers-peerIDs.Len())
-	if err != nil && peerIDs.Len() == 0 {
+	randomPeers, err := selectRandomPeers(filteredPeers, criteria.MaxPeers-len(peerIDs))
+	if err != nil && len(peerIDs) == 0 {
 		return nil, err
 	}
 
-	peerIDs = append(peerIDs, randomPeers...)
-
-	return peerIDs, nil
+	for tmpPeer := range randomPeers {
+		peerIDs[tmpPeer] = struct{}{}
+	}
+	return maps.Keys(peerIDs), nil
 }
 
 // selects count random peers from list of peers
-func selectRandomPeers(peers peer.IDSlice, count int) (peer.IDSlice, error) {
+func selectRandomPeers(peers peer.IDSlice, count int) (peersMap, error) {
 	filteredPeerMap := peerSliceToMap(peers)
 	i := 0
-	var selectedPeers peer.IDSlice
+	selectedPeers := make(peersMap)
 	for pID := range filteredPeerMap {
-		selectedPeers = append(selectedPeers, pID)
+		selectedPeers[pID] = struct{}{}
 		i++
 		if i == count {
 			break
 		}
 	}
-	if selectedPeers.Len() == 0 {
+	if len(selectedPeers) == 0 {
 		return nil, ErrNoPeersAvailable
 	}
 	return selectedPeers, nil
@@ -103,8 +105,8 @@ func peerSliceToMap(peers peer.IDSlice) peersMap {
 	return peerSet
 }
 
-func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peer.IDSlice, error) {
-	var peers peer.IDSlice
+func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peersMap, error) {
+	peers := make(peersMap)
 	var err error
 	for retryCnt := 0; retryCnt < 1; retryCnt++ {
 		//Try to fetch from serviceSlot
@@ -118,8 +120,10 @@ func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peer.I
 				}
 				selectedPeers := pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, keys...)
 				tmpPeers, err := selectRandomPeers(selectedPeers, criteria.MaxPeers)
-				peers = append(peers, tmpPeers...)
-				if err == nil && peers.Len() == criteria.MaxPeers {
+				for tmpPeer := range tmpPeers {
+					peers[tmpPeer] = struct{}{}
+				}
+				if err == nil && len(peers) == criteria.MaxPeers {
 					return peers, nil
 				} else {
 					pm.logger.Debug("discovering peers by pubsubTopic", zap.Strings("pubsubTopics", criteria.PubsubTopics))
@@ -132,7 +136,7 @@ func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peer.I
 			}
 		}
 	}
-	if peers.Len() == 0 {
+	if len(peers) == 0 {
 		pm.logger.Debug("could not retrieve random peer from slot", zap.Error(err))
 	}
 	return peers, ErrNoPeersAvailable

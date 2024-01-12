@@ -19,19 +19,19 @@ func newPeerMap() *peerMap {
 	}
 }
 
-func (pm *peerMap) getRandom(count int) (peer.IDSlice, error) {
+func (pm *peerMap) getRandom(count int) (peersMap, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	var selectedPeers peer.IDSlice
+	selectedPeers := make(peersMap)
 	i := 0
 	for pID := range pm.m {
 		i++
-		selectedPeers = append(selectedPeers, pID)
+		selectedPeers[pID] = struct{}{}
 		if i == count {
 			break
 		}
 	}
-	if selectedPeers.Len() == 0 {
+	if len(selectedPeers) == 0 {
 		return nil, ErrNoPeersAvailable
 	}
 	return selectedPeers, nil

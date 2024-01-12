@@ -162,7 +162,25 @@ func TestPeerSelection(t *testing.T) {
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: LowestRTT, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}})
 	require.NoError(t, err)
 
-	//TODO:Add tests for multiple peer selection
+	peerIDs, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}, MaxPeers: 2})
+	require.Equal(t, 2, peerIDs.Len())
+	require.NoError(t, err)
+
+	peerIDs, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}, MaxPeers: 3})
+	fmt.Println("peerIDs", peerIDs)
+	require.Equal(t, 2, peerIDs.Len())
+	require.NoError(t, err)
+
+	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
+	require.NoError(t, err)
+	defer h4.Close()
+	_, err = pm.AddPeer(getAddr(h4), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
+	require.NoError(t, err)
+
+	peerIDs, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}, MaxPeers: 3})
+	require.Equal(t, 3, peerIDs.Len())
+	require.NoError(t, err)
+
 }
 
 func TestDefaultProtocol(t *testing.T) {
