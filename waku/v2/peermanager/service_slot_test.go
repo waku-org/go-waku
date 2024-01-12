@@ -18,9 +18,9 @@ func TestServiceSlot(t *testing.T) {
 	//
 	slots.getPeers(protocol).add(peerID)
 	//
-	fetchedPeer, err := slots.getPeers(protocol).getRandom(1)
+	fetchedPeers, err := slots.getPeers(protocol).getRandom(1)
 	require.NoError(t, err)
-	require.Equal(t, peerID, fetchedPeer)
+	require.Equal(t, peerID, fetchedPeers[0])
 	//TODO: Add test to get more than 1 peers
 	//
 	slots.getPeers(protocol).remove(peerID)
@@ -41,9 +41,9 @@ func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	slots.getPeers(protocol).add(peerID)
 	slots.getPeers(protocol1).add(peerID)
 	//
-	fetchedPeer, err := slots.getPeers(protocol1).getRandom(1)
+	fetchedPeers, err := slots.getPeers(protocol1).getRandom(1)
 	require.NoError(t, err)
-	require.Equal(t, peerID, fetchedPeer)
+	require.Equal(t, peerID, fetchedPeers[0])
 
 	//
 	slots.removePeer(peerID)

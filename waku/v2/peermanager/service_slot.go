@@ -31,8 +31,10 @@ func (pm *peerMap) getRandom(count int) (peer.IDSlice, error) {
 			break
 		}
 	}
-	return selectedPeers, ErrNoPeersAvailable
-
+	if selectedPeers.Len() == 0 {
+		return nil, ErrNoPeersAvailable
+	}
+	return selectedPeers, nil
 }
 
 func (pm *peerMap) remove(pID peer.ID) {

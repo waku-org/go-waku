@@ -151,7 +151,9 @@ type PeerSelectionCriteria struct {
 // SelectPeers selects a peer based on selectionType specified.
 // Context is required only in case of selectionType set to LowestRTT
 func (pm *PeerManager) SelectPeers(criteria PeerSelectionCriteria) (peer.IDSlice, error) {
-
+	if criteria.MaxPeers == 0 {
+		return nil, ErrMaxPeersNotSpecified
+	}
 	switch criteria.SelectionType {
 	case Automatic:
 		return pm.SelectRandom(criteria)
