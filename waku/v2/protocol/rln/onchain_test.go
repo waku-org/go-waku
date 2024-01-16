@@ -67,9 +67,9 @@ func (s *WakuRLNRelayDynamicSuite) SetupTest() {
 
 	// TODO: obtain account list from ganache mnemonic or from eth_accounts
 
-	s.u1PrivKey, err = crypto.ToECDSA(common.FromHex("0x156ec84a451d8a2d0062993242b6c4e863647f5544ff8030f23578d4142f43f8"))
+	s.u1PrivKey, err = crypto.ToECDSA(common.FromHex("0xb0d82c329eb97dca7f9f11c49cbb67a2e7b7e64aec83db5c92b47664542dfa34"))
 	s.Require().NoError(err)
-	s.u2PrivKey, err = crypto.ToECDSA(common.FromHex("0xa00da43843ad6b5161ddbace48f293ac3f82f8a8257af34de4c32900bb6e9a97"))
+	s.u2PrivKey, err = crypto.ToECDSA(common.FromHex("0x0ff54df9f3a11152de9fb8f3c9186c329b8a629b55d9e8a3789908d9567c7445"))
 	s.Require().NoError(err)
 
 	// Deploying contracts
@@ -330,4 +330,55 @@ func (s *WakuRLNRelayDynamicSuite) tmpRLNDBPath() string {
 	dbPath, err := os.MkdirTemp("", "rln_db")
 	s.Require().NoError(err)
 	return dbPath
+}
+
+func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagerGetters() {
+	// Create a RLN instance
+	rlnInstance, err := rln.NewRLN()
+	s.Require().NoError(err)
+
+	ctx := context.Background()
+
+	rt := group_manager.NewMerkleRootTracker(5, rlnInstance)
+
+	u1Credentials := s.generateCredentials(rlnInstance)
+	appKeystore, err := keystore.New(s.tmpKeystorePath(), dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+
+	membershipIndex := s.register(appKeystore, u1Credentials, s.u1PrivKey)
+
+	gm, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, &membershipIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, rlnInstance, rt, utils.Logger())
+	s.Require().NoError(err)
+
+	// initialize the WakuRLNRelay
+	rlnRelay := &WakuRLNRelay{
+		Details: group_manager.Details{
+			RootTracker:  rt,
+			GroupManager: gm,
+			RLN:          rlnInstance,
+		},
+		log:          utils.Logger(),
+		nullifierLog: NewNullifierLog(ctx, utils.Logger()),
+	}
+
+	err = rlnRelay.Start(ctx)
+	s.Require().NoError(err)
+
+	// Test IdentityCredentials
+	_, err = gm.IdentityCredentials()
+	s.Require().NoError(err)
+
+	// Test MembershipIndex
+	mIndex := gm.MembershipIndex()
+	s.Require().Equal(mIndex, uint(membershipIndex))
+
+	// Test IsReady
+	isReady, err := gm.IsReady(ctx)
+	s.Require().NoError(err)
+	s.Require().True(isReady)
+
+	// Test Stop / gm.Start happened as a part of rlnRelay.Start
+	err = gm.Stop()
+	s.Require().NoError(err)
+
 }
