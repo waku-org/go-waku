@@ -67,9 +67,9 @@ func (s *WakuRLNRelayDynamicSuite) SetupTest() {
 
 	// TODO: obtain account list from ganache mnemonic or from eth_accounts
 
-	s.u1PrivKey, err = crypto.ToECDSA(common.FromHex("0xb0d82c329eb97dca7f9f11c49cbb67a2e7b7e64aec83db5c92b47664542dfa34"))
+	s.u1PrivKey, err = crypto.ToECDSA(common.FromHex("0x156ec84a451d8a2d0062993242b6c4e863647f5544ff8030f23578d4142f43f8"))
 	s.Require().NoError(err)
-	s.u2PrivKey, err = crypto.ToECDSA(common.FromHex("0x0ff54df9f3a11152de9fb8f3c9186c329b8a629b55d9e8a3789908d9567c7445"))
+	s.u2PrivKey, err = crypto.ToECDSA(common.FromHex("0xa00da43843ad6b5161ddbace48f293ac3f82f8a8257af34de4c32900bb6e9a97"))
 	s.Require().NoError(err)
 
 	// Deploying contracts
