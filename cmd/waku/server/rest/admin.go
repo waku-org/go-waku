@@ -62,8 +62,12 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 
 	response := make([]WakuPeer, 0)
 	for _, peer := range peers {
+		if peer.ID.String() == a.node.Host().ID().String() {
+			//Skip own node id
+			continue
+		}
 		wPeer := WakuPeer{
-			ID:        peer.ID.Pretty(),
+			ID:        peer.ID.String(),
 			Connected: peer.Connected,
 		}
 
@@ -105,7 +109,7 @@ func (a *AdminService) postV1Peer(w http.ResponseWriter, req *http.Request) {
 	}
 
 	for _, shard := range pInfo.Shards {
-		topic := waku_proto.NewStaticShardingPubsubTopic(waku_proto.ClusterIndex, uint16(shard))
+		topic := waku_proto.NewStaticShardingPubsubTopic(a.node.ClusterID(), uint16(shard))
 		topics = append(topics, topic.String())
 	}
 

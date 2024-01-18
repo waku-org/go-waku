@@ -36,7 +36,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds" // nolint: staticcheck
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/cmd/waku/server/rest"
@@ -53,6 +53,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 func requiresDB(options NodeOptions) bool {
@@ -109,10 +111,10 @@ func Execute(options NodeOptions) error {
 	logger := utils.Logger().With(logging.HostID("node", id))
 
 	var db *sql.DB
-	var migrationFn func(*sql.DB) error
+	var migrationFn func(*sql.DB, *zap.Logger) error
 	if requiresDB(options) && options.Store.Migration {
 		dbSettings := dbutils.DBSettings{}
-		db, migrationFn, err = dbutils.ExtractDBAndMigration(options.Store.DatabaseURL, dbSettings, logger)
+		db, migrationFn, err = dbutils.ParseURL(options.Store.DatabaseURL, dbSettings, logger)
 		if err != nil {
 			return nonRecoverErrorMsg("could not connect to DB: %w", err)
 		}
@@ -140,6 +142,7 @@ func Execute(options NodeOptions) error {
 		node.WithMaxPeerConnections(options.MaxPeerConnections),
 		node.WithPrometheusRegisterer(prometheus.DefaultRegisterer),
 		node.WithPeerStoreCapacity(options.PeerStoreCapacity),
+		node.WithMaxConnectionsPerIP(options.IPColocationLimit),
 		node.WithClusterID(uint16(options.ClusterID)),
 	}
 	if len(options.AdvertiseAddresses) != 0 {
@@ -236,10 +239,15 @@ func Execute(options NodeOptions) error {
 	nodeOpts = append(nodeOpts, node.WithLibP2POptions(libp2pOpts...))
 	nodeOpts = append(nodeOpts, node.WithNTP())
 
+	maxMsgSize := parseMsgSizeConfig(options.Relay.MaxMsgSize)
+
 	if options.Relay.Enable {
 		var wakurelayopts []pubsub.Option
 		wakurelayopts = append(wakurelayopts, pubsub.WithPeerExchange(options.Relay.PeerExchange))
+		wakurelayopts = append(wakurelayopts, pubsub.WithMaxMessageSize(maxMsgSize))
+
 		nodeOpts = append(nodeOpts, node.WithWakuRelayAndMinPeers(options.Relay.MinRelayPeersToPublish, wakurelayopts...))
+		nodeOpts = append(nodeOpts, node.WithMaxMsgSize(maxMsgSize))
 	}
 
 	nodeOpts = append(nodeOpts, node.WithWakuFilterLightNode())
@@ -480,7 +488,7 @@ func processTopics(options NodeOptions) (map[string][]string, error) {
 		pubSubTopicMap[pTopic.String()] = append(pubSubTopicMap[pTopic.String()], cTopic)
 	}
 	//If no topics are passed, then use default waku topic.
-	if len(pubSubTopicMap) == 0 {
+	if len(pubSubTopicMap) == 0 && options.ClusterID == 0 {
 		pubSubTopicMap[relay.DefaultWakuTopic] = []string{}
 	}
 
@@ -578,4 +586,13 @@ func printListeningAddresses(ctx context.Context, nodeOpts []node.WakuNodeOption
 		fmt.Println(addr)
 	}
 
+}
+
+func parseMsgSizeConfig(msgSizeConfig string) int {
+
+	msgSize, err := humanize.ParseBytes(msgSizeConfig)
+	if err != nil {
+		msgSize = 0
+	}
+	return int(msgSize)
 }

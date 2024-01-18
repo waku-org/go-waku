@@ -6,6 +6,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"github.com/waku-org/go-waku/waku/cliutils"
+	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
 var (
@@ -234,10 +235,17 @@ var (
 	})
 	AgentString = altsrc.NewStringFlag(&cli.StringFlag{
 		Name:        "agent-string",
-		Value:       "go-waku",
+		Value:       node.UserAgent,
 		Usage:       "client id to advertise",
 		Destination: &options.UserAgent,
 		EnvVars:     []string{"WAKUNODE2_AGENT_STRING"},
+	})
+	IPColocationLimit = altsrc.NewIntFlag(&cli.IntFlag{
+		Name:        "ip-colocation-limit",
+		Value:       node.DefaultMaxConnectionsPerIP,
+		Usage:       "max number of allowed peers from the same IP. Set it to 0 to remove the limitation.",
+		Destination: &options.IPColocationLimit,
+		EnvVars:     []string{"WAKUNODE2_IP_COLOCATION_LIMIT"},
 	})
 	Relay = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "relay",
@@ -285,6 +293,13 @@ var (
 		Usage:       "Minimum number of peers to publish to Relay",
 		Destination: &options.Relay.MinRelayPeersToPublish,
 		EnvVars:     []string{"WAKUNODE2_MIN_RELAY_PEERS_TO_PUBLISH"},
+	})
+	MaxRelayMsgSize = altsrc.NewStringFlag(&cli.StringFlag{
+		Name:        "max-msg-size",
+		Value:       "150KB",
+		Usage:       "Maximum message size. Supported formats are B, KiB, KB, MiB. If no suffix, default is bytes",
+		Destination: &options.Relay.MaxMsgSize,
+		EnvVars:     []string{"WAKUNODE2_MAX_RELAY_MSG_SIZE"},
 	})
 	StoreNodeFlag = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
 		Name:  "storenode",

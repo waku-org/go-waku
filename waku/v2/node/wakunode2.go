@@ -200,7 +200,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
 	w.keepAliveFails = make(map[peer.ID]int)
-	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
+	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilterFullNode || w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
 	w.circuitRelayNodes = make(chan peer.AddrInfo)
 	w.metrics = newMetrics(params.prometheusReg)
 
@@ -281,8 +281,9 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	}
 
 	w.rendezvous = rendezvous.NewRendezvous(w.opts.rendezvousDB, w.peerConnector, w.log)
-
-	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log, w.opts.pubsubOpts...)
+	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log,
+		relay.WithPubSubOptions(w.opts.pubsubOpts),
+		relay.WithMaxMsgSize(w.opts.maxMsgSizeBytes))
 
 	if w.opts.enableRelay {
 		err = w.setupRLNRelay()
@@ -343,7 +344,7 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start(ctx context.Context) error {
-	connGater := peermanager.NewConnectionGater(w.log)
+	connGater := peermanager.NewConnectionGater(w.opts.maxConnectionsPerIP, w.log)
 
 	ctx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
@@ -529,6 +530,7 @@ func (w *WakuNode) Stop() {
 	w.store.Stop()
 	w.legacyFilter.Stop()
 	w.filterFullNode.Stop()
+	w.filterLightNode.Stop()
 
 	if w.opts.enableDiscV5 {
 		w.discoveryV5.Stop()
@@ -560,7 +562,7 @@ func (w *WakuNode) Host() host.Host {
 
 // ID returns the base58 encoded ID from the host
 func (w *WakuNode) ID() string {
-	return w.host.ID().Pretty()
+	return w.host.ID().String()
 }
 
 func (w *WakuNode) watchENRChanges(ctx context.Context) {
@@ -976,4 +978,8 @@ func GetDiscv5Option(dnsDiscoveredNodes []dnsdisc.DiscoveredNode, discv5Nodes []
 	}
 
 	return WithDiscoveryV5(port, bootnodes, autoUpdate), nil
+}
+
+func (w *WakuNode) ClusterID() uint16 {
+	return w.opts.clusterID
 }
