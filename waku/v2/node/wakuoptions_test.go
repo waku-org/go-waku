@@ -91,14 +91,6 @@ func TestWakuRLNOptions(t *testing.T) {
 		return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, prometheus.DefaultRegisterer, w.log)
 	}
 
-	groupKeyPairs, _, err := r.CreateMembershipList(100)
-	require.NoError(t, err)
-
-	var groupIDCommitments []r.IDCommitment
-	for _, c := range groupKeyPairs {
-		groupIDCommitments = append(groupIDCommitments, c.IDCommitment)
-	}
-
 	index := r.MembershipIndex(5)
 
 	// Test WithStaticRLNRelay
