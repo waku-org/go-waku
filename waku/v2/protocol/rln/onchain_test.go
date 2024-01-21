@@ -331,3 +331,54 @@ func (s *WakuRLNRelayDynamicSuite) tmpRLNDBPath() string {
 	s.Require().NoError(err)
 	return dbPath
 }
+
+func (s *WakuRLNRelayDynamicSuite) TestDynamicGroupManagerGetters() {
+	// Create a RLN instance
+	rlnInstance, err := rln.NewRLN()
+	s.Require().NoError(err)
+
+	ctx := context.Background()
+
+	rt := group_manager.NewMerkleRootTracker(5, rlnInstance)
+
+	u1Credentials := s.generateCredentials(rlnInstance)
+	appKeystore, err := keystore.New(s.tmpKeystorePath(), dynamic.RLNAppInfo, utils.Logger())
+	s.Require().NoError(err)
+
+	membershipIndex := s.register(appKeystore, u1Credentials, s.u1PrivKey)
+
+	gm, err := dynamic.NewDynamicGroupManager(s.web3Config.ETHClientAddress, s.web3Config.RegistryContract.Address, &membershipIndex, appKeystore, keystorePassword, prometheus.DefaultRegisterer, rlnInstance, rt, utils.Logger())
+	s.Require().NoError(err)
+
+	// initialize the WakuRLNRelay
+	rlnRelay := &WakuRLNRelay{
+		Details: group_manager.Details{
+			RootTracker:  rt,
+			GroupManager: gm,
+			RLN:          rlnInstance,
+		},
+		log:          utils.Logger(),
+		nullifierLog: NewNullifierLog(ctx, utils.Logger()),
+	}
+
+	err = rlnRelay.Start(ctx)
+	s.Require().NoError(err)
+
+	// Test IdentityCredentials
+	_, err = gm.IdentityCredentials()
+	s.Require().NoError(err)
+
+	// Test MembershipIndex
+	mIndex := gm.MembershipIndex()
+	s.Require().Equal(mIndex, uint(membershipIndex))
+
+	// Test IsReady
+	isReady, err := gm.IsReady(ctx)
+	s.Require().NoError(err)
+	s.Require().True(isReady)
+
+	// Test Stop / gm.Start happened as a part of rlnRelay.Start
+	err = gm.Stop()
+	s.Require().NoError(err)
+
+}
