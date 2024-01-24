@@ -13,15 +13,19 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
+	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -41,14 +45,22 @@ var Shard = altsrc.NewUintFlag(&cli.UintFlag{
 	Destination: &shard,
 })
 
+var StaticNode = altsrc.NewStringFlag(&cli.StringFlag{
+	Name:        "maddr",
+	Usage:       "multiaddress of static node to connect to.",
+	Destination: &multiaddress,
+})
+
 var clusterID, shard uint
 var pubsubTopicStr string
+var multiaddress string
 
 func main() {
 
 	cliFlags := []cli.Flag{
 		ClusterID,
 		Shard,
+		StaticNode,
 	}
 
 	app := &cli.App{
@@ -103,6 +115,7 @@ func Execute() error {
 		node.WithNTP(),
 		node.WithWakuRelay(),
 		node.WithClusterID(uint16(clusterID)),
+		node.WithLogLevel(zapcore.DebugLevel),
 	)
 	if err != nil {
 		log.Error("Error creating wakunode", zap.Error(err))
@@ -118,6 +131,18 @@ func Execute() error {
 	if shard != 0 {
 		pubsubTopic := protocol.NewStaticShardingPubsubTopic(uint16(clusterID), uint16(shard))
 		pubsubTopicStr = pubsubTopic.String()
+	}
+
+	if multiaddress != "" {
+		maddr, err := multiaddr.NewMultiaddr(multiaddress)
+		if err != nil {
+			log.Info("Error decoding multiaddr ", zap.Error(err))
+		}
+		_, err = wakuNode.AddPeer(maddr, wps.Static,
+			[]string{pubsubTopicStr}, relay.WakuRelayID_v200)
+		if err != nil {
+			log.Info("Error adding filter peer on light node ", zap.Error(err))
+		}
 	}
 
 	go writeLoop(ctx, wakuNode, contentTopic)
@@ -162,11 +187,11 @@ func write(ctx context.Context, wakuNode *node.WakuNode, contentTopic string, ms
 		Timestamp:    utils.GetUnixEpoch(wakuNode.Timesource()),
 	}
 
-	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopicStr))
+	hash, err := wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopicStr))
 	if err != nil {
 		log.Error("Error sending a message", zap.Error(err))
 	}
-	log.Info("Published msg,", zap.String("data", string(msg.Payload)))
+	log.Info("Published msg,", zap.String("data", string(msg.Payload)), logging.HexBytes("hash", hash))
 }
 
 func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
