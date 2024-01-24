@@ -25,11 +25,12 @@ type InfoReply struct {
 	ListenAddresses []string `json:"listenAddresses,omitempty"`
 }
 
-// Run as:
-// ./build/waku --rest --rest-address=0.0.0.0 --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/4576482c0f474483ac709755f2663b20 --rln-relay-eth-contract-address=0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4
+// To quickly run in sandbox machine:
+// nohup ./build/waku --rest --rest-address=0.0.0.0 --rest-port=30304 --rln-relay=true --rln-relay-dynamic=true --rln-relay-eth-client-address=wss://sepolia.infura.io/ws/v3/4576482c0f474483ac709755f2663b20 --rln-relay-eth-contract-address=0xF471d71E9b1455bBF4b85d475afb9BB0954A29c4 > logs.out &
 
 // Example usage (replace by your public commitment)
-// curl http://localhost:8645/debug/v1/merkleProof/15506699537643273163469326218249028331014943998871371946527772121417127479348
+// curl http://localhost:30304/debug/v1/merkleProof/15506699537643273163469326218249028331014943998871371946527772121417127479348
+// curl http://65.21.94.244:30304/debug/v1/merkleProof/15506699537643273163469326218249028331014943998871371946527772121417127479348
 
 const routeDebugInfoV1 = "/debug/v1/info"
 const routeDebugVersionV1 = "/debug/v1/version"
