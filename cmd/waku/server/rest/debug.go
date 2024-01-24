@@ -67,7 +67,7 @@ func (d *DebugService) getV1Version(w http.ResponseWriter, req *http.Request) {
 type MerkleProofResponse struct {
 	MerkleRoot        string   `json:"root"`
 	MerkePathElements []string `json:"pathElements"`
-	MerkePathIndexes  []uint   `json:"pathIndexes"`
+	MerkePathIndexes  []uint8  `json:"pathIndexes"`
 	LeafIndex         uint64   `json:"leafIndex"`
 	CommitmentId      string   `json:"commitmentId"`
 }
@@ -134,14 +134,14 @@ func (d *DebugService) getV1MerkleProof(w http.ResponseWriter, req *http.Request
 	}
 
 	elementsStr := make([]string, 0)
-	indexesStr := make([]uint, 0)
+	indexesStr := make([]uint8, 0)
 
 	for _, path := range merkleProof.PathElements {
 		fmt.Println("path: ", path)
-		elementsStr = append(elementsStr, "0x"+hex.EncodeToString(path[:]))
+		elementsStr = append(elementsStr, hex.EncodeToString(path[:]))
 	}
 	for _, index := range merkleProof.PathIndexes {
-		indexesStr = append(indexesStr, uint(index))
+		indexesStr = append(indexesStr, uint8(index))
 	}
 
 	// TODO: Not nide to get proof and root in different non atomic calls. In an unlikely edge case the tree can change between the two calls
@@ -155,7 +155,7 @@ func (d *DebugService) getV1MerkleProof(w http.ResponseWriter, req *http.Request
 	fmt.Println("merkleRoot: ", merkleRoot)
 
 	writeErrOrResponse(w, nil, MerkleProofResponse{
-		MerkleRoot:        "0x" + hex.EncodeToString(merkleRoot[:]),
+		MerkleRoot:        hex.EncodeToString(merkleRoot[:]),
 		MerkePathElements: elementsStr,
 		MerkePathIndexes:  indexesStr,
 		LeafIndex:         uint64(membershipIndex),

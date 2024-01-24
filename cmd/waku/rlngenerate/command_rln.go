@@ -75,17 +75,23 @@ func execute(ctx context.Context) error {
 		return err
 	}
 
-	if logger.Level() == zap.DebugLevel {
-		logger.Info("registered credentials into the membership contract",
-			logging.HexBytes("IDCommitment", identityCredential.IDCommitment[:]),
-			logging.HexBytes("IDNullifier", identityCredential.IDNullifier[:]),
-			logging.HexBytes("IDSecretHash", identityCredential.IDSecretHash[:]),
-			logging.HexBytes("IDTrapDoor", identityCredential.IDTrapdoor[:]),
-			zap.Uint("index", membershipIndex),
-		)
-	} else {
-		logger.Info("registered credentials into the membership contract", logging.HexBytes("idCommitment", identityCredential.IDCommitment[:]), zap.Uint("index", membershipIndex))
-	}
+	//if logger.Level() == zap.DebugLevel {
+	// Not meant for production use
+	logger.Info("registered credentials into the membership contract",
+		logging.HexBytes("IDCommitment", identityCredential.IDCommitment[:]),
+		logging.HexBytes("IDNullifier", identityCredential.IDNullifier[:]),
+		logging.HexBytes("IDSecretHash", identityCredential.IDSecretHash[:]),
+		logging.HexBytes("IDTrapDoor", identityCredential.IDTrapdoor[:]),
+		zap.Uint("index", membershipIndex),
+	)
+
+	fmt.Println("IDCommitment: ", identityCredential.IDCommitment)
+	fmt.Println("IDNullifier: ", identityCredential.IDNullifier)
+	fmt.Println("IDSecretHash: ", identityCredential.IDSecretHash)
+	fmt.Println("IDTrapDoor: ", identityCredential.IDTrapdoor)
+	//} else {
+	//	logger.Info("registered credentials into the membership contract", logging.HexBytes("idCommitment", identityCredential.IDCommitment[:]), zap.Uint("index", membershipIndex))
+	//}
 
 	web3Config.ETHClient.Close()
 
