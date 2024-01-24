@@ -52,10 +52,10 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered, 
 
 	toRemoveTable := om.New()
 	toInsertTable := om.New()
-	if gm.lastBlockProcessed == 0 {
-		gm.lastBlockProcessed = latestProcessBlock
-	}
-	lastBlockProcessed := gm.lastBlockProcessed
+	//if gm.lastBlockProcessed == 0 {
+	//	gm.lastBlockProcessed = latestProcessBlock
+	//}
+	//lastBlockProcessed := gm.lastBlockProcessed
 	for _, event := range events {
 		if event.Raw.Removed {
 			var indexes []uint
@@ -74,9 +74,9 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered, 
 			eventsPerBlock = append(eventsPerBlock, event)
 			toInsertTable.Set(event.Raw.BlockNumber, eventsPerBlock)
 
-			if event.Raw.BlockNumber > lastBlockProcessed {
-				lastBlockProcessed = event.Raw.BlockNumber
-			}
+			//if event.Raw.BlockNumber > lastBlockProcessed {
+			//	lastBlockProcessed = event.Raw.BlockNumber
+			//}
 		}
 	}
 
@@ -90,7 +90,9 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered, 
 		return err
 	}
 
-	gm.lastBlockProcessed = lastBlockProcessed
+	// TODO: Commented code above is a bug I think. lastBlockProcessed was not being
+	// updated properly.
+	gm.lastBlockProcessed = latestProcessBlock
 	err = gm.SetMetadata(RLNMetadata{
 		LastProcessedBlock: gm.lastBlockProcessed,
 		ChainID:            gm.web3Config.ChainID,
@@ -310,6 +312,8 @@ func (gm *DynamicGroupManager) IsReady(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("could not retrieve latest block: %w", err)
 	}
 
+	fmt.Println("latestBlockNumber: ", latestBlockNumber, " gm.lastBlockProcessed: ", gm.lastBlockProcessed)
+
 	gm.lastBlockProcessedMutex.RLock()
 	allBlocksProcessed := gm.lastBlockProcessed >= latestBlockNumber
 	gm.lastBlockProcessedMutex.RUnlock()
@@ -324,4 +328,8 @@ func (gm *DynamicGroupManager) IsReady(ctx context.Context) (bool, error) {
 	}
 
 	return syncProgress == nil, nil // syncProgress only has a value while node is syncing
+}
+
+func GetRLN(gm *DynamicGroupManager) *rln.RLN {
+	return gm.rln
 }

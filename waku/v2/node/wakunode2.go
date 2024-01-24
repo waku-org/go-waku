@@ -42,10 +42,12 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/rln/group_manager/dynamic"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	r "github.com/waku-org/go-zerokit-rln/rln"
 
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -84,11 +86,14 @@ type RLNRelay interface {
 }
 
 type WakuNode struct {
-	host       host.Host
-	opts       *WakuNodeParameters
-	log        *zap.Logger
-	timesource timesource.Timesource
-	metrics    Metrics
+	// TODO: quick and dirty way to expose
+	RLNInstance  *r.RLN
+	GroupManager *dynamic.DynamicGroupManager
+	host         host.Host
+	opts         *WakuNodeParameters
+	log          *zap.Logger
+	timesource   timesource.Timesource
+	metrics      Metrics
 
 	peerstore     peerstore.Peerstore
 	peerConnector *peermanager.PeerConnectionStrategy
@@ -286,10 +291,12 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		relay.WithMaxMsgSize(w.opts.maxMsgSizeBytes))
 
 	if w.opts.enableRelay {
-		err = w.setupRLNRelay()
+		err, rlnInstance, groupManager := w.setupRLNRelay()
 		if err != nil {
 			return nil, err
 		}
+		w.RLNInstance = rlnInstance
+		w.GroupManager = groupManager
 	}
 
 	w.opts.legacyFilterOpts = append(w.opts.legacyFilterOpts, legacy_filter.WithPeerManager(w.peermanager))

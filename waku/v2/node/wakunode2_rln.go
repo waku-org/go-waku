@@ -21,22 +21,22 @@ func (w *WakuNode) RLNRelay() RLNRelay {
 	return w.rlnRelay
 }
 
-func (w *WakuNode) setupRLNRelay() error {
+func (w *WakuNode) setupRLNRelay() (error, *r.RLN, *dynamic.DynamicGroupManager) {
 	var err error
 
 	if !w.opts.enableRLN {
-		return nil
+		return nil, nil, nil
 	}
 
 	if !w.opts.enableRelay {
-		return errors.New("rln requires relay")
+		return errors.New("rln requires relay"), nil, nil
 	}
 
 	var groupManager group_manager.GroupManager
 
 	rlnInstance, rootTracker, err := rln.GetRLNInstanceAndRootTracker(w.opts.rlnTreePath)
 	if err != nil {
-		return err
+		return err, nil, nil
 	}
 	if !w.opts.rlnRelayDynamic {
 		w.log.Info("setting up waku-rln-relay in off-chain mode")
@@ -49,12 +49,12 @@ func (w *WakuNode) setupRLNRelay() error {
 		// set up rln relay inputs
 		groupKeys, idCredential, err := static.Setup(index)
 		if err != nil {
-			return err
+			return err, nil, nil
 		}
 
 		groupManager, err = static.NewStaticGroupManager(groupKeys, idCredential, index, rlnInstance, rootTracker, w.log)
 		if err != nil {
-			return err
+			return err, nil, nil
 		}
 	} else {
 		w.log.Info("setting up waku-rln-relay in on-chain mode")
@@ -63,7 +63,7 @@ func (w *WakuNode) setupRLNRelay() error {
 		if w.opts.keystorePath != "" {
 			appKeystore, err = keystore.New(w.opts.keystorePath, dynamic.RLNAppInfo, w.log)
 			if err != nil {
-				return err
+				return err, nil, nil
 			}
 		}
 
@@ -79,7 +79,7 @@ func (w *WakuNode) setupRLNRelay() error {
 			w.log,
 		)
 		if err != nil {
-			return err
+			return err, nil, nil
 		}
 	}
 
@@ -93,7 +93,7 @@ func (w *WakuNode) setupRLNRelay() error {
 
 	w.Relay().RegisterDefaultValidator(w.rlnRelay.Validator(w.opts.rlnSpamHandler))
 
-	return nil
+	return nil, rlnInstance, groupManager.(*dynamic.DynamicGroupManager)
 }
 
 func (w *WakuNode) startRlnRelay(ctx context.Context) error {
