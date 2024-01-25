@@ -78,6 +78,9 @@ func (gm *DynamicGroupManager) handler(events []*contracts.RLNMemberRegistered, 
 			lastBlockProcessed = event.Raw.BlockNumber
 		}
 	}
+	if len(events) == 0 {
+		lastBlockProcessed = latestProcessBlock
+	}
 
 	err := gm.RemoveMembers(toRemoveTable)
 	if err != nil {
