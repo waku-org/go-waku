@@ -79,12 +79,10 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 	return maps.Keys(peerIDs), nil
 }
 
-// selects count random peers from list of peers
-func selectRandomPeers(peers peer.IDSlice, count int) (peersMap, error) {
-	filteredPeerMap := peerSliceToMap(peers)
+func getRandom(filter peersMap, count int) (peersMap, error) {
 	i := 0
 	selectedPeers := make(peersMap)
-	for pID := range filteredPeerMap {
+	for pID := range filter {
 		selectedPeers[pID] = struct{}{}
 		i++
 		if i == count {
@@ -95,6 +93,12 @@ func selectRandomPeers(peers peer.IDSlice, count int) (peersMap, error) {
 		return nil, ErrNoPeersAvailable
 	}
 	return selectedPeers, nil
+}
+
+// selects count random peers from list of peers
+func selectRandomPeers(peers peer.IDSlice, count int) (peersMap, error) {
+	filteredPeerMap := peerSliceToMap(peers)
+	return getRandom(filteredPeerMap, count)
 }
 
 func peerSliceToMap(peers peer.IDSlice) peersMap {

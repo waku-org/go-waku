@@ -504,7 +504,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 		cFilter := protocol.NewContentFilter(pTopic, cTopics...)
 		var subs []*subscription.SubscriptionDetails
 		if params.selectedPeers.Len() == 0 {
-			subs = wf.subscriptions.GetSubscription("", protocol.ContentFilter{})
+			subs = wf.subscriptions.GetAllSubscriptions()
 			if len(subs) == 0 {
 				result.Add(WakuFilterPushError{
 					Err:    ErrSubscriptionNotFound,
@@ -514,7 +514,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 			}
 		}
 		for _, peer := range params.selectedPeers {
-			subsForPeer := wf.subscriptions.GetSubscription(peer, cFilter)
+			subsForPeer := wf.subscriptions.GetSubscriptionsForPeer(peer, cFilter)
 			if len(subsForPeer) == 0 {
 				result.Add(WakuFilterPushError{
 					Err:    ErrSubscriptionNotFound,
@@ -563,7 +563,7 @@ func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter pr
 }
 
 func (wf *WakuFilterLightNode) Subscriptions() []*subscription.SubscriptionDetails {
-	subs := wf.subscriptions.GetSubscription("", protocol.ContentFilter{})
+	subs := wf.subscriptions.GetAllSubscriptions()
 	return subs
 }
 
@@ -631,13 +631,13 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 	peers := make(map[peer.ID]struct{})
 	var subs []*subscription.SubscriptionDetails
 	if params.selectedPeers.Len() == 0 {
-		subs = wf.subscriptions.GetSubscription("", protocol.ContentFilter{})
+		subs = wf.subscriptions.GetAllSubscriptions()
 		if len(subs) == 0 {
 			return result, nil
 		}
 	}
 	for _, peer := range params.selectedPeers {
-		pSubs := wf.subscriptions.GetSubscription(peer, protocol.ContentFilter{})
+		pSubs := wf.subscriptions.GetSubscriptionsForPeer(peer, protocol.ContentFilter{})
 		if len(pSubs) == 0 {
 			result.Add(WakuFilterPushError{
 				Err:    ErrSubscriptionNotFound,
