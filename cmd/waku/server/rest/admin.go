@@ -67,7 +67,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		wPeer := WakuPeer{
-			ID:        peer.ID.Pretty(),
+			ID:        peer.ID.String(),
 			Connected: peer.Connected,
 		}
 

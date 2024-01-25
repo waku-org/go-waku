@@ -27,7 +27,7 @@ import (
 )
 
 func getAddr(h host.Host) multiaddr.Multiaddr {
-	id, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().Pretty()))
+	id, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().String()))
 	var selectedAddr multiaddr.Multiaddr
 	//For now skipping circuit relay addresses as libp2p seems to be returning empty p2p-circuit addresses.
 	for _, addr := range h.Network().ListenAddresses() {

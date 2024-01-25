@@ -36,7 +36,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds" // nolint: staticcheck
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/cmd/waku/server/rest"
