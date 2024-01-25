@@ -637,14 +637,15 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 		}
 	}
 	for _, peer := range params.selectedPeers {
-		subs = wf.subscriptions.GetSubscription(peer, protocol.ContentFilter{})
-		if len(subs) == 0 {
+		pSubs := wf.subscriptions.GetSubscription(peer, protocol.ContentFilter{})
+		if len(pSubs) == 0 {
 			result.Add(WakuFilterPushError{
-				Err:    err,
+				Err:    ErrSubscriptionNotFound,
 				PeerID: peer,
 			})
 			continue
 		}
+		subs = append(subs, pSubs...)
 	}
 	if len(subs) == 0 {
 		return result, ErrSubscriptionNotFound
