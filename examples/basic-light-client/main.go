@@ -94,7 +94,6 @@ func Execute() error {
 
 	var cTopic, err = protocol.NewContentTopic("basic-light-client", "1", "test", "proto")
 	if err != nil {
-		fmt.Println("Invalid contentTopic")
 		return errors.New("invalid contentTopic")
 	}
 	contentTopic := cTopic.String()
