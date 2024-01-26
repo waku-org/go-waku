@@ -27,7 +27,6 @@ func twoLightPushConnectedNodes(t *testing.T, pubSubTopic string) (*node.WakuNod
 	require.NoError(t, err)
 	err = node2.Host().Peerstore().(*wakupeerstore.WakuPeerstoreImpl).SetPubSubTopics(node1.Host().ID(), []string{pubSubTopic})
 	require.NoError(t, err)
-
 	return node1, node2
 }
 

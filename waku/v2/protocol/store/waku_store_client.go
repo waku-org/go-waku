@@ -312,8 +312,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 			params.selectedPeer = pData.AddrInfo.ID
 		}
 		if store.pm != nil && params.selectedPeer == "" {
-			var err error
-			params.selectedPeer, err = store.pm.SelectPeer(
+			selectedPeers, err := store.pm.SelectPeers(
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
 					Proto:         StoreID_v20beta4,
@@ -325,6 +324,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 			if err != nil {
 				return nil, err
 			}
+			params.selectedPeer = selectedPeers[0]
 		}
 	}
 
