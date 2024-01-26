@@ -19,7 +19,7 @@ func newPeerMap() *peerMap {
 	}
 }
 
-func (pm *peerMap) getRandom(count int) (peersMap, error) {
+func (pm *peerMap) getRandom(count int) (peerSet, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	return getRandom(pm.m, count)

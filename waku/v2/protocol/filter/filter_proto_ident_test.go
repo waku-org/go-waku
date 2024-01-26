@@ -184,7 +184,9 @@ func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFi
 					Ctx:           ctx,
 				},
 			)
-			selectedPeer = selectedPeers[0]
+			if err != nil {
+				selectedPeer = selectedPeers[0]
+			}
 		} else {
 			selectedPeer = params.selectedPeers[0]
 		}

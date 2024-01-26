@@ -276,7 +276,10 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 				Ctx:           ctx,
 			},
 		)
-		params.selectedPeer = selectedPeers[0]
+		if err == nil {
+			params.selectedPeer = selectedPeers[0]
+		}
+
 	}
 	if params.selectedPeer == "" {
 		if err != nil {

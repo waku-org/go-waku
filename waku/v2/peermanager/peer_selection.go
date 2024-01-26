@@ -16,7 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type peersMap map[peer.ID]struct{}
+type peerSet map[peer.ID]struct{}
 
 // SelectPeerByContentTopic is used to return a random peer that supports a given protocol for given contentTopic.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
@@ -57,8 +57,8 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 		pm.logger.Debug("could not retrieve random peer from slot", zap.String("protocol", string(criteria.Proto)),
 			zap.Strings("pubsubTopics", criteria.PubsubTopics), zap.Error(err))
 		return nil, err
-	} else {
-		peerIDs = make(peersMap)
+	} else if len(peerIDs) == 0 {
+		peerIDs = make(peerSet)
 	}
 	// if not found in serviceSlots or proto == WakuRelayIDv200
 	filteredPeers, err := pm.FilterPeersByProto(criteria.SpecificPeers, criteria.Proto)
@@ -79,10 +79,11 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 	return maps.Keys(peerIDs), nil
 }
 
-func getRandom(filter peersMap, count int) (peersMap, error) {
+func getRandom(filter peerSet, count int) (peerSet, error) {
 	i := 0
-	selectedPeers := make(peersMap)
+	selectedPeers := make(peerSet)
 	for pID := range filter {
+		//Map's iterator in golang works using randomness and hence not random function is being used.
 		selectedPeers[pID] = struct{}{}
 		i++
 		if i == count {
@@ -96,21 +97,21 @@ func getRandom(filter peersMap, count int) (peersMap, error) {
 }
 
 // selects count random peers from list of peers
-func selectRandomPeers(peers peer.IDSlice, count int) (peersMap, error) {
+func selectRandomPeers(peers peer.IDSlice, count int) (peerSet, error) {
 	filteredPeerMap := peerSliceToMap(peers)
 	return getRandom(filteredPeerMap, count)
 }
 
-func peerSliceToMap(peers peer.IDSlice) peersMap {
-	peerSet := make(peersMap, peers.Len())
+func peerSliceToMap(peers peer.IDSlice) peerSet {
+	peerSet := make(peerSet, peers.Len())
 	for _, peer := range peers {
 		peerSet[peer] = struct{}{}
 	}
 	return peerSet
 }
 
-func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peersMap, error) {
-	peers := make(peersMap)
+func (pm *PeerManager) selectServicePeer(criteria PeerSelectionCriteria) (peerSet, error) {
+	peers := make(peerSet)
 	var err error
 	for retryCnt := 0; retryCnt < 1; retryCnt++ {
 		//Try to fetch from serviceSlot

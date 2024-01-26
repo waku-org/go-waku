@@ -261,7 +261,9 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 				Ctx:           ctx,
 			},
 		)
-		params.selectedPeer = selectedPeers[0]
+		if err != nil {
+			params.selectedPeer = selectedPeers[0]
+		}
 	}
 	if params.selectedPeer == "" {
 		wf.metrics.RecordError(peerNotFoundFailure)
