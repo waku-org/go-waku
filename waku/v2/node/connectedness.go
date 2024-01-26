@@ -9,7 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -148,6 +148,7 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 		protocols, err := w.host.Peerstore().GetProtocols(peer)
 		if err != nil {
 			w.log.Warn("reading peer protocols", logging.HostID("peer", peer), zap.Error(err))
+			continue
 		}
 
 		for _, protocol := range protocols {
@@ -160,7 +161,7 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 			if !hasStore && protocol == store.StoreID_v20beta4 {
 				hasStore = true
 			}
-			if !hasFilter && protocol == legacy_filter.FilterID_v20beta1 {
+			if !hasFilter && protocol == filter.FilterSubscribeID_v20beta1 {
 				hasFilter = true
 			}
 		}
@@ -168,12 +169,30 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 
 	if hasStore {
 		hasHistory = true
+	} else {
+		//Look if there are other peers in peerStore that supports Store and we are not connected to them
+		for _, peer := range w.host.Peerstore().Peers() {
+			protocols, err := w.host.Peerstore().GetProtocols(peer)
+			if err != nil {
+				w.log.Warn("reading peer protocols", logging.HostID("peer", peer), zap.Error(err))
+				continue
+			}
+			for _, protocol := range protocols {
+				if !hasStore && protocol == store.StoreID_v20beta4 {
+					hasStore = true
+					break
+				}
+			}
+			if hasStore {
+				break
+			}
+		}
 	}
 
 	if w.opts.enableFilterLightNode && !w.opts.enableRelay {
 		isOnline = hasLightPush && hasFilter
 	} else {
-		isOnline = hasRelay || hasLightPush && (hasStore || hasFilter)
+		isOnline = hasRelay
 	}
 
 	return
