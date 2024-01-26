@@ -9,6 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/prometheus/client_golang/prometheus"
@@ -264,7 +265,9 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 	}
 
 	if params.pm != nil && params.selectedPeer == "" {
-		params.selectedPeer, err = wakuLP.pm.SelectPeer(
+		var selectedPeers peer.IDSlice
+		//TODO: update this to work with multiple peer selection
+		selectedPeers, err = wakuLP.pm.SelectPeers(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         LightPushID_v20beta1,
@@ -273,6 +276,10 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 				Ctx:           ctx,
 			},
 		)
+		if err == nil {
+			params.selectedPeer = selectedPeers[0]
+		}
+
 	}
 	if params.selectedPeer == "" {
 		if err != nil {

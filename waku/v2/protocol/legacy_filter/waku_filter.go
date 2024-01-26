@@ -252,7 +252,7 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 		opt(params)
 	}
 	if wf.pm != nil && params.selectedPeer == "" {
-		params.selectedPeer, _ = wf.pm.SelectPeer(
+		selectedPeers, _ := wf.pm.SelectPeers(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         FilterID_v20beta1,
@@ -261,6 +261,9 @@ func (wf *WakuFilter) requestSubscription(ctx context.Context, filter ContentFil
 				Ctx:           ctx,
 			},
 		)
+		if err != nil {
+			params.selectedPeer = selectedPeers[0]
+		}
 	}
 	if params.selectedPeer == "" {
 		wf.metrics.RecordError(peerNotFoundFailure)
