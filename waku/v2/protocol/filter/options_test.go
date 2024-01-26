@@ -35,7 +35,7 @@ func TestFilterOption(t *testing.T) {
 	}
 
 	require.Equal(t, host, params.host)
-	require.NotNil(t, params.selectedPeer)
+	require.NotEqual(t, 0, params.selectedPeers)
 
 	// Unsubscribe options
 	options2 := []FilterSubscribeOption{
@@ -51,7 +51,7 @@ func TestFilterOption(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	require.NotNil(t, params2.selectedPeer)
+	require.NotEqual(t, 0, params2.selectedPeers)
 	require.True(t, params2.unsubscribeAll)
 
 	// Mutually Exclusive options
@@ -73,7 +73,7 @@ func TestFilterOption(t *testing.T) {
 		}
 	}
 
-	require.NotNil(t, params2.selectedPeer)
+	require.NotEqual(t, 0, params2.selectedPeers)
 	require.True(t, params2.unsubscribeAll)
 
 }
