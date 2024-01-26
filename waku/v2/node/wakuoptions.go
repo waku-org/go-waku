@@ -155,6 +155,7 @@ func (w WakuNodeParameters) AddressFactory() basichost.AddrsFactory {
 func WithLogger(l *zap.Logger) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.logger = l
+		logging.SetAllLoggers(logging.LogLevel(l.Level()))
 		logging.SetPrimaryCore(l.Core())
 		return nil
 	}
