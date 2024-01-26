@@ -83,7 +83,7 @@ func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, pa
 
 	const FilterSubscribeID_Incorrect1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/abcd")
 
-	conn, err := wf.h.NewStream(ctx, params.selectedPeer, FilterSubscribeID_Incorrect1)
+	conn, err := wf.h.NewStream(ctx, params.selectedPeers[0], FilterSubscribeID_Incorrect1)
 	if err != nil {
 		wf.metrics.RecordError(dialFailure)
 		return err
@@ -173,8 +173,9 @@ func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFi
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		var selectedPeer peer.ID
 		//TO Optimize: find a peer with all pubSubTopics in the list if possible, if not only then look for single pubSubTopic
-		if params.pm != nil && params.selectedPeer == "" {
-			selectedPeer, err = wf.pm.SelectPeer(
+		if params.pm != nil && params.selectedPeers[0] == "" {
+			var selectedPeers peer.IDSlice
+			selectedPeers, err = wf.pm.SelectPeers(
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
 					Proto:         FilterSubscribeID_v20beta1,
@@ -183,8 +184,11 @@ func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFi
 					Ctx:           ctx,
 				},
 			)
+			if err != nil {
+				selectedPeer = selectedPeers[0]
+			}
 		} else {
-			selectedPeer = params.selectedPeer
+			selectedPeer = params.selectedPeers[0]
 		}
 
 		if selectedPeer == "" {
