@@ -4,13 +4,9 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"sync"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
-	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
@@ -122,11 +118,6 @@ func (pm *PeerManager) SelectPeer(criteria PeerSelectionCriteria) (peer.ID, erro
 	}
 }
 
-type pingResult struct {
-	p   peer.ID
-	rtt time.Duration
-}
-
 // SelectPeerWithLowestRTT will select a peer that supports a specific protocol with the lowest reply time
 // If a list of specific peers is passed, the peer will be chosen from that list assuming
 // it supports the chosen protocol, otherwise it will chose a peer from the node peerstore
@@ -148,54 +139,8 @@ func (pm *PeerManager) SelectPeerWithLowestRTT(criteria PeerSelectionCriteria) (
 	if err != nil {
 		return "", err
 	}
-	wg := sync.WaitGroup{}
-	waitCh := make(chan struct{})
-	pingCh := make(chan pingResult, 1000)
 
-	wg.Add(len(peers))
-
-	go func() {
-		for _, p := range peers {
-			go func(p peer.ID) {
-				defer wg.Done()
-				ctx, cancel := context.WithTimeout(criteria.Ctx, 3*time.Second)
-				defer cancel()
-				result := <-ping.Ping(ctx, pm.host, p)
-				if result.Error == nil {
-					pingCh <- pingResult{
-						p:   p,
-						rtt: result.RTT,
-					}
-				} else {
-					pm.logger.Debug("could not ping", logging.HostID("peer", p), zap.Error(result.Error))
-				}
-			}(p)
-		}
-		wg.Wait()
-		close(waitCh)
-		close(pingCh)
-	}()
-
-	select {
-	case <-waitCh:
-		var min *pingResult
-		for p := range pingCh {
-			if min == nil {
-				min = &p
-			} else {
-				if p.rtt < min.rtt {
-					min = &p
-				}
-			}
-		}
-		if min == nil {
-			return "", ErrNoPeersAvailable
-		}
-
-		return min.p, nil
-	case <-criteria.Ctx.Done():
-		return "", ErrNoPeersAvailable
-	}
+	return pm.rttCache.FastestPeer(criteria.Ctx, peers)
 }
 
 // selectRandomPeer selects randomly a peer from the list of peers passed.

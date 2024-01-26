@@ -3,11 +3,12 @@ package lightpush
 import (
 	"context"
 	"crypto/rand"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"go.uber.org/zap"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
