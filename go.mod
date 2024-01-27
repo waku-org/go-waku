@@ -2,12 +2,12 @@ module github.com/waku-org/go-waku
 
 go 1.20
 
-replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
+replace github.com/ethereum/go-ethereum v1.11.6 => github.com/status-im/go-ethereum v1.10.25-status.4
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
-	github.com/ethereum/go-ethereum v1.10.26
+	github.com/ethereum/go-ethereum v1.11.6
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gorilla/rpc v1.2.0
@@ -28,7 +28,7 @@ require (
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
+	github.com/waku-org/go-discover v0.0.0-20240127052100-a3ca781403ea
 	golang.org/x/text v0.13.0
 )
 
@@ -103,7 +103,7 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/snappy v0.0.4 // indirect
+	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0 // indirect
