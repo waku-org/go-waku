@@ -26,8 +26,9 @@ require (
 )
 
 require (
-	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
-	golang.org/x/text v0.13.0 // indirect
+	github.com/gorilla/mux v1.8.0
+	github.com/waku-org/go-discover v0.0.0-20240129014929-85f2c00b96a3
+	golang.org/x/text v0.12.0
 )
 
 require (
