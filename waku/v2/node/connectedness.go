@@ -12,7 +12,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"go.uber.org/zap"
 
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
@@ -24,9 +23,8 @@ type PeerStats map[peer.ID][]protocol.ID
 // ConnStatus is used to indicate if the node is online, has access to history
 // and also see the list of peers the node is aware of
 type ConnStatus struct {
-	IsOnline   bool
-	HasHistory bool
-	Peers      PeerStats
+	IsOnline bool
+	Peers    PeerStats
 }
 
 type PeerConnection struct {
@@ -113,9 +111,9 @@ func (c ConnectionNotifier) Close() {
 }
 
 func (w *WakuNode) sendConnStatus() {
-	isOnline, hasHistory := w.Status()
+	isOnline := w.Status()
 	if w.connStatusChan != nil {
-		connStatus := ConnStatus{IsOnline: isOnline, HasHistory: hasHistory, Peers: w.PeerStats()}
+		connStatus := ConnStatus{IsOnline: isOnline, Peers: w.PeerStats()}
 		w.connStatusChan <- connStatus
 	}
 
@@ -138,10 +136,9 @@ func (w *WakuNode) connectednessListener(ctx context.Context) {
 
 // Status returns the current status of the node (online or not)
 // and if the node has access to history nodes or not
-func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
+func (w *WakuNode) Status() (isOnline bool) {
 	hasRelay := false
 	hasLightPush := false
-	hasStore := false
 	hasFilter := false
 
 	for _, peer := range w.host.Network().Peers() {
@@ -158,33 +155,8 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 			if !hasLightPush && protocol == lightpush.LightPushID_v20beta1 {
 				hasLightPush = true
 			}
-			if !hasStore && protocol == store.StoreID_v20beta4 {
-				hasStore = true
-			}
 			if !hasFilter && protocol == filter.FilterSubscribeID_v20beta1 {
 				hasFilter = true
-			}
-		}
-	}
-
-	if hasStore {
-		hasHistory = true
-	} else {
-		//Look if there are other peers in peerStore that supports Store and we are not connected to them
-		for _, peer := range w.host.Peerstore().Peers() {
-			protocols, err := w.host.Peerstore().GetProtocols(peer)
-			if err != nil {
-				w.log.Warn("reading peer protocols", logging.HostID("peer", peer), zap.Error(err))
-				continue
-			}
-			for _, protocol := range protocols {
-				if !hasStore && protocol == store.StoreID_v20beta4 {
-					hasStore = true
-					break
-				}
-			}
-			if hasStore {
-				break
 			}
 		}
 	}

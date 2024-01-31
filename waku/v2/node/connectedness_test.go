@@ -30,7 +30,6 @@ func checkConnectedness(t *testing.T, wg *sync.WaitGroup, connStatusChan chan Co
 		if (nodeShouldBeConnected && ok) || (!nodeShouldBeConnected && !ok) {
 			// Only execute the test when the node is connected or disconnected and it does not appear in the map returned by the connection status channel
 			require.True(t, connStatus.IsOnline == shouldBeOnline)
-			require.True(t, connStatus.HasHistory == shouldHaveHistory)
 			require.Len(t, clientNode.Host().Network().Peers(), expectedPeers)
 			return
 		}
