@@ -85,10 +85,16 @@ func (w *WakuRelay) topicValidator(topic string) func(ctx context.Context, peerI
 }
 
 // AddSignedTopicValidator registers a gossipsub validator for a topic which will check that messages Meta field contains a valid ECDSA signature for the specified pubsub topic. This is used as a DoS prevention mechanism
-func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKey *ecdsa.PublicKey) error {
-	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.String("publicKey", hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))))
+func (w *WakuRelay) AddSignedTopicValidator(topic string, publicKeys []*ecdsa.PublicKey) error {
 
-	fn := signedTopicBuilder(w.timesource, publicKey)
+	var hexPubKeys []string
+	for _, publicKey := range publicKeys {
+		hexPubKey := hex.EncodeToString(elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y))
+		hexPubKeys = append(hexPubKeys, hexPubKey)
+	}
+	w.log.Info("adding validator to signed topic", zap.String("topic", topic), zap.Strings("publicKeys", hexPubKeys))
+
+	fn := signedTopicBuilder(w.timesource, publicKeys)
 
 	w.RegisterTopicValidator(topic, fn)
 
@@ -112,8 +118,12 @@ func withinTimeWindow(t timesource.Timesource, msg *pb.WakuMessage) bool {
 	return now.Sub(msgTime).Abs() <= messageWindowDuration
 }
 
-func signedTopicBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) validatorFn {
-	publicKeyBytes := crypto.FromECDSAPub(publicKey)
+func signedTopicBuilder(t timesource.Timesource, publicKeys []*ecdsa.PublicKey) validatorFn {
+	var publicKeyBytes [][]byte
+	for _, pubK := range publicKeys {
+		publicKeyBytes = append(publicKeyBytes, crypto.FromECDSAPub(pubK))
+	}
+
 	return func(ctx context.Context, msg *pb.WakuMessage, topic string) bool {
 		if !withinTimeWindow(t, msg) {
 			return false
@@ -122,7 +132,13 @@ func signedTopicBuilder(t timesource.Timesource, publicKey *ecdsa.PublicKey) val
 		msgHash := msgHash(topic, msg)
 		signature := msg.Meta
 
-		return secp256k1.VerifySignature(publicKeyBytes, msgHash, signature)
+		for _, pubK := range publicKeyBytes {
+			if secp256k1.VerifySignature(pubK, msgHash, signature) {
+				return true
+			}
+		}
+
+		return false
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"sync"
 	"time"
 
@@ -72,8 +73,15 @@ func handleRelayTopics(ctx context.Context, wg *sync.WaitGroup, wakuNode *node.W
 	}
 
 	// Protected topics
+	topicKeys := make(map[string][]*ecdsa.PublicKey)
 	for _, protectedTopic := range options.Relay.ProtectedTopics {
-		if err := wakuNode.Relay().AddSignedTopicValidator(protectedTopic.Topic, protectedTopic.PublicKey); err != nil {
+		if _, ok := topicKeys[protectedTopic.Topic]; !ok {
+			topicKeys[protectedTopic.Topic] = []*ecdsa.PublicKey{}
+		}
+		topicKeys[protectedTopic.Topic] = append(topicKeys[protectedTopic.Topic], protectedTopic.PublicKey)
+	}
+	for topic, pubKeys := range topicKeys {
+		if err := wakuNode.Relay().AddSignedTopicValidator(topic, pubKeys); err != nil {
 			return nonRecoverErrorMsg("could not add signed topic validator: %w", err)
 		}
 	}

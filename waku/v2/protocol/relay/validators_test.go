@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"testing"
 	"time"
@@ -61,19 +62,19 @@ func TestMsgHash(t *testing.T) {
 	//messageHash := MsgHash(pubsubTopic, msg)
 	//require.True(t, bytes.Equal(expectedMessageHash, messageHash))
 
-	myValidator := signedTopicBuilder(NewFakeTimesource(timestamp), &prvKey.PublicKey)
+	myValidator := signedTopicBuilder(NewFakeTimesource(timestamp), []*ecdsa.PublicKey{&prvKey.PublicKey})
 	result := myValidator(context.Background(), msg, protectedPubSubTopic)
 	require.True(t, result)
 
 	// Exceed 5m window in both directions
 	now5m1sInPast := timestamp.Add(-5 * time.Minute).Add(-1 * time.Second)
-	myValidator = signedTopicBuilder(NewFakeTimesource(now5m1sInPast), &prvKey.PublicKey)
+	myValidator = signedTopicBuilder(NewFakeTimesource(now5m1sInPast), []*ecdsa.PublicKey{&prvKey.PublicKey})
 	require.NoError(t, err)
 	result = myValidator(context.Background(), msg, protectedPubSubTopic)
 	require.False(t, result)
 
 	now5m1sInFuture := timestamp.Add(5 * time.Minute).Add(1 * time.Second)
-	myValidator = signedTopicBuilder(NewFakeTimesource(now5m1sInFuture), &prvKey.PublicKey)
+	myValidator = signedTopicBuilder(NewFakeTimesource(now5m1sInFuture), []*ecdsa.PublicKey{&prvKey.PublicKey})
 	result = myValidator(context.Background(), msg, protectedPubSubTopic)
 	require.False(t, result)
 }
