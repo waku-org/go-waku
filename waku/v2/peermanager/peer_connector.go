@@ -130,7 +130,7 @@ func (c *PeerConnectionStrategy) consumeSubscription(s subscription) {
 				if len(c.host.Network().Peers()) < waku_proto.GossipSubOptimalFullMeshSize {
 					triggerImmediateConnection = true
 				}
-				c.logger.Debug("adding discovered peer", logging.HostID("peer", p.AddrInfo.ID))
+				c.logger.Debug("adding discovered peer", logging.HostID("peerID", p.AddrInfo.ID))
 				c.pm.AddDiscoveredPeer(p, triggerImmediateConnection)
 
 			case <-time.After(1 * time.Second):
@@ -198,13 +198,18 @@ func (c *PeerConnectionStrategy) canDialPeer(pi peer.AddrInfo) bool {
 		tv := val.(*connCacheData)
 		now := time.Now()
 		if now.Before(tv.nextTry) {
+			c.logger.Debug("Skipping connecting to peer due to backoff strategy",
+				zap.Time("currentTime", now), zap.Time("until", tv.nextTry))
 			return false
 		}
-
+		c.logger.Debug("Proceeding with connecting to peer",
+			zap.Time("currentTime", now), zap.Time("nextTry", tv.nextTry))
 		tv.nextTry = now.Add(tv.strat.Delay())
 	} else {
 		cachedPeer = &connCacheData{strat: c.backoff()}
 		cachedPeer.nextTry = time.Now().Add(cachedPeer.strat.Delay())
+		c.logger.Debug("Initializing connectionCache for peer ",
+			logging.HostID("peerID", pi.ID), zap.Time("until", cachedPeer.nextTry))
 		c.cache.Add(pi.ID, cachedPeer)
 	}
 	return true
