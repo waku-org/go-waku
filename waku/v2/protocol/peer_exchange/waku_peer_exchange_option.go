@@ -18,6 +18,8 @@ type PeerExchangeParameters struct {
 	preferredPeers    peer.IDSlice
 	pm                *peermanager.PeerManager
 	log               *zap.Logger
+	shard             int
+	clusterID         int
 }
 
 type PeerExchangeOption func(*PeerExchangeParameters) error
@@ -75,5 +77,14 @@ func WithFastestPeerSelection(fromThesePeers ...peer.ID) PeerExchangeOption {
 func DefaultOptions(host host.Host) []PeerExchangeOption {
 	return []PeerExchangeOption{
 		WithAutomaticPeerSelection(),
+	}
+}
+
+// Use this if you want to filter peers by specific shards
+func FilterByShard(clusterID int, shard int) PeerExchangeOption {
+	return func(params *PeerExchangeParameters) error {
+		params.shard = shard
+		params.clusterID = clusterID
+		return nil
 	}
 }

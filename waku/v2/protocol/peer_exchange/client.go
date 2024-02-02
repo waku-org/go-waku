@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
 	"github.com/waku-org/go-waku/waku/v2/service"
@@ -43,10 +44,16 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	}
 
 	if params.pm != nil && params.selectedPeer == "" {
+		pubsubTopics := []string{}
+		if params.clusterID != 0 {
+			pubsubTopics = append(pubsubTopics,
+				protocol.NewStaticShardingPubsubTopic(uint16(params.clusterID), uint16(params.shard)).String())
+		}
 		selectedPeers, err := wakuPX.pm.SelectPeers(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         PeerExchangeID_v20alpha1,
+				PubsubTopics:  pubsubTopics,
 				SpecificPeers: params.preferredPeers,
 				Ctx:           ctx,
 			},
@@ -93,10 +100,10 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 
 	stream.Close()
 
-	return wakuPX.handleResponse(ctx, responseRPC.Response)
+	return wakuPX.handleResponse(ctx, responseRPC.Response, params)
 }
 
-func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb.PeerExchangeResponse) error {
+func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb.PeerExchangeResponse, params *PeerExchangeParameters) error {
 	var discoveredPeers []struct {
 		addrInfo peer.AddrInfo
 		enr      *enode.Node
@@ -110,6 +117,13 @@ func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb
 		if err != nil {
 			wakuPX.log.Error("converting bytes to enr", zap.Error(err))
 			return err
+		}
+
+		if params.clusterID != 0 {
+			rs, err := wenr.RelaySharding(enrRecord)
+			if err != nil || rs == nil || !rs.Contains(uint16(params.clusterID), uint16(params.shard)) {
+				continue
+			}
 		}
 
 		enodeRecord, err := enode.New(enode.ValidSchemes, enrRecord)
