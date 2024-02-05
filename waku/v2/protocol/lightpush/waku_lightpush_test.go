@@ -3,11 +3,12 @@ package lightpush
 import (
 	"context"
 	"crypto/rand"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"go.uber.org/zap"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -122,7 +123,7 @@ func TestWakuLightPush(t *testing.T) {
 		<-sub2.Ch
 	}()
 
-	var lpOptions []Option
+	var lpOptions []RequestOption
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 
@@ -156,7 +157,7 @@ func TestWakuLightPushNoPeers(t *testing.T) {
 	require.NoError(t, err)
 	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
 	client.SetHost(clientHost)
-	var lpOptions []Option
+	var lpOptions []RequestOption
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 
 	_, err = client.Publish(ctx, tests.CreateWakuMessage("test", utils.GetUnixEpoch()), lpOptions...)
@@ -234,7 +235,7 @@ func TestWakuLightPushAutoSharding(t *testing.T) {
 		<-sub2.Ch
 
 	}()
-	var lpOptions []Option
+	var lpOptions []RequestOption
 	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 	// Verifying successful request
 	hash1, err := client.Publish(ctx, msg1, lpOptions...)
@@ -295,7 +296,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	var lpOptions []Option
+	var lpOptions []RequestOption
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 	lpOptions = append(lpOptions, WithPeer(host2.ID()))
 
@@ -314,7 +315,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	host3, err := tests.MakeHost(context.Background(), 12345, rand.Reader)
 	require.NoError(t, err)
 
-	var lpOptions2 []Option
+	var lpOptions2 []RequestOption
 
 	// Test error case with empty options
 	_, err = client.Publish(ctx, msg2, lpOptions2...)
