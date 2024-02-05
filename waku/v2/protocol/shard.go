@@ -268,3 +268,11 @@ func GeneratePubsubToContentTopicMap(pubsubTopic string, contentTopics []string)
 	}
 	return pubSubTopicMap, nil
 }
+
+func ShardsToTopics(clusterId int, shards []int) []string {
+	pubsubTopics := make([]string, len(shards))
+	for i, shard := range shards {
+		pubsubTopics[i] = NewStaticShardingPubsubTopic(uint16(clusterId), uint16(shard)).String()
+	}
+	return pubsubTopics
+}
