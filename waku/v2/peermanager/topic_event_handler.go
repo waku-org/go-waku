@@ -30,7 +30,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		//Nothing to be done, as we are already subscribed to this topic.
 		return
 	}
-	pm.subRelayTopics[pubsubTopic] = &NodeTopicDetails{topicInst}
+	pm.subRelayTopics[pubsubTopic] = &NodeTopicDetails{topicInst, UnHealthy}
 	//Check how many relay peers we are connected to that subscribe to this topic, if less than D find peers in peerstore and connect.
 	//If no peers in peerStore, trigger discovery for this topic?
 	relevantPeersForPubSubTopic := pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubsubTopic)
@@ -51,6 +51,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		// Should we link this to bandwidth management somehow or just depend on some sort of config profile?
 		pm.logger.Info("Optimal required relay peers for new pubSubTopic are already connected ", zap.String("pubSubTopic", pubsubTopic),
 			zap.Int("connectedPeerCount", connectedPeers))
+		pm.subRelayTopics[pubsubTopic].healthStatus = SufficientlyHealthy
 		return
 	}
 	triggerDiscovery := false

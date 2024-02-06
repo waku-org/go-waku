@@ -16,6 +16,7 @@ import (
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/waku-org/go-waku/logging"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/service"
@@ -114,6 +115,7 @@ func (w *WakuRelay) peerScoreInspector(peerScoresSnapshots map[peer.ID]*pubsub.P
 				w.log.Error("could not disconnect peer", logging.HostID("peer", pid), zap.Error(err))
 			}
 		}
+		w.host.Peerstore().(wps.WakuPeerstore).SetScore(pid, snap.Score)
 	}
 }
 

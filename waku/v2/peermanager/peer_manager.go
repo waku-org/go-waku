@@ -26,9 +26,18 @@ import (
 	"go.uber.org/zap"
 )
 
+type TopicHealth int
+
+const (
+	UnHealthy           = iota
+	MinimallyHealthy    = 1
+	SufficientlyHealthy = 2
+)
+
 // NodeTopicDetails stores pubSubTopic related data like topicHandle for the node.
 type NodeTopicDetails struct {
-	topic *pubsub.Topic
+	topic        *pubsub.Topic
+	healthStatus TopicHealth
 }
 
 // WakuProtoInfo holds protocol specific info
@@ -215,11 +224,23 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 		curPeerLen := 0
 		for _, p := range topicInst.topic.ListPeers() {
 			if pm.host.Network().Connectedness(p) == network.Connected {
-				curPeerLen++
+				pThreshold, err := pm.host.Peerstore().(wps.WakuPeerstore).Score(p)
+				if err != nil {
+					pm.logger.Warn("failed to fetch peer score ", zap.Error(err), logging.HostID("peer", p))
+				} else if pThreshold < relay.PeerPublishThreshold {
+					pm.logger.Debug("peer score below publish threshold", logging.HostID("peer", p), zap.Float64("score", pThreshold))
+				} else {
+					curPeerLen++
+				}
 			}
 		}
 		if curPeerLen < waku_proto.GossipSubDMin {
-			pm.logger.Debug("subscribed topic is unhealthy, initiating more connections to maintain health",
+			if curPeerLen < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
+				topicInst.healthStatus = UnHealthy
+			} else {
+				topicInst.healthStatus = MinimallyHealthy
+			}
+			pm.logger.Debug("subscribed topic is not sufficiently healthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
 				zap.Int("optimumPeers", waku_proto.GossipSubDMin))
 			//Find not connected peers.
@@ -237,6 +258,8 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 				numPeersToConnect = notConnectedPeers.Len()
 			}
 			pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
+		} else {
+			topicInst.healthStatus = SufficientlyHealthy
 		}
 	}
 }
