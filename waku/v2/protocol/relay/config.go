@@ -72,11 +72,11 @@ func (w *WakuRelay) defaultPubsubOptions() []pubsub.Option {
 	cfg.PruneBackoff = time.Minute
 	cfg.UnsubscribeBackoff = 5 * time.Second
 	cfg.GossipFactor = 0.25
-	cfg.D = waku_proto.GossipSubOptimalFullMeshSize
+	cfg.D = waku_proto.GossipSubDMin
 	cfg.Dlo = 4
 	cfg.Dhi = 8
 	cfg.Dout = 3
-	cfg.Dlazy = waku_proto.GossipSubOptimalFullMeshSize
+	cfg.Dlazy = waku_proto.GossipSubDMin
 	cfg.HeartbeatInterval = time.Second
 	cfg.HistoryLength = 6
 	cfg.HistoryGossip = 3

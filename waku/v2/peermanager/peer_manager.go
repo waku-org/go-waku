@@ -218,10 +218,10 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 				curPeerLen++
 			}
 		}
-		if curPeerLen < waku_proto.GossipSubOptimalFullMeshSize {
+		if curPeerLen < waku_proto.GossipSubDMin {
 			pm.logger.Debug("subscribed topic is unhealthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
-				zap.Int("optimumPeers", waku_proto.GossipSubOptimalFullMeshSize))
+				zap.Int("optimumPeers", waku_proto.GossipSubDMin))
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
@@ -231,7 +231,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			}
 			pm.logger.Debug("connecting to eligible peers in peerstore", zap.String("pubSubTopic", topicStr))
 			//Connect to eligible peers.
-			numPeersToConnect := waku_proto.GossipSubOptimalFullMeshSize - curPeerLen
+			numPeersToConnect := waku_proto.GossipSubDMin - curPeerLen
 
 			if numPeersToConnect > notConnectedPeers.Len() {
 				numPeersToConnect = notConnectedPeers.Len()

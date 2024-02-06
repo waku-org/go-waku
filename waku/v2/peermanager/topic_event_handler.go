@@ -44,7 +44,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		}
 	}
 
-	if connectedPeers >= waku_proto.GossipSubOptimalFullMeshSize { //TODO: Use a config rather than hard-coding.
+	if connectedPeers >= waku_proto.GossipSubDMin { //TODO: Use a config rather than hard-coding.
 		// Should we use optimal number or define some sort of a config for the node to choose from?
 		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
 		// or bandwidth it can support.
@@ -58,10 +58,10 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		numPeersToConnect := notConnectedPeers.Len() - connectedPeers
 		if numPeersToConnect < 0 {
 			numPeersToConnect = notConnectedPeers.Len()
-		} else if numPeersToConnect-connectedPeers > waku_proto.GossipSubOptimalFullMeshSize {
-			numPeersToConnect = waku_proto.GossipSubOptimalFullMeshSize - connectedPeers
+		} else if numPeersToConnect-connectedPeers > waku_proto.GossipSubDMin {
+			numPeersToConnect = waku_proto.GossipSubDMin - connectedPeers
 		}
-		if numPeersToConnect+connectedPeers < waku_proto.GossipSubOptimalFullMeshSize {
+		if numPeersToConnect+connectedPeers < waku_proto.GossipSubDMin {
 			triggerDiscovery = true
 		}
 		//For now all peers are being given same priority,
