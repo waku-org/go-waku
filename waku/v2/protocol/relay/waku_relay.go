@@ -115,7 +115,7 @@ func (w *WakuRelay) peerScoreInspector(peerScoresSnapshots map[peer.ID]*pubsub.P
 				w.log.Error("could not disconnect peer", logging.HostID("peer", pid), zap.Error(err))
 			}
 		}
-		w.host.Peerstore().(wps.WakuPeerstore).SetScore(pid, snap.Score)
+		_ = w.host.Peerstore().(wps.WakuPeerstore).SetScore(pid, snap.Score)
 	}
 }
 
