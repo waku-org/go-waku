@@ -18,7 +18,7 @@ func TestLightPushOption(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	options := []Option{
+	options := []RequestOption{
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 		WithAutomaticPeerSelection(),
 		WithFastestPeerSelection(),
@@ -26,7 +26,7 @@ func TestLightPushOption(t *testing.T) {
 		WithAutomaticRequestID(),
 	}
 
-	params := new(lightPushParameters)
+	params := new(lightPushRequestParameters)
 	params.host = host
 	params.log = utils.Logger()
 
@@ -42,7 +42,7 @@ func TestLightPushOption(t *testing.T) {
 	maddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/12345/p2p/16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy")
 	require.NoError(t, err)
 
-	options = []Option{
+	options = []RequestOption{
 		WithPeer("16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy"),
 		WithPeerAddr(maddr),
 	}

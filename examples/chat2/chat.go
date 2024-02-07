@@ -324,7 +324,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	}
 
 	if c.options.LightPush.Enable {
-		lightOpt := []lightpush.Option{lightpush.WithDefaultPubsubTopic()}
+		lightOpt := []lightpush.RequestOption{lightpush.WithDefaultPubsubTopic()}
 		var peerID peer.ID
 		peerID, err = options.LightPush.NodePeerID()
 		if err != nil {
