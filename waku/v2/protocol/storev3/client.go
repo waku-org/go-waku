@@ -69,6 +69,7 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 	}
 
 	//Add Peer to peerstore.
+	// TODO: how to determine pubsub topic if using message hashes?
 	if s.pm != nil && params.peerAddr != nil {
 		pData, err := s.pm.AddPeer(params.peerAddr, peerstore.Static, criteria.PubsubTopic, StoreID_v300)
 		if err != nil {
@@ -94,38 +95,29 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 		params.selectedPeer = selectedPeers[0]
 	}
 
-	// TODO Criteria should be an interface that either allows specifying a content filter, or a set of message hashes
-
-	storeRequest := &pb.StoreRequest{
-		RequestId: hex.EncodeToString(params.requestID),
-
-		PubsubTopic:   query.PubsubTopic,
-		ContentTopics: query.ContentTopics,
-		TimeStart:     query.TimeStart,
-		TimeEnd:       query.TimeEnd,
-
-		MessageHashes: query.MessageHashes,
-
-		ReturnValues: query.ReturnValues,
-	}
-
-	storeRequest.PaginationForward = params.forward
-
 	if params.selectedPeer == "" {
 		return nil, ErrNoPeersAvailable
 	}
 
+	pageLimit := params.pageLimit
+	if pageLimit == 0 {
+		pageLimit = DefaultPageSize
+	} else if pageLimit > uint64(MaxPageSize) {
+		pageLimit = MaxPageSize
+	}
+
+	storeRequest := &pb.StoreRequest{
+		RequestId:         hex.EncodeToString(params.requestID),
+		ReturnValues:      query.ReturnValues,
+		PaginationForward: params.forward,
+		PaginationLimit:   proto.Uint64(pageLimit),
+	}
+
+	criteria.PopulateStoreRequest(storeRequest)
+
 	if params.cursor != nil {
 		storeRequest.PaginationCursor = params.cursor
 	}
-
-	pageSize := params.pageSize
-	if pageSize == 0 {
-		pageSize = DefaultPageSize
-	} else if pageSize > uint64(MaxPageSize) {
-		pageSize = MaxPageSize
-	}
-	storeRequest.PaginationLimit = proto.Uint64(pageSize)
 
 	err := storeRequest.Validate()
 	if err != nil {
@@ -142,10 +134,7 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 		Messages:     response.Messages,
 		storeRequest: storeRequest,
 		peerID:       params.selectedPeer,
-	}
-
-	if response.PaginationCursor != nil {
-		result.cursor = response.PaginationCursor
+		cursor:       response.PaginationCursor,
 	}
 
 	return result, nil
@@ -171,23 +160,9 @@ func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
 		}, nil
 	}
 
-	storeRequest := &pb.StoreRequest{
-		RequestId: hex.EncodeToString(protocol.GenerateRequestID()),
-
-		PubsubTopic:   query.PubsubTopic,
-		ContentTopics: query.ContentTopics,
-		TimeStart:     query.TimeStart,
-		TimeEnd:       query.TimeEnd,
-
-		MessageHashes: query.MessageHashes,
-
-		ReturnValues: query.ReturnValues,
-
-		PaginationForward: query.PaginationForward,
-		PaginationLimit:   query.PaginationLimit,
-
-		PaginationCursor: r.Cursor(),
-	}
+	storeRequest := proto.Clone(r.storeRequest).(*pb.StoreRequest)
+	storeRequest.RequestId = hex.EncodeToString(protocol.GenerateRequestID())
+	storeRequest.PaginationCursor = r.Cursor()
 
 	response, err := s.queryFrom(ctx, storeRequest, r.PeerID())
 	if err != nil {
@@ -200,10 +175,7 @@ func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
 		Messages:     response.Messages,
 		storeRequest: storeRequest,
 		peerID:       r.PeerID(),
-	}
-
-	if response.PaginationCursor != nil {
-		result.cursor = response.PaginationCursor
+		cursor:       response.PaginationCursor,
 	}
 
 	return result, nil
@@ -232,8 +204,8 @@ func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreReque
 		return nil, err
 	}
 
-	historyResponseRPC := &pb.HistoryRPC{RequestId: historyRequest.RequestId}
-	err = reader.ReadMsg(historyResponseRPC)
+	storeResponse := &pb.StoreRequest{RequestId: storeRequest.RequestId}
+	err = reader.ReadMsg(storeResponse)
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
 		if err := stream.Reset(); err != nil {
@@ -246,18 +218,18 @@ func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreReque
 
 	// nwaku does not return a response if there are no results due to the way their
 	// protobuffer library works. this condition once they have proper proto3 support
-	if historyResponseRPC.Response == nil {
+	if storeResponse.Response == nil {
 		// Empty response
 		return &pb.HistoryResponse{
 			PagingInfo: &pb.PagingInfo{},
 		}, nil
 	}
 
-	if err := historyResponseRPC.ValidateResponse(storeRequest.RequestId); err != nil {
+	if err := storeResponse.ValidateResponse(storeRequest.RequestId); err != nil {
 		return nil, err
 	}
 
 	// TODO: validate error codes
 
-	return historyResponseRPC.Response, nil
+	return storeResponse.Response, nil
 }
