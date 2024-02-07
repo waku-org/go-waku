@@ -35,8 +35,8 @@ const (
 )
 
 type TopicHealthStatus struct {
-	topic  string
-	health TopicHealth
+	Topic  string
+	Health TopicHealth
 }
 
 // NodeTopicDetails stores pubSubTopic related data like topicHandle for the node.
@@ -102,20 +102,40 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 	return relayPeers - outRelayPeers, outRelayPeers
 }
 
-func (pm *PeerManager) updateTopicHealth(topic *NodeTopicDetails, connectedPeerCount int) {
+// checkAndUpdateTopicHealth finds health of specified topic and updates and notifies of the same.
+// Also returns the healthyPeerCount
+func (pm *PeerManager) checkAndUpdateTopicHealth(topic *NodeTopicDetails) int {
+	healthyPeerCount := 0
+	for _, p := range topic.topic.ListPeers() {
+		if pm.host.Network().Connectedness(p) == network.Connected {
+			pThreshold, err := pm.host.Peerstore().(wps.WakuPeerstore).Score(p)
+			if err == nil && pThreshold < relay.PeerPublishThreshold {
+				pm.logger.Debug("peer score below publish threshold", logging.HostID("peer", p), zap.Float64("score", pThreshold))
+			} else {
+				//For now considering peer as healthy if we can't fetch score.
+				healthyPeerCount++
+			}
+			if err != nil {
+				pm.logger.Warn("failed to fetch peer score ", zap.Error(err), logging.HostID("peer", p))
+			}
+		}
+	}
 	//Update topic's health
 	oldHealth := topic.healthStatus
-	if connectedPeerCount < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
+	if healthyPeerCount < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
 		topic.healthStatus = UnHealthy
-	} else if connectedPeerCount < 4 {
+	} else if healthyPeerCount < 4 {
 		topic.healthStatus = MinimallyHealthy
 	} else {
 		topic.healthStatus = SufficientlyHealthy
 	}
+
 	if oldHealth != topic.healthStatus {
 		//Check old health, and if there is a change notify of the same.
+		pm.logger.Debug("topic health has changed", zap.String("pubsubtopic", topic.topic.String()), zap.Int("health", int(topic.healthStatus)))
 		pm.TopicHealthNotifCh <- TopicHealthStatus{topic.topic.String(), topic.healthStatus}
 	}
+	return healthyPeerCount
 }
 
 // TopicHealth can be used to fetch health of a specific pubsubTopic.
@@ -256,20 +276,8 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 		// @cammellos reported that ListPeers returned an invalid number of
 		// peers. This will ensure that the peers returned by this function
 		// match those peers that are currently connected
-		curPeerLen := 0
-		for _, p := range topicInst.topic.ListPeers() {
-			if pm.host.Network().Connectedness(p) == network.Connected {
-				pThreshold, err := pm.host.Peerstore().(wps.WakuPeerstore).Score(p)
-				if err != nil {
-					pm.logger.Warn("failed to fetch peer score ", zap.Error(err), logging.HostID("peer", p))
-				} else if pThreshold < relay.PeerPublishThreshold {
-					pm.logger.Debug("peer score below publish threshold", logging.HostID("peer", p), zap.Float64("score", pThreshold))
-				} else {
-					curPeerLen++
-				}
-			}
-		}
-		pm.updateTopicHealth(topicInst, curPeerLen)
+
+		curPeerLen := pm.checkAndUpdateTopicHealth(topicInst)
 		if curPeerLen < waku_proto.GossipSubDMin {
 			pm.logger.Debug("subscribed topic is not sufficiently healthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),

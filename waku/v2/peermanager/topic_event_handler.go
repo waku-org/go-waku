@@ -44,7 +44,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		}
 	}
 
-	pm.updateTopicHealth(pm.subRelayTopics[pubsubTopic], connectedPeers)
+	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[pubsubTopic])
 
 	if connectedPeers >= waku_proto.GossipSubDMin { //TODO: Use a config rather than hard-coding.
 		// Should we use optimal number or define some sort of a config for the node to choose from?
@@ -125,12 +125,19 @@ func (pm *PeerManager) handlerPeerTopicEvent(peerEvt relay.EvtPeerTopic) {
 			pm.logger.Error("failed to add pubSubTopic for peer",
 				logging.HostID("peerID", peerID), zap.String("topic", peerEvt.PubsubTopic), zap.Error(err))
 		}
+		pm.topicMutex.RLock()
+		defer pm.topicMutex.RUnlock()
+		pm.checkAndUpdateTopicHealth(pm.subRelayTopics[peerEvt.PubsubTopic])
+
 	} else if peerEvt.State == relay.PEER_LEFT {
 		err := wps.RemovePubSubTopic(peerID, peerEvt.PubsubTopic)
 		if err != nil {
 			pm.logger.Error("failed to remove pubSubTopic for peer",
 				logging.HostID("peerID", peerID), zap.Error(err))
 		}
+		pm.topicMutex.RLock()
+		defer pm.topicMutex.RUnlock()
+		pm.checkAndUpdateTopicHealth(pm.subRelayTopics[peerEvt.PubsubTopic])
 	} else {
 		pm.logger.Error("unknown peer event received", zap.Int("eventState", int(peerEvt.State)))
 	}
