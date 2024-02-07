@@ -4,10 +4,13 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
 	backoffv4 "github.com/cenkalti/backoff/v4"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	golog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	"go.uber.org/zap"
@@ -344,6 +347,19 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 
 // Start initializes all the protocols that were setup in the WakuNode
 func (w *WakuNode) Start(ctx context.Context) error {
+
+	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.NoCache)
+	mux.Mount("/debug", middleware.Profiler())
+	server := &http.Server{
+		Addr:    "0.0.0.0:51249",
+		Handler: mux,
+	}
+	go func() {
+		_ = server.ListenAndServe()
+	}()
+
 	connGater := peermanager.NewConnectionGater(w.opts.maxConnectionsPerIP, w.log)
 
 	ctx, cancel := context.WithCancel(ctx)
