@@ -16,7 +16,7 @@ type Parameters struct {
 	preferredPeers    peer.IDSlice
 	requestID         []byte
 	cursor            []byte
-	pageSize          uint64
+	pageLimit         uint64
 	forward           bool
 }
 
@@ -98,10 +98,10 @@ func WithCursor(cursor []byte) RequestOption {
 }
 
 // WithPaging is an option used to specify the order and maximum number of records to return
-func WithPaging(forward bool, pageSize uint64) RequestOption {
+func WithPaging(forward bool, limit uint64) RequestOption {
 	return func(params *Parameters) error {
 		params.forward = forward
-		params.pageSize = pageSize
+		params.pageLimit = limit
 		return nil
 	}
 }
