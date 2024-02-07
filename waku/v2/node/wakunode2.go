@@ -42,6 +42,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/protocol/storev3"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -101,6 +102,7 @@ type WakuNode struct {
 	filterFullNode  ReceptorService
 	filterLightNode Service
 	store           ReceptorService
+	storeV3         *storev3.WakuStoreV3
 	rlnRelay        RLNRelay
 
 	wakuFlag          enr.WakuEnrBitfield
@@ -290,6 +292,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.opts.prometheusReg, w.log, w.opts.filterOpts...)
 	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.opts.prometheusReg, w.log)
+
+	w.storeV3 = storev3.NewWakuStoreV3(w.peermanager, w.timesource, w.log)
 
 	if params.storeFactory != nil {
 		w.storeFactory = params.storeFactory
