@@ -44,6 +44,8 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		}
 	}
 
+	pm.updateTopicHealth(pm.subRelayTopics[pubsubTopic], connectedPeers)
+
 	if connectedPeers >= waku_proto.GossipSubDMin { //TODO: Use a config rather than hard-coding.
 		// Should we use optimal number or define some sort of a config for the node to choose from?
 		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
@@ -51,7 +53,6 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		// Should we link this to bandwidth management somehow or just depend on some sort of config profile?
 		pm.logger.Info("Optimal required relay peers for new pubSubTopic are already connected ", zap.String("pubSubTopic", pubsubTopic),
 			zap.Int("connectedPeerCount", connectedPeers))
-		pm.subRelayTopics[pubsubTopic].healthStatus = SufficientlyHealthy
 		return
 	}
 	triggerDiscovery := false

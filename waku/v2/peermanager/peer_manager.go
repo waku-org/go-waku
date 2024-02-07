@@ -34,6 +34,11 @@ const (
 	SufficientlyHealthy = 2
 )
 
+type TopicHealthStatus struct {
+	topic  string
+	health TopicHealth
+}
+
 // NodeTopicDetails stores pubSubTopic related data like topicHandle for the node.
 type NodeTopicDetails struct {
 	topic        *pubsub.Topic
@@ -63,6 +68,7 @@ type PeerManager struct {
 	subRelayTopics         map[string]*NodeTopicDetails
 	discoveryService       *discv5.DiscoveryV5
 	wakuprotoToENRFieldMap map[protocol.ID]WakuProtoInfo
+	TopicHealthNotifCh     chan<- TopicHealthStatus
 }
 
 // PeerSelection provides various options based on which Peer is selected from a list of peers.
@@ -94,6 +100,35 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 		outRelayPeers = minOutRelayConns
 	}
 	return relayPeers - outRelayPeers, outRelayPeers
+}
+
+func (pm *PeerManager) updateTopicHealth(topic *NodeTopicDetails, connectedPeerCount int) {
+	//Update topic's health
+	oldHealth := topic.healthStatus
+	if connectedPeerCount < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
+		topic.healthStatus = UnHealthy
+	} else if connectedPeerCount < 4 {
+		topic.healthStatus = MinimallyHealthy
+	} else {
+		topic.healthStatus = SufficientlyHealthy
+	}
+	if oldHealth != topic.healthStatus {
+		//Check old health, and if there is a change notify of the same.
+		pm.TopicHealthNotifCh <- TopicHealthStatus{topic.topic.String(), topic.healthStatus}
+	}
+}
+
+// TopicHealth can be used to fetch health of a specific pubsubTopic.
+// Returns error if topic is not found.
+func (pm *PeerManager) TopicHealth(pubsubTopic string) (TopicHealth, error) {
+	pm.topicMutex.RLock()
+	defer pm.topicMutex.RUnlock()
+
+	topicDetails, ok := pm.subRelayTopics[pubsubTopic]
+	if !ok {
+		return UnHealthy, errors.New("topic not found")
+	}
+	return topicDetails.healthStatus, nil
 }
 
 // NewPeerManager creates a new peerManager instance.
@@ -234,12 +269,8 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 				}
 			}
 		}
+		pm.updateTopicHealth(topicInst, curPeerLen)
 		if curPeerLen < waku_proto.GossipSubDMin {
-			if curPeerLen < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
-				topicInst.healthStatus = UnHealthy
-			} else {
-				topicInst.healthStatus = MinimallyHealthy
-			}
 			pm.logger.Debug("subscribed topic is not sufficiently healthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
 				zap.Int("optimumPeers", waku_proto.GossipSubDMin))
@@ -258,8 +289,6 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 				numPeersToConnect = notConnectedPeers.Len()
 			}
 			pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
-		} else {
-			topicInst.healthStatus = SufficientlyHealthy
 		}
 	}
 }

@@ -306,8 +306,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		w.storeFactory = defaultStoreFactory
 	}
 
-	if params.connStatusC != nil {
-		w.connStatusChan = params.connStatusC
+	if params.topicHealthNotifCh != nil {
+		w.peermanager.TopicHealthNotifCh = params.topicHealthNotifCh
 	}
 
 	return w, nil

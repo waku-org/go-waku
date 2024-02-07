@@ -26,6 +26,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -115,8 +116,8 @@ type WakuNodeParameters struct {
 
 	enableLightPush bool
 
-	connStatusC chan<- ConnStatus
-	connNotifCh chan<- PeerConnection
+	connNotifCh        chan<- PeerConnection
+	topicHealthNotifCh chan<- peermanager.TopicHealthStatus
 
 	storeFactory storeFactory
 }
@@ -489,16 +490,6 @@ func WithKeepAlive(t time.Duration) WakuNodeOption {
 	}
 }
 
-// WithConnectionStatusChannel is a WakuNodeOption used to set a channel where the
-// connection status changes will be pushed to. It's useful to identify when peer
-// connections and disconnections occur
-func WithConnectionStatusChannel(connStatus chan ConnStatus) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.connStatusC = connStatus
-		return nil
-	}
-}
-
 func WithConnectionNotification(ch chan<- PeerConnection) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.connNotifCh = ch
@@ -562,6 +553,13 @@ func WithCircuitRelayParams(minInterval time.Duration, bootDelay time.Duration) 
 	return func(params *WakuNodeParameters) error {
 		params.circuitRelayBootDelay = bootDelay
 		params.circuitRelayMinInterval = minInterval
+		return nil
+	}
+}
+
+func WithTopicHealthStatusChannel(ch chan<- peermanager.TopicHealthStatus) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.topicHealthNotifCh = ch
 		return nil
 	}
 }
