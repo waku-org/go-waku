@@ -30,6 +30,7 @@ func checkConnectedness(t *testing.T, wg *sync.WaitGroup, topicHealthStatusChan 
 	select {
 	case topicHealthStatus := <-topicHealthStatusChan:
 		require.Equal(t, healthStatus, topicHealthStatus.Health)
+		t.Log("received health status update ", topicHealthStatus.Health, "expected is ", healthStatus)
 		return
 	case <-timeout:
 		require.Fail(t, "health status should have changed")
@@ -75,16 +76,18 @@ func TestConnectionStatusChanges(t *testing.T) {
 	node1.AddDiscoveredPeer(node2.host.ID(), node2.ListenAddresses(), peerstore.Static, []string{pubsubTopic}, true)
 
 	wg.Wait()
-	goCheckConnectedness(t, &wg, topicHealthStatusChan, peermanager.SufficientlyHealthy)
 
 	err = node1.DialPeer(ctx, node3.ListenAddresses()[0].String())
 	require.NoError(t, err)
 
 	err = node1.DialPeer(ctx, node4.ListenAddresses()[0].String())
 	require.NoError(t, err)
+	goCheckConnectedness(t, &wg, topicHealthStatusChan, peermanager.SufficientlyHealthy)
 
 	err = node1.DialPeer(ctx, node5.ListenAddresses()[0].String())
 	require.NoError(t, err)
+
+	wg.Wait()
 
 	goCheckConnectedness(t, &wg, topicHealthStatusChan, peermanager.MinimallyHealthy)
 

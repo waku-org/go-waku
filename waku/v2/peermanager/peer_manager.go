@@ -37,7 +37,7 @@ const (
 func (t TopicHealth) String() string {
 	switch t {
 	case UnHealthy:
-		return "Healthy"
+		return "UnHealthy"
 	case MinimallyHealthy:
 		return "MinimallyHealthy"
 	case SufficientlyHealthy:
