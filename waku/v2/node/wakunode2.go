@@ -112,21 +112,15 @@ type WakuNode struct {
 
 	bcaster relay.Broadcaster
 
-	connectionNotif        ConnectionNotifier
-	protocolEventSub       event.Subscription
-	identificationEventSub event.Subscription
-	addressChangesSub      event.Subscription
-	enrChangeCh            chan struct{}
+	connectionNotif   ConnectionNotifier
+	addressChangesSub event.Subscription
+	enrChangeCh       chan struct{}
 
 	keepAliveMutex sync.Mutex
 	keepAliveFails map[peer.ID]int
 
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
-
-	// Channel passed to WakuNode constructor
-	// receiving connection status notifications
-	connStatusChan chan<- ConnStatus
 
 	storeFactory storeFactory
 
@@ -306,8 +300,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		w.storeFactory = defaultStoreFactory
 	}
 
-	if params.connStatusC != nil {
-		w.connStatusChan = params.connStatusC
+	if params.topicHealthNotifCh != nil {
+		w.peermanager.TopicHealthNotifCh = params.topicHealthNotifCh
 	}
 
 	return w, nil
@@ -363,14 +357,6 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	})
 
 	w.host = host
-
-	if w.protocolEventSub, err = host.EventBus().Subscribe(new(event.EvtPeerProtocolsUpdated)); err != nil {
-		return err
-	}
-
-	if w.identificationEventSub, err = host.EventBus().Subscribe(new(event.EvtPeerIdentificationCompleted)); err != nil {
-		return err
-	}
 
 	if w.addressChangesSub, err = host.EventBus().Subscribe(new(event.EvtLocalAddressesUpdated)); err != nil {
 		return err
@@ -519,8 +505,6 @@ func (w *WakuNode) Stop() {
 	w.bcaster.Stop()
 
 	defer w.connectionNotif.Close()
-	defer w.protocolEventSub.Close()
-	defer w.identificationEventSub.Close()
 	defer w.addressChangesSub.Close()
 
 	w.host.Network().StopNotify(w.connectionNotif)

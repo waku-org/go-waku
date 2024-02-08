@@ -127,7 +127,7 @@ func (c *PeerConnectionStrategy) consumeSubscription(s subscription) {
 				triggerImmediateConnection := false
 				//Not connecting to peer as soon as it is discovered,
 				// rather expecting this to be pushed from PeerManager based on the need.
-				if len(c.host.Network().Peers()) < waku_proto.GossipSubOptimalFullMeshSize {
+				if len(c.host.Network().Peers()) < waku_proto.GossipSubDMin {
 					triggerImmediateConnection = true
 				}
 				c.logger.Debug("adding discovered peer", logging.HostID("peerID", p.AddrInfo.ID))

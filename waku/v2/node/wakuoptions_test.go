@@ -1,13 +1,15 @@
 package node
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	r "github.com/waku-org/go-zerokit-rln/rln"
-	"go.uber.org/zap"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	r "github.com/waku-org/go-zerokit-rln/rln"
+	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/multiformats/go-multiaddr"
@@ -28,7 +30,7 @@ func handleSpam(msg *pb.WakuMessage, topic string) error {
 }
 
 func TestWakuOptions(t *testing.T) {
-	connStatusChan := make(chan ConnStatus, 100)
+	topicHealthStatusChan := make(chan peermanager.TopicHealthStatus, 100)
 
 	key, err := tests.RandomHex(32)
 	require.NoError(t, err)
@@ -58,7 +60,7 @@ func TestWakuOptions(t *testing.T) {
 		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),
 		WithKeepAlive(time.Hour),
-		WithConnectionStatusChannel(connStatusChan),
+		WithTopicHealthStatusChannel(topicHealthStatusChan),
 		WithWakuStoreFactory(storeFactory),
 	}
 
@@ -70,11 +72,11 @@ func TestWakuOptions(t *testing.T) {
 
 	require.NotNil(t, params.multiAddr)
 	require.NotNil(t, params.privKey)
-	require.NotNil(t, params.connStatusC)
+	require.NotNil(t, params.topicHealthNotifCh)
 }
 
 func TestWakuRLNOptions(t *testing.T) {
-	connStatusChan := make(chan ConnStatus, 100)
+	topicHealthStatusChan := make(chan peermanager.TopicHealthStatus, 100)
 
 	key, err := tests.RandomHex(32)
 	require.NoError(t, err)
@@ -108,7 +110,7 @@ func TestWakuRLNOptions(t *testing.T) {
 		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),
 		WithKeepAlive(time.Hour),
-		WithConnectionStatusChannel(connStatusChan),
+		WithTopicHealthStatusChannel(topicHealthStatusChan),
 		WithWakuStoreFactory(storeFactory),
 		WithStaticRLNRelay(&index, handleSpam),
 	}
@@ -149,7 +151,7 @@ func TestWakuRLNOptions(t *testing.T) {
 		WithMessageProvider(&persistence.DBStore{}),
 		WithLightPush(),
 		WithKeepAlive(time.Hour),
-		WithConnectionStatusChannel(connStatusChan),
+		WithTopicHealthStatusChannel(topicHealthStatusChan),
 		WithWakuStoreFactory(storeFactory),
 		WithDynamicRLNRelay(keystorePath, keystorePassword, rlnTreePath, common.HexToAddress(contractAddress), &index, handleSpam, ethClientAddress),
 	}
