@@ -124,7 +124,7 @@ func (pm *PeerManager) checkAndUpdateTopicHealth(topic *NodeTopicDetails) int {
 	oldHealth := topic.healthStatus
 	if healthyPeerCount < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
 		topic.healthStatus = UnHealthy
-	} else if healthyPeerCount < 4 {
+	} else if healthyPeerCount < waku_proto.GossipSubDMin {
 		topic.healthStatus = MinimallyHealthy
 	} else {
 		topic.healthStatus = SufficientlyHealthy
