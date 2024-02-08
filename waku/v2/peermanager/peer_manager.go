@@ -34,6 +34,19 @@ const (
 	SufficientlyHealthy = 2
 )
 
+func (t TopicHealth) String() string {
+	switch t {
+	case UnHealthy:
+		return "Healthy"
+	case MinimallyHealthy:
+		return "MinimallyHealthy"
+	case SufficientlyHealthy:
+		return "SufficientlyHealthy"
+	default:
+		return ""
+	}
+}
+
 type TopicHealthStatus struct {
 	Topic  string
 	Health TopicHealth
@@ -109,14 +122,16 @@ func (pm *PeerManager) checkAndUpdateTopicHealth(topic *NodeTopicDetails) int {
 	for _, p := range topic.topic.ListPeers() {
 		if pm.host.Network().Connectedness(p) == network.Connected {
 			pThreshold, err := pm.host.Peerstore().(wps.WakuPeerstore).Score(p)
-			if err == nil && pThreshold < relay.PeerPublishThreshold {
-				pm.logger.Debug("peer score below publish threshold", logging.HostID("peer", p), zap.Float64("score", pThreshold))
+			if err == nil {
+				if pThreshold < relay.PeerPublishThreshold {
+					pm.logger.Debug("peer score below publish threshold", logging.HostID("peer", p), zap.Float64("score", pThreshold))
+				} else {
+					healthyPeerCount++
+				}
 			} else {
+				pm.logger.Warn("failed to fetch peer score ", zap.Error(err), logging.HostID("peer", p))
 				//For now considering peer as healthy if we can't fetch score.
 				healthyPeerCount++
-			}
-			if err != nil {
-				pm.logger.Warn("failed to fetch peer score ", zap.Error(err), logging.HostID("peer", p))
 			}
 		}
 	}
@@ -132,7 +147,7 @@ func (pm *PeerManager) checkAndUpdateTopicHealth(topic *NodeTopicDetails) int {
 
 	if oldHealth != topic.healthStatus {
 		//Check old health, and if there is a change notify of the same.
-		pm.logger.Debug("topic health has changed", zap.String("pubsubtopic", topic.topic.String()), zap.Int("health", int(topic.healthStatus)))
+		pm.logger.Debug("topic health has changed", zap.String("pubsubtopic", topic.topic.String()), zap.Stringer("health", topic.healthStatus))
 		pm.TopicHealthNotifCh <- TopicHealthStatus{topic.topic.String(), topic.healthStatus}
 	}
 	return healthyPeerCount
