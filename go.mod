@@ -28,7 +28,7 @@ require (
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/waku-org/go-discover v0.0.0-20240212150836-976b54cd9388
+	github.com/waku-org/go-discover v0.0.0-20240127052100-a3ca781403ea
 	golang.org/x/text v0.14.0
 )
 
