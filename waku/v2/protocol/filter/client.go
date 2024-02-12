@@ -26,6 +26,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -50,6 +51,7 @@ type WakuFilterLightNode struct {
 	log           *zap.Logger
 	subscriptions *subscription.SubscriptionsMap
 	pm            *peermanager.PeerManager
+	peerPings     *utils.TtlMap[peer.ID, error]
 }
 
 type WakuFilterPushError struct {
@@ -86,7 +88,6 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	wf.pm = pm
 	wf.CommonService = service.NewCommonService()
 	wf.metrics = newMetrics(reg)
-
 	return wf
 }
 
@@ -96,6 +97,7 @@ func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 }
 
 func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
+	wf.peerPings = utils.NewTtlMap[peer.ID, error](ctx, 5)
 	return wf.CommonService.Start(ctx, wf.start)
 
 }
@@ -445,6 +447,11 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ..
 		return err
 	}
 
+	pingResult, found := wf.peerPings.Get(peerID)
+	if found {
+		return pingResult
+	}
+
 	params := &FilterPingParameters{}
 	for _, opt := range opts {
 		opt(params)
@@ -453,12 +460,15 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ..
 		params.requestID = protocol.GenerateRequestID()
 	}
 
-	return wf.request(
+	result := wf.request(
 		ctx,
 		params.requestID,
 		pb.FilterSubscribeRequest_SUBSCRIBER_PING,
 		protocol.ContentFilter{},
 		peerID)
+
+	wf.peerPings.Put(peerID, result)
+	return result
 }
 
 func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscription *subscription.SubscriptionDetails) error {
