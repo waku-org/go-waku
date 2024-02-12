@@ -141,6 +141,32 @@ func (pm *PeerManager) Start(ctx context.Context) {
 		go pm.peerEventLoop(ctx)
 	}
 	go pm.connectivityLoop(ctx)
+	go pm.gcPeers(ctx)
+}
+
+func (pm *PeerManager) gcPeers(ctx context.Context) {
+	t := time.NewTicker(time.Minute * 5)
+	defer t.Stop()
+
+	peerCh := make(chan peer.ID)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			peers := pm.host.Peerstore().Peers()
+			for _, p := range peers {
+				peerCh <- p
+			}
+		case p := <-peerCh:
+			// Remove peers from store that have no address
+			peerInfo := pm.host.Peerstore().PeerInfo(p)
+			if len(peerInfo.Addrs) == 0 {
+				pm.host.Peerstore().RemovePeer(p)
+			}
+		}
+	}
 }
 
 // This is a connectivity loop, which currently checks and prunes inbound connections.
@@ -389,7 +415,7 @@ func (pm *PeerManager) addPeer(ID peer.ID, addrs []ma.Multiaddr, origin wps.Orig
 	if origin == wps.Static {
 		pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.PermanentAddrTTL)
 	} else {
-		//Need to re-evaluate the address expiry
+		// Need to re-evaluate the address expiry
 		// For now expiring them with default addressTTL which is an hour.
 		pm.host.Peerstore().AddAddrs(ID, addrs, peerstore.AddressTTL)
 	}
