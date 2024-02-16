@@ -499,40 +499,6 @@ var (
 		Destination: &options.Metrics.Port,
 		EnvVars:     []string{"WAKUNODE2_METRICS_SERVER_PORT"},
 	})
-	RPCFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "rpc",
-		Usage:       "Enable the rpc server",
-		Destination: &options.RPCServer.Enable,
-		EnvVars:     []string{"WAKUNODE2_RPC"},
-	})
-	RPCPort = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "rpc-port",
-		Value:       8545,
-		Usage:       "Listening port of the rpc server",
-		Destination: &options.RPCServer.Port,
-		EnvVars:     []string{"WAKUNODE2_RPC_PORT"},
-	})
-	RPCAddress = altsrc.NewStringFlag(&cli.StringFlag{
-		Name:        "rpc-address",
-		Value:       "127.0.0.1",
-		Usage:       "Listening address of the rpc server",
-		Destination: &options.RPCServer.Address,
-		EnvVars:     []string{"WAKUNODE2_RPC_ADDRESS"},
-	})
-	RPCRelayCacheCapacity = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "rpc-relay-cache-capacity",
-		Value:       30,
-		Usage:       "Capacity of the Relay REST API message cache",
-		Destination: &options.RPCServer.RelayCacheCapacity,
-		EnvVars:     []string{"WAKUNODE2_RPC_RELAY_CACHE_CAPACITY"},
-	})
-	RPCAdmin = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "rpc-admin",
-		Value:       false,
-		Usage:       "Enable access to JSON-RPC Admin API",
-		Destination: &options.RPCServer.Admin,
-		EnvVars:     []string{"WAKUNODE2_RPC_ADMIN"},
-	})
 	RESTFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "rest",
 		Usage:       "Enable Waku REST HTTP server",

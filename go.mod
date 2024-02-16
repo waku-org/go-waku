@@ -10,7 +10,6 @@ require (
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/gorilla/rpc v1.2.0
 	github.com/ipfs/go-ds-sql v0.3.0
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/libp2p/go-libp2p v0.32.2
@@ -27,9 +26,8 @@ require (
 )
 
 require (
-	github.com/gorilla/mux v1.8.0
 	github.com/waku-org/go-discover v0.0.0-20221209174356-61c833f34d98
-	golang.org/x/text v0.13.0
+	golang.org/x/text v0.13.0 // indirect
 )
 
 require (

@@ -40,7 +40,6 @@ import (
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/cmd/waku/server/rest"
-	"github.com/waku-org/go-waku/cmd/waku/server/rpc"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -400,12 +399,6 @@ func Execute(options NodeOptions) error {
 		}
 	}
 
-	var rpcServer *rpc.WakuRPC
-	if options.RPCServer.Enable {
-		rpcServer = rpc.NewWakuRPC(wakuNode, options.RPCServer.Address, options.RPCServer.Port, options.RPCServer.Admin, options.PProf, options.RPCServer.RelayCacheCapacity, logger)
-		rpcServer.Start()
-	}
-
 	var restServer *rest.WakuRest
 	if options.RESTServer.Enable {
 		wg.Add(1)
@@ -431,12 +424,6 @@ func Execute(options NodeOptions) error {
 
 	// shut the node down
 	wakuNode.Stop()
-
-	if options.RPCServer.Enable {
-		if err := rpcServer.Stop(ctx); err != nil {
-			return err
-		}
-	}
 
 	if options.RESTServer.Enable {
 		if err := restServer.Stop(ctx); err != nil {
