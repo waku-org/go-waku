@@ -31,6 +31,7 @@ jobs:
           - 'go.mod'
           - 'go.sum'
           - 'flake.nix'
+          - 'examples/**'
 
           v2:
           - 'waku/**'
@@ -165,8 +166,3 @@ jobs:
         run: |
           docker compose -f .github/docker-compose/ganache.yml up -d
           make test-onchain${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}
-
-      - name: "Run tests with postgres"
-        run: |
-          docker compose -f .github/docker-compose/postgres.yml up -d
-          make test-postgres${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}

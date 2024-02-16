@@ -26,7 +26,7 @@ func lightpushPublish(instance *WakuInstance, msg *pb.WakuMessage, pubsubTopic s
 		ctx = instance.ctx
 	}
 
-	var lpOptions []lightpush.Option
+	var lpOptions []lightpush.RequestOption
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {

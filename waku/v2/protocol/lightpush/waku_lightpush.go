@@ -9,6 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,6 +22,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 // LightPushID_v20beta1 is the current Waku LightPush protocol identifier
@@ -36,6 +38,7 @@ var (
 type WakuLightPush struct {
 	h       host.Host
 	relay   *relay.WakuRelay
+	limiter *rate.Limiter
 	cancel  context.CancelFunc
 	pm      *peermanager.PeerManager
 	metrics Metrics
@@ -46,12 +49,19 @@ type WakuLightPush struct {
 // NewWakuLightPush returns a new instance of Waku Lightpush struct
 // Takes an optional peermanager if WakuLightPush is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil
-func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, reg prometheus.Registerer, log *zap.Logger) *WakuLightPush {
+func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, reg prometheus.Registerer, log *zap.Logger, opts ...Option) *WakuLightPush {
 	wakuLP := new(WakuLightPush)
 	wakuLP.relay = relay
 	wakuLP.log = log.Named("lightpush")
 	wakuLP.pm = pm
 	wakuLP.metrics = newMetrics(reg)
+
+	params := &LightpushParameters{}
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	wakuLP.limiter = params.limiter
 
 	if pm != nil {
 		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, LightPushENRField)
@@ -90,6 +100,18 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 		logger := wakuLP.log.With(logging.HostID("peer", stream.Conn().RemotePeer()))
 		requestPushRPC := &pb.PushRpc{}
 
+		responsePushRPC := &pb.PushRpc{
+			Response: &pb.PushResponse{},
+		}
+
+		if wakuLP.limiter != nil && !wakuLP.limiter.Allow() {
+			wakuLP.metrics.RecordError(rateLimitFailure)
+			responseMsg := "exceeds the rate limit"
+			responsePushRPC.Response.Info = &responseMsg
+			wakuLP.reply(stream, responsePushRPC, logger)
+			return
+		}
+
 		reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 		err := reader.ReadMsg(requestPushRPC)
@@ -102,11 +124,7 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 			return
 		}
 
-		responsePushRPC := &pb.PushRpc{
-			RequestId: requestPushRPC.RequestId,
-			Response:  &pb.PushResponse{},
-		}
-
+		responsePushRPC.RequestId = requestPushRPC.RequestId
 		if err := requestPushRPC.ValidateRequest(); err != nil {
 			responseMsg := err.Error()
 			responsePushRPC.Response.Info = &responseMsg
@@ -169,7 +187,7 @@ func (wakuLP *WakuLightPush) reply(stream network.Stream, responsePushRPC *pb.Pu
 }
 
 // request sends a message via lightPush protocol to either a specified peer or peer that is selected.
-func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, params *lightPushParameters) (*pb.PushResponse, error) {
+func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, params *lightPushRequestParameters) (*pb.PushResponse, error) {
 	if params == nil {
 		return nil, errors.New("lightpush params are mandatory")
 	}
@@ -232,8 +250,8 @@ func (wakuLP *WakuLightPush) Stop() {
 	wakuLP.h.RemoveStreamHandler(LightPushID_v20beta1)
 }
 
-func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMessage, opts ...Option) (*lightPushParameters, error) {
-	params := new(lightPushParameters)
+func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMessage, opts ...RequestOption) (*lightPushRequestParameters, error) {
+	params := new(lightPushRequestParameters)
 	params.host = wakuLP.h
 	params.log = wakuLP.log
 	params.pm = wakuLP.pm
@@ -264,7 +282,9 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 	}
 
 	if params.pm != nil && params.selectedPeer == "" {
-		params.selectedPeer, err = wakuLP.pm.SelectPeer(
+		var selectedPeers peer.IDSlice
+		//TODO: update this to work with multiple peer selection
+		selectedPeers, err = wakuLP.pm.SelectPeers(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         LightPushID_v20beta1,
@@ -273,6 +293,10 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 				Ctx:           ctx,
 			},
 		)
+		if err == nil {
+			params.selectedPeer = selectedPeers[0]
+		}
+
 	}
 	if params.selectedPeer == "" {
 		if err != nil {
@@ -287,7 +311,7 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 // Publish is used to broadcast a WakuMessage to the pubSubTopic (which is derived from the
 // contentTopic) via lightpush protocol. If auto-sharding is not to be used, then the
 // `WithPubSubTopic` option should be provided to publish the message to an specific pubSubTopic
-func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...Option) ([]byte, error) {
+func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...RequestOption) ([]byte, error) {
 	if message == nil {
 		return nil, errors.New("message can't be null")
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
@@ -21,27 +22,28 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"google.golang.org/protobuf/proto"
 )
 
-var log = utils.Logger().Named("basic-relay")
+var log = utils.Logger().Named("basic-light-client")
 
 var ClusterID = altsrc.NewUintFlag(&cli.UintFlag{
 	Name:        "cluster-id",
 	Value:       1,
-	Usage:       "Cluster id that the node is running in. Node in a different cluster id is disconnected.",
+	Usage:       "Cluster id that the client is interested in connecting to.",
 	Destination: &clusterID,
 })
 
 var Shard = altsrc.NewUintFlag(&cli.UintFlag{
-	Name:        "shard",
+	Name:        "shard-type",
 	Value:       0,
-	Usage:       "shard that the node wants to subscribe and publish to.",
+	Usage:       "shard that the node is interested in publishing/receiving from.",
 	Destination: &shard,
 })
 
@@ -49,6 +51,7 @@ var StaticNode = altsrc.NewStringFlag(&cli.StringFlag{
 	Name:        "maddr",
 	Usage:       "multiaddress of static node to connect to.",
 	Destination: &multiaddress,
+	Required:    true,
 })
 
 var clusterID, shard uint
@@ -64,7 +67,7 @@ func main() {
 	}
 
 	app := &cli.App{
-		Name:  "basic-relay-example",
+		Name:  "basic-light-client-example",
 		Flags: cliFlags,
 		Action: func(c *cli.Context) error {
 			err := Execute()
@@ -89,9 +92,8 @@ func main() {
 
 func Execute() error {
 
-	var cTopic, err = protocol.NewContentTopic("basic-relay", "1", "test", "proto")
+	var cTopic, err = protocol.NewContentTopic("basic-light-client", "1", "test", "proto")
 	if err != nil {
-		fmt.Println("Invalid contentTopic")
 		return errors.New("invalid contentTopic")
 	}
 	contentTopic := cTopic.String()
@@ -108,21 +110,21 @@ func Execute() error {
 	}
 
 	ctx := context.Background()
-
-	wakuNode, err := node.New(
+	lightNode, err := node.New(
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
-		node.WithNTP(),
-		node.WithWakuRelay(),
+		node.WithWakuFilterLightNode(),
 		node.WithClusterID(uint16(clusterID)),
-		node.WithLogLevel(zapcore.DebugLevel),
+		node.WithLightPush(),
+		//node.WithLogLevel(zapcore.DebugLevel),
 	)
 	if err != nil {
 		log.Error("Error creating wakunode", zap.Error(err))
 		return err
 	}
 
-	if err := wakuNode.Start(ctx); err != nil {
+	err = lightNode.Start(ctx)
+	if err != nil {
 		log.Error("Error starting wakunode", zap.Error(err))
 		return err
 	}
@@ -133,20 +135,56 @@ func Execute() error {
 		pubsubTopicStr = pubsubTopic.String()
 	}
 
-	if multiaddress != "" {
-		maddr, err := multiaddr.NewMultiaddr(multiaddress)
-		if err != nil {
-			log.Info("Error decoding multiaddr ", zap.Error(err))
-		}
-		_, err = wakuNode.AddPeer(maddr, wps.Static,
-			[]string{pubsubTopicStr}, relay.WakuRelayID_v200)
-		if err != nil {
-			log.Info("Error adding filter peer on light node ", zap.Error(err))
-		}
+	maddr, err := multiaddr.NewMultiaddr(multiaddress)
+	if err != nil {
+		log.Info("Error decoding multiaddr ", zap.Error(err))
+	}
+	peerID, err := lightNode.AddPeer(maddr, wps.Static,
+		[]string{pubsubTopicStr}, filter.FilterSubscribeID_v20beta1, lightpush.LightPushID_v20beta1)
+	if err != nil {
+		log.Info("Error adding filter peer on light node ", zap.Error(err))
 	}
 
-	go writeLoop(ctx, wakuNode, contentTopic)
-	go readLoop(ctx, wakuNode, contentTopic)
+	useFilterAndLightPush(lightNode, contentTopic, pubsubTopicStr, peerID)
+
+	// shut the node down
+	lightNode.Stop()
+	return nil
+}
+
+func useFilterAndLightPush(lightNode *node.WakuNode, contentTopic string, pubsubTopic string, filterNode peer.ID) {
+
+	// Send FilterRequest from light node to full node
+	cf := protocol.ContentFilter{
+		PubsubTopic:   pubsubTopic,
+		ContentTopics: protocol.NewContentTopicSet(contentTopic),
+	}
+	time.Sleep(2 * time.Second)
+	log.Info("Subscribing to peer ", zap.String("peerId", filterNode.String()))
+	theFilter, err := lightNode.FilterLightnode().Subscribe(context.Background(), cf, filter.WithPeer(filterNode))
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		for env := range theFilter[0].C { //Safely picking first subscriptions since only 1 contentTopic is subscribed
+			log.Info("Light node received msg ", zap.String("message", string(env.Message().Payload)))
+		}
+		log.Info("Message channel closed!")
+	}()
+
+	time.Sleep(2 * time.Second)
+
+	msg := &pb.WakuMessage{ContentTopic: contentTopic, Version: proto.Uint32(1), Timestamp: proto.Int64(time.Now().Unix()), Payload: []byte("Hello World!")}
+	hash, err := lightNode.Lightpush().Publish(context.Background(), msg, lightpush.WithPeer(filterNode), lightpush.WithPubSubTopic(pubsubTopic))
+	if err != nil {
+		panic(err)
+	}
+	log.Info("published msg via lightpush with hash:", logging.HexBytes("hash", hash))
+
+	log.Info("Done sending msgs.......")
+
+	log.Info("Press Ctrl+C to exit safely")
 
 	// Wait for a SIGINT or SIGTERM signal
 	ch := make(chan os.Signal, 1)
@@ -154,9 +192,20 @@ func Execute() error {
 	<-ch
 	fmt.Println("\n\n\nReceived signal, shutting down...")
 
-	// shut the node down
-	wakuNode.Stop()
-	return nil
+	log.Info("UnSubscribing to peer ", zap.String("filterNode", filterNode.String()))
+
+	result, err := lightNode.FilterLightnode().Unsubscribe(context.Background(), cf, filter.WithPeer(filterNode))
+	if err != nil {
+		log.Error("failed to unsubscribe due to ", zap.Error(err))
+		panic(err)
+	}
+	for _, err := range result.Errors() {
+		if err.Err != nil {
+			log.Error("failed to unsubscribe due to res err", zap.Error(err.Err))
+			panic(err)
+		}
+	}
+
 }
 
 func randomHex(n int) (string, error) {
@@ -187,11 +236,11 @@ func write(ctx context.Context, wakuNode *node.WakuNode, contentTopic string, ms
 		Timestamp:    utils.GetUnixEpoch(wakuNode.Timesource()),
 	}
 
-	hash, err := wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopicStr))
+	_, err = wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopicStr))
 	if err != nil {
 		log.Error("Error sending a message", zap.Error(err))
 	}
-	log.Info("Published msg,", zap.String("data", string(msg.Payload)), logging.HexBytes("hash", hash))
+	log.Info("Published msg,", zap.String("data", string(msg.Payload)))
 }
 
 func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {
