@@ -101,15 +101,6 @@ type MetricsOptions struct {
 	Port    int
 }
 
-// RPCServerOptions are settings used to start a json rpc server
-type RPCServerOptions struct {
-	Enable             bool
-	Port               int
-	Address            string
-	Admin              bool
-	RelayCacheCapacity int
-}
-
 // RESTServerOptions are settings used to start a rest http server
 type RESTServerOptions struct {
 	Enable              bool
@@ -185,6 +176,5 @@ type NodeOptions struct {
 	DNSDiscovery DNSDiscoveryOptions
 	Rendezvous   RendezvousOptions
 	Metrics      MetricsOptions
-	RPCServer    RPCServerOptions
 	RESTServer   RESTServerOptions
 }
