@@ -77,6 +77,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		//TODO: Initiate on-demand discovery for this pubSubTopic.
 		// Use peer-exchange and rendevouz?
 		//Should we query discoverycache to find out if there are any more peers before triggering discovery?
+		pm.logger.Info("handleNewRelayTopicUnSubscription - finished")
 		return
 	}
 }
