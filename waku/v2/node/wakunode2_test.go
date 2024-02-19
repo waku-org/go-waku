@@ -19,7 +19,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -230,7 +230,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
-		WithLegacyWakuFilter(true),
+		WithWakuFilterFullNode(),
 	)
 	require.NoError(t, err)
 	err = wakuNode1.Start(ctx)
@@ -251,7 +251,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	wakuNode2, err := New(
 		WithHostAddress(hostAddr2),
-		WithLegacyWakuFilter(false),
+		WithWakuFilterLightNode(),
 		WithWakuStore(),
 		WithMessageProvider(dbStore),
 	)
@@ -260,15 +260,13 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer wakuNode2.Stop()
 
-	err = wakuNode2.DialPeerWithMultiAddress(ctx, wakuNode1.ListenAddresses()[0])
+	peerID, err := wakuNode2.AddPeer(wakuNode1.ListenAddresses()[0], peerstore.Static, []string{relay.DefaultWakuTopic}, filter.FilterSubscribeID_v20beta1)
 	require.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
-
-	_, filter, err := wakuNode2.LegacyFilter().Subscribe(ctx, legacy_filter.ContentFilter{
-		Topic:         string(relay.DefaultWakuTopic),
-		ContentTopics: []string{"abc"},
-	}, legacy_filter.WithPeer(wakuNode1.host.ID()))
+	subscription, err := wakuNode2.FilterLightnode().Subscribe(ctx, protocol.ContentFilter{
+		PubsubTopic:   relay.DefaultWakuTopic,
+		ContentTopics: protocol.NewContentTopicSet("abc"),
+	}, filter.WithPeer(peerID))
 	require.NoError(t, err)
 
 	// Sleep to make sure the filter is subscribed
@@ -284,7 +282,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	go func() {
 		// MSG1 should be pushed in NODE2 via filter
 		defer wg.Done()
-		env, ok := <-filter.Chan
+		env, ok := <-subscription[0].C
 		if !ok {
 			require.Fail(t, "no message")
 		}
@@ -304,7 +302,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	wakuNode3, err := New(
 		WithHostAddress(hostAddr3),
-		WithLegacyWakuFilter(false),
+		WithWakuFilterLightNode(),
 	)
 	require.NoError(t, err)
 	err = wakuNode3.Start(ctx)

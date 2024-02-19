@@ -36,7 +36,6 @@ import (
 	wakuprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/metadata"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -99,7 +98,6 @@ type WakuNode struct {
 	peerExchange    Service
 	rendezvous      Service
 	metadata        Service
-	legacyFilter    ReceptorService
 	filterFullNode  ReceptorService
 	filterLightNode Service
 	store           ReceptorService
@@ -194,7 +192,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
 	w.keepAliveFails = make(map[peer.ID]int)
-	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilterFullNode || w.opts.enableLegacyFilter, w.opts.enableStore, w.opts.enableRelay)
+	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilterFullNode, w.opts.enableStore, w.opts.enableRelay)
 	w.circuitRelayNodes = make(chan peer.AddrInfo)
 	w.metrics = newMetrics(params.prometheusReg)
 
@@ -286,10 +284,8 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		}
 	}
 
-	w.opts.legacyFilterOpts = append(w.opts.legacyFilterOpts, legacy_filter.WithPeerManager(w.peermanager))
 	w.opts.filterOpts = append(w.opts.filterOpts, filter.WithPeerManager(w.peermanager))
 
-	w.legacyFilter = legacy_filter.NewWakuFilter(w.bcaster, w.opts.isLegacyFilterFullNode, w.timesource, w.opts.prometheusReg, w.log, w.opts.legacyFilterOpts...)
 	w.filterFullNode = filter.NewWakuFilterFullNode(w.timesource, w.opts.prometheusReg, w.log, w.opts.filterOpts...)
 	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.opts.prometheusReg, w.log)
@@ -443,16 +439,6 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		}
 	}
 
-	w.legacyFilter.SetHost(host)
-	if w.opts.enableLegacyFilter {
-		sub := w.bcaster.RegisterForAll()
-		err := w.legacyFilter.Start(ctx, sub)
-		if err != nil {
-			return err
-		}
-		w.log.Info("Subscribing filter to broadcaster")
-	}
-
 	w.filterFullNode.SetHost(host)
 	if w.opts.enableFilterFullNode {
 		sub := w.bcaster.RegisterForAll()
@@ -512,7 +498,6 @@ func (w *WakuNode) Stop() {
 	w.relay.Stop()
 	w.lightPush.Stop()
 	w.store.Stop()
-	w.legacyFilter.Stop()
 	w.filterFullNode.Stop()
 	w.filterLightNode.Stop()
 
@@ -600,14 +585,6 @@ func (w *WakuNode) Relay() *relay.WakuRelay {
 // Store is used to access any operation related to Waku Store protocol
 func (w *WakuNode) Store() store.Store {
 	return w.store.(store.Store)
-}
-
-// LegacyFilter is used to access any operation related to Waku LegacyFilter protocol
-func (w *WakuNode) LegacyFilter() *legacy_filter.WakuFilter {
-	if result, ok := w.legacyFilter.(*legacy_filter.WakuFilter); ok {
-		return result
-	}
-	return nil
 }
 
 // FilterLightnode is used to access any operation related to Waku Filter protocol Full node feature

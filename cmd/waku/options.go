@@ -53,10 +53,8 @@ type RLNRelayOptions struct {
 // restricted devices.
 type FilterOptions struct {
 	Enable          bool
-	UseV1           bool
 	DisableFullNode bool
 	Nodes           []multiaddr.Multiaddr
-	NodesV1         []multiaddr.Multiaddr
 	Timeout         time.Duration
 }
 
