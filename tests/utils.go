@@ -9,9 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"io"
 	"math"
 	"math/big"
@@ -211,23 +208,6 @@ func CreateHost(t *testing.T, opts ...config.Option) (host.Host, int, *ecdsa.Pri
 	require.NoError(t, err)
 
 	return host, port, privKey
-}
-
-func MakeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, relay.Broadcaster) {
-
-	broadcaster := relay.NewBroadcaster(10)
-	require.NoError(t, broadcaster.Start(context.Background()))
-
-	port, err := FindFreePort(t, "", 5)
-	require.NoError(t, err)
-
-	host, err := MakeHost(context.Background(), port, rand.Reader)
-	require.NoError(t, err)
-
-	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, log)
-	relay.SetHost(host)
-
-	return relay, host, broadcaster
 }
 
 func ExtractIP(addr multiaddr.Multiaddr) (*net.TCPAddr, error) {
