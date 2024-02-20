@@ -55,8 +55,6 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	err = d2.Start(context.Background())
 	require.NoError(t, err)
 
-	time.Sleep(3 * time.Second) // Wait some time for peers to be discovered
-
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
 	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
@@ -77,6 +75,8 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	host3.Peerstore().AddAddrs(host1.ID(), host1.Addrs(), peerstore.PermanentAddrTTL)
 	err = host3.Peerstore().AddProtocols(host1.ID(), PeerExchangeID_v20alpha1)
 	require.NoError(t, err)
+
+	time.Sleep(3 * time.Second) // Wait some time for peers to be discovered
 
 	err = px3.Request(context.Background(), 1, WithPeer(host1.ID()))
 	require.NoError(t, err)
