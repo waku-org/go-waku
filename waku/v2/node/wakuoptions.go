@@ -28,7 +28,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
@@ -74,14 +73,11 @@ type WakuNodeParameters struct {
 	logger   *zap.Logger
 	logLevel logging.LogLevel
 
-	enableRelay            bool
-	enableLegacyFilter     bool
-	isLegacyFilterFullNode bool
-	enableFilterLightNode  bool
-	enableFilterFullNode   bool
-	legacyFilterOpts       []legacy_filter.Option
-	filterOpts             []filter.Option
-	pubsubOpts             []pubsub.Option
+	enableRelay           bool
+	enableFilterLightNode bool
+	enableFilterFullNode  bool
+	filterOpts            []filter.Option
+	pubsubOpts            []pubsub.Option
 
 	minRelayPeersToPublish int
 	maxMsgSizeBytes        int
@@ -409,17 +405,6 @@ func WithDiscoveryV5(udpPort uint, bootnodes []*enode.Node, autoUpdate bool) Wak
 func WithPeerExchange() WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enablePeerExchange = true
-		return nil
-	}
-}
-
-// WithLegacyWakuFilter enables the legacy Waku Filter protocol. This WakuNodeOption
-// accepts a list of WakuFilter gossipsub options to setup the protocol
-func WithLegacyWakuFilter(fullnode bool, filterOpts ...legacy_filter.Option) WakuNodeOption {
-	return func(params *WakuNodeParameters) error {
-		params.enableLegacyFilter = true
-		params.isLegacyFilterFullNode = fullnode
-		params.legacyFilterOpts = filterOpts
 		return nil
 	}
 }

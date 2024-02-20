@@ -46,7 +46,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -253,10 +252,6 @@ func Execute(options NodeOptions) error {
 		nodeOpts = append(nodeOpts, node.WithWakuFilterFullNode(filter.WithTimeout(options.Filter.Timeout)))
 	}
 
-	if options.Filter.UseV1 {
-		nodeOpts = append(nodeOpts, node.WithLegacyWakuFilter(!options.Filter.DisableFullNode, legacy_filter.WithTimeout(options.Filter.Timeout)))
-	}
-
 	var dbStore *persistence.DBStore
 	if requiresDB(options) {
 		dbOptions := []persistence.DBOption{
@@ -329,12 +324,6 @@ func Execute(options NodeOptions) error {
 	pubSubTopicMapKeys := make([]string, 0, len(pubSubTopicMap))
 	for k := range pubSubTopicMap {
 		pubSubTopicMapKeys = append(pubSubTopicMapKeys, k)
-	}
-
-	if options.Filter.UseV1 {
-		if err := addStaticPeers(wakuNode, options.Filter.NodesV1, pubSubTopicMapKeys, legacy_filter.FilterID_v20beta1); err != nil {
-			return err
-		}
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {
