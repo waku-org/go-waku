@@ -49,12 +49,17 @@ func TestHandleNewRelayTopicSubscription(t *testing.T) {
 	// Subscribe to EventBus
 	err = pm.SubscribeToRelayEvtBus(relayEvtBus)
 	require.NoError(t, err)
-	pm.Start(ctx)
+
+	// Register necessary protocols and connect
+	pm.ctx = ctx
+	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
+	go pm.connectivityLoop(ctx)
 
 	// Subscribe to Pubsub topic
 	_, err = r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
 	require.NoError(t, err)
 
+	// Call the appropriate handler
 	select {
 	case e := <-pm.sub.Out():
 		switch e := e.(type) {
@@ -63,10 +68,15 @@ func TestHandleNewRelayTopicSubscription(t *testing.T) {
 				eventDetails := (relay.EvtRelaySubscribed)(e)
 				pm.handleNewRelayTopicSubscription(eventDetails.Topic, eventDetails.TopicInst)
 			}
+		default:
+			require.Fail(t, "unexpected event arrived")
 		}
+
+	case <-ctx.Done():
+		require.Fail(t, "closed channel")
 	}
 
-	//// Check Peer Manager knows about the topic
-	//_, ok := pm.subRelayTopics[pubSubTopic]
-	//require.True(t, ok)
+	// Check Peer Manager knows about the topic
+	_, ok := pm.subRelayTopics[pubSubTopic]
+	require.True(t, ok)
 }
