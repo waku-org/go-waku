@@ -39,7 +39,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds" // nolint: staticcheck
 	ws "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/waku-org/go-waku/cmd/waku/server/rest"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/metrics"
 	"github.com/waku-org/go-waku/waku/persistence"
@@ -388,20 +387,6 @@ func Execute(options NodeOptions) error {
 		}
 	}
 
-	var restServer *rest.WakuRest
-	if options.RESTServer.Enable {
-		wg.Add(1)
-		restConfig := rest.RestConfig{Address: options.RESTServer.Address,
-			Port:                uint(options.RESTServer.Port),
-			EnablePProf:         options.PProf,
-			EnableAdmin:         options.RESTServer.Admin,
-			RelayCacheCapacity:  uint(options.RESTServer.RelayCacheCapacity),
-			FilterCacheCapacity: uint(options.RESTServer.FilterCacheCapacity)}
-
-		restServer = rest.NewWakuRest(wakuNode, restConfig, logger)
-		restServer.Start(ctx, &wg)
-	}
-
 	wg.Wait()
 	logger.Info("Node setup complete")
 
@@ -413,12 +398,6 @@ func Execute(options NodeOptions) error {
 
 	// shut the node down
 	wakuNode.Stop()
-
-	if options.RESTServer.Enable {
-		if err := restServer.Stop(ctx); err != nil {
-			return err
-		}
-	}
 
 	if options.Metrics.Enable {
 		if err = metricsServer.Stop(ctx); err != nil {

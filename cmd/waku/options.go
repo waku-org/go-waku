@@ -99,16 +99,6 @@ type MetricsOptions struct {
 	Port    int
 }
 
-// RESTServerOptions are settings used to start a rest http server
-type RESTServerOptions struct {
-	Enable              bool
-	Port                int
-	Address             string
-	Admin               bool
-	RelayCacheCapacity  int
-	FilterCacheCapacity int
-}
-
 // WSOptions are settings used for enabling websockets and secure websockets
 // support
 type WSOptions struct {
@@ -174,5 +164,4 @@ type NodeOptions struct {
 	DNSDiscovery DNSDiscoveryOptions
 	Rendezvous   RendezvousOptions
 	Metrics      MetricsOptions
-	RESTServer   RESTServerOptions
 }
