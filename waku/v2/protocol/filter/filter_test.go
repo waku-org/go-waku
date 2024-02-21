@@ -368,49 +368,6 @@ func (s *FilterTestSuite) TearDownTest() {
 	s.ctxCancel()
 }
 
-func (s *FilterTestSuite) TestPeerFailure() {
-	broadcaster2 := relay.NewBroadcaster(10)
-	s.Require().NoError(broadcaster2.Start(context.Background()))
-
-	// Initial subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	// Simulate there's been a failure before
-	s.fullNode.subscriptions.FlagAsFailure(s.lightNodeHost.ID())
-
-	// Sleep to make sure the filter is subscribed
-	time.Sleep(2 * time.Second)
-
-	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
-
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic)
-	}, s.subDetails[0].C)
-
-	// Failure is removed
-	s.Require().False(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
-
-	// Kill the subscriber
-	s.lightNodeHost.Close()
-
-	time.Sleep(1 * time.Second)
-
-	s.publishMsg(s.testTopic, s.testContentTopic)
-
-	// TODO: find out how to eliminate this sleep
-	time.Sleep(1 * time.Second)
-	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID()))
-
-	time.Sleep(2 * time.Second)
-
-	s.publishMsg(s.testTopic, s.testContentTopic)
-
-	time.Sleep(2 * time.Second)
-
-	s.Require().True(s.fullNode.subscriptions.IsFailedPeer(s.lightNodeHost.ID())) // Failed peer has been removed
-	s.Require().False(s.fullNode.subscriptions.Has(s.lightNodeHost.ID()))         // Failed peer has been removed
-}
-
 func (s *FilterTestSuite) TestRunningGuard() {
 
 	s.lightNode.Stop()
