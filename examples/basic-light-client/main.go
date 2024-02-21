@@ -41,7 +41,7 @@ var ClusterID = altsrc.NewUintFlag(&cli.UintFlag{
 })
 
 var Shard = altsrc.NewUintFlag(&cli.UintFlag{
-	Name:        "shard-type",
+	Name:        "shard",
 	Value:       0,
 	Usage:       "shard that the node is interested in publishing/receiving from.",
 	Destination: &shard,
@@ -115,7 +115,6 @@ func Execute() error {
 		node.WithHostAddress(hostAddr),
 		node.WithWakuFilterLightNode(),
 		node.WithClusterID(uint16(clusterID)),
-		node.WithLightPush(),
 		//node.WithLogLevel(zapcore.DebugLevel),
 	)
 	if err != nil {
