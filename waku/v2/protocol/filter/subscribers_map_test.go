@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -106,23 +107,29 @@ func TestRemoveBogus(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestSuccessFailure(t *testing.T) {
-	subs := NewSubscribersMap(5 * time.Second)
+func TestCleanup(t *testing.T) {
+	subs := NewSubscribersMap(2 * time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go subs.cleanUp(ctx, 500*time.Millisecond)
+
 	peerId := createPeerID(t)
 
 	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1", "topic2"})
 
-	subs.FlagAsFailure(peerId)
-	require.True(t, subs.IsFailedPeer(peerId))
+	hasSubs := subs.Has(peerId)
+	require.True(t, hasSubs)
 
-	subs.FlagAsFailure(peerId)
-	require.False(t, subs.Has(peerId))
+	_, exists := subs.Get(peerId)
+	require.True(t, exists)
 
-	subs.Set(peerId, PUBSUB_TOPIC, []string{"topic1", "topic2"})
+	time.Sleep(2 * time.Second)
 
-	subs.FlagAsFailure(peerId)
-	require.True(t, subs.IsFailedPeer(peerId))
+	hasSubs = subs.Has(peerId)
+	require.False(t, hasSubs)
 
-	subs.FlagAsSuccess(peerId)
-	require.False(t, subs.IsFailedPeer(peerId))
+	_, exists = subs.Get(peerId)
+	require.False(t, exists)
 }
