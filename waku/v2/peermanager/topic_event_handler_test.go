@@ -16,6 +16,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"strconv"
+
 	"testing"
 )
 
@@ -30,16 +31,18 @@ func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
+	broadcaster.RegisterForAll()
+
 	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, log)
 	relay.SetHost(host)
 
 	return relay, host, broadcaster
 }
 
-func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h host.Host) (*PeerManager, event.Bus) {
+func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h *host.Host) (*PeerManager, event.Bus) {
 	// Host 1 used by peer manager
 	pm := NewPeerManager(10, 20, utils.Logger())
-	pm.SetHost(h)
+	pm.SetHost(*h)
 
 	// Create a new relay event bus
 	relayEvtBus := r.Events()
@@ -83,7 +86,7 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	require.NoError(t, err)
 
 	// Peermanager with event bus
-	pm, _ := makePeerManagerWithEventBus(t, r, h1)
+	pm, _ := makePeerManagerWithEventBus(t, r, &h1)
 	pm.ctx = ctx
 	go pm.connectivityLoop(ctx)
 
@@ -155,7 +158,7 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Peermanager with event bus
-	pm, eventBus := makePeerManagerWithEventBus(t, r, h1)
+	pm, eventBus := makePeerManagerWithEventBus(t, r, &h1)
 	pm.ctx = ctx
 	go pm.connectivityLoop(ctx)
 
@@ -194,9 +197,12 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 					log.Info("Handling topic event...")
 					peerEvt := (relay.EvtPeerTopic)(e)
 					pm.handlerPeerTopicEvent(peerEvt)
-					for id := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
-						log.Info("hosts before", zap.String("id", strconv.Itoa(id)))
+					for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
+						log.Info("hosts before", zap.String("peer", peer.String()))
+						log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
+
 					}
+
 				}
 			case relay.EvtRelaySubscribed:
 				{
@@ -237,8 +243,9 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 				log.Info("Handling topic event...")
 				peerEvt := (relay.EvtPeerTopic)(e)
 				pm.handlerPeerTopicEvent(peerEvt)
-				for id := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
-					log.Info("hosts after", zap.String("id", strconv.Itoa(id)))
+				for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
+					log.Info("hosts after", zap.String("id", peer.String()))
+					log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
 				}
 			}
 		default:
