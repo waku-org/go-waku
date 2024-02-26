@@ -16,6 +16,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"strconv"
+	"time"
 
 	"testing"
 )
@@ -28,15 +29,15 @@ func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, 
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
-	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	h, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
 	broadcaster.RegisterForAll()
 
-	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, log)
-	relay.SetHost(host)
+	r := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, log)
+	r.SetHost(h)
 
-	return relay, host, broadcaster
+	return r, h, broadcaster
 }
 
 func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h *host.Host) (*PeerManager, event.Bus) {
@@ -160,7 +161,7 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	// Peermanager with event bus
 	pm, eventBus := makePeerManagerWithEventBus(t, r, &h1)
 	pm.ctx = ctx
-	go pm.connectivityLoop(ctx)
+	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
 	// Add h2 peer
 	_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{""}, relay.WakuRelayID_v200)
@@ -169,6 +170,26 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	h1.Peerstore().AddAddr(h2.ID(), tests.GetHostAddress(h2), peerstore.PermanentAddrTTL)
 	err = h1.Peerstore().AddProtocols(h2.ID(), relay.WakuRelayID_v200)
 	require.NoError(t, err)
+
+	go pm.connectivityLoop(ctx)
+
+	pc, err := NewPeerConnectionStrategy(pm, 120*time.Second, pm.logger)
+	require.NoError(t, err)
+	err = pc.Start(ctx)
+	require.NoError(t, err)
+
+	for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
+		log.Info("hosts initially", zap.String("peer", peer.String()))
+		log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
+
+	}
+
+	topic, ok := pm.subRelayTopics[pubSubTopic]
+	if ok {
+		log.Info("existing topic details", zap.String("topic", topic.topic.String()))
+	}
+
+	time.Sleep(4 * time.Second)
 
 	// Subscribe to Pubsub topic which also emits relay.PEER_JOINED
 	_, err = r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
