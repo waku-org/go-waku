@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -126,6 +127,10 @@ func HexBytes(key string, bytes []byte) zap.Field {
 
 func (bytes hexBytes) String() string {
 	return hexutil.Encode(bytes)
+}
+
+func Hash(hash wpb.MessageHash) zap.Field {
+	return zap.Stringer("hash", hash)
 }
 
 // ENode creates a field for ENR node.

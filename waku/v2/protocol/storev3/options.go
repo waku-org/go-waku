@@ -18,6 +18,7 @@ type Parameters struct {
 	cursor            []byte
 	pageLimit         uint64
 	forward           bool
+	returnValues      bool
 }
 
 type RequestOption func(*Parameters) error
@@ -106,11 +107,20 @@ func WithPaging(forward bool, limit uint64) RequestOption {
 	}
 }
 
+// WithReturnValues is an option used to indicate whether you want to return the message content or not
+func WithReturnValues(v bool) RequestOption {
+	return func(params *Parameters) error {
+		params.returnValues = v
+		return nil
+	}
+}
+
 // Default options to be used when querying a store node for results
 func DefaultOptions() []RequestOption {
 	return []RequestOption{
 		WithAutomaticRequestID(),
 		WithAutomaticPeerSelection(),
 		WithPaging(true, DefaultPageSize),
+		WithReturnValues(true),
 	}
 }
