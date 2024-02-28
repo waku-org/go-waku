@@ -2,6 +2,7 @@ package storev3
 
 import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/storev3/pb"
 	"google.golang.org/protobuf/proto"
 )
@@ -24,9 +25,12 @@ func (f FilterCriteria) PopulateStoreRequest(request *pb.StoreRequest) {
 }
 
 type MessageHashCriteria struct {
-	MessageHashes [][]byte
+	MessageHashes []wpb.MessageHash
 }
 
 func (m MessageHashCriteria) PopulateStoreRequest(request *pb.StoreRequest) {
-	request.MessageHashes = m.MessageHashes
+	request.MessageHashes = make([][]byte, len(m.MessageHashes))
+	for i := range m.MessageHashes {
+		request.MessageHashes[i] = m.MessageHashes[i][:]
+	}
 }

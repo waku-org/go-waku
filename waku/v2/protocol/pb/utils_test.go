@@ -1,7 +1,6 @@
 package pb
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,7 +38,7 @@ func TestEmptyMeta(t *testing.T) {
 
 	messageHash := msg.Hash(pubsubTopic)
 
-	require.Equal(t, "f0183c2e370e473ff471bbe1028d0d8a940949c02f3007a1ccd21fed356852a0", hex.EncodeToString(messageHash))
+	require.Equal(t, "f0183c2e370e473ff471bbe1028d0d8a940949c02f3007a1ccd21fed356852a0", messageHash.String())
 }
 
 func Test13ByteMeta(t *testing.T) {
@@ -53,7 +52,7 @@ func Test13ByteMeta(t *testing.T) {
 
 	messageHash := msg.Hash(pubsubTopic)
 
-	require.Equal(t, "f673cd2c9c973d685b52ca74c2559e001733a3a31a49ffc7b6e8713decba5a55", hex.EncodeToString(messageHash))
+	require.Equal(t, "f673cd2c9c973d685b52ca74c2559e001733a3a31a49ffc7b6e8713decba5a55", messageHash.String())
 }
 
 func TestZeroLenPayload(t *testing.T) {
@@ -67,7 +66,7 @@ func TestZeroLenPayload(t *testing.T) {
 
 	messageHash := msg.Hash(pubsubTopic)
 
-	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", hex.EncodeToString(messageHash))
+	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", messageHash.String())
 }
 
 func TestHashWithTimestamp(t *testing.T) {
@@ -79,11 +78,11 @@ func TestHashWithTimestamp(t *testing.T) {
 	msg.Version = proto.Uint32(1)
 
 	messageHash := msg.Hash(pubsubTopic)
-	require.Equal(t, "58e2fc032a82c4adeb967a8b87086d0d6fb304912f120d4404e6236add8f1f56", hex.EncodeToString(messageHash))
+	require.Equal(t, "58e2fc032a82c4adeb967a8b87086d0d6fb304912f120d4404e6236add8f1f56", messageHash.String())
 
 	msg.Timestamp = proto.Int64(123456789123456789)
 	messageHash = msg.Hash(pubsubTopic)
-	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", hex.EncodeToString(messageHash))
+	require.Equal(t, "978ccc9a665029f9829d42d84e3a49ad3a4791cce53fb5a8b581ef43ad6b4d2f", messageHash.String())
 }
 
 func TestIntToBytes(t *testing.T) {

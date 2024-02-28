@@ -27,6 +27,7 @@ const StoreID_v300 = libp2pProtocol.ID("/vac/waku/store/3.0.0")
 // MaxPageSize is the maximum number of waku messages to return per page
 const MaxPageSize = 100
 
+// DefaultPageSize is the default number of waku messages per page
 const DefaultPageSize = 20
 
 var (
@@ -34,6 +35,7 @@ var (
 	// ErrNoPeersAvailable is returned when there are no store peers in the peer store
 	// that could be used to retrieve message history
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
+	ErrMustSelectPeer   = errors.New("a peer ID or multiaddress is required")
 )
 
 type WakuStoreV3 struct {
@@ -68,10 +70,16 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 		}
 	}
 
+	filterCriteria, isFilterCriteria := criteria.(FilterCriteria)
+
+	var pubsubTopics []string
+	if isFilterCriteria {
+		pubsubTopics = append(pubsubTopics, filterCriteria.PubsubTopic)
+	}
+
 	//Add Peer to peerstore.
-	// TODO: how to determine pubsub topic if using message hashes?
 	if s.pm != nil && params.peerAddr != nil {
-		pData, err := s.pm.AddPeer(params.peerAddr, peerstore.Static, criteria.PubsubTopic, StoreID_v300)
+		pData, err := s.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, StoreID_v300)
 		if err != nil {
 			return nil, err
 		}
@@ -80,19 +88,23 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 	}
 
 	if s.pm != nil && params.selectedPeer == "" {
-		selectedPeers, err := s.pm.SelectPeers(
-			peermanager.PeerSelectionCriteria{
-				SelectionType: params.peerSelectionType,
-				Proto:         StoreID_v300,
-				PubsubTopics:  []string{criteria.PubsubTopic},
-				SpecificPeers: params.preferredPeers,
-				Ctx:           ctx,
-			},
-		)
-		if err != nil {
-			return nil, err
+		if isFilterCriteria {
+			selectedPeers, err := s.pm.SelectPeers(
+				peermanager.PeerSelectionCriteria{
+					SelectionType: params.peerSelectionType,
+					Proto:         StoreID_v300,
+					PubsubTopics:  []string{filterCriteria.PubsubTopic},
+					SpecificPeers: params.preferredPeers,
+					Ctx:           ctx,
+				},
+			)
+			if err != nil {
+				return nil, err
+			}
+			params.selectedPeer = selectedPeers[0]
+		} else {
+			return nil, ErrMustSelectPeer
 		}
-		params.selectedPeer = selectedPeers[0]
 	}
 
 	if params.selectedPeer == "" {
@@ -108,7 +120,7 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 
 	storeRequest := &pb.StoreRequest{
 		RequestId:         hex.EncodeToString(params.requestID),
-		ReturnValues:      query.ReturnValues,
+		ReturnValues:      params.returnValues,
 		PaginationForward: params.forward,
 		PaginationLimit:   proto.Uint64(pageLimit),
 	}
@@ -140,12 +152,30 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 	return result, nil
 }
 
-func (s *WakuStoreV3) Retrieve() {
-	// TODO: returns the messages
+func (s *WakuStoreV3) Retrieve(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (*Result, error) {
+	opts = append(opts, WithReturnValues(true))
+	return s.Request(ctx, MessageHashCriteria{messageHashes}, opts...)
 }
 
-func (s *WakuStoreV3) Exists(envelopeHashes ...[]byte) (map[[]byte]bool, error) {
-	// TODO: verify if a set of message exists
+// Exists is used to determine if a set of message hashes exist. Also returns a cursor in case there is more than one page of results
+func (s *WakuStoreV3) Exists(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (map[wpb.MessageHash]bool, []byte, error) {
+	opts = append(opts, WithReturnValues(false))
+	result, err := s.Request(ctx, MessageHashCriteria{messageHashes}, opts...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	msgMap := make(map[wpb.MessageHash]bool)
+	for i, _ := range messageHashes {
+		msgMap[messageHashes[i]] = false
+	}
+
+	for _, m := range result.Messages {
+		h := wpb.ToMessageHash(m.MessageHash)
+		msgMap[h] = true
+	}
+
+	return msgMap, result.cursor, nil
 }
 
 func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
@@ -153,7 +183,7 @@ func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
 		return &Result{
 			store:        s,
 			started:      true,
-			Messages:     []*wpb.WakuMessage{},
+			Messages:     []*pb.WakuMessageKeyValue{},
 			cursor:       nil,
 			storeRequest: r.storeRequest,
 			peerID:       r.PeerID(),
@@ -204,7 +234,7 @@ func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreReque
 		return nil, err
 	}
 
-	storeResponse := &pb.StoreRequest{RequestId: storeRequest.RequestId}
+	storeResponse := &pb.StoreResponse{RequestId: storeRequest.RequestId}
 	err = reader.ReadMsg(storeResponse)
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
@@ -216,20 +246,11 @@ func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreReque
 
 	stream.Close()
 
-	// nwaku does not return a response if there are no results due to the way their
-	// protobuffer library works. this condition once they have proper proto3 support
-	if storeResponse.Response == nil {
-		// Empty response
-		return &pb.HistoryResponse{
-			PagingInfo: &pb.PagingInfo{},
-		}, nil
-	}
-
-	if err := storeResponse.ValidateResponse(storeRequest.RequestId); err != nil {
+	if err := storeResponse.Validate(storeRequest.RequestId); err != nil {
 		return nil, err
 	}
 
 	// TODO: validate error codes
 
-	return storeResponse.Response, nil
+	return storeResponse, nil
 }

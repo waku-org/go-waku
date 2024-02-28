@@ -6,7 +6,6 @@ import (
 
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 )
@@ -42,7 +41,8 @@ func lightpushPublish(instance *WakuInstance, msg *pb.WakuMessage, pubsubTopic s
 	}
 
 	hash, err := instance.node.Lightpush().Publish(ctx, msg, lpOptions...)
-	return hexutil.Encode(hash), err
+
+	return hash.String(), err
 }
 
 // LightpushPublish is used to publish a WakuMessage in a pubsub topic using Lightpush protocol

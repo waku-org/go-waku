@@ -11,7 +11,7 @@ import (
 // protobuffer
 type Envelope struct {
 	msg   *wpb.WakuMessage
-	hash  []byte
+	hash  wpb.MessageHash
 	index *pb.Index
 }
 
@@ -44,7 +44,7 @@ func (e *Envelope) PubsubTopic() string {
 }
 
 // Hash returns a 32 byte hash calculated from the WakuMessage bytes
-func (e *Envelope) Hash() []byte {
+func (e *Envelope) Hash() wpb.MessageHash {
 	return e.hash
 }
 

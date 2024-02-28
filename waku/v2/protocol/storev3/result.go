@@ -4,14 +4,13 @@ import (
 	"context"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/storev3/pb"
 )
 
 // Result represents a valid response from a store node
 type Result struct {
 	started      bool
-	Messages     []*wpb.WakuMessage
+	Messages     []*pb.WakuMessageKeyValue
 	store        *WakuStoreV3
 	storeRequest *pb.StoreRequest
 	cursor       []byte
@@ -55,7 +54,7 @@ func (r *Result) Next(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (r *Result) GetMessages() []*wpb.WakuMessage {
+func (r *Result) GetMessages() []*pb.WakuMessageKeyValue {
 	if !r.started {
 		return nil
 	}

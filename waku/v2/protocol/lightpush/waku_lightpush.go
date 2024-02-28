@@ -313,14 +313,14 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 // Publish is used to broadcast a WakuMessage to the pubSubTopic (which is derived from the
 // contentTopic) via lightpush protocol. If auto-sharding is not to be used, then the
 // `WithPubSubTopic` option should be provided to publish the message to an specific pubSubTopic
-func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...RequestOption) ([]byte, error) {
+func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessage, opts ...RequestOption) (wpb.MessageHash, error) {
 	if message == nil {
-		return nil, errors.New("message can't be null")
+		return wpb.MessageHash{}, errors.New("message can't be null")
 	}
 
 	params, err := wakuLP.handleOpts(ctx, message, opts...)
 	if err != nil {
-		return nil, err
+		return wpb.MessageHash{}, err
 	}
 	req := new(pb.PushRequest)
 	req.Message = message
@@ -333,12 +333,12 @@ func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessa
 	response, err := wakuLP.request(ctx, req, params)
 	if err != nil {
 		logger.Error("could not publish message", zap.Error(err))
-		return nil, err
+		return wpb.MessageHash{}, err
 	}
 
 	if response.IsSuccess {
 		hash := message.Hash(params.pubsubTopic)
-		utils.MessagesLogger("lightpush").Debug("waku.lightpush published", logging.HexBytes("hash", hash))
+		utils.MessagesLogger("lightpush").Debug("waku.lightpush published", logging.HexBytes("hash", hash[:]))
 		return hash, nil
 	}
 
@@ -347,5 +347,5 @@ func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessa
 		errMsg = *response.Info
 	}
 
-	return nil, errors.New(errMsg)
+	return wpb.MessageHash{}, errors.New(errMsg)
 }
