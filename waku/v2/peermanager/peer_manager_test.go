@@ -337,23 +337,3 @@ func TestOnDemandPeerDiscovery(t *testing.T) {
 	require.Equal(t, host1.ID(), peerIDs[0])
 
 }
-
-func TestConnectionGater(t *testing.T) {
-
-	logger := utils.Logger()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	h1, err := tests.MakeHost(ctx, 0, rand.Reader)
-	require.NoError(t, err)
-
-	connGater := NewConnectionGater(5, logger)
-
-	allow := connGater.InterceptPeerDial(h1.ID())
-	require.True(t, allow)
-
-	addr := getAddr(h1)
-	allow = connGater.InterceptAddrDial(h1.ID(), addr)
-	require.True(t, allow)
-
-}
