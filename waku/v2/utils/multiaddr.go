@@ -17,19 +17,6 @@ func EncapsulatePeerID(peerID peer.ID, addrs ...multiaddr.Multiaddr) []multiaddr
 	return result
 }
 
-func MultiAddrSetEquals(m1 map[string]multiaddr.Multiaddr, m2 map[string]multiaddr.Multiaddr) bool {
-	if len(m1) != len(m2) {
-		return false
-	}
-	for k1, v1 := range m1 {
-		v2, ok := m2[k1]
-		if !ok || !v1.Equal(v2) {
-			return false
-		}
-	}
-	return true
-}
-
 func MultiAddrSet(addr ...multiaddr.Multiaddr) map[string]multiaddr.Multiaddr {
 	r := make(map[string]multiaddr.Multiaddr)
 	for _, a := range addr {
@@ -38,7 +25,7 @@ func MultiAddrSet(addr ...multiaddr.Multiaddr) map[string]multiaddr.Multiaddr {
 	return r
 }
 
-func MultiAddrSetEquals(m1 map[multiaddr.Multiaddr]struct{}, m2 map[multiaddr.Multiaddr]struct{}) bool {
+func MultiAddrSetEquals(m1 map[string]multiaddr.Multiaddr, m2 map[string]multiaddr.Multiaddr) bool {
 	if len(m1) != len(m2) {
 		return false
 	}
@@ -53,10 +40,10 @@ func MultiAddrSetEquals(m1 map[multiaddr.Multiaddr]struct{}, m2 map[multiaddr.Mu
 	return true
 }
 
-func MultiAddrFromSet(m map[multiaddr.Multiaddr]struct{}) []multiaddr.Multiaddr {
+func MultiAddrFromSet(m map[string]multiaddr.Multiaddr) []multiaddr.Multiaddr {
 	var r []multiaddr.Multiaddr
-	for k := range m {
-		r = append(r, k)
+	for _, v := range m {
+		r = append(r, v)
 	}
 	return r
 }
