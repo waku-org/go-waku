@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -16,9 +17,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"strconv"
-	"time"
-
 	"testing"
+	"time"
 )
 
 func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, relay.Broadcaster) {
@@ -34,7 +34,9 @@ func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, 
 
 	broadcaster.RegisterForAll()
 
-	r := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, log)
+	r := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(),
+		prometheus.DefaultRegisterer, log)
+
 	r.SetHost(h)
 
 	return r, h, broadcaster
@@ -148,35 +150,60 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	pubSubTopic := "/waku/2/go/pm/test"
 	ctx := context.Background()
 
-	// Relay and Host1
-	r, h1, _ := makeWakuRelay(t, log)
-	err := r.Start(ctx)
-	require.NoError(t, err)
-
-	// Relay and Host2
-	r2, h2, _ := makeWakuRelay(t, log)
-	err = r2.Start(ctx)
-	require.NoError(t, err)
+	//// Relay and Host1
+	//r, h1, _ := makeWakuRelay(t, log)
+	//err := r.Start(ctx)
+	//require.NoError(t, err)
+	//
+	//// Relay and Host2
+	//r2, h2, _ := makeWakuRelay(t, log)
+	//err = r2.Start(ctx)
+	//require.NoError(t, err)
 
 	// Peermanager with event bus
-	pm, eventBus := makePeerManagerWithEventBus(t, r, &h1)
+	//pm, eventBus := makePeerManagerWithEventBus(t, r, &h1)
+	//pm.ctx = ctx
+	//pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
+
+	// Add h2 peer
+	//_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{""}, relay.WakuRelayID_v200)
+	//require.NoError(t, err)
+
+	//h1.Peerstore().AddAddrs(h2.ID(), h2.Addrs(), peerstore.PermanentAddrTTL)
+	//err = h1.Connect(context.Background(), h2.Peerstore().PeerInfo(h2.ID()))
+	//require.NoError(t, err)
+	//
+	//h2.Peerstore().AddAddrs(h1.ID(), h1.Addrs(), peerstore.PermanentAddrTTL)
+	//err = h2.Connect(context.Background(), h1.Peerstore().PeerInfo(h1.ID()))
+	//require.NoError(t, err)
+
+	hosts := make([]host.Host, 5)
+	relays := make([]*relay.WakuRelay, 5)
+
+	for i := 0; i < 5; i++ {
+		relays[i], hosts[i], _ = makeWakuRelay(t, log)
+		err := relays[i].Start(ctx)
+		require.NoError(t, err)
+	}
+
+	pm, eventBus := makePeerManagerWithEventBus(t, relays[0], &hosts[0])
 	pm.ctx = ctx
 	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
-	// Add h2 peer
-	_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{""}, relay.WakuRelayID_v200)
-	require.NoError(t, err)
+	for i := 1; i < 5; i++ {
+		pm.host.Peerstore().AddAddrs(hosts[i].ID(), hosts[i].Addrs(), peerstore.PermanentAddrTTL)
+		err := pm.host.Connect(ctx, hosts[i].Peerstore().PeerInfo(hosts[i].ID()))
+		require.NoError(t, err)
+		err = pm.host.Peerstore().(wps.WakuPeerstore).SetDirection(hosts[i].ID(), network.DirOutbound)
+		require.NoError(t, err)
 
-	h1.Peerstore().AddAddr(h2.ID(), tests.GetHostAddress(h2), peerstore.PermanentAddrTTL)
-	err = h1.Peerstore().AddProtocols(h2.ID(), relay.WakuRelayID_v200)
-	require.NoError(t, err)
+		//_, err = relays[i].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
+		//require.NoError(t, err)
+
+	}
 
 	go pm.connectivityLoop(ctx)
-
-	pc, err := NewPeerConnectionStrategy(pm, 120*time.Second, pm.logger)
-	require.NoError(t, err)
-	err = pc.Start(ctx)
-	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 	for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
 		log.Info("hosts initially", zap.String("peer", peer.String()))
@@ -189,16 +216,14 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 		log.Info("existing topic details", zap.String("topic", topic.topic.String()))
 	}
 
-	time.Sleep(4 * time.Second)
-
 	// Subscribe to Pubsub topic which also emits relay.PEER_JOINED
-	_, err = r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
+	_, err := relays[0].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
 	require.NoError(t, err)
 
 	// peerEvt to find: relay.PEER_JOINED, relay.PEER_LEFT
 	peerEvt := relay.EvtPeerTopic{
 		PubsubTopic: pubSubTopic,
-		PeerID:      h1.ID(),
+		PeerID:      hosts[1].ID(),
 		State:       relay.PEER_JOINED,
 	}
 
@@ -241,14 +266,17 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	}
 
 	// Evaluate topic health - unhealthy at first, because no peers connected
-	peerTopic := pm.subRelayTopics[peerEvt.PubsubTopic]
+	peerTopic := pm.subRelayTopics[pubSubTopic]
 	//pm.checkAndUpdateTopicHealth(topic)
 	require.Equal(t, TopicHealth(UnHealthy), peerTopic.healthStatus)
+	time.Sleep(2 * time.Second)
+
+	///// Two
 
 	// peerEvt to find: relay.PEER_JOINED, relay.PEER_LEFT
 	peerEvt2 := relay.EvtPeerTopic{
 		PubsubTopic: pubSubTopic,
-		PeerID:      h2.ID(),
+		PeerID:      hosts[2].ID(),
 		State:       relay.PEER_JOINED,
 	}
 
@@ -278,13 +306,103 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	}
 
 	// Evaluate topic health - unhealthy at first, because no peers connected
-	peerTopic = pm.subRelayTopics[peerEvt.PubsubTopic]
+	peerTopic = pm.subRelayTopics[pubSubTopic]
 
 	for id := range peerTopic.topic.ListPeers() {
 		log.Info("peers", zap.String("ID", strconv.Itoa(id)))
 	}
 
-	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[peerEvt.PubsubTopic])
+	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[pubSubTopic])
+	require.Equal(t, TopicHealth(UnHealthy), peerTopic.healthStatus)
+	time.Sleep(2 * time.Second)
+
+	////////// Three
+
+	// peerEvt to find: relay.PEER_JOINED, relay.PEER_LEFT
+	peerEvt3 := relay.EvtPeerTopic{
+		PubsubTopic: pubSubTopic,
+		PeerID:      hosts[3].ID(),
+		State:       relay.PEER_JOINED,
+	}
+
+	err = emitter.Emit(peerEvt3)
+	require.NoError(t, err)
+
+	// Call the appropriate handler
+	select {
+	case e := <-pm.sub.Out():
+		switch e := e.(type) {
+		case relay.EvtPeerTopic:
+			{
+				log.Info("Handling topic event...")
+				peerEvt := (relay.EvtPeerTopic)(e)
+				pm.handlerPeerTopicEvent(peerEvt)
+				for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
+					log.Info("hosts after", zap.String("id", peer.String()))
+					log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
+				}
+			}
+		default:
+			require.Fail(t, "unexpected event arrived")
+		}
+
+	case <-ctx.Done():
+		require.Fail(t, "closed channel")
+	}
+
+	// Evaluate topic health - unhealthy at first, because no peers connected
+	peerTopic = pm.subRelayTopics[pubSubTopic]
+
+	for id := range peerTopic.topic.ListPeers() {
+		log.Info("peers", zap.String("ID", strconv.Itoa(id)))
+	}
+
+	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[pubSubTopic])
+	require.Equal(t, TopicHealth(UnHealthy), peerTopic.healthStatus)
+
+	///// Four
+	time.Sleep(2 * time.Second)
+
+	// peerEvt to find: relay.PEER_JOINED, relay.PEER_LEFT
+	peerEvt4 := relay.EvtPeerTopic{
+		PubsubTopic: pubSubTopic,
+		PeerID:      hosts[4].ID(),
+		State:       relay.PEER_JOINED,
+	}
+
+	err = emitter.Emit(peerEvt4)
+	require.NoError(t, err)
+
+	// Call the appropriate handler
+	select {
+	case e := <-pm.sub.Out():
+		switch e := e.(type) {
+		case relay.EvtPeerTopic:
+			{
+				log.Info("Handling topic event...")
+				peerEvt := (relay.EvtPeerTopic)(e)
+				pm.handlerPeerTopicEvent(peerEvt)
+				for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
+					log.Info("hosts after", zap.String("id", peer.String()))
+					log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
+				}
+			}
+		default:
+			require.Fail(t, "unexpected event arrived")
+		}
+
+	case <-ctx.Done():
+		require.Fail(t, "closed channel")
+	}
+
+	// Evaluate topic health - unhealthy at first, because no peers connected
+	peerTopic = pm.subRelayTopics[pubSubTopic]
+
+	for id := range peerTopic.topic.ListPeers() {
+		log.Info("peers", zap.String("ID", strconv.Itoa(id)))
+	}
+
+	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[pubSubTopic])
 	require.Equal(t, TopicHealth(MinimallyHealthy), peerTopic.healthStatus)
 
 }
