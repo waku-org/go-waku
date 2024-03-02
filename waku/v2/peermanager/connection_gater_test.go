@@ -41,7 +41,7 @@ func TestConnectionGater(t *testing.T) {
 
 	peerA := h1.ID()
 
-	remoteMulti1 := ma.StringCast("/ip4/1.2.3.4/tcp/1234")
+	remoteAddr1 := ma.StringCast("/ip4/1.2.3.4/tcp/1234")
 
 	connGater := NewConnectionGater(2, log)
 
@@ -60,26 +60,26 @@ func TestConnectionGater(t *testing.T) {
 	require.Equal(t, control.DisconnectReason(0), reason)
 
 	// Test addr and subnet blocking
-	allow = connGater.InterceptAddrDial(peerA, remoteMulti1)
+	allow = connGater.InterceptAddrDial(peerA, remoteAddr1)
 	require.True(t, allow)
 
 	// Bellow the connection limit
-	allow = connGater.InterceptAccept(&mockConnMultiaddrs{local: nil, remote: remoteMulti1})
+	allow = connGater.InterceptAccept(&mockConnMultiaddrs{local: nil, remote: remoteAddr1})
 	require.True(t, allow)
 
-	ip, err := manet.ToIP(remoteMulti1)
+	ip, err := manet.ToIP(remoteAddr1)
 	connGater.limiter[ip.String()] = 3
 
 	// Above the connection limit
-	allow = connGater.InterceptAccept(&mockConnMultiaddrs{local: nil, remote: remoteMulti1})
+	allow = connGater.InterceptAccept(&mockConnMultiaddrs{local: nil, remote: remoteAddr1})
 	require.False(t, allow)
 
 	// Call twice NotifyDisconnect to get bellow the limit(2): 3 -> 1
-	connGater.NotifyDisconnect(remoteMulti1)
-	connGater.NotifyDisconnect(remoteMulti1)
+	connGater.NotifyDisconnect(remoteAddr1)
+	connGater.NotifyDisconnect(remoteAddr1)
 
 	// Bellow the connection limit again
-	allow = connGater.validateInboundConn(remoteMulti1)
+	allow = connGater.validateInboundConn(remoteAddr1)
 	require.True(t, allow)
 
 }
