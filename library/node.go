@@ -195,10 +195,6 @@ func NewNode(instance *WakuInstance, configJSON string) error {
 		}
 	}
 
-	if *config.EnableLegacyFilter {
-		opts = append(opts, node.WithLegacyWakuFilter(false))
-	}
-
 	opts = append(opts, node.WithWakuFilterLightNode())
 
 	if *config.EnableStore {

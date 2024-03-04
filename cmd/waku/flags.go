@@ -364,26 +364,6 @@ var (
 		Destination: &options.Filter.Timeout,
 		EnvVars:     []string{"WAKUNODE2_FILTER_TIMEOUT"},
 	})
-	FilterLegacyFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "legacy-filter",
-		Usage:       "Use filter protocol (legacy)",
-		Destination: &options.Filter.UseV1,
-		EnvVars:     []string{"WAKUNODE2_USE_LEGACY_FILTER"},
-	})
-	FilterLegacyLightClient = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "legacy-filter-light-client",
-		Usage:       "Don't accept legacy filter subscribers",
-		Destination: &options.Filter.DisableFullNode,
-		EnvVars:     []string{"WAKUNODE2_LEGACY_FILTER_LIGHT_CLIENT"},
-	})
-	FilterLegacyNode = cliutils.NewGenericFlagMultiValue(&cli.GenericFlag{
-		Name:  "legacy-filternode",
-		Usage: "Multiaddr of a peer that supports legacy filter protocol. Option may be repeated",
-		Value: &cliutils.MultiaddrSlice{
-			Values: &options.Filter.NodesV1,
-		},
-		EnvVars: []string{"WAKUNODE2_LEGACY_FILTERNODE"},
-	})
 	LightPush = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "lightpush",
 		Usage:       "Enable lightpush protocol",
