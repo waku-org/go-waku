@@ -160,7 +160,8 @@ func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
 	// Closing iterator
 	defer iterator.Close()
 
-	for iterator.Next() {
+	peerCnt := 0
+	for discv5.DelayedHasNext(ctx, iterator, &peerCnt) {
 		_, addresses, err := enr.Multiaddress(iterator.Node())
 		if err != nil {
 			wakuPX.log.Error("extracting multiaddrs from enr", zap.Error(err))
@@ -199,12 +200,15 @@ func (wakuPX *WakuPeerExchange) runPeerExchangeDiscv5Loop(ctx context.Context) {
 		err := wakuPX.iterate(ctx)
 		if err != nil {
 			wakuPX.log.Debug("iterating peer exchange", zap.Error(err))
-			time.Sleep(2 * time.Second)
 		}
+
+		t := time.NewTimer(5 * time.Second)
 		select {
+		case <-t.C:
+			t.Stop()
 		case <-ctx.Done():
+			t.Stop()
 			return
-		default:
 		}
 	}
 }
