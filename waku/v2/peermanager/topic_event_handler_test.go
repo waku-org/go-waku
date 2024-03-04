@@ -164,7 +164,7 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	pm.ctx = ctx
 	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
-	// Connect hosts[0] with all other hosts to reach 4 connections
+	// Connect host[0] with all other hosts to reach 4 connections
 	for i := 1; i < 5; i++ {
 		pm.host.Peerstore().AddAddrs(hosts[i].ID(), hosts[i].Addrs(), peerstore.PermanentAddrTTL)
 		err := pm.host.Connect(ctx, hosts[i].Peerstore().PeerInfo(hosts[i].ID()))
@@ -284,5 +284,12 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 		log.Info("peers joined", zap.String("ID", strconv.Itoa(id)))
 	}
 	pm.checkAndUpdateTopicHealth(peerTopic)
+
+	peersIn, peersOut := pm.getRelayPeers()
+	log.Info("IDS peers", zap.String("in ", strconv.Itoa(len(peersIn))), zap.String("out", strconv.Itoa(len(peersOut))))
+
+	notConnectedPeers := pm.getNotConnectedPers(pubSubTopic)
+	log.Info("IDS peers", zap.String("not connected", strconv.Itoa(len(notConnectedPeers))))
+
 	require.Equal(t, TopicHealth(MinimallyHealthy), peerTopic.healthStatus)
 }
