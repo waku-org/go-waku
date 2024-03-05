@@ -183,8 +183,10 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	}
 
 	// Subscribe to Pubsub topic
-	_, err := relays[0].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
-	require.NoError(t, err)
+	for i := 0; i < 5; i++ {
+		_, err := relays[i].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
+		require.NoError(t, err)
+	}
 
 	// peerEvt to find: relay.PEER_JOINED, relay.PEER_LEFT
 	peerEvt := relay.EvtPeerTopic{
