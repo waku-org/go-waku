@@ -2,6 +2,7 @@ package peer_exchange
 
 import (
 	"context"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"testing"
 	"time"
 
@@ -184,4 +185,52 @@ func TestRetrieveFilteredPeerExchangePeers(t *testing.T) {
 
 	px1.Stop()
 	px3.Stop()
+}
+
+func TestPeerExchangeOptions(t *testing.T) {
+
+	// Prepare host1
+	host1, _, prvKey1 := tests.CreateHost(t)
+	udpPort1, err := tests.FindFreePort(t, "127.0.0.1", 3)
+	require.NoError(t, err)
+	ip1, _ := tests.ExtractIP(host1.Addrs()[0])
+	l1, err := tests.NewLocalnode(prvKey1, ip1, udpPort1, wenr.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
+	require.NoError(t, err)
+	discv5PeerConn1 := discv5.NewTestPeerDiscoverer()
+	d1, err := discv5.NewDiscoveryV5(prvKey1, l1, discv5PeerConn1, prometheus.DefaultRegisterer, utils.Logger(), discv5.WithUDPPort(uint(udpPort1)))
+	require.NoError(t, err)
+	d1.SetHost(host1)
+
+	// Mount peer exchange
+	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
+	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	require.NoError(t, err)
+	px1.SetHost(host1)
+
+	// Test WithPeerAddr()
+	params := new(PeerExchangeParameters)
+	params.host = px1.h
+	params.log = px1.log
+	params.pm = px1.pm
+
+	optList := DefaultOptions(px1.h)
+	optList = append(optList, WithPeerAddr(host1.Addrs()[0]))
+	for _, opt := range optList {
+		err := opt(params)
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, host1.Addrs()[0], params.peerAddr)
+
+	// Test WithFastestPeerSelection()
+	optList = DefaultOptions(px1.h)
+	optList = append(optList, WithFastestPeerSelection(host1.ID()))
+	for _, opt := range optList {
+		err := opt(params)
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, peermanager.LowestRTT, params.peerSelectionType)
+	require.Equal(t, host1.ID(), params.preferredPeers[0])
+
 }
