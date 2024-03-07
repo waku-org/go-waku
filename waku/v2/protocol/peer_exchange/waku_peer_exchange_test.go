@@ -2,7 +2,14 @@ package peer_exchange
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
+	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"testing"
 	"time"
 
@@ -17,6 +24,26 @@ import (
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
+
+func createHostWithDiscv5(t *testing.T, bootnode ...*enode.Node) (host.Host, *discv5.DiscoveryV5) {
+	ps, err := pstoremem.NewPeerstore()
+	require.NoError(t, err)
+	wakuPeerStore := wps.NewWakuPeerstore(ps)
+
+	host, _, prvKey := tests.CreateHost(t, libp2p.Peerstore(wakuPeerStore))
+
+	port, err := tests.FindFreePort(t, "127.0.0.1", 3)
+	require.NoError(t, err)
+	ip, _ := tests.ExtractIP(host.Addrs()[0])
+	l, err := tests.NewLocalnode(prvKey, ip, port, wenr.NewWakuEnrBitfield(false, false, false, true), nil, utils.Logger())
+	require.NoError(t, err)
+	discv5PeerConn1 := discv5.NewTestPeerDiscoverer()
+	d, err := discv5.NewDiscoveryV5(prvKey, l, discv5PeerConn1, prometheus.DefaultRegisterer, utils.Logger(), discv5.WithUDPPort(uint(port)), discv5.WithBootnodes(bootnode))
+	require.NoError(t, err)
+	d.SetHost(host)
+
+	return host, d
+}
 
 func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 	// H1
@@ -232,5 +259,83 @@ func TestPeerExchangeOptions(t *testing.T) {
 
 	require.Equal(t, peermanager.LowestRTT, params.peerSelectionType)
 	require.Equal(t, host1.ID(), params.preferredPeers[0])
+
+}
+
+func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
+	log := utils.Logger()
+
+	// H1 + H2 with discovery on
+	host1, d1 := createHostWithDiscv5(t)
+	host2, d2 := createHostWithDiscv5(t, d1.Node())
+
+	// H3
+	ps3, err := pstoremem.NewPeerstore()
+	require.NoError(t, err)
+	wakuPeerStore3 := wps.NewWakuPeerstore(ps3)
+	host3, _, _ := tests.CreateHost(t, libp2p.Peerstore(wakuPeerStore3))
+
+	defer d1.Stop()
+	defer d2.Stop()
+	defer host1.Close()
+	defer host2.Close()
+	defer host3.Close()
+
+	err = d1.Start(context.Background())
+	require.NoError(t, err)
+
+	err = d2.Start(context.Background())
+	require.NoError(t, err)
+
+	// Prepare peer manager for host3
+	pm3 := peermanager.NewPeerManager(10, 20, log)
+	pm3.SetHost(host3)
+	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
+	require.NoError(t, err)
+	pm3.SetPeerConnector(pxPeerConn3)
+	pm3.Start(context.Background())
+
+	// mount peer exchange
+	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
+	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	require.NoError(t, err)
+	px1.SetHost(host1)
+
+	//pxPeerConn3 := discv5.NewTestPeerDiscoverer()
+	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
+	require.NoError(t, err)
+	px3.SetHost(host3)
+
+	err = px1.Start(context.Background())
+	require.NoError(t, err)
+
+	err = px3.Start(context.Background())
+	require.NoError(t, err)
+
+	time.Sleep(30 * time.Second)
+
+	log.Info("Host1 is", zap.String("peer", host1.ID().String()))
+	log.Info("Host2 is", zap.String("peer", host2.ID().String()))
+	log.Info("Host3 is", zap.String("peer", host3.ID().String()))
+
+	for _, peer := range host3.Peerstore().Peers() {
+		log.Info("Host3 knows before", zap.String("peer", peer.String()))
+	}
+	require.False(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
+
+	// Construct multi address like example "/ip4/0.0.0.0/tcp/30304/p2p/16Uiu2HAmBu5zRFzBGAzzMAuGWhaxN2EwcbW7CzibELQELzisf192"
+	host1MultiAddr, err := multiaddr.NewMultiaddr(host1.Addrs()[0].String() + "/p2p/" + host1.ID().String())
+	require.NoError(t, err)
+
+	log.Info("Connecting to peer", zap.String(host1MultiAddr.String(), "to provide 1 peer"))
+	err = px3.Request(context.Background(), 1, WithPeerAddr(host1MultiAddr))
+	require.NoError(t, err)
+
+	time.Sleep(30 * time.Second)
+
+	for _, peer := range host3.Peerstore().Peers() {
+		log.Info("Host3 knows after", zap.String("peer", peer.String()))
+	}
+	require.True(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
 
 }
