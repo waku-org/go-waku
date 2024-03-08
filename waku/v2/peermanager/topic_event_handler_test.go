@@ -100,31 +100,20 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	err := r.Start(ctx)
 	require.NoError(t, err)
 
-	// Peermanager with event bus
+	// Peer manager with event bus
 	pm, _ := makePeerManagerWithEventBus(t, r, &h1)
 	pm.ctx = ctx
-	go pm.connectivityLoop(ctx)
+
+	// Start event loop to listen to events
+	ctxEventLoop := context.Background()
+	go pm.peerEventLoop(ctxEventLoop)
 
 	// Subscribe to Pubsub topic
 	_, err = r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
 	require.NoError(t, err)
 
-	// Call the appropriate handler
-	select {
-	case e := <-pm.sub.Out():
-		switch e := e.(type) {
-		case relay.EvtRelaySubscribed:
-			{
-				eventDetails := (relay.EvtRelaySubscribed)(e)
-				pm.handleNewRelayTopicSubscription(eventDetails.Topic, eventDetails.TopicInst)
-			}
-		default:
-			require.Fail(t, "unexpected event arrived")
-		}
-
-	case <-ctx.Done():
-		require.Fail(t, "closed channel")
-	}
+	// Wait for event loop to call handler
+	time.Sleep(100 * time.Millisecond)
 
 	// Check Peer Manager knows about the topic
 	_, ok := pm.subRelayTopics[pubSubTopic]
@@ -134,22 +123,8 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	err = r.Unsubscribe(ctx, protocol.NewContentFilter(pubSubTopic))
 	require.NoError(t, err)
 
-	// Call the appropriate handler
-	select {
-	case e := <-pm.sub.Out():
-		switch e := e.(type) {
-		case relay.EvtRelayUnsubscribed:
-			{
-				eventDetails := (relay.EvtRelayUnsubscribed)(e)
-				pm.handleNewRelayTopicUnSubscription(eventDetails.Topic)
-			}
-		default:
-			require.Fail(t, "unexpected event arrived")
-		}
-
-	case <-ctx.Done():
-		require.Fail(t, "closed channel")
-	}
+	// Wait for event loop to call handler
+	time.Sleep(100 * time.Millisecond)
 
 	// Check the original topic was removed from Peer Manager
 	_, ok = pm.subRelayTopics[pubSubTopic]
