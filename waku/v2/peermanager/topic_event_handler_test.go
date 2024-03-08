@@ -105,7 +105,8 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	pm.ctx = ctx
 
 	// Start event loop to listen to events
-	ctxEventLoop := context.Background()
+	ctxEventLoop, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go pm.peerEventLoop(ctxEventLoop)
 
 	// Subscribe to Pubsub topic
@@ -113,7 +114,7 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for event loop to call handler
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Check Peer Manager knows about the topic
 	_, ok := pm.subRelayTopics[pubSubTopic]
@@ -124,12 +125,13 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for event loop to call handler
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Check the original topic was removed from Peer Manager
 	_, ok = pm.subRelayTopics[pubSubTopic]
 	require.False(t, ok)
 
+	r.Stop()
 }
 
 func TestHandlePeerTopicEvent(t *testing.T) {
