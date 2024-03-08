@@ -6,6 +6,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -57,6 +57,18 @@ func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h *host.Host)
 	// Register necessary protocols
 	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 	return pm, relayEvtBus
+}
+
+func emitTopicEvent(t *testing.T, pubSubTopic string, peerID peer.ID, emitter event.Emitter, state relay.PeerTopicState) {
+
+	peerEvt := relay.EvtPeerTopic{
+		PubsubTopic: pubSubTopic,
+		PeerID:      peerID,
+		State:       state,
+	}
+
+	err := emitter.Emit(peerEvt)
+	require.NoError(t, err)
 }
 
 func TestSubscribeToRelayEvtBus(t *testing.T) {
@@ -174,124 +186,46 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 
 	}
 
-	go pm.connectivityLoop(ctx)
-
+	// Wait for connections to settle
 	time.Sleep(2 * time.Second)
 
 	if len(pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic)) == 0 {
 		log.Info("No peers for the topic yet")
 	}
 
-	// Subscribe to Pubsub topic
-	for i := 0; i < 5; i++ {
-		_, err := relays[i].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
-		require.NoError(t, err)
-	}
+	// Subscribe to Pubsub topic on first host only
+	_, err := relays[0].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
+	require.NoError(t, err)
 
-	// peerEvt to find: relay.PEER_JOINED, relay.PEER_LEFT
-	peerEvt := relay.EvtPeerTopic{
-		PubsubTopic: pubSubTopic,
-		PeerID:      hosts[1].ID(),
-		State:       relay.PEER_JOINED,
-	}
+	// Start event loop to listen to events
+	ctxEventLoop := context.Background()
+	go pm.peerEventLoop(ctxEventLoop)
 
+	// Prepare emitter
 	emitter, err := eventBus.Emitter(new(relay.EvtPeerTopic))
 	require.NoError(t, err)
 
-	err = emitter.Emit(peerEvt)
-	require.NoError(t, err)
-
-	// Process subscribe event and first PEER_JOINED event
-	for i := 0; i < 2; i++ {
-		select {
-		case e := <-pm.sub.Out():
-			switch e := e.(type) {
-			case relay.EvtPeerTopic:
-				{
-					log.Info("Handling topic event...")
-					peerEvt := (relay.EvtPeerTopic)(e)
-					pm.handlerPeerTopicEvent(peerEvt)
-					for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
-						log.Info("hosts before", zap.String("peer", peer.String()))
-						log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
-					}
-
-				}
-			case relay.EvtRelaySubscribed:
-				{
-					log.Info("Handling subscribe event...")
-					eventDetails := (relay.EvtRelaySubscribed)(e)
-					pm.handleNewRelayTopicSubscription(eventDetails.Topic, eventDetails.TopicInst)
-				}
-			default:
-				require.Fail(t, "unexpected event arrived")
-			}
-
-		case <-ctx.Done():
-			require.Fail(t, "closed channel")
-		}
+	// Send PEER_JOINED events for hosts 2-5
+	for i := 1; i < 5; i++ {
+		emitTopicEvent(t, pubSubTopic, hosts[i].ID(), emitter, relay.PEER_JOINED)
+		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Evaluate topic health - unhealthy at first, because no peers connected
-	peerTopic, ok := pm.subRelayTopics[pubSubTopic]
-	if ok {
-		log.Info("New topic subscribed", zap.String("topic", peerTopic.topic.String()))
-	}
-	pm.checkAndUpdateTopicHealth(peerTopic)
-	require.Equal(t, TopicHealth(UnHealthy), peerTopic.healthStatus)
-	time.Sleep(2 * time.Second)
+	// Check four hosts have joined the topic
+	require.Equal(t, 4, len(pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic)))
 
-	// Process second to fourth PEER_JOINED event
-	for i := 2; i < 4; i++ {
-
-		peerEvt2 := relay.EvtPeerTopic{
-			PubsubTopic: pubSubTopic,
-			PeerID:      hosts[i].ID(),
-			State:       relay.PEER_JOINED,
-		}
-
-		err = emitter.Emit(peerEvt2)
-		require.NoError(t, err)
-
-		// Call the appropriate handler
-		select {
-		case e := <-pm.sub.Out():
-			switch e := e.(type) {
-			case relay.EvtPeerTopic:
-				{
-					log.Info("Handling topic event...")
-					peerEvt := (relay.EvtPeerTopic)(e)
-					pm.handlerPeerTopicEvent(peerEvt)
-					for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
-						log.Info("hosts after", zap.String("id", peer.String()))
-						log.Info("peer", zap.String("connectedness", string(rune(pm.host.Network().Connectedness(peer)))))
-					}
-				}
-			default:
-				require.Fail(t, "unexpected event arrived")
-			}
-
-		case <-ctx.Done():
-			require.Fail(t, "closed channel")
-		}
-
-		// Evaluate topic health - unhealthy at first, because D > #peers connected
-		pm.checkAndUpdateTopicHealth(peerTopic)
-		require.Equal(t, TopicHealth(UnHealthy), peerTopic.healthStatus)
-		time.Sleep(2 * time.Second)
+	// Check all hosts have been connected
+	for _, peer := range pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic) {
+		require.Equal(t, network.Connected, pm.host.Network().Connectedness(peer))
 	}
 
-	// Evaluate topic health - should reach minimal health - 4 peers connected
-	for id := range peerTopic.topic.ListPeers() {
-		log.Info("peers joined", zap.String("ID", strconv.Itoa(id)))
+	// Send PEER_LEFT events for hosts 2-5
+	for i := 1; i < 5; i++ {
+		emitTopicEvent(t, pubSubTopic, hosts[i].ID(), emitter, relay.PEER_LEFT)
+		time.Sleep(100 * time.Millisecond)
 	}
-	pm.checkAndUpdateTopicHealth(peerTopic)
 
-	peersIn, peersOut := pm.getRelayPeers()
-	log.Info("IDS peers", zap.String("in ", strconv.Itoa(len(peersIn))), zap.String("out", strconv.Itoa(len(peersOut))))
+	// Check all hosts have left the topic
+	require.Equal(t, 0, len(pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic)))
 
-	notConnectedPeers := pm.getNotConnectedPers(pubSubTopic)
-	log.Info("IDS peers", zap.String("not connected", strconv.Itoa(len(notConnectedPeers))))
-
-	require.Equal(t, TopicHealth(MinimallyHealthy), peerTopic.healthStatus)
 }
