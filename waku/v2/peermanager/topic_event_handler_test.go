@@ -117,8 +117,10 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Check Peer Manager knows about the topic
+	pm.topicMutex.RLock()
 	_, ok := pm.subRelayTopics[pubSubTopic]
 	require.True(t, ok)
+	pm.topicMutex.RUnlock()
 
 	// UnSubscribe from Pubsub topic
 	err = r.Unsubscribe(ctx, protocol.NewContentFilter(pubSubTopic))
@@ -128,8 +130,10 @@ func TestHandleRelayTopicSubscription(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Check the original topic was removed from Peer Manager
+	pm.topicMutex.RLock()
 	_, ok = pm.subRelayTopics[pubSubTopic]
 	require.False(t, ok)
+	pm.topicMutex.RUnlock()
 
 	r.Stop()
 }
