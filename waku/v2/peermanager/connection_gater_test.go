@@ -68,6 +68,7 @@ func TestConnectionGater(t *testing.T) {
 	require.True(t, allow)
 
 	ip, err := manet.ToIP(remoteAddr1)
+	require.NoError(t, err)
 	connGater.limiter[ip.String()] = 3
 
 	// Above the connection limit
