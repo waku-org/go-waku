@@ -329,3 +329,80 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	require.True(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
 
 }
+
+func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
+	log := utils.Logger()
+
+	// H1 + H2 + H4 with discovery on
+	host1, d1 := createHostWithDiscv5(t)
+	host2, d2 := createHostWithDiscv5(t, d1.Node())
+	host4, d4 := createHostWithDiscv5(t, d1.Node())
+
+	// H3
+	ps3, err := pstoremem.NewPeerstore()
+	require.NoError(t, err)
+	wakuPeerStore3 := wps.NewWakuPeerstore(ps3)
+	host3, _, _ := tests.CreateHost(t, libp2p.Peerstore(wakuPeerStore3))
+
+	defer d1.Stop()
+	defer d2.Stop()
+	defer d4.Stop()
+	defer host1.Close()
+	defer host2.Close()
+	defer host3.Close()
+	defer host4.Close()
+
+	err = d1.Start(context.Background())
+	require.NoError(t, err)
+
+	err = d2.Start(context.Background())
+	require.NoError(t, err)
+
+	err = d4.Start(context.Background())
+	require.NoError(t, err)
+
+	// Prepare peer manager for host3
+	pm3 := peermanager.NewPeerManager(10, 20, log)
+	pm3.SetHost(host3)
+	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
+	require.NoError(t, err)
+	pxPeerConn3.SetHost(host3)
+	err = pxPeerConn3.Start(context.Background())
+	require.NoError(t, err)
+
+	// Add peer exchange server to client's peer store
+	host3.Peerstore().AddAddrs(host1.ID(), host1.Addrs(), peerstore.PermanentAddrTTL)
+	err = host3.Peerstore().AddProtocols(host1.ID(), PeerExchangeID_v20alpha1)
+	require.NoError(t, err)
+
+	// mount peer exchange
+	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
+	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	require.NoError(t, err)
+	px1.SetHost(host1)
+
+	//pxPeerConn3 := discv5.NewTestPeerDiscoverer()
+	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
+	require.NoError(t, err)
+	px3.SetHost(host3)
+
+	err = px1.Start(context.Background())
+	require.NoError(t, err)
+
+	time.Sleep(5 * time.Second)
+
+	// Check peer store of the client doesn't contain peer2 and peer4 before the request
+	require.False(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
+	require.False(t, slices.Contains(host3.Peerstore().Peers(), host4.ID()))
+
+	// Connect to PM to get peers
+	err = px3.Request(context.Background(), 2, WithAutomaticPeerSelection(host1.ID()))
+	require.NoError(t, err)
+
+	time.Sleep(5 * time.Second)
+
+	// Check peer store of the client does contain peer2 and peer4 after the request
+	require.True(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
+	require.True(t, slices.Contains(host3.Peerstore().Peers(), host4.ID()))
+
+}
