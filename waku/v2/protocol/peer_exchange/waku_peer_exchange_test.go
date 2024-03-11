@@ -235,7 +235,7 @@ func TestPeerExchangeOptions(t *testing.T) {
 	px1.SetHost(host1)
 
 	// Test WithPeerAddr()
-	params := new(PeerExchangeParameters)
+	params := new(PeerExchangeRequestParameters)
 	params.host = px1.h
 	params.log = px1.log
 	params.pm = px1.pm
