@@ -2,6 +2,7 @@ package peer_exchange
 
 import (
 	"context"
+	"fmt"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
@@ -303,7 +304,6 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
-	//pxPeerConn3 := discv5.NewTestPeerDiscoverer()
 	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
@@ -317,7 +317,9 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	require.False(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
 
 	// Construct multi address like example "/ip4/0.0.0.0/tcp/30304/p2p/16Uiu2HAmBu5zRFzBGAzzMAuGWhaxN2EwcbW7CzibELQELzisf192"
-	host1MultiAddr, err := multiaddr.NewMultiaddr(host1.Addrs()[0].String() + "/p2p/" + host1.ID().String())
+	hostInfo, err := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host1.ID()))
+	require.NoError(t, err)
+	host1MultiAddr := host1.Addrs()[0].Encapsulate(hostInfo)
 	require.NoError(t, err)
 
 	log.Info("Connecting to peer", zap.String(host1MultiAddr.String(), "to provide 1 peer"))
@@ -382,7 +384,6 @@ func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
-	//pxPeerConn3 := discv5.NewTestPeerDiscoverer()
 	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
