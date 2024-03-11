@@ -293,7 +293,8 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
 	require.NoError(t, err)
 	pxPeerConn3.SetHost(host3)
-	pxPeerConn3.Start(context.Background())
+	err = pxPeerConn3.Start(context.Background())
+	require.NoError(t, err)
 
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
