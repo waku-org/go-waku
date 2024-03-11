@@ -130,7 +130,7 @@ We include an example below.
 ```
 
 
-### Connecting to the `wakuv2.prod` network
+### Connecting to the `waku.sandbox` network
 
 You can use DNS discovery to bootstrap connection to the existing production network.
 Discovery v5 will attempt to extract the ENRs of the discovered nodes as bootstrap entries to the routing table.
@@ -138,11 +138,11 @@ Discovery v5 will attempt to extract the ENRs of the discovered nodes as bootstr
 ```sh
 ./build/waku \
   --dns-discovery=true \
-  --dns-discovery-url=enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im \
+  --dns-discovery-url=enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im \
   --discv5-discovery=true
 ```
 
-### Connecting to the `wakuv2.test` network
+### Connecting to the `waku.test` network
 
 You can use DNS discovery to bootstrap connection to the existing test network.
 Discovery v5 will attempt to extract the ENRs of the discovered nodes as bootstrap entries to the routing table.
@@ -150,7 +150,7 @@ Discovery v5 will attempt to extract the ENRs of the discovered nodes as bootstr
 ```sh
 ./build/waku \
   --dns-discovery=true \
-  --dns-discovery-url=enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im \
+  --dns-discovery-url=enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im \
   --discv5-discovery=true
 ```
 
@@ -159,7 +159,7 @@ Discovery v5 will attempt to extract the ENRs of the discovered nodes as bootstr
 Often go-waku nodes choose to also store historical messages
 from where it can be queried by other peers who may have been temporarily offline.
 For example, a typical configuration for such a store service node,
-[connecting to the `wakuv2.test`](#connecting-to-the-wakuv2test-fleet) fleet on startup,
+[connecting to the `waku.test`](#connecting-to-the-wakutest-network) fleet on startup,
 appears below.
 
 ```sh
@@ -169,7 +169,7 @@ appears below.
   --db-path=/mnt/go-waku/data/db1/ \
   --store-capacity=150000 \
   --dns-discovery=true \
-  --dns-discovery-url=enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im \
+  --dns-discovery-url=enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im \
   --discv5-discovery=true
 ```
 

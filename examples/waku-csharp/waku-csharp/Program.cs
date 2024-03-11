@@ -45,7 +45,7 @@ Console.WriteLine(">>> Default pubsub topic: " + Waku.Utils.DefaultPubsubTopic()
 
 try
 {
-    node.Connect("/dns4/node-01.gc-us-central1-a.wakuv2.test.statusim.net/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS");
+    node.Connect("/dns4/node-01.gc-us-central1-a.waku.test.statusim.net/tcp/30303/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG");
     Console.WriteLine(">>> Connected to Peer");
 
     foreach (Waku.Peer peer in node.Peers())

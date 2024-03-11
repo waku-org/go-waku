@@ -131,7 +131,7 @@ func main() {
 func discoverFleetNodes(wakuNode *node.WakuNode) error {
 	log.Info("Connecting to test fleet...")
 
-	dnsDiscoveryUrl := "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im"
+	dnsDiscoveryUrl := "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
 	nodes, err := dnsdisc.RetrieveNodes(context.Background(), dnsDiscoveryUrl)
 	if err != nil {
 		return err
