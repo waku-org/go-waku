@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
@@ -404,5 +405,27 @@ func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
 	// Check peer store of the client does contain peer2 and peer4 after the request
 	require.True(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
 	require.True(t, slices.Contains(host3.Peerstore().Peers(), host4.ID()))
+
+}
+
+func TestRecordError(t *testing.T) {
+
+	m := newMetrics(prometheus.DefaultRegisterer)
+
+	// Increment error counter for rateLimitFailure 7 times
+	for i := 0; i < 7; i++ {
+		m.RecordError(rateLimitFailure)
+	}
+
+	// Retrieve metric values
+	counter, _ := peerExchangeErrors.GetMetricWithLabelValues(string(rateLimitFailure))
+	rateLimitFailures := &dto.Metric{}
+
+	// Store values into metric client struct
+	err := counter.Write(rateLimitFailures)
+	require.NoError(t, err)
+
+	// Check the count is in
+	require.Equal(t, 7, int(rateLimitFailures.GetCounter().GetValue()))
 
 }
