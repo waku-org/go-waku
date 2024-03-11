@@ -109,6 +109,8 @@ func (wakuM *WakuMetadata) Request(ctx context.Context, peerID peer.ID) (*protoc
 	request := &pb.WakuMetadataRequest{}
 	request.ClusterId = clusterID
 	request.Shards = shards
+	// TODO: remove with nwaku 0.28 deployment
+	request.ShardsDeprecated = shards // nolint: staticcheck
 
 	writer := pbio.NewDelimitedWriter(stream)
 	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
@@ -140,8 +142,15 @@ func (wakuM *WakuMetadata) Request(ctx context.Context, peerID peer.ID) (*protoc
 
 	rClusterID := uint16(*response.ClusterId)
 	var rShardIDs []uint16
-	for _, i := range response.Shards {
-		rShardIDs = append(rShardIDs, uint16(i))
+	if len(response.Shards) != 0 {
+		for _, i := range response.Shards {
+			rShardIDs = append(rShardIDs, uint16(i))
+		}
+	} else {
+		// TODO: remove with nwaku 0.28 deployment
+		for _, i := range response.ShardsDeprecated { // nolint: staticcheck
+			rShardIDs = append(rShardIDs, uint16(i))
+		}
 	}
 
 	rs, err := protocol.NewRelayShards(rClusterID, rShardIDs...)
@@ -177,6 +186,8 @@ func (wakuM *WakuMetadata) onRequest(ctx context.Context) func(network.Stream) {
 		} else {
 			response.ClusterId = clusterID
 			response.Shards = shards
+			// TODO: remove with nwaku 0.28 deployment
+			response.ShardsDeprecated = shards // nolint: staticcheck
 		}
 
 		err = writer.WriteMsg(response)
