@@ -292,8 +292,8 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	pm3.SetHost(host3)
 	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
 	require.NoError(t, err)
-	pm3.SetPeerConnector(pxPeerConn3)
-	pm3.Start(context.Background())
+	pxPeerConn3.SetHost(host3)
+	pxPeerConn3.Start(context.Background())
 
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
@@ -309,18 +309,9 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	err = px1.Start(context.Background())
 	require.NoError(t, err)
 
-	err = px3.Start(context.Background())
-	require.NoError(t, err)
+	time.Sleep(5 * time.Second)
 
-	time.Sleep(30 * time.Second)
-
-	log.Info("Host1 is", zap.String("peer", host1.ID().String()))
-	log.Info("Host2 is", zap.String("peer", host2.ID().String()))
-	log.Info("Host3 is", zap.String("peer", host3.ID().String()))
-
-	for _, peer := range host3.Peerstore().Peers() {
-		log.Info("Host3 knows before", zap.String("peer", peer.String()))
-	}
+	// Check peer store of the client doesn't contain peer2 before the request
 	require.False(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
 
 	// Construct multi address like example "/ip4/0.0.0.0/tcp/30304/p2p/16Uiu2HAmBu5zRFzBGAzzMAuGWhaxN2EwcbW7CzibELQELzisf192"
@@ -331,11 +322,9 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	err = px3.Request(context.Background(), 1, WithPeerAddr(host1MultiAddr))
 	require.NoError(t, err)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(5 * time.Second)
 
-	for _, peer := range host3.Peerstore().Peers() {
-		log.Info("Host3 knows after", zap.String("peer", peer.String()))
-	}
+	// Check peer store of the client does contain peer2 after the request
 	require.True(t, slices.Contains(host3.Peerstore().Peers(), host2.ID()))
 
 }
