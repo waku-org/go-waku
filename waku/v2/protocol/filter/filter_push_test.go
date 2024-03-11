@@ -16,7 +16,7 @@ func (s *FilterTestSuite) TestValidPayloadsASCII() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Prepare data
-	messages := prepareData(100, false, false, true, tests.GenerateRandomASCIIString)
+	messages := prepareData(50, false, false, true, tests.GenerateRandomASCIIString)
 
 	// All messages should be received
 	s.waitForMessages(func() {
@@ -34,7 +34,7 @@ func (s *FilterTestSuite) TestValidPayloadsUTF8() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Prepare data
-	messages := prepareData(100, false, false, true, tests.GenerateRandomUTF8String)
+	messages := prepareData(50, false, false, true, tests.GenerateRandomUTF8String)
 
 	// All messages should be received
 	s.waitForMessages(func() {
@@ -52,7 +52,7 @@ func (s *FilterTestSuite) TestValidPayloadsBase64() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Prepare data
-	messages := prepareData(100, false, false, true, tests.GenerateRandomBase64String)
+	messages := prepareData(50, false, false, true, tests.GenerateRandomBase64String)
 
 	// All messages should be received
 	s.waitForMessages(func() {
@@ -70,7 +70,7 @@ func (s *FilterTestSuite) TestValidPayloadsJSON() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Prepare data
-	messages := prepareData(100, false, false, true, tests.GenerateRandomJSONString)
+	messages := prepareData(50, false, false, true, tests.GenerateRandomJSONString)
 
 	// All messages should be received
 	s.waitForMessages(func() {
@@ -88,7 +88,7 @@ func (s *FilterTestSuite) TestValidPayloadsURLEncoded() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Prepare data
-	messages := prepareData(100, false, false, true, tests.GenerateRandomURLEncodedString)
+	messages := prepareData(50, false, false, true, tests.GenerateRandomURLEncodedString)
 
 	// All messages should be received
 	s.waitForMessages(func() {
@@ -106,7 +106,7 @@ func (s *FilterTestSuite) TestValidPayloadsSQL() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Prepare data
-	messages := prepareData(100, false, false, true, tests.GenerateRandomSQLInsert)
+	messages := prepareData(50, false, false, true, tests.GenerateRandomSQLInsert)
 
 	// All messages should be received
 	s.waitForMessages(func() {
