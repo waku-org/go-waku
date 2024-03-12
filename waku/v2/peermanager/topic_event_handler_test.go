@@ -59,7 +59,7 @@ func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h *host.Host)
 	return pm, relayEvtBus
 }
 
-func emitTopicEvent(t *testing.T, pubSubTopic string, peerID peer.ID, emitter event.Emitter, state relay.PeerTopicState) {
+func emitTopicEvent(pubSubTopic string, peerID peer.ID, emitter event.Emitter, state relay.PeerTopicState) error {
 
 	peerEvt := relay.EvtPeerTopic{
 		PubsubTopic: pubSubTopic,
@@ -67,8 +67,7 @@ func emitTopicEvent(t *testing.T, pubSubTopic string, peerID peer.ID, emitter ev
 		State:       state,
 	}
 
-	err := emitter.Emit(peerEvt)
-	require.NoError(t, err)
+	return emitter.Emit(peerEvt)
 }
 
 func TestSubscribeToRelayEvtBus(t *testing.T) {
@@ -188,7 +187,8 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 
 	// Send PEER_JOINED events for hosts 2-5
 	for i := 1; i < 5; i++ {
-		emitTopicEvent(t, pubSubTopic, hosts[i].ID(), emitter, relay.PEER_JOINED)
+		err = emitTopicEvent(pubSubTopic, hosts[i].ID(), emitter, relay.PEER_JOINED)
+		require.NoError(t, err)
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -202,7 +202,8 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 
 	// Send PEER_LEFT events for hosts 2-5
 	for i := 1; i < 5; i++ {
-		emitTopicEvent(t, pubSubTopic, hosts[i].ID(), emitter, relay.PEER_LEFT)
+		err = emitTopicEvent(pubSubTopic, hosts[i].ID(), emitter, relay.PEER_LEFT)
+		require.NoError(t, err)
 		time.Sleep(100 * time.Millisecond)
 	}
 
