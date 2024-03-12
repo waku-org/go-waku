@@ -41,6 +41,9 @@ func TestServiceSlot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(maps.Keys(fetchedPeers)))
 
+	// Check for uniqueness
+	require.NotEqual(t, maps.Keys(fetchedPeers)[0], maps.Keys(fetchedPeers)[1])
+
 	slots.getPeers(protocol).remove(peerID2)
 
 	fetchedPeers, err = slots.getPeers(protocol).getRandom(10)
