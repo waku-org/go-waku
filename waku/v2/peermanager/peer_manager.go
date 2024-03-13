@@ -20,6 +20,7 @@ import (
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	"github.com/waku-org/go-waku/waku/v2/protocol/metadata"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
 
@@ -68,6 +69,7 @@ type WakuProtoInfo struct {
 // PeerManager applies various controls and manage connections towards peers.
 type PeerManager struct {
 	peerConnector          *PeerConnectionStrategy
+	metadata               *metadata.WakuMetadata
 	maxPeers               int
 	maxRelayPeers          int
 	logger                 *zap.Logger
@@ -167,7 +169,7 @@ func (pm *PeerManager) TopicHealth(pubsubTopic string) (TopicHealth, error) {
 }
 
 // NewPeerManager creates a new peerManager instance.
-func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerManager {
+func NewPeerManager(maxConnections int, maxPeers int, metadata *metadata.WakuMetadata, logger *zap.Logger) *PeerManager {
 
 	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
 	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
@@ -178,6 +180,7 @@ func NewPeerManager(maxConnections int, maxPeers int, logger *zap.Logger) *PeerM
 
 	pm := &PeerManager{
 		logger:                 logger.Named("peer-manager"),
+		metadata:               metadata,
 		maxRelayPeers:          maxRelayPeers,
 		InRelayPeersTarget:     inRelayPeersTarget,
 		OutRelayPeersTarget:    outRelayPeersTarget,

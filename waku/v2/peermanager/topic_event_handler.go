@@ -2,6 +2,7 @@ package peermanager
 
 import (
 	"context"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -120,11 +121,29 @@ func (pm *PeerManager) handlerPeerTopicEvent(peerEvt relay.EvtPeerTopic) {
 	wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
 	peerID := peerEvt.PeerID
 	if peerEvt.State == relay.PEER_JOINED {
-		err := wps.AddPubSubTopic(peerID, peerEvt.PubsubTopic)
+		rs, err := pm.metadata.RelayShard()
+		if err != nil {
+			pm.logger.Error("could not obtain the cluster and shards of wakunode", zap.Error(err))
+			return
+		} else if rs == nil {
+			pm.logger.Info("not using sharding")
+			return
+		}
+
+		if pm.metadata != nil && rs.ClusterID != 0 {
+			ctx, cancel := context.WithTimeout(pm.ctx, 7*time.Second)
+			defer cancel()
+			if err := pm.metadata.DisconnectPeerOnShardMismatch(ctx, peerEvt.PeerID); err != nil {
+				return
+			}
+		}
+
+		err = wps.AddPubSubTopic(peerID, peerEvt.PubsubTopic)
 		if err != nil {
 			pm.logger.Error("failed to add pubSubTopic for peer",
 				logging.HostID("peerID", peerID), zap.String("topic", peerEvt.PubsubTopic), zap.Error(err))
 		}
+
 		pm.topicMutex.RLock()
 		defer pm.topicMutex.RUnlock()
 		pm.checkAndUpdateTopicHealth(pm.subRelayTopics[peerEvt.PubsubTopic])

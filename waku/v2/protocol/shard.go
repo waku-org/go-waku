@@ -64,19 +64,25 @@ func (rs RelayShards) Topics() []WakuPubSubTopic {
 	return result
 }
 
-func (rs RelayShards) Contains(cluster uint16, index uint16) bool {
+func (rs RelayShards) ContainsAnyShard(cluster uint16, indexes []uint16) bool {
 	if rs.ClusterID != cluster {
 		return false
 	}
 
 	found := false
-	for _, idx := range rs.ShardIDs {
-		if idx == index {
-			found = true
+	for _, rsIdx := range rs.ShardIDs {
+		for _, idx := range indexes {
+			if rsIdx == idx {
+				return true
+			}
 		}
 	}
 
 	return found
+}
+
+func (rs RelayShards) Contains(cluster uint16, index uint16) bool {
+	return rs.ContainsAnyShard(cluster, []uint16{index})
 }
 
 func (rs RelayShards) ContainsShardPubsubTopic(topic WakuPubSubTopic) bool {
