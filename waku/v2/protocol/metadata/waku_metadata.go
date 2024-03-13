@@ -11,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-msgio/pbio"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -64,15 +63,17 @@ func (wakuM *WakuMetadata) Start(ctx context.Context) error {
 	wakuM.ctx = ctx
 	wakuM.cancel = cancel
 
-	wakuM.h.Network().Notify(wakuM)
-
 	wakuM.h.SetStreamHandlerMatch(MetadataID_v1, protocol.PrefixTextMatch(string(MetadataID_v1)), wakuM.onRequest(ctx))
 	wakuM.log.Info("metadata protocol started")
 	return nil
 }
 
-func (wakuM *WakuMetadata) getClusterAndShards() (*uint32, []uint32, error) {
-	shard, err := enr.RelaySharding(wakuM.localnode.Node().Record())
+func (wakuM *WakuMetadata) RelayShard() (*protocol.RelayShards, error) {
+	return enr.RelaySharding(wakuM.localnode.Node().Record())
+}
+
+func (wakuM *WakuMetadata) ClusterAndShards() (*uint32, []uint32, error) {
+	shard, err := wakuM.RelayShard()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -98,7 +99,7 @@ func (wakuM *WakuMetadata) Request(ctx context.Context, peerID peer.ID) (*protoc
 		return nil, err
 	}
 
-	clusterID, shards, err := wakuM.getClusterAndShards()
+	clusterID, shards, err := wakuM.ClusterAndShards()
 	if err != nil {
 		if err := stream.Reset(); err != nil {
 			wakuM.log.Error("resetting connection", zap.Error(err))
@@ -180,7 +181,7 @@ func (wakuM *WakuMetadata) onRequest(ctx context.Context) func(network.Stream) {
 
 		response := new(pb.WakuMetadataResponse)
 
-		clusterID, shards, err := wakuM.getClusterAndShards()
+		clusterID, shards, err := wakuM.ClusterAndShards()
 		if err != nil {
 			logger.Error("obtaining shard info", zap.Error(err))
 		} else {
@@ -213,50 +214,4 @@ func (wakuM *WakuMetadata) Stop() {
 	wakuM.cancel()
 	wakuM.h.RemoveStreamHandler(MetadataID_v1)
 
-}
-
-// Listen is called when network starts listening on an addr
-func (wakuM *WakuMetadata) Listen(n network.Network, m multiaddr.Multiaddr) {
-	// Do nothing
-}
-
-// ListenClose is called when network stops listening on an address
-func (wakuM *WakuMetadata) ListenClose(n network.Network, m multiaddr.Multiaddr) {
-	// Do nothing
-}
-
-func (wakuM *WakuMetadata) disconnectPeer(peerID peer.ID, reason error) {
-	logger := wakuM.log.With(logging.HostID("peerID", peerID))
-	logger.Error("disconnecting from peer", zap.Error(reason))
-	wakuM.h.Peerstore().RemovePeer(peerID)
-	if err := wakuM.h.Network().ClosePeer(peerID); err != nil {
-		logger.Error("could not disconnect from peer", zap.Error(err))
-	}
-}
-
-// Connected is called when a connection is opened
-func (wakuM *WakuMetadata) Connected(n network.Network, cc network.Conn) {
-	go func() {
-		// Metadata verification is done only if a clusterID is specified
-		if wakuM.clusterID == 0 {
-			return
-		}
-
-		peerID := cc.RemotePeer()
-
-		shard, err := wakuM.Request(wakuM.ctx, peerID)
-		if err != nil {
-			wakuM.disconnectPeer(peerID, err)
-			return
-		}
-
-		if shard.ClusterID != wakuM.clusterID {
-			wakuM.disconnectPeer(peerID, errors.New("different clusterID reported"))
-		}
-	}()
-}
-
-// Disconnected is called when a connection closed
-func (wakuM *WakuMetadata) Disconnected(n network.Network, cc network.Conn) {
-	// Do nothing
 }

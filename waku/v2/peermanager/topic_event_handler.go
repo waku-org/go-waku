@@ -120,7 +120,38 @@ func (pm *PeerManager) handlerPeerTopicEvent(peerEvt relay.EvtPeerTopic) {
 	wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
 	peerID := peerEvt.PeerID
 	if peerEvt.State == relay.PEER_JOINED {
-		err := wps.AddPubSubTopic(peerID, peerEvt.PubsubTopic)
+		rs, err := pm.metadata.RelayShard()
+		if err != nil {
+			pm.logger.Error("could not obtain the cluster and shards of wakunode", zap.Error(err))
+			return
+		} else if rs == nil {
+			pm.logger.Info("not using sharding")
+			return
+		}
+
+		if pm.metadata != nil && rs.ClusterID != 0 {
+			shouldDisconnect := false
+
+			logger := pm.logger.With(logging.HostID("peerID", peerID))
+			shard, err := pm.metadata.Request(pm.ctx, peerID)
+			if err != nil {
+				shouldDisconnect = true
+				logger.Error("metadata request failed", zap.Error(err))
+			} else if !rs.ContainsAnyShard(shard.ClusterID, shard.ShardIDs) {
+				shouldDisconnect = true
+				logger.Debug("shard mismatch", zap.Uint16("ourClusterID", rs.ClusterID), zap.Uint16s("ourShardIDs", rs.ShardIDs), zap.Uint16("theirClusterID", shard.ClusterID), zap.Uint16s("theirShardIDs", shard.ShardIDs))
+			}
+
+			if shouldDisconnect {
+				pm.host.Peerstore().RemovePeer(peerID)
+				if err := pm.host.Network().ClosePeer(peerID); err != nil {
+					logger.Error("could not disconnect from peer", zap.Error(err))
+				}
+				return
+			}
+		}
+
+		err = wps.AddPubSubTopic(peerID, peerEvt.PubsubTopic)
 		if err != nil {
 			pm.logger.Error("failed to add pubSubTopic for peer",
 				logging.HostID("peerID", peerID), zap.String("topic", peerEvt.PubsubTopic), zap.Error(err))
