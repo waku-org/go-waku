@@ -12,7 +12,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/waku-org/go-discover/discover"
+
+	//"github.com/waku-org/go-discover/discover"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -33,11 +34,11 @@ type PeerConnector interface {
 }
 
 type DiscoveryV5 struct {
-	params    *discV5Parameters
-	host      host.Host
-	config    discover.Config
-	udpAddr   *net.UDPAddr
-	listener  *discover.UDPv5
+	params *discV5Parameters
+	host   host.Host
+	//config    discover.Config
+	udpAddr *net.UDPAddr
+	//listener  *discover.UDPv5
 	localnode *enode.LocalNode
 	metrics   Metrics
 
@@ -142,13 +143,14 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 		CommonDiscoveryService: service.NewCommonDiscoveryService(),
 		localnode:              localnode,
 		metrics:                newMetrics(reg),
-		config: discover.Config{
-			PrivateKey: priv,
-			Bootnodes:  bootnodes,
-			V5Config: discover.V5Config{
-				ProtocolID: &protocolID,
-			},
-		},
+		/*
+			config: discover.Config{
+				PrivateKey: priv,
+				Bootnodes:  bootnodes,
+				V5Config: discover.V5Config{
+					ProtocolID: &protocolID,
+				},
+			},*/
 		udpAddr: &net.UDPAddr{
 			IP:   net.IPv4zero,
 			Port: int(params.udpPort),
@@ -180,12 +182,12 @@ func (d *DiscoveryV5) listen(ctx context.Context) error {
 
 	d.localnode.SetFallbackUDP(d.udpAddr.Port)
 
-	listener, err := discover.ListenV5(conn, d.localnode, d.config)
-	if err != nil {
-		return err
-	}
+	//listener, err := discover.ListenV5(conn, d.localnode, d.config)
+	//if err != nil {
+	//	return err
+	//}
 
-	d.listener = listener
+	//d.listener = listener
 
 	d.log.Info("started Discovery V5",
 		zap.Stringer("listening", d.udpAddr),
@@ -226,11 +228,12 @@ func (d *DiscoveryV5) start() error {
 
 // SetBootnodes is used to setup the bootstrap nodes to use for discovering new peers
 func (d *DiscoveryV5) SetBootnodes(nodes []*enode.Node) error {
-	if d.listener == nil {
-		return ErrNoDiscV5Listener
-	}
+	//if d.listener == nil {
+	//	return ErrNoDiscV5Listener
+	//}
 
-	return d.listener.SetFallbackNodes(nodes)
+	//return d.listener.SetFallbackNodes(nodes)
+	return nil
 }
 
 // Stop is a function that stops the execution of DiscV5.
@@ -242,13 +245,14 @@ func (d *DiscoveryV5) Stop() {
 			d.log.Info("recovering from panic and quitting")
 		}
 	}()
-	d.CommonDiscoveryService.Stop(func() {
-		if d.listener != nil {
-			d.listener.Close()
-			d.listener = nil
-			d.log.Info("stopped Discovery V5")
-		}
-	})
+	/*
+		d.CommonDiscoveryService.Stop(func() {
+			if d.listener != nil {
+				d.listener.Close()
+				d.listener = nil
+				d.log.Info("stopped Discovery V5")
+			}
+		})*/
 }
 
 func isWakuNode(node *enode.Node) bool {
@@ -297,18 +301,21 @@ type Predicate func(enode.Iterator) enode.Iterator
 // Used for caching enr address in peerExchange
 // Used for connecting to peers in discovery_connector
 func (d *DiscoveryV5) PeerIterator(predicate ...Predicate) (enode.Iterator, error) {
-	if d.listener == nil {
-		return nil, ErrNoDiscV5Listener
-	}
+	iterator := enode.IterNodes(nil)
+	/*
+		if d.listener == nil {
+			return nil, ErrNoDiscV5Listener
+		}
 
-	iterator := enode.Filter(d.listener.RandomNodes(), d.evaluateNode())
-	if d.params.loopPredicate != nil {
-		iterator = enode.Filter(iterator, d.params.loopPredicate)
-	}
+		iterator := enode.Filter(d.listener.RandomNodes(), d.evaluateNode())
+		if d.params.loopPredicate != nil {
+			iterator = enode.Filter(iterator, d.params.loopPredicate)
+		}
 
-	for _, p := range predicate {
-		iterator = p(iterator)
-	}
+		for _, p := range predicate {
+			iterator = p(iterator)
+		}
+	*/
 
 	return iterator, nil
 }
@@ -458,20 +465,22 @@ func (d *DiscoveryV5) peerLoop(ctx context.Context) error {
 }
 
 func (d *DiscoveryV5) runDiscoveryV5Loop(ctx context.Context) {
-	if len(d.config.Bootnodes) > 0 {
-		localRS, err := wenr.RelaySharding(d.localnode.Node().Record())
-		if err == nil && localRS != nil {
-			iterator := d.DefaultPredicate()(enode.IterNodes(d.config.Bootnodes))
-			validBootCount := 0
-			for iterator.Next() {
-				validBootCount++
-			}
+	/*
+		if len(d.config.Bootnodes) > 0 {
+			localRS, err := wenr.RelaySharding(d.localnode.Node().Record())
+			if err == nil && localRS != nil {
+				iterator := d.DefaultPredicate()(enode.IterNodes(d.config.Bootnodes))
+				validBootCount := 0
+				for iterator.Next() {
+					validBootCount++
+				}
 
-			if validBootCount == 0 {
-				d.log.Warn("no discv5 bootstrap nodes share this node configured shards")
+				if validBootCount == 0 {
+					d.log.Warn("no discv5 bootstrap nodes share this node configured shards")
+				}
 			}
 		}
-	}
+	*/
 
 restartLoop:
 	for {

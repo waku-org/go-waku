@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -68,7 +69,7 @@ func (d *DebugService) getV1Version(w http.ResponseWriter, req *http.Request) {
 type MerkleProofResponse struct {
 	MerkleRoot        string   `json:"root"`
 	MerkePathElements []string `json:"pathElements"`
-	MerkePathIndexes  []uint8  `json:"pathIndexes"`
+	MerkePathIndexes  []string `json:"pathIndexes"`
 	LeafIndex         uint64   `json:"leafIndex"`
 	CommitmentId      string   `json:"commitmentId"`
 }
@@ -135,17 +136,17 @@ func (d *DebugService) getV1MerkleProof(w http.ResponseWriter, req *http.Request
 	}
 
 	elementsStr := make([]string, 0)
-	indexesStr := make([]uint8, 0)
+	indexesStr := make([]string, 0)
 
 	for _, path := range merkleProof.PathElements {
 		fmt.Println("path: ", path)
 		elementsStr = append(elementsStr, hex.EncodeToString(path[:]))
 	}
 	for _, index := range merkleProof.PathIndexes {
-		indexesStr = append(indexesStr, uint8(index))
+		indexesStr = append(indexesStr, strconv.Itoa(int(index)))
 	}
 
-	// TODO: Not nide to get proof and root in different non atomic calls. In an unlikely edge case the tree can change between the two calls
+	// TODO: Not nice to get proof and root in different non atomic calls. In an unlikely edge case the tree can change between the two calls
 	// if a membership is added. Proof of concept by now.
 	merkleRoot, err := rlnInstance.GetMerkleRoot()
 	if err != nil {
