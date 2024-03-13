@@ -173,15 +173,15 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 		log.Info("No peers for the topic yet")
 	}
 
+	// Start event loop to listen to events
+	ctxEventLoop := context.Background()
+	go pm.peerEventLoop(ctxEventLoop)
+
 	for i := 1; i < 5; i++ {
 		// Subscribe to Pubsub topic on first host only
 		_, err := relays[i].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
 		require.NoError(t, err)
 	}
-
-	// Start event loop to listen to events
-	ctxEventLoop := context.Background()
-	go pm.peerEventLoop(ctxEventLoop)
 
 	//// Prepare emitter
 	//emitter, err := eventBus.Emitter(new(relay.EvtPeerTopic))
