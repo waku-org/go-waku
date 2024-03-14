@@ -317,9 +317,7 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 
 	// Check nodes1 and nodes2 were discovered and node3 wasn't
 	for _, peer := range peers {
-		if _, found := allPeers[peer.AddrInfo.ID.String()]; found {
-			delete(allPeers, peer.AddrInfo.ID.String())
-		}
+		delete(allPeers, peer.AddrInfo.ID.String())
 	}
 
 	require.Equal(t, 1, len(allPeers))
