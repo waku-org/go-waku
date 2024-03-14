@@ -2,6 +2,7 @@ package discv5
 
 import (
 	"context"
+	dto "github.com/prometheus/client_model/go"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	wakuproto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/service"
@@ -327,4 +328,26 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 
 	d3.Stop()
 	peerconn3.Clear()
+}
+
+func TestRecordError(t *testing.T) {
+
+	m := newMetrics(prometheus.DefaultRegisterer)
+
+	// Increment error counter for rateLimitFailure 7 times
+	for i := 0; i < 7; i++ {
+		m.RecordError(iteratorFailure)
+	}
+
+	// Retrieve metric values
+	counter, _ := discV5Errors.GetMetricWithLabelValues(string(iteratorFailure))
+	failures := &dto.Metric{}
+
+	// Store values into metric client struct
+	err := counter.Write(failures)
+	require.NoError(t, err)
+
+	// Check the count is in
+	require.Equal(t, 7, int(failures.GetCounter().GetValue()))
+
 }
