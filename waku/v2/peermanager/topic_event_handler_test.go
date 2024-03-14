@@ -152,7 +152,7 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 	}
 
 	// Create peer manager instance with the first hosts
-	pm, _ := makePeerManagerWithEventBus(t, relays[0], &hosts[0])
+	pm, eventBus := makePeerManagerWithEventBus(t, relays[0], &hosts[0])
 	pm.ctx = ctx
 	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
@@ -173,29 +173,24 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 		log.Info("No peers for the topic yet")
 	}
 
+	// Subscribe to Pubsub topic on first host only
+	_, err := relays[0].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
+	require.NoError(t, err)
+
 	// Start event loop to listen to events
 	ctxEventLoop := context.Background()
 	go pm.peerEventLoop(ctxEventLoop)
 
+	// Prepare emitter
+	emitter, err := eventBus.Emitter(new(relay.EvtPeerTopic))
+	require.NoError(t, err)
+
+	// Send PEER_JOINED events for hosts 2-5
 	for i := 1; i < 5; i++ {
-		// Subscribe to Pubsub topic on first host only
-		_, err := relays[i].Subscribe(ctx, protocol.NewContentFilter(pubSubTopic))
+		err = emitTopicEvent(pubSubTopic, hosts[i].ID(), emitter, relay.PEER_JOINED)
 		require.NoError(t, err)
+		time.Sleep(100 * time.Millisecond)
 	}
-
-	//// Prepare emitter
-	//emitter, err := eventBus.Emitter(new(relay.EvtPeerTopic))
-	//require.NoError(t, err)
-
-	//// Send PEER_JOINED events for hosts 2-5
-	//for i := 1; i < 5; i++ {
-	//	err = emitTopicEvent(pubSubTopic, hosts[i].ID(), emitter, relay.PEER_JOINED)
-	//	require.NoError(t, err)
-	//	time.Sleep(100 * time.Millisecond)
-	//}
-
-	// Wait for connections to settle
-	time.Sleep(30 * time.Second)
 
 	// Check four hosts have joined the topic
 	require.Equal(t, 4, len(pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic)))
@@ -205,14 +200,14 @@ func TestHandlePeerTopicEvent(t *testing.T) {
 		require.Equal(t, network.Connected, pm.host.Network().Connectedness(peer))
 	}
 
-	//// Send PEER_LEFT events for hosts 2-5
-	//for i := 1; i < 5; i++ {
-	//	err = emitTopicEvent(pubSubTopic, hosts[i].ID(), emitter, relay.PEER_LEFT)
-	//	require.NoError(t, err)
-	//	time.Sleep(100 * time.Millisecond)
-	//}
-	//
-	//// Check all hosts have left the topic
-	//require.Equal(t, 0, len(pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic)))
+	// Send PEER_LEFT events for hosts 2-5
+	for i := 1; i < 5; i++ {
+		err = emitTopicEvent(pubSubTopic, hosts[i].ID(), emitter, relay.PEER_LEFT)
+		require.NoError(t, err)
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Check all hosts have left the topic
+	require.Equal(t, 0, len(pm.host.Peerstore().(*wps.WakuPeerstoreImpl).PeersByPubSubTopic(pubSubTopic)))
 
 }
