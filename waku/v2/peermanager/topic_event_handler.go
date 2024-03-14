@@ -2,6 +2,7 @@ package peermanager
 
 import (
 	"context"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -130,23 +131,9 @@ func (pm *PeerManager) handlerPeerTopicEvent(peerEvt relay.EvtPeerTopic) {
 		}
 
 		if pm.metadata != nil && rs.ClusterID != 0 {
-			shouldDisconnect := false
-
-			logger := pm.logger.With(logging.HostID("peerID", peerID))
-			shard, err := pm.metadata.Request(pm.ctx, peerID)
-			if err != nil {
-				shouldDisconnect = true
-				logger.Error("metadata request failed", zap.Error(err))
-			} else if !rs.ContainsAnyShard(shard.ClusterID, shard.ShardIDs) {
-				shouldDisconnect = true
-				logger.Debug("shard mismatch", zap.Uint16("ourClusterID", rs.ClusterID), zap.Uint16s("ourShardIDs", rs.ShardIDs), zap.Uint16("theirClusterID", shard.ClusterID), zap.Uint16s("theirShardIDs", shard.ShardIDs))
-			}
-
-			if shouldDisconnect {
-				pm.host.Peerstore().RemovePeer(peerID)
-				if err := pm.host.Network().ClosePeer(peerID); err != nil {
-					logger.Error("could not disconnect from peer", zap.Error(err))
-				}
+			ctx, cancel := context.WithTimeout(pm.ctx, 7*time.Second)
+			defer cancel()
+			if err := pm.metadata.DisconnectPeerOnShardMismatch(ctx, peerEvt.PeerID); err != nil {
 				return
 			}
 		}
@@ -156,6 +143,7 @@ func (pm *PeerManager) handlerPeerTopicEvent(peerEvt relay.EvtPeerTopic) {
 			pm.logger.Error("failed to add pubSubTopic for peer",
 				logging.HostID("peerID", peerID), zap.String("topic", peerEvt.PubsubTopic), zap.Error(err))
 		}
+
 		pm.topicMutex.RLock()
 		defer pm.topicMutex.RUnlock()
 		pm.checkAndUpdateTopicHealth(pm.subRelayTopics[peerEvt.PubsubTopic])
