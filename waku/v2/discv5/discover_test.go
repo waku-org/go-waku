@@ -328,7 +328,7 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 	peerconn3.Clear()
 }
 
-func TestRecordError(t *testing.T) {
+func TestRecordErrorIteratorFailure(t *testing.T) {
 
 	m := newMetrics(prometheus.DefaultRegisterer)
 
