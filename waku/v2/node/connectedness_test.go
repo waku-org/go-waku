@@ -49,6 +49,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 	node1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
+		WithClusterID(16),
 		WithTopicHealthStatusChannel(topicHealthStatusChan),
 	)
 	require.NoError(t, err)
@@ -118,6 +119,7 @@ func startNodeAndSubscribe(t *testing.T, ctx context.Context) *WakuNode {
 	node, err := New(
 		WithHostAddress(hostAddr),
 		WithWakuRelay(),
+		WithClusterID(16),
 	)
 	require.NoError(t, err)
 	err = node.Start(ctx)
