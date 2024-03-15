@@ -305,7 +305,7 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 	require.True(t, peerconn3.HasPeer(host1.ID()) && peerconn3.HasPeer(host2.ID()))
 
 	// Request two nodes
-	peers, err := discoverFilterOnDemand(iterator3, 2)
+	peers, err := discoverFilterOnDemand(iterator3, 10)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(peers))
 
