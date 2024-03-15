@@ -177,9 +177,6 @@ func TestDiscV5WithCapabilitiesFilter(t *testing.T) {
 	peerconn2 := NewTestPeerDiscoverer()
 	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort2)))
 	require.NoError(t, err)
-	// Set boot node after the DiscoveryV5 was created
-	err = d2.SetBootnodes([]*enode.Node{d1.localnode.Node()})
-	require.NoError(t, err)
 	d2.SetHost(host2)
 
 	// H3
@@ -203,8 +200,14 @@ func TestDiscV5WithCapabilitiesFilter(t *testing.T) {
 
 	err = d2.Start(context.Background())
 	require.NoError(t, err)
+	// Set boot nodes for node2 after the DiscoveryV5 was created
+	err = d2.SetBootnodes([]*enode.Node{d1.localnode.Node()})
+	require.NoError(t, err)
 
 	err = d3.Start(context.Background())
+	require.NoError(t, err)
+	// Set boot nodes for node3 after the DiscoveryV5 was created
+	err = d3.SetBootnodes([]*enode.Node{d2.localnode.Node()})
 	require.NoError(t, err)
 
 	// Desired node capabilities
