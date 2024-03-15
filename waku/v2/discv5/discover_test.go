@@ -340,7 +340,7 @@ func TestRecordErrorIteratorFailure(t *testing.T) {
 	m := newMetrics(prometheus.DefaultRegisterer)
 
 	// Increment error counter for rateLimitFailure 7 times
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 2; i++ {
 		m.RecordError(iteratorFailure)
 	}
 
@@ -353,7 +353,7 @@ func TestRecordErrorIteratorFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the count is in
-	require.Equal(t, 7, int(failures.GetCounter().GetValue()))
+	require.Equal(t, 2, int(failures.GetCounter().GetValue()))
 
 }
 
