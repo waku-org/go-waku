@@ -175,7 +175,10 @@ func TestDiscV5WithCapabilitiesFilter(t *testing.T) {
 	l2, err := tests.NewLocalnode(prvKey2, ip2, udpPort2, wenr.NewWakuEnrBitfield(true, true, false, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn2 := NewTestPeerDiscoverer()
-	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort2)), WithBootnodes([]*enode.Node{d1.localnode.Node()}))
+	d2, err := NewDiscoveryV5(prvKey2, l2, peerconn2, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort2)))
+	require.NoError(t, err)
+	// Set boot node after the DiscoveryV5 was created
+	err = d2.SetBootnodes([]*enode.Node{d1.localnode.Node()})
 	require.NoError(t, err)
 	d2.SetHost(host2)
 
@@ -187,7 +190,7 @@ func TestDiscV5WithCapabilitiesFilter(t *testing.T) {
 	l3, err := tests.NewLocalnode(prvKey3, ip3, udpPort3, wenr.NewWakuEnrBitfield(true, true, false, true), nil, utils.Logger())
 	require.NoError(t, err)
 	peerconn3 := NewTestPeerDiscoverer()
-	d3, err := NewDiscoveryV5(prvKey3, l3, peerconn3, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort3)), WithBootnodes([]*enode.Node{d2.localnode.Node()}))
+	d3, err := NewDiscoveryV5(prvKey3, l3, peerconn3, prometheus.DefaultRegisterer, utils.Logger(), WithUDPPort(uint(udpPort3)))
 	require.NoError(t, err)
 	d3.SetHost(host3)
 
