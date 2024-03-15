@@ -315,11 +315,11 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(peers))
 
-	// Create map for checking
-	allPeers := make(map[string]interface{})
-	allPeers[host1.ID().String()] = struct{}{}
-	allPeers[host2.ID().String()] = struct{}{}
-	allPeers[host3.ID().String()] = struct{}{}
+	// Create map for checking peer.ID and enode.ID
+	allPeers := make(map[string]string)
+	allPeers[host1.ID().String()] = d1.Node().ID().String()
+	allPeers[host2.ID().String()] = d2.Node().ID().String()
+	allPeers[host3.ID().String()] = d3.Node().ID().String()
 
 	// Check nodes1 and nodes2 were discovered and node3 wasn't
 	for _, peer := range peers {
@@ -327,8 +327,9 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 	}
 
 	require.Equal(t, 1, len(allPeers))
-	_, host3Remains := allPeers[host3.ID().String()]
+	enodeID3, host3Remains := allPeers[host3.ID().String()]
 	require.True(t, host3Remains)
+	require.Equal(t, d3.Node().ID().String(), enodeID3)
 
 	d3.Stop()
 	peerconn3.Clear()
