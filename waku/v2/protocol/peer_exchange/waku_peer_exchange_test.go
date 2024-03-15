@@ -3,6 +3,9 @@ package peer_exchange
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
@@ -11,8 +14,6 @@ import (
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -290,7 +291,7 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	require.NoError(t, err)
 
 	// Prepare peer manager for host3
-	pm3 := peermanager.NewPeerManager(10, 20, log)
+	pm3 := peermanager.NewPeerManager(10, 20, nil, log)
 	pm3.SetHost(host3)
 	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
 	require.NoError(t, err)
@@ -365,7 +366,7 @@ func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	// Prepare peer manager for host3
-	pm3 := peermanager.NewPeerManager(10, 20, log)
+	pm3 := peermanager.NewPeerManager(10, 20, nil, log)
 	pm3.SetHost(host3)
 	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
 	require.NoError(t, err)
