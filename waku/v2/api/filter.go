@@ -1,4 +1,4 @@
-package filter
+package api
 
 import (
 	"context"
@@ -105,7 +105,8 @@ func (apiSub *Sub) checkAliveness() map[string]uint {
 	close(ch)
 	// Collect healthy topics
 	m := make(map[string]uint)
-	for t := range maps.Keys(protocol.ContentFilterToPubSubTopicMap(apiSub.ContentFilter)) {
+	topicMap, _ := protocol.ContentFilterToPubSubTopicMap(apiSub.ContentFilter)
+	for _, t := range maps.Keys(topicMap) {
 		m[t] = 0
 	}
 	for t := range ch {

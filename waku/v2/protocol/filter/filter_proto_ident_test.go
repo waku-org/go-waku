@@ -31,11 +31,7 @@ import (
 func (s *FilterTestSuite) TestCreateSubscription() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-	s.waitForMsg(func() {
-		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""}, s.subDetails[0].C)
 }
 
 func (s *FilterTestSuite) TestModifySubscription() {
@@ -43,21 +39,13 @@ func (s *FilterTestSuite) TestModifySubscription() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(func() {
-		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""}, s.subDetails[0].C)
 
 	// Subscribe to another content_topic
 	newContentTopic := "Topic_modified"
 	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(func() {
-		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(newContentTopic, utils.GetUnixEpoch()), relay.WithPubSubTopic(s.testTopic))
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, ""}, s.subDetails[0].C)
 }
 
 func (s *FilterTestSuite) TestMultipleMessages() {
@@ -65,17 +53,9 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(func() {
-		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "first"), relay.WithPubSubTopic(s.testTopic))
-		s.Require().NoError(err)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "first"}, s.subDetails[0].C)
 
-	}, s.subDetails[0].C)
-
-	s.waitForMsg(func() {
-		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch(), "second"), relay.WithPubSubTopic(s.testTopic))
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "second"}, s.subDetails[0].C)
 }
 
 func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, params *FilterSubscribeParameters,
@@ -222,7 +202,7 @@ func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFi
 
 func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	log := utils.Logger()
-	s.log = log
+	s.Log = log
 	s.wg = &sync.WaitGroup{}
 
 	// Create test context
@@ -231,9 +211,9 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	s.testTopic = defaultTestPubSubTopic
 	s.testContentTopic = defaultTestContentTopic
 
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
+	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	//Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -259,7 +239,7 @@ func (wf *WakuFilterLightNode) startWithIncorrectPushProto() error {
 
 func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	log := utils.Logger()
-	s.log = log
+	s.Log = log
 	s.wg = &sync.WaitGroup{}
 
 	// Create test context
@@ -270,9 +250,9 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	s.testTopic = defaultTestPubSubTopic
 	s.testContentTopic = defaultTestContentTopic
 
-	s.lightNode = s.makeWakuFilterLightNode(false, true)
+	s.lightNode = s.MakeWakuFilterLightNode()
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	// Re-start light node with unsupported prefix for match func
 	s.lightNode.Stop()
@@ -298,7 +278,7 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	// Message should never arrive -> exit after timeout
 	select {
 	case msg := <-s.subDetails[0].C:
-		s.log.Info("Light node received a msg")
+		s.Log.Info("Light node received a msg")
 		s.Require().Nil(msg)
 	case <-time.After(1 * time.Second):
 		s.Require().True(true)

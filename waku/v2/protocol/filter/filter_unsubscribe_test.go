@@ -3,13 +3,14 @@ package filter
 import (
 	"context"
 	"crypto/rand"
+	"strconv"
+	"time"
+
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
@@ -21,26 +22,18 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	// Message is possible to receive for original contentTopic
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"}, s.subDetails[0].C)
 
 	// Message is possible to receive for new contentTopic
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, newContentTopic, "test_msg")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, "test_msg"}, s.subDetails[0].C)
 
 	_ = s.unsubscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	// Message should not be received for new contentTopic as it was unsubscribed
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, newContentTopic, "test_msg")
-	}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, newContentTopic, "test_msg"}, s.subDetails[0].C)
 
 	// Message is still possible to receive for original contentTopic
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg2")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg2"}, s.subDetails[0].C)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -68,15 +61,11 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	// Messages should not be received for the last two contentTopics as it was unsubscribed
 	for _, m := range messages[1:] {
-		s.waitForTimeout(func() {
-			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
-		}, s.subDetails[0].C)
+		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[0].C)
 	}
 
 	// Message is still possible to receive for the first contentTopic
-	s.waitForMsg(func() {
-		s.publishMsg(messages[0].pubSubTopic, messages[0].contentTopic, messages[0].payload)
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{messages[0].pubSubTopic, messages[0].contentTopic, messages[0].payload}, s.subDetails[0].C)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -87,9 +76,9 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
+	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
@@ -117,9 +106,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	// No messages can be received with previous subscriptions
 	for i, m := range messages {
-		s.waitForTimeout(func() {
-			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
-		}, s.subDetails[i].C)
+		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[i].C)
 	}
 }
 
@@ -127,9 +114,9 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
+	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -218,9 +205,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllWithoutContentTopics() {
 
 	// Messages should not be received for any contentTopics
 	for _, m := range messages {
-		s.waitForTimeout(func() {
-			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
-		}, s.subDetails[0].C)
+		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[0].C)
 	}
 }
 
@@ -228,9 +213,9 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
+	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
@@ -257,9 +242,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 
 	// No messages can be received with previous subscriptions
 	for i, m := range messages {
-		s.waitForTimeout(func() {
-			s.publishMsg(m.pubSubTopic, m.contentTopic, m.payload)
-		}, s.subDetails[i].C)
+		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[i].C)
 	}
 
 }
@@ -282,15 +265,15 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 	host, err := tests.MakeHost(context.Background(), 12345, rand.Reader)
 	s.Require().NoError(err)
 
-	s.log.Info("Host ID", logging.HostID("FullNode", s.fullNodeHost.ID()))
-	s.log.Info("Host ID", logging.HostID("LightNode", s.lightNodeHost.ID()))
-	s.log.Info("Host ID", logging.HostID("Unrelated", host.ID()))
+	s.Log.Info("Host ID", logging.HostID("FullNode", s.fullNodeHost.ID()))
+	s.Log.Info("Host ID", logging.HostID("LightNode", s.lightNodeHost.ID()))
+	s.Log.Info("Host ID", logging.HostID("Unrelated", host.ID()))
 
 	// Unsubscribe all with unrelated peer specification
 	pushResult, err := s.lightNode.UnsubscribeAll(s.ctx, WithPeer(host.ID()))
 
 	for e := range pushResult.errs {
-		s.log.Info("Push Result ", zap.String("error", strconv.Itoa(e)))
+		s.Log.Info("Push Result ", zap.String("error", strconv.Itoa(e)))
 	}
 
 	// All messages should be received because peer ID used was not related to any subscription

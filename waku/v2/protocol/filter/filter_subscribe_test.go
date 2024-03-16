@@ -21,22 +21,16 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Should be received
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "first")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "first"}, s.subDetails[0].C)
 
 	// Wrong content topic
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, "TopicB", "second")
-	}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, "TopicB", "second"}, s.subDetails[0].C)
 
 	_, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Should not receive after unsubscribe
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "third")
-	}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "third"}, s.subDetails[0].C)
 
 	// Two new subscriptions with same [peer, contentFilter]
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -46,13 +40,9 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.Require().Equal(len(s.lightNode.Subscriptions()), 2)
 
 	// Should be received on both subscriptions
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "fourth")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "fourth"}, s.subDetails[0].C)
 
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "fifth")
-	}, secondSub[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "fifth"}, secondSub[0].C)
 
 	s.waitForMsg(nil, s.subDetails[0].C)
 	s.waitForMsg(nil, secondSub[0].C)
@@ -62,9 +52,7 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.Require().NoError(err)
 
 	// Should still receive
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "sixth")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "sixth"}, s.subDetails[0].C)
 
 	// Unsubscribe from first sub only
 	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, s.subDetails[0])
@@ -73,9 +61,7 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.Require().Equal(len(s.lightNode.Subscriptions()), 0)
 
 	// Should not receive after unsubscribe
-	s.waitForTimeout(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "seventh")
-	}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "seventh"}, s.subDetails[0].C)
 }
 
 func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
@@ -83,9 +69,7 @@ func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Message should be received
-	s.waitForMsg(func() {
-		s.publishMsg(s.testTopic, s.testContentTopic, "test_msg")
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"}, s.subDetails[0].C)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -119,9 +103,9 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
+	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
 
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, true, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -133,14 +117,14 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	// Subscribe
 	for _, m := range messages {
 		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
-		s.log.Info("Subscribing ", zap.String("PubSubTopic", m.pubSubTopic))
+		s.Log.Info("Subscribing ", zap.String("PubSubTopic", m.pubSubTopic))
 		_, err := s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.pubSubTopic))
 		s.Require().NoError(err)
 	}
 
 	// Debug to see subscriptions in light node
 	for _, sub := range s.subDetails {
-		s.log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic), zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
+		s.Log.Info("Light Node subscription ", zap.String("PubSubTopic", sub.ContentFilter.PubsubTopic), zap.String("ContentTopic", sub.ContentFilter.ContentTopicsList()[0]))
 	}
 
 	// All messages should be received
@@ -270,7 +254,7 @@ func (s *FilterTestSuite) TestSubscribeErrorHandling() {
 
 func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	log := utils.Logger()
-	s.log = log
+	s.Log = log
 	s.wg = &sync.WaitGroup{}
 
 	// Create test context
@@ -279,10 +263,10 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	fullNodeIDHex := make([]byte, hex.EncodedLen(len([]byte(s.fullNodeHost.ID()))))
 	_ = hex.Encode(fullNodeIDHex, []byte(s.fullNodeHost.ID()))
 
-	s.log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
+	s.Log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
 
 	// This will overwrite values with the second node info
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
+	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	// Connect to second full and relay node
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -292,7 +276,7 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	fullNodeIDHex = make([]byte, hex.EncodedLen(len([]byte(s.fullNodeHost.ID()))))
 	_ = hex.Encode(fullNodeIDHex, []byte(s.fullNodeHost.ID()))
 
-	s.log.Info("Subscribing to second", zap.String("fullNode", string(fullNodeIDHex)))
+	s.Log.Info("Subscribing to second", zap.String("fullNode", string(fullNodeIDHex)))
 
 	// Subscribe to the second full node
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.testTopic, ContentTopics: protocol.NewContentTopicSet(s.testContentTopic)}
@@ -308,7 +292,7 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 
-	lightNode2 := s.makeWakuFilterLightNode(true, true)
+	lightNode2 := s.StartNode(s.MakeWakuFilterLightNode())
 
 	// Connect node2
 	lightNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -344,7 +328,7 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second)
 
-	_, fullNode2 := s.makeWakuFilterFullNode(testTopic, false, false)
+	_, fullNode2 := s.MakeWakuFilterFullNodeNoSharing(testTopic, false)
 
 	// Connect nodes
 	fullNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
