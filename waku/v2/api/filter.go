@@ -8,6 +8,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
+	"golang.org/x/exp/maps"
 )
 
 type FilterConfig struct {
@@ -78,7 +79,10 @@ func (apiSub *Sub) healthCheckLoop() {
 func (apiSub *Sub) checkAliveness() map[string]uint {
 	apiSub.RLock()
 	defer apiSub.RUnlock()
-	ch := make(chan string, len(apiSub.subs))
+
+	// Only healthy topics will be pushed here
+	ch := make(chan string)
+
 	wg := &sync.WaitGroup{}
 	wg.Add(len(apiSub.subs))
 	for _, subDetails := range apiSub.subs {
@@ -101,8 +105,11 @@ func (apiSub *Sub) checkAliveness() map[string]uint {
 	close(ch)
 	// Collect healthy topics
 	m := make(map[string]uint)
-	for topic := range ch {
-		m[topic]++
+	for t := range maps.Keys(protocol.ContentFilterToPubSubTopicMap(apiSub.ContentFilter)) {
+		m[t] = 0
+	}
+	for t := range ch {
+		m[t]++
 	}
 
 	return m
