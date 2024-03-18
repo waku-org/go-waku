@@ -12,7 +12,7 @@ import (
 func TestServiceSlot(t *testing.T) {
 	slots := NewServiceSlot()
 
-	protocol := libp2pProtocol.ID("test/protocol")
+	protocol := libp2pProtocol.ID("/vac/waku/test/2.0.0")
 
 	peerID := peer.ID("peerId")
 
@@ -55,8 +55,8 @@ func TestServiceSlot(t *testing.T) {
 func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	slots := NewServiceSlot()
 
-	protocol := libp2pProtocol.ID("test/protocol")
-	protocol1 := libp2pProtocol.ID("test/protocol1")
+	protocol := libp2pProtocol.ID("/vac/waku/test/2.0.0")
+	protocol1 := libp2pProtocol.ID("/vac/waku/test/2.0.2")
 
 	peerID := peer.ID("peerId")
 
