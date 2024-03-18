@@ -1,6 +1,7 @@
 package peermanager
 
 import (
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"testing"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -12,7 +13,7 @@ import (
 func TestServiceSlot(t *testing.T) {
 	slots := NewServiceSlot()
 
-	protocol := libp2pProtocol.ID("test/protocol")
+	protocol := relay.WakuRelayID_v200
 
 	peerID := peer.ID("peerId")
 
