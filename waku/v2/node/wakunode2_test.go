@@ -318,3 +318,38 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.Len(t, result.Messages, 1)
 	require.Equal(t, msg.Timestamp, result.Messages[0].Timestamp)
 }
+
+func TestStaticShardingMultiplePubSubTopics(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// NODE1: Relay Node + Filter Server
+	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	require.NoError(t, err)
+	wakuNode1, err := New(
+		WithHostAddress(hostAddr1),
+		WithWakuRelay(),
+		WithWakuFilterFullNode(),
+	)
+	require.NoError(t, err)
+	err = wakuNode1.Start(ctx)
+	require.NoError(t, err)
+	defer wakuNode1.Stop()
+
+	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(0))
+	pubSubTopic1Str := pubSubTopic1.String()
+
+	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(10))
+	pubSubTopic2Str := pubSubTopic2.String()
+
+	subs1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str))
+	require.NoError(t, err)
+
+	subs2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic2Str))
+	require.NoError(t, err)
+
+	require.NotEqual(t, subs1[0].ID, subs2[0].ID)
+	defer subs1[0].Unsubscribe()
+	defer subs2[0].Unsubscribe()
+
+}
