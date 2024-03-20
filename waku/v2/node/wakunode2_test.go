@@ -319,17 +319,16 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.Equal(t, msg.Timestamp, result.Messages[0].Timestamp)
 }
 
-func TestStaticShardingMultiplePubSubTopics(t *testing.T) {
+func TestStaticShardingMultipleTopics(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// NODE1: Relay Node + Filter Server
+	// Node1 with Relay
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
 	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
-		WithWakuFilterFullNode(),
 	)
 	require.NoError(t, err)
 	err = wakuNode1.Start(ctx)
@@ -338,18 +337,25 @@ func TestStaticShardingMultiplePubSubTopics(t *testing.T) {
 
 	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(0))
 	pubSubTopic1Str := pubSubTopic1.String()
+	contentTopic1 := "/test/2/my-app"
 
 	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(10))
 	pubSubTopic2Str := pubSubTopic2.String()
+	contentTopic2 := "/test/3/my-app"
 
-	subs1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str))
+	subs1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str, contentTopic1))
 	require.NoError(t, err)
 
-	subs2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic2Str))
+	subs2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic2Str, contentTopic2))
 	require.NoError(t, err)
 
 	require.NotEqual(t, subs1[0].ID, subs2[0].ID)
-	//defer subs1[0].Unsubscribe()
-	//defer subs2[0].Unsubscribe()
+
+	s1, err := wakuNode1.Relay().GetSubscriptionWithPubsubTopic(pubSubTopic1Str, contentTopic1)
+	require.NoError(t, err)
+	s2, err := wakuNode1.Relay().GetSubscriptionWithPubsubTopic(pubSubTopic2Str, contentTopic2)
+	require.NoError(t, err)
+	require.Equal(t, s1.ID, subs1[0].ID)
+	require.Equal(t, s2.ID, subs2[0].ID)
 
 }
