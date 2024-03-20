@@ -1,8 +1,6 @@
 package peermanager
 
 import (
-	"github.com/waku-org/go-waku/waku/v2/utils"
-	"go.uber.org/zap"
 	"testing"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -42,12 +40,6 @@ func TestServiceSlot(t *testing.T) {
 	fetchedPeers, err = slots.getPeers(protocol).getRandom(2)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(maps.Keys(fetchedPeers)))
-
-	log := utils.Logger()
-
-	for peer := range fetchedPeers {
-		log.Info("Fetched peers", zap.String("ID", peer.String()))
-	}
 
 	// Check for uniqueness
 	require.NotEqual(t, maps.Keys(fetchedPeers)[0], maps.Keys(fetchedPeers)[1])
