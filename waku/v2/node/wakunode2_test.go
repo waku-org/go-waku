@@ -344,17 +344,22 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	pubSubTopic2Str := pubSubTopic2.String()
 	contentTopic2 := "/test/3/my-app"
 
-	subs1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str, contentTopic1))
+	r := wakuNode1.Relay()
+
+	subs1, err := r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str, contentTopic1))
 	require.NoError(t, err)
 
-	subs2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(pubSubTopic2Str, contentTopic2))
+	subs2, err := r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic2Str, contentTopic2))
 	require.NoError(t, err)
 
 	require.NotEqual(t, subs1[0].ID, subs2[0].ID)
 
-	s1, err := wakuNode1.Relay().GetSubscriptionWithPubsubTopic(pubSubTopic1Str, contentTopic1)
+	require.True(t, r.IsSubscribed(pubSubTopic1Str))
+	require.True(t, r.IsSubscribed(pubSubTopic2Str))
+
+	s1, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic1Str, contentTopic1)
 	require.NoError(t, err)
-	s2, err := wakuNode1.Relay().GetSubscriptionWithPubsubTopic(pubSubTopic2Str, contentTopic2)
+	s2, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic2Str, contentTopic2)
 	require.NoError(t, err)
 	require.Equal(t, s1.ID, subs1[0].ID)
 	require.Equal(t, s2.ID, subs2[0].ID)
