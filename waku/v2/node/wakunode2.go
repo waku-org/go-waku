@@ -846,7 +846,7 @@ func (w *WakuNode) PeersByStaticShard(cluster uint16, shard uint16) peer.IDSlice
 
 // PeersByContentTopics filters peers based on contentTopic
 func (w *WakuNode) PeersByContentTopic(contentTopic string) peer.IDSlice {
-	pTopic, err := wakuprotocol.GetPubSubTopicFromContentTopic(contentTopic)
+	pTopic, err := wakuprotocol.GetPubSubTopicFromContentTopic(w.ClusterID(), contentTopic)
 	if err != nil {
 		return nil
 	}

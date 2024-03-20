@@ -23,11 +23,11 @@ func newFilterCache(capacity int, log *zap.Logger) *filterCache {
 	}
 }
 
-func (c *filterCache) subscribe(contentFilter protocol.ContentFilter) {
+func (c *filterCache) subscribe(clusterID uint16, contentFilter protocol.ContentFilter) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	pubSubTopicMap, _ := protocol.ContentFilterToPubSubTopicMap(contentFilter)
+	pubSubTopicMap, _ := protocol.ContentFilterToPubSubTopicMap(clusterID, contentFilter)
 	for pubsubTopic, contentTopics := range pubSubTopicMap {
 		if c.data[pubsubTopic] == nil {
 			c.data[pubsubTopic] = make(map[string][]*RestWakuMessage)

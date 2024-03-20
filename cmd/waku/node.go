@@ -455,7 +455,7 @@ func processTopics(options NodeOptions) (map[string][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		pTopic := wprotocol.GetShardFromContentTopic(contentTopic, wprotocol.GenerationZeroShardsCount)
+		pTopic := wprotocol.GetShardFromContentTopic(contentTopic, uint16(options.ClusterID), wprotocol.GenerationZeroShardsCount)
 		if _, ok := pubSubTopicMap[pTopic.String()]; !ok {
 			pubSubTopicMap[pTopic.String()] = []string{}
 		}

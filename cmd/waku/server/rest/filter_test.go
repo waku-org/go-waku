@@ -261,7 +261,7 @@ func TestFilterGetMessages(t *testing.T) {
 	contentTopic := "/waku/2/app/1"
 
 	// get nodes add connect them
-	generatedPubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(contentTopic)
+	generatedPubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(protocol.DefaultClusterIndex, contentTopic)
 	require.NoError(t, err)
 	node1, node2 := twoFilterConnectedNodes(t, pubsubTopic, generatedPubsubTopic)
 	defer func() {
@@ -378,7 +378,7 @@ func toMessage(envs []*protocol.Envelope) []*pb.WakuMessage {
 
 func genMessage(pubsubTopic, contentTopic string) *protocol.Envelope {
 	if pubsubTopic == "" {
-		pubsubTopic, _ = protocol.GetPubSubTopicFromContentTopic(contentTopic)
+		pubsubTopic, _ = protocol.GetPubSubTopicFromContentTopic(protocol.DefaultClusterIndex, contentTopic)
 	}
 	return protocol.NewEnvelope(
 		&pb.WakuMessage{

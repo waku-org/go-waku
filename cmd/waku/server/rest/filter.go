@@ -34,7 +34,7 @@ type FilterService struct {
 func (s *FilterService) Start(ctx context.Context) {
 
 	for _, sub := range s.node.FilterLightnode().Subscriptions() {
-		s.cache.subscribe(sub.ContentFilter)
+		s.cache.subscribe(s.node.ClusterID(), sub.ContentFilter)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -190,7 +190,7 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// on success
-	s.cache.subscribe(contentFilter)
+	s.cache.subscribe(s.node.ClusterID(), contentFilter)
 	writeResponse(w, filterSubscriptionResponse{
 		RequestID:  message.RequestID,
 		StatusDesc: http.StatusText(http.StatusOK),
@@ -346,7 +346,7 @@ func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *ht
 	if contentTopic == "" {
 		return
 	}
-	pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(contentTopic)
+	pubsubTopic, err := protocol.GetPubSubTopicFromContentTopic(s.node.ClusterID(), contentTopic)
 	if err != nil {
 		writeGetMessageErr(w, fmt.Errorf("bad content topic"), http.StatusBadRequest, s.log)
 		return

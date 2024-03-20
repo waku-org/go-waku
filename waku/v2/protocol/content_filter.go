@@ -51,6 +51,6 @@ func (cf ContentFilter) Equals(cf1 ContentFilter) bool {
 }
 
 // This function converts a contentFilter into a map of pubSubTopics and corresponding contentTopics
-func ContentFilterToPubSubTopicMap(contentFilter ContentFilter) (map[PubsubTopicStr][]ContentTopicStr, error) {
-	return GeneratePubsubToContentTopicMap(contentFilter.PubsubTopic, contentFilter.ContentTopicsList())
+func ContentFilterToPubSubTopicMap(clusterID uint16, contentFilter ContentFilter) (map[PubsubTopicStr][]ContentTopicStr, error) {
+	return GeneratePubsubToContentTopicMap(clusterID, contentFilter.PubsubTopic, contentFilter.ContentTopicsList())
 }

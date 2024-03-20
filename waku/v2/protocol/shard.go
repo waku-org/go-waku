@@ -12,9 +12,9 @@ import (
 
 const MaxShardIndex = uint16(1023)
 
-// ClusterIndex is the clusterID used in sharding space.
+// DefaultClusterIndex is the clusterID used in sharding space.
 // For shardIDs allocation and other magic numbers refer to RFC 51
-const ClusterIndex = 1
+const DefaultClusterIndex = 1
 
 // GenerationZeroShardsCount is number of shards supported in generation-0
 const GenerationZeroShardsCount = 8
@@ -229,7 +229,7 @@ func FromBitVector(buf []byte) (RelayShards, error) {
 
 // GetShardFromContentTopic runs Autosharding logic and returns a pubSubTopic
 // This is based on Autosharding algorithm defined in RFC 51
-func GetShardFromContentTopic(topic ContentTopic, shardCount int) StaticShardingPubsubTopic {
+func GetShardFromContentTopic(topic ContentTopic, clusterID uint16, shardCount int) StaticShardingPubsubTopic {
 	bytes := []byte(topic.ApplicationName)
 	bytes = append(bytes, []byte(topic.ApplicationVersion)...)
 
@@ -238,28 +238,30 @@ func GetShardFromContentTopic(topic ContentTopic, shardCount int) StaticSharding
 	hashValue := binary.BigEndian.Uint64(hash[24:])
 
 	shard := hashValue % uint64(shardCount)
-
-	return NewStaticShardingPubsubTopic(ClusterIndex, uint16(shard))
+	if clusterID == 0 {
+		//TODO: should we return error??
+	}
+	return NewStaticShardingPubsubTopic(clusterID, uint16(shard))
 }
 
-func GetPubSubTopicFromContentTopic(cTopicString string) (string, error) {
+func GetPubSubTopicFromContentTopic(clusterID uint16, cTopicString string) (string, error) {
 	cTopic, err := StringToContentTopic(cTopicString)
 	if err != nil {
 		return "", fmt.Errorf("%s : %s", err.Error(), cTopicString)
 	}
-	pTopic := GetShardFromContentTopic(cTopic, GenerationZeroShardsCount)
+	pTopic := GetShardFromContentTopic(cTopic, clusterID, GenerationZeroShardsCount)
 
 	return pTopic.String(), nil
 }
 
-func GeneratePubsubToContentTopicMap(pubsubTopic string, contentTopics []string) (map[string][]string, error) {
+func GeneratePubsubToContentTopicMap(clusterID uint16, pubsubTopic string, contentTopics []string) (map[string][]string, error) {
 
 	pubSubTopicMap := make(map[string][]string, 0)
 
 	if pubsubTopic == "" {
 		//Should we derive pubsub topic from contentTopic so that peer selection and discovery can be done accordingly?
 		for _, cTopic := range contentTopics {
-			pTopic, err := GetPubSubTopicFromContentTopic(cTopic)
+			pTopic, err := GetPubSubTopicFromContentTopic(clusterID, cTopic)
 			if err != nil {
 				return nil, err
 			}

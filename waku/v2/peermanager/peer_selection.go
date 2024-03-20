@@ -24,8 +24,14 @@ type peerSet map[peer.ID]struct{}
 // If a peer cannot be found in the service slot, a peer will be selected from node peerstore
 func (pm *PeerManager) SelectPeerByContentTopics(proto protocol.ID, contentTopics []string, specificPeers ...peer.ID) (peer.ID, error) {
 	pubsubTopics := []string{}
+	var clusterID *uint32
+	*clusterID = 0
 	for _, cTopic := range contentTopics {
-		pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(cTopic)
+		if pm.metadata != nil {
+			clusterID, _, _ = pm.metadata.ClusterAndShards()
+		}
+
+		pubsubTopic, err := waku_proto.GetPubSubTopicFromContentTopic(uint16(*clusterID), cTopic)
 		if err != nil {
 			pm.logger.Debug("selectPeer: failed to get contentTopic from pubsubTopic", zap.String("contentTopic", cTopic))
 			return "", err

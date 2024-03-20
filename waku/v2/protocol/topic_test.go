@@ -41,8 +41,8 @@ func TestContentTopicAndSharding(t *testing.T) {
 	ct6, err := StringToContentTopic("/toychat/2/huilong/proto")
 	require.NoError(t, err)
 
-	nsPubSubT1 := GetShardFromContentTopic(ct6, GenerationZeroShardsCount)
-	require.Equal(t, NewStaticShardingPubsubTopic(ClusterIndex, 3), nsPubSubT1)
+	nsPubSubT1 := GetShardFromContentTopic(ct6, DefaultClusterIndex, GenerationZeroShardsCount)
+	require.Equal(t, NewStaticShardingPubsubTopic(DefaultClusterIndex, 3), nsPubSubT1)
 
 	_, err = StringToContentTopic("/abc/toychat/2/huilong/proto")
 	require.Error(t, err, ErrInvalidGeneration)
@@ -91,7 +91,7 @@ func TestShardChoiceSimulation(t *testing.T) {
 
 	// When
 	for _, topic := range topics {
-		pubsub := GetShardFromContentTopic(topic, GenerationZeroShardsCount)
+		pubsub := GetShardFromContentTopic(topic, DefaultClusterIndex, GenerationZeroShardsCount)
 		counts[pubsub.Shard()]++
 	}
 
