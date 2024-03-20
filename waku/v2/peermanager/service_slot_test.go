@@ -1,13 +1,11 @@
 package peermanager
 
 import (
-	"testing"
-	"time"
-
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
+	"testing"
 )
 
 func TestServiceSlot(t *testing.T) {
@@ -42,10 +40,10 @@ func TestServiceSlot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(maps.Keys(fetchedPeers)))
 
-	time.Sleep(100 * time.Millisecond)
+	fetchedPeersSerialized := maps.Keys(fetchedPeers)
 
 	// Check for uniqueness
-	require.NotEqual(t, maps.Keys(fetchedPeers)[0], maps.Keys(fetchedPeers)[1])
+	require.NotEqual(t, fetchedPeersSerialized[0], fetchedPeersSerialized[1])
 
 	slots.getPeers(protocol).remove(peerID2)
 
