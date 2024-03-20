@@ -350,7 +350,7 @@ func TestStaticShardingMultiplePubSubTopics(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEqual(t, subs1[0].ID, subs2[0].ID)
-	defer subs1[0].Unsubscribe()
-	defer subs2[0].Unsubscribe()
+	//defer subs1[0].Unsubscribe()
+	//defer subs2[0].Unsubscribe()
 
 }
