@@ -338,11 +338,11 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 
 	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(0))
 	pubSubTopic1Str := pubSubTopic1.String()
-	contentTopic1 := "/test/2/my-app"
+	contentTopic1 := "/test/2/my-app/sharded"
 
 	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(10))
 	pubSubTopic2Str := pubSubTopic2.String()
-	contentTopic2 := "/test/3/my-app"
+	contentTopic2 := "/test/3/my-app/sharded"
 
 	r := wakuNode1.Relay()
 
@@ -357,9 +357,9 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	require.True(t, r.IsSubscribed(pubSubTopic1Str))
 	require.True(t, r.IsSubscribed(pubSubTopic2Str))
 
-	s1, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic1Str, contentTopic1)
+	s1, err := r.GetSubscription(contentTopic1)
 	require.NoError(t, err)
-	s2, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic2Str, contentTopic2)
+	s2, err := r.GetSubscription(contentTopic2)
 	require.NoError(t, err)
 	require.Equal(t, s1.ID, subs1[0].ID)
 	require.Equal(t, s2.ID, subs2[0].ID)
