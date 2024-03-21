@@ -356,9 +356,9 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	require.True(t, r.IsSubscribed(pubSubTopic1Str))
 	require.True(t, r.IsSubscribed(pubSubTopic2Str))
 
-	s1, err := r.GetSubscription(contentTopic1)
+	s1, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic1Str, contentTopic1)
 	require.NoError(t, err)
-	s2, err := r.GetSubscription(contentTopic2)
+	s2, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic2Str, contentTopic2)
 	require.NoError(t, err)
 	require.Equal(t, s1.ID, subs1[0].ID)
 	require.Equal(t, s2.ID, subs2[0].ID)
