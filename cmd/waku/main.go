@@ -87,12 +87,6 @@ func main() {
 		MetricsServer,
 		MetricsServerAddress,
 		MetricsServerPort,
-		RESTFlag,
-		RESTAddress,
-		RESTPort,
-		RESTRelayCacheCapacity,
-		RESTFilterCacheCapacity,
-		RESTAdmin,
 		PProf,
 	}
 

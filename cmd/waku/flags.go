@@ -479,47 +479,6 @@ var (
 		Destination: &options.Metrics.Port,
 		EnvVars:     []string{"WAKUNODE2_METRICS_SERVER_PORT"},
 	})
-	RESTFlag = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "rest",
-		Usage:       "Enable Waku REST HTTP server",
-		Destination: &options.RESTServer.Enable,
-		EnvVars:     []string{"WAKUNODE2_REST"},
-	})
-	RESTAddress = altsrc.NewStringFlag(&cli.StringFlag{
-		Name:        "rest-address",
-		Value:       "127.0.0.1",
-		Usage:       "Listening address of the REST HTTP server",
-		Destination: &options.RESTServer.Address,
-		EnvVars:     []string{"WAKUNODE2_REST_ADDRESS"},
-	})
-	RESTPort = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "rest-port",
-		Value:       8645,
-		Usage:       "Listening port of the REST HTTP server",
-		Destination: &options.RESTServer.Port,
-		EnvVars:     []string{"WAKUNODE2_REST_PORT"},
-	})
-	RESTRelayCacheCapacity = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "rest-relay-cache-capacity",
-		Value:       1000,
-		Usage:       "Capacity of the Relay REST API message cache",
-		Destination: &options.RESTServer.RelayCacheCapacity,
-		EnvVars:     []string{"WAKUNODE2_REST_RELAY_CACHE_CAPACITY"},
-	})
-	RESTFilterCacheCapacity = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:        "rest-filter-cache-capacity",
-		Value:       30,
-		Usage:       "Capacity of the Filter REST API message cache",
-		Destination: &options.RESTServer.FilterCacheCapacity,
-		EnvVars:     []string{"WAKUNODE2_REST_FILTER_CACHE_CAPACITY"},
-	})
-	RESTAdmin = altsrc.NewBoolFlag(&cli.BoolFlag{
-		Name:        "rest-admin",
-		Value:       false,
-		Usage:       "Enable access to REST HTTP Admin API",
-		Destination: &options.RESTServer.Admin,
-		EnvVars:     []string{"WAKUNODE2_REST_ADMIN"},
-	})
 	PProf = altsrc.NewBoolFlag(&cli.BoolFlag{
 		Name:        "pprof",
 		Usage:       "provides runtime profiling data at /debug/pprof in both REST and RPC servers if they're enabled",
