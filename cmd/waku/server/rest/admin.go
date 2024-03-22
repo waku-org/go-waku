@@ -52,6 +52,7 @@ func NewAdminService(node *node.WakuNode, m *chi.Mux, log *zap.Logger) *AdminSer
 }
 
 func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	peers, err := a.node.Peers()
 	if err != nil {
 		a.log.Error("failed to fetch peers", zap.Error(err))
@@ -89,6 +90,7 @@ func (a *AdminService) getV1Peers(w http.ResponseWriter, req *http.Request) {
 }
 
 func (a *AdminService) postV1Peer(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	var pInfo WakuPeerInfo
 	var topics []string
 	var protos []protocol.ID

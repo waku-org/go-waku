@@ -30,6 +30,7 @@ func NewHealthService(node *node.WakuNode, m *chi.Mux) *HealthService {
 type HealthResponse string
 
 func (d *HealthService) getHealth(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	if d.node.RLNRelay() != nil {
 		isReady, err := d.node.RLNRelay().IsReady(r.Context())
 		if err != nil {

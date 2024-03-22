@@ -54,6 +54,7 @@ func NewRelayService(node *node.WakuNode, m *chi.Mux, cacheCapacity uint, log *z
 }
 
 func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	var topics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&topics); err != nil {
@@ -75,6 +76,7 @@ func (r *RelayService) deleteV1Subscriptions(w http.ResponseWriter, req *http.Re
 }
 
 func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	var topics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&topics); err != nil {
@@ -114,6 +116,7 @@ func (r *RelayService) postV1Subscriptions(w http.ResponseWriter, req *http.Requ
 }
 
 func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
 		r.log.Debug("topic is not specified, using default waku topic")
@@ -162,6 +165,7 @@ func (r *RelayService) getV1Messages(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	topic := topicFromPath(w, req, "topic", r.log)
 	if topic == "" {
 		r.log.Debug("topic is not specified, using default waku topic")
@@ -203,6 +207,7 @@ func (r *RelayService) postV1Message(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *RelayService) deleteV1AutoSubscriptions(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	var cTopics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&cTopics); err != nil {
@@ -221,6 +226,7 @@ func (r *RelayService) deleteV1AutoSubscriptions(w http.ResponseWriter, req *htt
 }
 
 func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	var cTopics []string
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&cTopics); err != nil {
@@ -247,7 +253,7 @@ func (r *RelayService) postV1AutoSubscriptions(w http.ResponseWriter, req *http.
 }
 
 func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Request) {
-
+	enableCors(&w)
 	cTopic := topicFromPath(w, req, "contentTopic", r.log)
 	sub, err := r.node.Relay().GetSubscription(cTopic)
 	if err != nil {
@@ -280,7 +286,7 @@ func (r *RelayService) getV1AutoMessages(w http.ResponseWriter, req *http.Reques
 }
 
 func (r *RelayService) postV1AutoMessage(w http.ResponseWriter, req *http.Request) {
-
+	enableCors(&w)
 	var restMessage *RestWakuMessage
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&restMessage); err != nil {

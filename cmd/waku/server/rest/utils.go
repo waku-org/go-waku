@@ -81,3 +81,7 @@ func writeGetMessageErr(w http.ResponseWriter, err error, code int, logger *zap.
 		logger.Error("writing response", zap.Error(err))
 	}
 }
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}

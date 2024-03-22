@@ -103,6 +103,7 @@ func convertFilterErrorToHttpStatus(err error) (int, string) {
 // 404 when request failed or no suitable peers
 // 200 when ping successful
 func (s *FilterService) ping(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	requestID := chi.URLParam(req, "requestId")
 	if requestID == "" {
 		writeResponse(w, &filterSubscriptionResponse{
@@ -155,6 +156,7 @@ type filterSubscriptionResponse struct {
 // 200 on single returned successful subscription
 // NOTE: subscribe on filter client randomly selects a peer if missing for given pubSubTopic
 func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	message := filterSubscriptionRequest{}
 	if !s.readBody(w, req, &message) {
 		return
@@ -203,6 +205,7 @@ func (s *FilterService) subscribe(w http.ResponseWriter, req *http.Request) {
 // NOTE: unsubscribe on filter client will remove subscription from all peers with matching pubSubTopic, if peerId is not provided
 // to match functionality in nwaku, we will randomly select a peer that supports filter protocol.
 func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	message := filterSubscriptionRequest{} // as pubSubTopics can also be present
 	if !s.readBody(w, req, &message) {
 		return
@@ -250,6 +253,7 @@ func (s *FilterService) unsubscribe(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *FilterService) unsubscribeGetMessage(result *filter.WakuFilterPushResult) string {
+
 	if result == nil {
 		return http.StatusText(http.StatusOK)
 	}
@@ -291,6 +295,7 @@ func (s *FilterService) readBody(w http.ResponseWriter, req *http.Request, messa
 // 200 on all successful unsubscribe
 // unsubscribe all subscriptions for a given peer
 func (s *FilterService) unsubscribeAll(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	message := filterUnsubscribeAllRequest{}
 	if !s.readBody(w, req, &message) {
 		return
@@ -342,6 +347,7 @@ func (s FilterService) getRandomFilterPeer(ctx context.Context, requestId string
 }
 
 func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	contentTopic := topicFromPath(w, req, "contentTopic", s.log)
 	if contentTopic == "" {
 		return
@@ -355,6 +361,7 @@ func (s *FilterService) getMessagesByContentTopic(w http.ResponseWriter, req *ht
 }
 
 func (s *FilterService) getMessagesByPubsubTopic(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	contentTopic := topicFromPath(w, req, "contentTopic", s.log)
 	if contentTopic == "" {
 		return
@@ -371,6 +378,7 @@ func (s *FilterService) getMessagesByPubsubTopic(w http.ResponseWriter, req *htt
 // 200 on all successful unsubscribe
 // unsubscribe all subscriptions for a given peer
 func (s *FilterService) getMessages(w http.ResponseWriter, req *http.Request, pubsubTopic, contentTopic string) {
+	enableCors(&w)
 	msgs, err := s.cache.getMessages(pubsubTopic, contentTopic)
 	if err != nil {
 		writeGetMessageErr(w, err, http.StatusNotFound, s.log)

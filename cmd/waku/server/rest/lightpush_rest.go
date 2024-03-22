@@ -43,6 +43,7 @@ type lightpushRequest struct {
 
 // handled error codes are 200, 400, 500, 503
 func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	request := &lightpushRequest{}
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(request); err != nil {

@@ -53,6 +53,7 @@ func NewDebugService(node *node.WakuNode, m *chi.Mux) *DebugService {
 type VersionResponse string
 
 func (d *DebugService) getV1Info(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	response := new(InfoReply)
 	response.ENRUri = d.node.ENR().String()
 	for _, addr := range d.node.ListenAddresses() {
@@ -62,6 +63,7 @@ func (d *DebugService) getV1Info(w http.ResponseWriter, req *http.Request) {
 }
 
 func (d *DebugService) getV1Version(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	response := VersionResponse(node.GetVersionInfo().String())
 	writeErrOrResponse(w, nil, response)
 }

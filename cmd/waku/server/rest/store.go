@@ -187,6 +187,7 @@ func toStoreResponse(result *store.Result) StoreResponse {
 }
 
 func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	query, options, err := getStoreParams(r)
 	if err != nil {
 		writeStoreError(w, http.StatusBadRequest, err)
