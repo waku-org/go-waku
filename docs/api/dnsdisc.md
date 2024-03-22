@@ -30,7 +30,7 @@ import (
 )
 
 func main() {
-	discoveryURL := "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im"
+	discoveryURL := "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
 	nodes, err := dnsdisc.RetrieveNodes(context.Background(), discoveryURL)
 	if err != nil {
 		panic(err)

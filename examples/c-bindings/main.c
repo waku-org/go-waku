@@ -154,13 +154,13 @@ int main(int argc, char *argv[])
 
   // To use dns discovery, and retrieve nodes from a enrtree url
   char *discoveredNodes = NULL;
-  waku_dns_discovery(ctx, "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
+  waku_dns_discovery(ctx, "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im",
                      "", 0, on_response, (void *)&discoveredNodes);
   printf("Discovered nodes: %s\n", discoveredNodes);
 
   // Connect to a node
-  waku_connect(ctx, "/dns4/node-01.do-ams3.wakuv2.test.statusim.net/tcp/30303/"
-               "p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ",
+  waku_connect(ctx, "/dns4/node-01.do-ams3.waku.test.statusim.net/tcp/30303/"
+               "p2p/16Uiu2HAkykgaECHswi3YKJ5dMLbq2kPVCo89fcyTd38UcQD6ej5W",
                0, on_response, NULL);
 
   // To see a store query in action:

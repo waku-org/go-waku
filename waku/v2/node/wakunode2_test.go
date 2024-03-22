@@ -82,7 +82,7 @@ func TestUpAndDown(t *testing.T) {
 	key1, _ := tests.RandomHex(32)
 	prvKey1, _ := crypto.HexToECDSA(key1)
 
-	nodes, err := dnsdisc.RetrieveNodes(context.Background(), "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im")
+	nodes, err := dnsdisc.RetrieveNodes(context.Background(), "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im")
 	require.NoError(t, err)
 
 	var bootnodes []*enode.Node
