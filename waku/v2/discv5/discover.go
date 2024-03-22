@@ -178,9 +178,10 @@ func (d *DiscoveryV5) listen(ctx context.Context) error {
 
 	}
 
+	d.params.udpPort = uint(d.udpAddr.Port)
 	d.localnode.SetFallbackUDP(d.udpAddr.Port)
 
-	listener, err := discover.ListenV5(conn, d.localnode, d.config)
+	listener, err := discover.ListenV5(ctx, conn, d.localnode, d.config)
 	if err != nil {
 		return err
 	}
