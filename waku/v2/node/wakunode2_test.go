@@ -321,7 +321,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 }
 
 func TestStaticShardingMultipleTopics(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Node1 with Relay
@@ -343,10 +343,6 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(10))
 	pubSubTopic2Str := pubSubTopic2.String()
 	contentTopic2 := "/test/3/my-app/sharded"
-
-	log := utils.Logger()
-
-	log.Info("pubsub1", zap.String("pb1", pubSubTopic1Str))
 
 	r := wakuNode1.Relay()
 
@@ -377,7 +373,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	_, err = r.Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic1Str))
 	require.NoError(t, err)
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -397,14 +393,20 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic("/waku/2/rs/0/321"))
 	require.NoError(t, err)
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, ok := <-subs1[0].Ch
-		require.False(t, ok)
+		select {
+		case _, ok := <-subs1[0].Ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(1 * time.Second):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
 	}()
 
 	wg.Wait()
@@ -415,14 +417,20 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	_, err = r.Publish(ctx, msg3, relay.WithPubSubTopic(pubSubTopic1Str))
 	require.NoError(t, err)
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, ok := <-subs1[0].Ch
-		require.False(t, ok)
+		select {
+		case _, ok := <-subs1[0].Ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(1 * time.Second):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
 	}()
 
 	wg.Wait()
