@@ -344,6 +344,10 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	pubSubTopic2Str := pubSubTopic2.String()
 	contentTopic2 := "/test/3/my-app/sharded"
 
+	log := utils.Logger()
+
+	log.Info("pubsub1", zap.String("pb1", pubSubTopic1Str))
+
 	r := wakuNode1.Relay()
 
 	subs1, err := r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str, contentTopic1))
@@ -363,5 +367,64 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s1.ID, subs1[0].ID)
 	require.Equal(t, s2.ID, subs2[0].ID)
+
+	// Wait for subscriptions
+	time.Sleep(1 * time.Second)
+
+	// Send message to subscribed topic
+	msg := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message")
+
+	_, err = r.Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic1Str))
+	require.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// Message msg could be retrieved
+	go func() {
+		defer wg.Done()
+		env, ok := <-subs1[0].Ch
+		require.True(t, ok, "no message retrieved")
+		require.Equal(t, msg.Timestamp, env.Message().Timestamp)
+	}()
+
+	wg.Wait()
+
+	// Send another message to non-subscribed pubsub topic, but subscribed content topic
+	msg2 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message 2")
+
+	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic("/waku/2/rs/0/321"))
+	require.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+
+	// No message could be retrieved
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, ok := <-subs1[0].Ch
+		require.False(t, ok)
+	}()
+
+	wg.Wait()
+
+	// Send another message to subscribed pubsub topic, but not subscribed content topic - mix it up
+	msg3 := tests.CreateWakuMessage(contentTopic2, utils.GetUnixEpoch(), "test message 3")
+
+	_, err = r.Publish(ctx, msg3, relay.WithPubSubTopic(pubSubTopic1Str))
+	require.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+
+	// No message could be retrieved
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, ok := <-subs1[0].Ch
+		require.False(t, ok)
+	}()
+
+	wg.Wait()
 
 }
