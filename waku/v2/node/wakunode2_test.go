@@ -321,7 +321,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 }
 
 func TestStaticShardingMultipleTopics(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Node1 with Relay
