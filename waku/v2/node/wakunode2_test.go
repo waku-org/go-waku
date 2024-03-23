@@ -37,6 +37,23 @@ func createTestMsg(version uint32) *pb.WakuMessage {
 	return message
 }
 
+func waitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case _, ok := <-ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(1 * time.Second):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
+	}()
+
+	wg.Wait()
+}
+
 func TestWakuNode2(t *testing.T) {
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 
@@ -395,20 +412,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		select {
-		case _, ok := <-subs1[0].Ch:
-			require.False(t, ok, "should not retrieve message")
-		case <-time.After(1 * time.Second):
-			// All good
-		case <-ctx.Done():
-			require.Fail(t, "test exceeded allocated time")
-		}
-	}()
-
-	wg.Wait()
+	waitForTimeout(t, ctx, &wg, subs1[0].Ch)
 
 	// Send another message to subscribed pubsub topic, but not subscribed content topic - mix it up
 	msg3 := tests.CreateWakuMessage(contentTopic2, utils.GetUnixEpoch(), "test message 3")
@@ -419,19 +423,6 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		select {
-		case _, ok := <-subs1[0].Ch:
-			require.False(t, ok, "should not retrieve message")
-		case <-time.After(1 * time.Second):
-			// All good
-		case <-ctx.Done():
-			require.Fail(t, "test exceeded allocated time")
-		}
-	}()
-
-	wg.Wait()
+	waitForTimeout(t, ctx, &wg, subs1[0].Ch)
 
 }
