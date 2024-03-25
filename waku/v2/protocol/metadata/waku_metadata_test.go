@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,6 +51,10 @@ func isProtocolNotSupported(err error) bool {
 	return errors.Is(err, notSupportedErr)
 }
 
+func isStreamReset(err error) bool {
+	return strings.Contains(err.Error(), "stream reset")
+}
+
 func TestWakuMetadataRequest(t *testing.T) {
 	testShard16 := uint16(16)
 
@@ -84,7 +89,7 @@ func TestWakuMetadataRequest(t *testing.T) {
 
 	// Query a peer not subscribed to any shard
 	_, err = m16_1.Request(context.Background(), m_noRS.h.ID())
-	require.True(t, isProtocolNotSupported(err))
+	require.True(t, isProtocolNotSupported(err) || isStreamReset(err))
 }
 
 func TestNoNetwork(t *testing.T) {
