@@ -126,11 +126,12 @@ func TestRelayGetV1Messages(t *testing.T) {
 
 	// Wait for the subscription to be started
 	time.Sleep(1 * time.Second)
-
+	ephemeral := true
 	msg := &RestWakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "test",
 		Timestamp:    utils.GetUnixEpoch(),
+		Ephemeral:    &ephemeral,
 	}
 	msgJsonBytes, err := json.Marshal(msg)
 	require.NoError(t, err)
@@ -152,6 +153,7 @@ func TestRelayGetV1Messages(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &messages)
 	require.NoError(t, err)
 	require.Len(t, messages, 1)
+	require.Equal(t, *messages[0].Ephemeral, true)
 
 	rr = httptest.NewRecorder()
 	req, _ = http.NewRequest(http.MethodGet, "/relay/v1/messages/test", bytes.NewReader([]byte{}))
