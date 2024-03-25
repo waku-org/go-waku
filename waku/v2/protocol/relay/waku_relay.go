@@ -286,8 +286,8 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts .
 		return nil, errors.New("not enough peers to publish")
 	}
 
-	w.topicsMutex.RLock()
-	defer w.topicsMutex.RUnlock()
+	w.topicsMutex.Lock()
+	defer w.topicsMutex.Unlock()
 
 	pubSubTopic, err := w.upsertTopic(params.pubsubTopic)
 	if err != nil {
