@@ -154,10 +154,10 @@ func (s *FilterTestSuite) TestAutoShard() {
 
 	s.Log.Info("Testing Autoshard:CreateSubscription")
 	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""})
 
 	// Wrong content topic
-	s.waitForTimeout(&WakuMsg{s.testTopic, "TopicB", "second"}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, "TopicB", "second"})
 
 	_, err = s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
@@ -165,7 +165,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	time.Sleep(1 * time.Second)
 
 	// Should not receive after unsubscribe
-	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "third"}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "third"})
 
 	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
 
@@ -179,7 +179,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	newContentTopic := "0/test/1/testTopic1/proto"
 	s.subDetails = s.subscribe("", newContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, ""}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, ""})
 
 	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
 		PubsubTopic:   s.testTopic,

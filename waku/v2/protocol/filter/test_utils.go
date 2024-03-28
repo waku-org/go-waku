@@ -140,7 +140,11 @@ func (s *FilterTestSuite) StartNode(node *WakuFilterLightNode) *WakuFilterLightN
 	return node
 }
 
-func (s *FilterTestSuite) waitForMsg(msg *WakuMsg, ch chan *protocol.Envelope) {
+func (s *FilterTestSuite) waitForMsg(msg *WakuMsg) {
+	s.waitForMsgFromChan(msg, s.subDetails[0].C)
+}
+
+func (s *FilterTestSuite) waitForMsgFromChan(msg *WakuMsg, ch chan *protocol.Envelope) {
 	s.wg.Add(1)
 	var msgFound = false
 	go func() {
@@ -222,7 +226,11 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 	s.Require().True(msgCount == found)
 }
 
-func (s *FilterTestSuite) waitForTimeout(msg *WakuMsg, ch chan *protocol.Envelope) {
+func (s *FilterTestSuite) waitForTimeout(msg *WakuMsg) {
+	s.waitForTimeoutFromChan(msg, s.subDetails[0].C)
+}
+
+func (s *FilterTestSuite) waitForTimeoutFromChan(msg *WakuMsg, ch chan *protocol.Envelope) {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()

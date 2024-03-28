@@ -22,18 +22,18 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	// Message is possible to receive for original contentTopic
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"})
 
 	// Message is possible to receive for new contentTopic
-	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, "test_msg"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, "test_msg"})
 
 	_ = s.unsubscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	// Message should not be received for new contentTopic as it was unsubscribed
-	s.waitForTimeout(&WakuMsg{s.testTopic, newContentTopic, "test_msg"}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, newContentTopic, "test_msg"})
 
 	// Message is still possible to receive for original contentTopic
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg2"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg2"})
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -61,11 +61,11 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	// Messages should not be received for the last two contentTopics as it was unsubscribed
 	for _, m := range messages[1:] {
-		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[0].C)
+		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload})
 	}
 
 	// Message is still possible to receive for the first contentTopic
-	s.waitForMsg(&WakuMsg{messages[0].pubSubTopic, messages[0].contentTopic, messages[0].payload}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{messages[0].pubSubTopic, messages[0].contentTopic, messages[0].payload})
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -106,7 +106,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	// No messages can be received with previous subscriptions
 	for i, m := range messages {
-		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[i].C)
+		s.waitForTimeoutFromChan(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[i].C)
 	}
 }
 
@@ -205,7 +205,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllWithoutContentTopics() {
 
 	// Messages should not be received for any contentTopics
 	for _, m := range messages {
-		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[0].C)
+		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload})
 	}
 }
 
@@ -242,7 +242,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 
 	// No messages can be received with previous subscriptions
 	for i, m := range messages {
-		s.waitForTimeout(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[i].C)
+		s.waitForTimeoutFromChan(&WakuMsg{m.pubSubTopic, m.contentTopic, m.payload}, s.subDetails[i].C)
 	}
 
 }

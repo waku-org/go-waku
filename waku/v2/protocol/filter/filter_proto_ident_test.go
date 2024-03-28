@@ -31,7 +31,7 @@ import (
 func (s *FilterTestSuite) TestCreateSubscription() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""})
 }
 
 func (s *FilterTestSuite) TestModifySubscription() {
@@ -39,13 +39,13 @@ func (s *FilterTestSuite) TestModifySubscription() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""})
 
 	// Subscribe to another content_topic
 	newContentTopic := "Topic_modified"
 	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, ""}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, ""})
 }
 
 func (s *FilterTestSuite) TestMultipleMessages() {
@@ -53,9 +53,9 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 	// Initial subscribe
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "first"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "first"})
 
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "second"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "second"})
 }
 
 func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, params *FilterSubscribeParameters,

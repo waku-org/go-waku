@@ -159,7 +159,7 @@ func (s *FilterTestSuite) TestFuturePayloadEncryptionVersion() {
 	s.Require().NoError(err)
 
 	// Should be received
-	s.waitForMsg(nil, s.subDetails[0].C)
+	s.waitForMsg(nil)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)

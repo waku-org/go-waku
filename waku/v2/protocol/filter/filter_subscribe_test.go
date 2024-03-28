@@ -21,16 +21,16 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Should be received
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "first"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "first"})
 
 	// Wrong content topic
-	s.waitForTimeout(&WakuMsg{s.testTopic, "TopicB", "second"}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, "TopicB", "second"})
 
 	_, err := s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Should not receive after unsubscribe
-	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "third"}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "third"})
 
 	// Two new subscriptions with same [peer, contentFilter]
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
@@ -40,19 +40,19 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.Require().Equal(len(s.lightNode.Subscriptions()), 2)
 
 	// Should be received on both subscriptions
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "fourth"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "fourth"})
 
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "fifth"}, secondSub[0].C)
+	s.waitForMsgFromChan(&WakuMsg{s.testTopic, s.testContentTopic, "fifth"}, secondSub[0].C)
 
-	s.waitForMsg(nil, s.subDetails[0].C)
-	s.waitForMsg(nil, secondSub[0].C)
+	s.waitForMsg(nil)
+	s.waitForMsgFromChan(nil, secondSub[0].C)
 
 	// Unsubscribe from second sub only
 	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, secondSub[0])
 	s.Require().NoError(err)
 
 	// Should still receive
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "sixth"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "sixth"})
 
 	// Unsubscribe from first sub only
 	_, err = s.lightNode.UnsubscribeWithSubscription(s.ctx, s.subDetails[0])
@@ -61,7 +61,7 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	s.Require().Equal(len(s.lightNode.Subscriptions()), 0)
 
 	// Should not receive after unsubscribe
-	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "seventh"}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "seventh"})
 }
 
 func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
@@ -69,7 +69,7 @@ func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Message should be received
-	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"})
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
