@@ -57,12 +57,12 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 
 	topics := options.Relay.Topics.Value()
 	if len(topics) == 0 {
-		topics = append(topics, relay.DefaultWakuTopic)
+		topics = append(topics, "/waku/2/rs/16/32")
 	}
 
 	if options.Filter.Enable {
 		cf := protocol.ContentFilter{
-			PubsubTopic:   relay.DefaultWakuTopic,
+			PubsubTopic:   "/waku/2/rs/16/32",
 			ContentTopics: protocol.NewContentTopicSet(options.ContentTopic),
 		}
 		var filterOpt filter.FilterSubscribeOption
@@ -324,7 +324,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	}
 
 	if c.options.LightPush.Enable {
-		lightOpt := []lightpush.Option{lightpush.WithDefaultPubsubTopic()}
+		lightOpt := []lightpush.Option{lightpush.WithPubSubTopic("/waku/2/rs/16/32")}
 		var peerID peer.ID
 		peerID, err = options.LightPush.NodePeerID()
 		if err != nil {
@@ -333,6 +333,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 			lightOpt = append(lightOpt, lightpush.WithPeer(peerID))
 		}
 
+		c.ui.InfoMessage(fmt.Sprintf("light push message %v", lightOpt))
 		_, err = c.node.Lightpush().Publish(c.ctx, wakuMsg, lightOpt...)
 	} else {
 		_, err = c.node.Relay().Publish(ctx, wakuMsg, relay.WithDefaultPubsubTopic())
@@ -407,7 +408,7 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 			c.ui.InfoMessage("0 historic messages available")
 		} else {
 			for _, msg := range response.Messages {
-				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
+				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), "/waku/2/rs/16/32")
 			}
 		}
 	}
@@ -491,10 +492,10 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	var dnsDiscoveryUrl string
 	if options.Fleet != fleetNone {
 		if options.Fleet == fleetTest {
-			dnsDiscoveryUrl = "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AMOJVZX4V6EXP7NTJPMAYJYST2QP6AJXYW76IU6VGJS7UVSNDYZG4@boot.test.shards.nodes.status.im"
 		} else {
 			// Connect to prod by default
-			dnsDiscoveryUrl = "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AMOJVZX4V6EXP7NTJPMAYJYST2QP6AJXYW76IU6VGJS7UVSNDYZG4@boot.test.shards.nodes.status.im"
 		}
 	}
 
