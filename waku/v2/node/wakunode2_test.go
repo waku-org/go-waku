@@ -346,19 +346,22 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
+		WithClusterID(uint16(20)),
 	)
 	require.NoError(t, err)
 	err = wakuNode1.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
 
-	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(0))
+	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(21), uint16(0))
 	pubSubTopic1Str := pubSubTopic1.String()
 	contentTopic1 := "/test/2/my-app/sharded"
 
-	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(0), uint16(10))
+	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(21), uint16(10))
 	pubSubTopic2Str := pubSubTopic2.String()
 	contentTopic2 := "/test/3/my-app/sharded"
+
+	require.Equal(t, uint16(20), wakuNode1.ClusterID())
 
 	r := wakuNode1.Relay()
 
