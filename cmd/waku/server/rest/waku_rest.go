@@ -41,6 +41,7 @@ func NewWakuRest(node *node.WakuNode, config RestConfig, log *zap.Logger) *WakuR
 	mux.Use(func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
+			h.ServeHTTP(w, r)
 		}
 		return http.HandlerFunc(fn)
 	})
