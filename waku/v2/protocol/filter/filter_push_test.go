@@ -2,12 +2,13 @@ package filter
 
 import (
 	"context"
+	"strconv"
+	"time"
+
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 func (s *FilterTestSuite) TestValidPayloadsASCII() {
@@ -131,7 +132,7 @@ func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 	// Generate large string
 	for i := range messages {
 		messages[i].payload, _ = tests.GenerateRandomUTF8String(153600)
-		s.log.Info("Generated payload with ", zap.String("length", strconv.Itoa(len(messages[i].payload))))
+		s.Log.Info("Generated payload with ", zap.String("length", strconv.Itoa(len(messages[i].payload))))
 	}
 
 	// All messages should be received

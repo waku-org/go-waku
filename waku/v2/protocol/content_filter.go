@@ -6,6 +6,15 @@ type PubsubTopicStr = string
 type ContentTopicStr = string
 
 type ContentTopicSet map[string]struct{}
+type TopicSet map[string]struct{}
+
+func NewTopicSet(topics ...string) TopicSet {
+	s := make(TopicSet, len(topics))
+	for _, t := range topics {
+		s[t] = struct{}{}
+	}
+	return s
+}
 
 func NewContentTopicSet(contentTopics ...string) ContentTopicSet {
 	s := make(ContentTopicSet, len(contentTopics))
