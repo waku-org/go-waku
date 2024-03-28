@@ -37,6 +37,23 @@ func createTestMsg(version uint32) *pb.WakuMessage {
 	return message
 }
 
+func waitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case _, ok := <-ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(1 * time.Second):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
+	}()
+
+	wg.Wait()
+}
+
 func TestWakuNode2(t *testing.T) {
 	hostAddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 
@@ -317,4 +334,98 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Messages, 1)
 	require.Equal(t, msg.Timestamp, result.Messages[0].Timestamp)
+}
+
+func TestStaticShardingMultipleTopics(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Node1 with Relay
+	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	require.NoError(t, err)
+	wakuNode1, err := New(
+		WithHostAddress(hostAddr1),
+		WithWakuRelay(),
+		WithClusterID(uint16(20)),
+	)
+	require.NoError(t, err)
+	err = wakuNode1.Start(ctx)
+	require.NoError(t, err)
+	defer wakuNode1.Stop()
+
+	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(21), uint16(0))
+	pubSubTopic1Str := pubSubTopic1.String()
+	contentTopic1 := "/test/2/my-app/sharded"
+
+	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(21), uint16(10))
+	pubSubTopic2Str := pubSubTopic2.String()
+	contentTopic2 := "/test/3/my-app/sharded"
+
+	require.Equal(t, uint16(20), wakuNode1.ClusterID())
+
+	r := wakuNode1.Relay()
+
+	subs1, err := r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic1Str, contentTopic1))
+	require.NoError(t, err)
+
+	subs2, err := r.Subscribe(ctx, protocol.NewContentFilter(pubSubTopic2Str, contentTopic2))
+	require.NoError(t, err)
+
+	require.NotEqual(t, subs1[0].ID, subs2[0].ID)
+
+	require.True(t, r.IsSubscribed(pubSubTopic1Str))
+	require.True(t, r.IsSubscribed(pubSubTopic2Str))
+
+	s1, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic1Str, contentTopic1)
+	require.NoError(t, err)
+	s2, err := r.GetSubscriptionWithPubsubTopic(pubSubTopic2Str, contentTopic2)
+	require.NoError(t, err)
+	require.Equal(t, s1.ID, subs1[0].ID)
+	require.Equal(t, s2.ID, subs2[0].ID)
+
+	// Wait for subscriptions
+	time.Sleep(1 * time.Second)
+
+	// Send message to subscribed topic
+	msg := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message")
+
+	_, err = r.Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic1Str))
+	require.NoError(t, err)
+
+	time.Sleep(100 * time.Millisecond)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// Message msg could be retrieved
+	go func() {
+		defer wg.Done()
+		env, ok := <-subs1[0].Ch
+		require.True(t, ok, "no message retrieved")
+		require.Equal(t, msg.Timestamp, env.Message().Timestamp)
+	}()
+
+	wg.Wait()
+
+	// Send another message to non-subscribed pubsub topic, but subscribed content topic
+	msg2 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message 2")
+
+	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic("/waku/2/rs/0/321"))
+	require.NoError(t, err)
+
+	time.Sleep(100 * time.Millisecond)
+
+	// No message could be retrieved
+	waitForTimeout(t, ctx, &wg, subs1[0].Ch)
+
+	// Send another message to subscribed pubsub topic, but not subscribed content topic - mix it up
+	msg3 := tests.CreateWakuMessage(contentTopic2, utils.GetUnixEpoch(), "test message 3")
+
+	_, err = r.Publish(ctx, msg3, relay.WithPubSubTopic(pubSubTopic1Str))
+	require.NoError(t, err)
+
+	time.Sleep(100 * time.Millisecond)
+
+	// No message could be retrieved
+	waitForTimeout(t, ctx, &wg, subs1[0].Ch)
+
 }
