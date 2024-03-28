@@ -77,6 +77,7 @@ type MerkleProofResponse struct {
 }
 
 func (d *DebugService) getV1MerkleProof(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
 	commitmentReq := chi.URLParam(req, "commitment")
 	if commitmentReq == "" {
 		writeErrResponse(w, nil, fmt.Errorf("commitment is empty"), http.StatusBadRequest)
