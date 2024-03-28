@@ -68,6 +68,9 @@ func execute(options Options) {
 	if options.Filter.Enable {
 		opts = append(opts, node.WithWakuFilterLightNode())
 	}
+	if options.LightPush.Enable {
+		opts = append(opts, node.WithClusterID(uint16(16)))
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
