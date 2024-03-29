@@ -104,13 +104,10 @@ func (s *FilterTestSuite) GetWakuFilterFullNode(topic string, withRegisterAll bo
 func (s *FilterTestSuite) MakeWakuFilterFullNode(topic string, withRegisterAll bool) {
 	relayData := s.GetWakuFilterFullNode(topic, withRegisterAll)
 
-	s.fullNodeHost = relayData.fullNodeHost
-	s.RelaySub = relayData.RelaySub
-	s.relayNode = relayData.relayNode
-	s.fullNode = relayData.fullNode
+	s.FullNodeData = relayData
 }
 
-func (s *FilterTestSuite) GetWakuFilterLightNode() (*WakuFilterLightNode, host.Host) {
+func (s *FilterTestSuite) GetWakuFilterLightNode() LightNodeData {
 	port, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
@@ -121,11 +118,11 @@ func (s *FilterTestSuite) GetWakuFilterLightNode() (*WakuFilterLightNode, host.H
 	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
 	filterPush.SetHost(host)
 
-	return filterPush, host
+	return LightNodeData{filterPush, host}
 }
 
 func (s *FilterTestSuite) MakeWakuFilterLightNode() {
-	s.lightNode, s.lightNodeHost = s.GetWakuFilterLightNode()
+	s.LightNodeData = s.GetWakuFilterLightNode()
 }
 
 func (s *FilterTestSuite) StartLightNode() {

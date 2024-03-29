@@ -293,7 +293,8 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 
-	lightNode2, _ := s.GetWakuFilterLightNode()
+	lightNodeData := s.GetWakuFilterLightNode()
+	lightNode2 := lightNodeData.lightNode
 	err := lightNode2.Start(context.Background())
 	s.Require().NoError(err)
 
