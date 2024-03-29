@@ -103,9 +103,10 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 20 seconds
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
+	s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -266,7 +267,7 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	s.Log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
 
 	// This will overwrite values with the second node info
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
+	s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	// Connect to second full and relay node
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -292,7 +293,9 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 
-	lightNode2 := s.StartNode(s.MakeWakuFilterLightNode())
+	lightNode2, _ := s.GetWakuFilterLightNode()
+	err := lightNode2.Start(context.Background())
+	s.Require().NoError(err)
 
 	// Connect node2
 	lightNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -301,7 +304,7 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 
 	// Subscribe separately: light node 1 -> full node
 	contentFilter := protocol.ContentFilter{PubsubTopic: messages[0].pubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[0].contentTopic)}
-	_, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Subscribe separately: light node 2 -> full node
@@ -328,7 +331,8 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second)
 
-	_, fullNode2 := s.MakeWakuFilterFullNodeNoSharing(testTopic, false)
+	nodeData := s.GetWakuFilterFullNode(testTopic, false)
+	fullNode2 := nodeData.fullNode
 
 	// Connect nodes
 	fullNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)

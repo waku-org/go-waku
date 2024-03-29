@@ -21,24 +21,33 @@ import (
 	"go.uber.org/zap"
 )
 
+type LightNodeData struct {
+	lightNode     *WakuFilterLightNode
+	lightNodeHost host.Host
+}
+
+type FullNodeData struct {
+	relayNode    *relay.WakuRelay
+	RelaySub     *relay.Subscription
+	fullNodeHost host.Host
+	Broadcaster  relay.Broadcaster
+	fullNode     *WakuFilterFullNode
+}
+
 type FilterTestSuite struct {
 	suite.Suite
+	LightNodeData
+	FullNodeData
 
 	testTopic        string
 	testContentTopic string
 	ctx              context.Context
 	ctxCancel        context.CancelFunc
-	lightNode        *WakuFilterLightNode
-	lightNodeHost    host.Host
-	relayNode        *relay.WakuRelay
-	fullNode         *WakuFilterFullNode
-	fullNodeHost     host.Host
 	wg               *sync.WaitGroup
 	contentFilter    protocol.ContentFilter
 	subDetails       []*subscription.SubscriptionDetails
 
-	Log      *zap.Logger
-	RelaySub *relay.Subscription
+	Log *zap.Logger
 }
 
 type WakuMsg struct {
@@ -47,14 +56,7 @@ type WakuMsg struct {
 	payload      string
 }
 
-type RelayData struct {
-	WakuRelay    *relay.WakuRelay
-	Subscription *relay.Subscription
-	Host         host.Host
-	Broadcaster  relay.Broadcaster
-}
-
-func (s *FilterTestSuite) MakeWakuRelay(topic string) RelayData {
+func (s *FilterTestSuite) GetWakuRelay(topic string) FullNodeData {
 
 	broadcaster := relay.NewBroadcaster(10)
 	s.Require().NoError(broadcaster.Start(context.Background()))
@@ -74,15 +76,15 @@ func (s *FilterTestSuite) MakeWakuRelay(topic string) RelayData {
 	sub, err := relay.Subscribe(context.Background(), protocol.NewContentFilter(topic))
 	s.Require().NoError(err)
 
-	return RelayData{relay, sub[0], host, broadcaster}
+	return FullNodeData{relay, sub[0], host, broadcaster, nil}
 }
 
-func (s *FilterTestSuite) MakeWakuFilterFullNodeNoSharing(topic string, withRegisterAll bool) (*relay.WakuRelay, *WakuFilterFullNode) {
+func (s *FilterTestSuite) GetWakuFilterFullNode(topic string, withRegisterAll bool) FullNodeData {
 
-	relayData := s.MakeWakuRelay(topic)
+	relayData := s.GetWakuRelay(topic)
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
-	node2Filter.SetHost(relayData.Host)
+	node2Filter.SetHost(relayData.fullNodeHost)
 
 	var sub *relay.Subscription
 	if withRegisterAll {
@@ -94,32 +96,21 @@ func (s *FilterTestSuite) MakeWakuFilterFullNodeNoSharing(topic string, withRegi
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 
-	return relayData.WakuRelay, node2Filter
+	relayData.fullNode = node2Filter
+
+	return relayData
 }
 
-func (s *FilterTestSuite) MakeWakuFilterFullNode(topic string, withRegisterAll bool) (*relay.WakuRelay, *WakuFilterFullNode) {
-	relayData := s.MakeWakuRelay(topic)
+func (s *FilterTestSuite) MakeWakuFilterFullNode(topic string, withRegisterAll bool) {
+	relayData := s.GetWakuFilterFullNode(topic, withRegisterAll)
 
-	s.fullNodeHost = relayData.Host
-	s.RelaySub = relayData.Subscription
-
-	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
-	node2Filter.SetHost(relayData.Host)
-
-	var sub *relay.Subscription
-	if withRegisterAll {
-		sub = relayData.Broadcaster.RegisterForAll()
-	} else {
-		sub = relayData.Broadcaster.Register(protocol.NewContentFilter(topic))
-	}
-
-	err := node2Filter.Start(s.ctx, sub)
-	s.Require().NoError(err)
-
-	return relayData.WakuRelay, node2Filter
+	s.fullNodeHost = relayData.fullNodeHost
+	s.RelaySub = relayData.RelaySub
+	s.relayNode = relayData.relayNode
+	s.fullNode = relayData.fullNode
 }
 
-func (s *FilterTestSuite) MakeWakuFilterLightNode() *WakuFilterLightNode {
+func (s *FilterTestSuite) GetWakuFilterLightNode() (*WakuFilterLightNode, host.Host) {
 	port, err := tests.FindFreePort(s.T(), "", 5)
 	s.Require().NoError(err)
 
@@ -129,15 +120,17 @@ func (s *FilterTestSuite) MakeWakuFilterLightNode() *WakuFilterLightNode {
 	s.Require().NoError(b.Start(context.Background()))
 	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
 	filterPush.SetHost(host)
-	s.lightNodeHost = host
 
-	return filterPush
+	return filterPush, host
 }
 
-func (s *FilterTestSuite) StartNode(node *WakuFilterLightNode) *WakuFilterLightNode {
-	err := node.Start(context.Background())
+func (s *FilterTestSuite) MakeWakuFilterLightNode() {
+	s.lightNode, s.lightNodeHost = s.GetWakuFilterLightNode()
+}
+
+func (s *FilterTestSuite) StartLightNode() {
+	err := s.lightNode.Start(context.Background())
 	s.Require().NoError(err)
-	return node
 }
 
 func (s *FilterTestSuite) waitForMsg(msg *WakuMsg) {

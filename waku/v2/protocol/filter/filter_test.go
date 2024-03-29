@@ -38,11 +38,12 @@ func (s *FilterTestSuite) SetupTest() {
 	s.testTopic = defaultTestPubSubTopic
 	s.testContentTopic = defaultTestContentTopic
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
 
 	//TODO: Add tests to verify broadcaster.
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
+	s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -101,7 +102,7 @@ func (s *FilterTestSuite) TestStartStop() {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	s.lightNode = s.MakeWakuFilterLightNode()
+	s.MakeWakuFilterLightNode()
 
 	stopNode := func() {
 		for i := 0; i < 100000; i++ {
@@ -145,8 +146,9 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.testContentTopic = cTopic1Str
 	s.testTopic = pubSubTopic.String()
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(pubSubTopic.String(), false)
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
+	s.MakeWakuFilterFullNode(pubSubTopic.String(), false)
 
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
 	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)

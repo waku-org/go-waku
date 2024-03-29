@@ -211,9 +211,10 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	s.testTopic = defaultTestPubSubTopic
 	s.testContentTopic = defaultTestContentTopic
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
+	s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	//Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -250,9 +251,9 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	s.testTopic = defaultTestPubSubTopic
 	s.testContentTopic = defaultTestContentTopic
 
-	s.lightNode = s.MakeWakuFilterLightNode()
+	s.MakeWakuFilterLightNode()
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, false)
+	s.MakeWakuFilterFullNode(s.testTopic, false)
 
 	// Re-start light node with unsupported prefix for match func
 	s.lightNode.Stop()

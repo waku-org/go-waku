@@ -76,9 +76,10 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
+	s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
@@ -114,9 +115,10 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
+	s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
@@ -213,9 +215,10 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 20*time.Second)
 
-	s.lightNode = s.StartNode(s.MakeWakuFilterLightNode())
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
 
-	s.relayNode, s.fullNode = s.MakeWakuFilterFullNode(s.testTopic, true)
+	s.MakeWakuFilterFullNode(s.testTopic, true)
 
 	// Connect nodes
 	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
