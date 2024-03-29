@@ -13,7 +13,7 @@ func (s *FilterTestSuite) TestSubscriptionPing() {
 	s.Require().Equal(filterErr.Code, http.StatusNotFound)
 
 	contentTopic := "abc"
-	s.subDetails = s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
 
 	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
 	s.Require().NoError(err)
@@ -21,7 +21,7 @@ func (s *FilterTestSuite) TestSubscriptionPing() {
 
 func (s *FilterTestSuite) TestUnSubscriptionPing() {
 
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
 	s.Require().NoError(err)

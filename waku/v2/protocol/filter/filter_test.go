@@ -155,7 +155,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.Require().NoError(err)
 
 	s.Log.Info("Testing Autoshard:CreateSubscription")
-	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
+	s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
 	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, ""})
 
 	// Wrong content topic
@@ -169,7 +169,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	// Should not receive after unsubscribe
 	s.waitForTimeout(&WakuMsg{s.testTopic, s.testContentTopic, "third"})
 
-	s.subDetails = s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
+	s.subscribe("", s.testContentTopic, s.fullNodeHost.ID())
 
 	s.Log.Info("Testing Autoshard:SubscriptionPing")
 	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
@@ -179,7 +179,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.Log.Info("Testing Autoshard:ModifySubscription")
 
 	newContentTopic := "0/test/1/testTopic1/proto"
-	s.subDetails = s.subscribe("", newContentTopic, s.fullNodeHost.ID())
+	s.subscribe("", newContentTopic, s.fullNodeHost.ID())
 
 	s.waitForMsg(&WakuMsg{s.testTopic, newContentTopic, ""})
 
@@ -199,7 +199,7 @@ func (s *FilterTestSuite) TestLightNodeIsListening() {
 	messages := prepareData(2, true, true, false, nil)
 
 	// Subscribe with the first message only
-	s.subDetails = s.subscribe(messages[0].pubSubTopic, messages[0].contentTopic, s.fullNodeHost.ID())
+	s.subscribe(messages[0].pubSubTopic, messages[0].contentTopic, s.fullNodeHost.ID())
 
 	// IsListening returns true for the first message
 	listenStatus := s.lightNode.IsListening(messages[0].pubSubTopic, messages[0].contentTopic)

@@ -81,30 +81,30 @@ func (s *FilterTestSuite) GetWakuRelay(topic string) FullNodeData {
 
 func (s *FilterTestSuite) GetWakuFilterFullNode(topic string, withRegisterAll bool) FullNodeData {
 
-	relayData := s.GetWakuRelay(topic)
+	nodeData := s.GetWakuRelay(topic)
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
-	node2Filter.SetHost(relayData.fullNodeHost)
+	node2Filter.SetHost(nodeData.fullNodeHost)
 
 	var sub *relay.Subscription
 	if withRegisterAll {
-		sub = relayData.Broadcaster.RegisterForAll()
+		sub = nodeData.Broadcaster.RegisterForAll()
 	} else {
-		sub = relayData.Broadcaster.Register(protocol.NewContentFilter(topic))
+		sub = nodeData.Broadcaster.Register(protocol.NewContentFilter(topic))
 	}
 
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 
-	relayData.fullNode = node2Filter
+	nodeData.fullNode = node2Filter
 
-	return relayData
+	return nodeData
 }
 
 func (s *FilterTestSuite) MakeWakuFilterFullNode(topic string, withRegisterAll bool) {
-	relayData := s.GetWakuFilterFullNode(topic, withRegisterAll)
+	nodeData := s.GetWakuFilterFullNode(topic, withRegisterAll)
 
-	s.FullNodeData = relayData
+	s.FullNodeData = nodeData
 }
 
 func (s *FilterTestSuite) GetWakuFilterLightNode() LightNodeData {
@@ -241,27 +241,31 @@ func (s *FilterTestSuite) waitForTimeoutFromChan(msg *WakuMsg, ch chan *protocol
 	s.wg.Wait()
 }
 
-func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
+func (s *FilterTestSuite) getSub(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
+	contentFilter := protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
+
+	subDetails, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(peer))
+	s.Require().NoError(err)
+
+	time.Sleep(1 * time.Second)
+
+	return subDetails
+}
+func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, peer peer.ID) {
 
 	for _, sub := range s.subDetails {
 		if sub.ContentFilter.PubsubTopic == pubsubTopic {
 			sub.Add(contentTopic)
 			s.contentFilter = sub.ContentFilter
 			subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
+			s.subDetails = subDetails
 			s.Require().NoError(err)
-			return subDetails
+			return
 		}
 	}
 
-	s.contentFilter = protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
-
-	subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
-	s.Require().NoError(err)
-
-	// Sleep to make sure the filter is subscribed
-	time.Sleep(1 * time.Second)
-
-	return subDetails
+	s.subDetails = s.getSub(pubsubTopic, contentTopic, peer)
+	s.contentFilter = s.subDetails[0].ContentFilter
 }
 
 func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {

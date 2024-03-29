@@ -18,8 +18,8 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	var newContentTopic = "TopicB"
 
 	// Initial subscribe
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-	s.subDetails = s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.testTopic, newContentTopic, s.fullNodeHost.ID())
 
 	// Message is possible to receive for original contentTopic
 	s.waitForMsg(&WakuMsg{s.testTopic, s.testContentTopic, "test_msg"})
@@ -46,7 +46,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	// Subscribe with 3 content topics
 	for _, m := range messages {
-		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
 	// All messages should be received
@@ -90,7 +90,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	// Subscribe
 	for _, m := range messages {
-		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
+		s.subDetails = append(s.subDetails, s.getSub(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
 		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.pubSubTopic))
 		s.Require().NoError(err)
 	}
@@ -149,7 +149,7 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 	// Subscribe with valid topics
 	for _, m := range messages {
-		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.pubSubTopic))
 		s.Require().NoError(err)
 	}
@@ -193,7 +193,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllWithoutContentTopics() {
 
 	// Subscribe with 2 content topics
 	for _, m := range messages {
-		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
 	// All messages should be received
@@ -229,7 +229,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 
 	// Subscribe
 	for _, m := range messages {
-		s.subDetails = append(s.subDetails, s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
+		s.subDetails = append(s.subDetails, s.getSub(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())...)
 		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.pubSubTopic))
 		s.Require().NoError(err)
 	}
@@ -256,7 +256,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 
 	// Subscribe with 2 content topics
 	for _, m := range messages {
-		s.subDetails = s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.pubSubTopic, m.contentTopic, s.fullNodeHost.ID())
 	}
 
 	// All messages should be received
