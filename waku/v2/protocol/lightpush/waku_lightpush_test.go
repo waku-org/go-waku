@@ -58,6 +58,23 @@ func waitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
 	wg.Wait()
 }
 
+func waitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case _, ok := <-ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(1 * time.Second):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
+	}()
+
+	wg.Wait()
+}
+
 // Node1: Relay
 // Node2: Relay+Lightpush
 // Client that will lightpush a message
@@ -331,4 +348,65 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 
 	// Test situation when cancel func is nil
 	lightPushNode2.cancel = nil
+}
+
+func TestWakuLightPushWithStaticSharding(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Prepare pubsub topics for static sharding
+	pubSubTopic := protocol.NewStaticShardingPubsubTopic(uint16(25), uint16(0)).String()
+	testContentTopic := "/test/10/my-lp-app/proto"
+
+	node1, sub1, host1 := makeWakuRelay(t, pubSubTopic)
+	defer node1.Stop()
+	defer sub1.Unsubscribe()
+
+	node2, sub2, host2 := makeWakuRelay(t, pubSubTopic)
+	defer node2.Stop()
+	defer sub2.Unsubscribe()
+
+	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2.SetHost(host2)
+	err := lightPushNode2.Start(ctx)
+	require.NoError(t, err)
+	defer lightPushNode2.Stop()
+
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
+	err = host2.Peerstore().AddProtocols(host1.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
+	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host1.ID()))
+	require.NoError(t, err)
+
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
+	client.SetHost(clientHost)
+
+	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
+	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
+	require.NoError(t, err)
+
+	msg := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch())
+	msg2 := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch())
+
+	// Wait for the mesh connection to happen between node1 and node2
+	time.Sleep(2 * time.Second)
+
+	var wg sync.WaitGroup
+
+	// Check that msg publish has led to message deliver for existing topic
+	_, err = client.Publish(ctx, msg, WithPubSubTopic(pubSubTopic), WithPeer(host2.ID()))
+	require.NoError(t, err)
+	waitForMsg(t, &wg, sub1.Ch)
+
+	// Check that msg2 publish finished without message delivery for unconfigured topic
+	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
+	require.NoError(t, err)
+	waitForTimeout(t, ctx, &wg, sub1.Ch)
+
 }
