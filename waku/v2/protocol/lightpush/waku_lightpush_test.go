@@ -7,14 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"go.uber.org/zap"
-
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -40,39 +38,6 @@ func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Su
 	require.NoError(t, err)
 
 	return relay, sub[0], host
-}
-
-func waitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
-	wg.Add(1)
-	log := utils.Logger()
-	go func() {
-		defer wg.Done()
-		select {
-		case env := <-ch:
-			msg := env.Message()
-			log.Info("Received ", zap.String("msg", msg.String()))
-		case <-time.After(2 * time.Second):
-			require.Fail(t, "Message timeout")
-		}
-	}()
-	wg.Wait()
-}
-
-func waitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		select {
-		case _, ok := <-ch:
-			require.False(t, ok, "should not retrieve message")
-		case <-time.After(1 * time.Second):
-			// All good
-		case <-ctx.Done():
-			require.Fail(t, "test exceeded allocated time")
-		}
-	}()
-
-	wg.Wait()
 }
 
 // Node1: Relay
@@ -322,7 +287,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the nominal case message at node1
-	waitForMsg(t, &wg, sub1.Ch)
+	tests.WaitForMsg(t, &wg, sub1.Ch)
 
 	// Test error case with nil message
 	_, err = client.Publish(ctx, nil, lpOptions...)
@@ -402,7 +367,7 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 	// Check that msg publish has led to message deliver for existing topic
 	_, err = client.Publish(ctx, msg, WithPubSubTopic(pubSubTopic), WithPeer(host2.ID()))
 	require.NoError(t, err)
-	waitForMsg(t, &wg, sub1.Ch)
+	tests.WaitForMsg(t, &wg, sub1.Ch)
 
 	// Check that msg2 publish finished without message delivery for unconfigured topic
 	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
