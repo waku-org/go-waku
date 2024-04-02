@@ -407,6 +407,6 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 	// Check that msg2 publish finished without message delivery for unconfigured topic
 	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
 	require.NoError(t, err)
-	waitForTimeout(t, ctx, &wg, sub1.Ch)
+	tests.WaitForTimeout(t, ctx, &wg, sub1.Ch)
 
 }

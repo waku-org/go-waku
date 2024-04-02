@@ -427,6 +427,6 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
-	waitForTimeout(t, ctx, &wg, subs1[0].Ch)
+	tests.WaitForTimeout(t, ctx, &wg, subs1[0].Ch)
 
 }
