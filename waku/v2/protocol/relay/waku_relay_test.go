@@ -355,3 +355,77 @@ func TestInvalidMessagePublish(t *testing.T) {
 	ctxCancel()
 
 }
+
+func TestWakuRelayStaticSharding(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Follow spec /waku/2/rs/<cluster_id>/<shard_number>
+	testTopic := "/waku/2/rs/64/0"
+	testContentTopic := "/test/10/my-relay"
+
+	// Host1
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	host1, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	bcaster1 := NewBroadcaster(10)
+	relay1 := NewWakuRelay(bcaster1, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay1.SetHost(host1)
+	err = relay1.Start(context.Background())
+	require.NoError(t, err)
+
+	err = bcaster1.Start(context.Background())
+	require.NoError(t, err)
+	defer relay1.Stop()
+
+	// Host2
+	port, err = tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	host2, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	bcaster2 := NewBroadcaster(10)
+	relay2 := NewWakuRelay(bcaster2, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay2.SetHost(host2)
+	err = relay2.Start(context.Background())
+	require.NoError(t, err)
+
+	err = bcaster2.Start(context.Background())
+	require.NoError(t, err)
+	defer relay2.Stop()
+
+	// Connect nodes
+	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
+	err = host2.Peerstore().AddProtocols(host1.ID(), WakuRelayID_v200)
+	require.NoError(t, err)
+
+	// Wait for the mesh connection to happen between node1 and node2
+	time.Sleep(2 * time.Second)
+
+	// Subscribe to valid static shard topic on both hosts
+	subs1, err := relay2.subscribe(context.Background(), protocol.NewContentFilter(testTopic, testContentTopic))
+	require.NoError(t, err)
+
+	subs2, err := relay2.subscribe(context.Background(), protocol.NewContentFilter(testTopic, testContentTopic))
+	require.NoError(t, err)
+	require.True(t, relay2.IsSubscribed(testTopic))
+	require.Equal(t, testContentTopic, subs2[0].contentFilter.ContentTopics.ToList()[0])
+
+	msg := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch(), "test_payload")
+
+	// Test publish from host2 using autosharding -> should fail on topic format
+	_, err = relay2.Publish(ctx, msg)
+	require.Error(t, err)
+
+	// Test publish from host2 using static sharding -> should succeed
+	_, err = relay2.Publish(ctx, msg, WithPubSubTopic(testTopic))
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	// Msg should get received on host1
+	tests.WaitForMsg(t, &wg, subs1[0].Ch)
+
+}
