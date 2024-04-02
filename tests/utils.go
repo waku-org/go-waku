@@ -389,6 +389,22 @@ func GenerateRandomSQLInsert(maxLength int) (string, error) {
 	return query, nil
 }
 
+func WaitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	log := utils.Logger()
+	go func() {
+		defer wg.Done()
+		select {
+		case env := <-ch:
+			msg := env.Message()
+			log.Info("Received ", zap.String("msg", msg.String()))
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "Message timeout")
+		}
+	}()
+	wg.Wait()
+}
+
 func WaitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
 	wg.Add(1)
 	go func() {
