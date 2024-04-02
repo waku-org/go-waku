@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"io"
 	"math"
 	"math/big"
@@ -16,7 +17,9 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -384,4 +387,21 @@ func GenerateRandomSQLInsert(maxLength int) (string, error) {
 		strings.Join(values, ", "))
 
 	return query, nil
+}
+
+func WaitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case _, ok := <-ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(1 * time.Second):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
+	}()
+
+	wg.Wait()
 }
