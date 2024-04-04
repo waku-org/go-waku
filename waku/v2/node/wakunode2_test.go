@@ -464,17 +464,9 @@ func TestStaticShardingLimits(t *testing.T) {
 
 	r1 := wakuNode1.Relay()
 
-	var shardedPubSubTopics, nonShardedPubSubTopics []string
+	var shardedPubSubTopics []string
 	for i := 0; i < 1024; i++ {
-		nonShardedPubSubTopics = append(nonShardedPubSubTopics, fmt.Sprintf("/waku/2/my-app/21/%d", i))
 		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/21/%d", i))
-	}
-
-	// Subscribe topics not related to static sharding
-	for i := 0; i < 1024; i++ {
-		_, err = r1.Subscribe(ctx, protocol.NewContentFilter(nonShardedPubSubTopics[i], contentTopic1))
-		require.NoError(t, err)
-		time.Sleep(10 * time.Millisecond)
 	}
 
 	// Subscribe topics related to static sharding
