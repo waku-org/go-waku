@@ -47,13 +47,13 @@ pipeline {
           steps { script {
             sh("""#!/usr/bin/env bash
               ${nix._sourceProfileInline()}
-              nix build --print-out-paths .#library
+              nix build --print-out-paths .#dynamic-library
             """)
           } }
         }
         stage('Check') {
           steps {
-            sh 'ldd ./result/bin/c'
+            sh 'ldd ./result/bin/libgowaku.a'
           }
         }
       }
