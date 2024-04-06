@@ -1,4 +1,4 @@
-library 'status-jenkins-lib@v1.7.0'
+library 'status-jenkins-lib@v1.9.3'
 
 pipeline {
   agent {
@@ -27,10 +27,7 @@ pipeline {
       stages {
         stage('Build') {
           steps { script {
-            sh("""#!/usr/bin/env bash
-              ${nix._sourceProfileInline()}
-              nix build --print-out-paths .#node
-            """)
+            nix.flake('node')
           } }
         }
         stage('Check') {
@@ -45,15 +42,12 @@ pipeline {
       stages {
         stage('Build') {
           steps { script {
-            sh("""#!/usr/bin/env bash
-              ${nix._sourceProfileInline()}
-              nix build --print-out-paths .#library
-            """)
+            nix.flake('static-library')
           } }
         }
         stage('Check') {
           steps {
-            sh 'ldd ./result/bin/c'
+            sh 'readelf -h ./result/bin/libgowaku.a'
           }
         }
       }
