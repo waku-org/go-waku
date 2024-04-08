@@ -84,10 +84,7 @@ func (s *FilterTestSuite) SetupTest() {
 
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
-	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
-	s.Require().NoError(err)
+	s.ConnectHosts(s.lightNodeHost, s.FullNodeHost)
 
 }
 
@@ -97,6 +94,12 @@ func (s *FilterTestSuite) TearDownTest() {
 	s.RelaySub.Unsubscribe()
 	s.LightNode.Stop()
 	s.ctxCancel()
+}
+
+func (s *FilterTestSuite) ConnectHosts(h1, h2 host.Host) {
+	h1.Peerstore().AddAddr(h2.ID(), tests.GetHostAddress(h2), peerstore.PermanentAddrTTL)
+	err := h1.Peerstore().AddProtocols(h2.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) GetWakuRelay(topic string) FullNodeData {
