@@ -20,9 +20,7 @@ func (s *FilterTestSuite) TestValidPayloadsASCII() {
 	messages := prepareData(100, false, false, true, tests.GenerateRandomASCIIString)
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -38,9 +36,7 @@ func (s *FilterTestSuite) TestValidPayloadsUTF8() {
 	messages := prepareData(100, false, false, true, tests.GenerateRandomUTF8String)
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -56,9 +52,7 @@ func (s *FilterTestSuite) TestValidPayloadsBase64() {
 	messages := prepareData(100, false, false, true, tests.GenerateRandomBase64String)
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -74,9 +68,7 @@ func (s *FilterTestSuite) TestValidPayloadsJSON() {
 	messages := prepareData(100, false, false, true, tests.GenerateRandomJSONString)
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -92,9 +84,7 @@ func (s *FilterTestSuite) TestValidPayloadsURLEncoded() {
 	messages := prepareData(100, false, false, true, tests.GenerateRandomURLEncodedString)
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -110,9 +100,7 @@ func (s *FilterTestSuite) TestValidPayloadsSQL() {
 	messages := prepareData(100, false, false, true, tests.GenerateRandomSQLInsert)
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -136,9 +124,7 @@ func (s *FilterTestSuite) TestLargePayloadsUTF8() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)

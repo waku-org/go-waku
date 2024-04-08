@@ -50,9 +50,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Unsubscribe with the last 2 content topics
 	for _, m := range messages[1:] {
@@ -96,9 +94,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Unsubscribe
 	for _, m := range messages {
@@ -155,9 +151,7 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 	}
 
 	// All messages should be possible to receive for subscribed topics
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Unsubscribe with empty pubsub
 	contentFilter := protocol.ContentFilter{PubsubTopic: invalidMessages[0].pubSubTopic,
@@ -178,9 +172,7 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 	s.Require().NoError(err)
 
 	// All messages should be still possible to receive for subscribed topics
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -197,9 +189,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllWithoutContentTopics() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Unsubscribe all with peer specification
 	_, err := s.lightNode.UnsubscribeAll(s.ctx, WithPeer(s.fullNodeHost.ID()))
@@ -235,9 +225,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Unsubscribe all without any specification
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
@@ -260,9 +248,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Create new host - not related to any node
 	host, err := tests.MakeHost(context.Background(), 12345, rand.Reader)
@@ -280,9 +266,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 	}
 
 	// All messages should be received because peer ID used was not related to any subscription
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	// Expect error for unsubscribe from non existing peer
 	s.Require().Error(err)

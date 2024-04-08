@@ -173,10 +173,11 @@ func matchOneOfManyMsg(one WakuMsg, many []WakuMsg) bool {
 	return false
 }
 
-func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.SubscriptionDetails, expected []WakuMsg) {
+func (s *FilterTestSuite) waitForMessages(msgs []WakuMsg) {
 	s.wg.Add(1)
-	msgCount := len(expected)
+	msgCount := len(msgs)
 	found := 0
+	subs := s.subDetails
 	s.Log.Info("Expected messages ", zap.String("count", strconv.Itoa(msgCount)))
 	s.Log.Info("Existing subscriptions ", zap.String("count", strconv.Itoa(len(subs))))
 
@@ -196,7 +197,7 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 						payload:      string(env.Message().GetPayload()),
 					}
 					s.Log.Debug("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
-					if matchOneOfManyMsg(received, expected) {
+					if matchOneOfManyMsg(received, msgs) {
 						found++
 					}
 				case <-time.After(3 * time.Second):
@@ -208,8 +209,8 @@ func (s *FilterTestSuite) waitForMessages(fn func(), subs []*subscription.Subscr
 		}
 	}()
 
-	if fn != nil {
-		fn()
+	if msgs != nil {
+		s.publishMessages(msgs)
 	}
 
 	s.wg.Wait()

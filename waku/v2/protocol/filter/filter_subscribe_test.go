@@ -90,9 +90,7 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -130,9 +128,7 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err = s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -152,9 +148,7 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 	}
 
 	// All messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -172,9 +166,7 @@ func (s *FilterTestSuite) TestSubscriptionRefresh() {
 	s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
 
 	// Both messages should be received
-	s.waitForMessages(func() {
-		s.publishMessages(messages)
-	}, s.subDetails, messages)
+	s.waitForMessages(messages)
 
 	_, err := s.lightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
@@ -203,9 +195,7 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 	}
 
 	// All messages within limit should get received
-	s.waitForMessages(func() {
-		s.publishMessages(messages[:len(messages)-1])
-	}, s.subDetails, messages[:len(messages)-1])
+	s.waitForMessages(messages[:len(messages)-1])
 
 	// Adding over the limit contentTopic should fail
 	for _, sub := range s.subDetails {
