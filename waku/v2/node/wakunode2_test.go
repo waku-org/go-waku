@@ -477,7 +477,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	for i := 0; i < 1024; i++ {
 		_, err = r1.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Check ENR value after 1024 subscriptions
