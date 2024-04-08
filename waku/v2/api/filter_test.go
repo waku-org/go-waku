@@ -2,46 +2,35 @@ package api
 
 import (
 	"context"
-	"sync"
 	"testing"
 
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
-	"go.uber.org/zap"
 )
 
 func TestFilterApiSuite(t *testing.T) {
 	suite.Run(t, new(FilterApiTestSuite))
 }
 
-const defaultTestPubSubTopic = "/waku/2/go/filter/test"
-const defaultTestContentTopic = "/test/10/my-app"
-
 type FilterApiTestSuite struct {
-	suite.Suite
-
-	testTopic        string
-	testContentTopic string
-	ctx              context.Context
-	ctxCancel        context.CancelFunc
-	lightNode        *filter.WakuFilterLightNode
-	lightNodeHost    host.Host
-	relayNode        *relay.WakuRelay
-	relaySub         *relay.Subscription
-	fullNode         *filter.WakuFilterFullNode
-	fullNodeHost     host.Host
-	wg               *sync.WaitGroup
-	contentFilter    protocol.ContentFilter
-	subDetails       []*subscription.SubscriptionDetails
-	log              *zap.Logger
+	filter.FilterTestSuite
 }
 
-type WakuMsg struct {
-	pubSubTopic  string
-	contentTopic string
-	payload      string
+func (s *FilterApiTestSuite) SetupTest() {
+	s.FilterTestSuite.SetupTest()
+	s.Log.Info("SetupTest()")
+}
+
+func (s *FilterApiTestSuite) TearDownTest() {
+	s.FilterTestSuite.TearDownTest()
+}
+
+func (s *FilterApiTestSuite) TestSubscribe() {
+	contentFilter := protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
+	apiConfig := FilterConfig{MaxPeers: 2}
+	apiSub, err := Subscribe(context.Background(), s.LightNode, contentFilter, apiConfig)
+	s.Require().NoError(err)
+
+	s.Require().NotNil(apiSub.wf)
 }

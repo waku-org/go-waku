@@ -10,6 +10,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/tests"
@@ -22,7 +23,7 @@ import (
 )
 
 type LightNodeData struct {
-	lightNode     *WakuFilterLightNode
+	LightNode     *WakuFilterLightNode
 	lightNodeHost host.Host
 }
 
@@ -39,8 +40,8 @@ type FilterTestSuite struct {
 	LightNodeData
 	FullNodeData
 
-	testTopic        string
-	testContentTopic string
+	TestTopic        string
+	TestContentTopic string
 	ctx              context.Context
 	ctxCancel        context.CancelFunc
 	wg               *sync.WaitGroup
@@ -50,10 +51,52 @@ type FilterTestSuite struct {
 	Log *zap.Logger
 }
 
+const DefaultTestPubSubTopic = "/waku/2/go/filter/test"
+const DefaultTestContentTopic = "/test/10/my-app"
+
 type WakuMsg struct {
-	pubSubTopic  string
-	contentTopic string
-	payload      string
+	PubSubTopic  string
+	ContentTopic string
+	Payload      string
+}
+
+func (s *FilterTestSuite) SetupTest() {
+	log := utils.Logger() //.Named("filterv2-test")
+	s.Log = log
+
+	s.Log.Info("SetupTest()")
+	// Use a pointer to WaitGroup so that to avoid copying
+	// https://pkg.go.dev/sync#WaitGroup
+	s.wg = &sync.WaitGroup{}
+
+	// Create test context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	s.TestTopic = DefaultTestPubSubTopic
+	s.TestContentTopic = DefaultTestContentTopic
+
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
+
+	//TODO: Add tests to verify broadcaster.
+
+	s.MakeWakuFilterFullNode(s.TestTopic, false)
+
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+}
+
+func (s *FilterTestSuite) TearDownTest() {
+	s.fullNode.Stop()
+	s.LightNode.Stop()
+	s.RelaySub.Unsubscribe()
+	s.LightNode.Stop()
+	s.ctxCancel()
 }
 
 func (s *FilterTestSuite) GetWakuRelay(topic string) FullNodeData {
@@ -126,7 +169,7 @@ func (s *FilterTestSuite) MakeWakuFilterLightNode() {
 }
 
 func (s *FilterTestSuite) StartLightNode() {
-	err := s.lightNode.Start(context.Background())
+	err := s.LightNode.Start(context.Background())
 	s.Require().NoError(err)
 }
 
@@ -163,9 +206,9 @@ func (s *FilterTestSuite) waitForMsgFromChan(msg *WakuMsg, ch chan *protocol.Env
 
 func matchOneOfManyMsg(one WakuMsg, many []WakuMsg) bool {
 	for _, m := range many {
-		if m.pubSubTopic == one.pubSubTopic &&
-			m.contentTopic == one.contentTopic &&
-			m.payload == one.payload {
+		if m.PubSubTopic == one.PubSubTopic &&
+			m.ContentTopic == one.ContentTopic &&
+			m.Payload == one.Payload {
 			return true
 		}
 	}
@@ -192,11 +235,11 @@ func (s *FilterTestSuite) waitForMessages(msgs []WakuMsg) {
 						continue
 					}
 					received := WakuMsg{
-						pubSubTopic:  env.PubsubTopic(),
-						contentTopic: env.Message().GetContentTopic(),
-						payload:      string(env.Message().GetPayload()),
+						PubSubTopic:  env.PubsubTopic(),
+						ContentTopic: env.Message().GetContentTopic(),
+						Payload:      string(env.Message().GetPayload()),
 					}
-					s.Log.Debug("received message ", zap.String("pubSubTopic", received.pubSubTopic), zap.String("contentTopic", received.contentTopic), zap.String("payload", received.payload))
+					s.Log.Debug("received message ", zap.String("pubSubTopic", received.PubSubTopic), zap.String("contentTopic", received.ContentTopic), zap.String("payload", received.Payload))
 					if matchOneOfManyMsg(received, msgs) {
 						found++
 					}
@@ -245,7 +288,7 @@ func (s *FilterTestSuite) waitForTimeoutFromChan(msg *WakuMsg, ch chan *protocol
 func (s *FilterTestSuite) getSub(pubsubTopic string, contentTopic string, peer peer.ID) []*subscription.SubscriptionDetails {
 	contentFilter := protocol.ContentFilter{PubsubTopic: pubsubTopic, ContentTopics: protocol.NewContentTopicSet(contentTopic)}
 
-	subDetails, err := s.lightNode.Subscribe(s.ctx, contentFilter, WithPeer(peer))
+	subDetails, err := s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(peer))
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)
@@ -258,7 +301,7 @@ func (s *FilterTestSuite) subscribe(pubsubTopic string, contentTopic string, pee
 		if sub.ContentFilter.PubsubTopic == pubsubTopic {
 			sub.Add(contentTopic)
 			s.contentFilter = sub.ContentFilter
-			subDetails, err := s.lightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
+			subDetails, err := s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(peer))
 			s.subDetails = subDetails
 			s.Require().NoError(err)
 			return
@@ -275,7 +318,7 @@ func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, p
 		if sub.ContentFilter.PubsubTopic == pubsubTopic {
 			topicsCount := len(sub.ContentFilter.ContentTopicsList())
 			if topicsCount == 1 {
-				_, err := s.lightNode.Unsubscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
+				_, err := s.LightNode.Unsubscribe(s.ctx, sub.ContentFilter, WithPeer(peer))
 				s.Require().NoError(err)
 			} else {
 				sub.Remove(contentTopic)
@@ -284,29 +327,29 @@ func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, p
 		}
 	}
 
-	return s.lightNode.Subscriptions()
+	return s.LightNode.Subscriptions()
 }
 
 func (s *FilterTestSuite) publishMsg(msg *WakuMsg) {
-	if len(msg.payload) == 0 {
-		msg.payload = "123"
+	if len(msg.Payload) == 0 {
+		msg.Payload = "123"
 	}
 
-	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(msg.contentTopic, utils.GetUnixEpoch(), msg.payload), relay.WithPubSubTopic(msg.pubSubTopic))
+	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(msg.ContentTopic, utils.GetUnixEpoch(), msg.Payload), relay.WithPubSubTopic(msg.PubSubTopic))
 	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) publishMessages(msgs []WakuMsg) {
 	for _, m := range msgs {
-		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(m.contentTopic, utils.GetUnixEpoch(), m.payload), relay.WithPubSubTopic(m.pubSubTopic))
+		_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(m.ContentTopic, utils.GetUnixEpoch(), m.Payload), relay.WithPubSubTopic(m.PubSubTopic))
 		s.Require().NoError(err)
 	}
 }
 
-func prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.StringGenerator) []WakuMsg {
+func (s *FilterTestSuite) prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.StringGenerator) []WakuMsg {
 	var (
-		pubsubTopic     = defaultTestPubSubTopic  // Has to be the same with initial s.testTopic
-		contentTopic    = defaultTestContentTopic // Has to be the same with initial s.testContentTopic
+		pubsubTopic     = s.TestTopic        // Has to be the same with initial s.testTopic
+		contentTopic    = s.TestContentTopic // Has to be the same with initial s.testContentTopic
 		payload         = "test_msg"
 		messages        []WakuMsg
 		strMaxLenght    = 4097
@@ -315,9 +358,9 @@ func prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.St
 
 	for i := 0; i < quantity; i++ {
 		msg := WakuMsg{
-			pubSubTopic:  pubsubTopic,
-			contentTopic: contentTopic,
-			payload:      payload,
+			PubSubTopic:  pubsubTopic,
+			ContentTopic: contentTopic,
+			Payload:      payload,
 		}
 
 		if sg != nil {
@@ -326,15 +369,15 @@ func prepareData(quantity int, topics, contentTopics, payloads bool, sg tests.St
 		}
 
 		if topics {
-			msg.pubSubTopic = fmt.Sprintf("%s%02d%s", pubsubTopic, i, generatedString)
+			msg.PubSubTopic = fmt.Sprintf("%s%02d%s", pubsubTopic, i, generatedString)
 		}
 
 		if contentTopics {
-			msg.contentTopic = fmt.Sprintf("%s%02d%s", contentTopic, i, generatedString)
+			msg.ContentTopic = fmt.Sprintf("%s%02d%s", contentTopic, i, generatedString)
 		}
 
 		if payloads {
-			msg.payload = fmt.Sprintf("%s%02d%s", payload, i, generatedString)
+			msg.Payload = fmt.Sprintf("%s%02d%s", payload, i, generatedString)
 		}
 
 		messages = append(messages, msg)
