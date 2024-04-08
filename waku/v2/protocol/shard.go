@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/waku-org/go-waku/waku/v2/hash"
@@ -20,7 +19,6 @@ const ClusterIndex = 1
 const GenerationZeroShardsCount = 8
 
 var (
-	ErrTooManyShards     = errors.New("too many shards")
 	ErrInvalidShard      = errors.New("invalid shard")
 	ErrInvalidShardCount = errors.New("invalid shard count")
 	ErrExpected130Bytes  = errors.New("invalid data: expected 130 bytes")
@@ -32,10 +30,6 @@ type RelayShards struct {
 }
 
 func NewRelayShards(clusterID uint16, shardIDs ...uint16) (RelayShards, error) {
-	if len(shardIDs) > math.MaxUint8 {
-		return RelayShards{}, ErrTooManyShards
-	}
-
 	shardIDSet := make(map[uint16]struct{})
 	for _, index := range shardIDs {
 		if index > MaxShardIndex {
@@ -142,10 +136,6 @@ func (rs RelayShards) ContainsTopic(topic string) bool {
 }
 
 func (rs RelayShards) ShardList() ([]byte, error) {
-	if len(rs.ShardIDs) > math.MaxUint8 {
-		return nil, ErrTooManyShards
-	}
-
 	var result []byte
 
 	result = binary.BigEndian.AppendUint16(result, rs.ClusterID)
