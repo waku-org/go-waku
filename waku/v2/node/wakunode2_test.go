@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"math/big"
 	"net"
 	"sync"
@@ -419,6 +420,8 @@ func TestStaticShardingLimits(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 140*time.Second)
 	defer cancel()
 
+	testClusterID := uint16(21)
+
 	// Node1 with Relay
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
@@ -427,7 +430,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
-		WithClusterID(uint16(21)),
+		WithClusterID(testClusterID),
 		WithDiscoveryV5(uint(discv5UDPPort1), nil, true),
 	)
 	require.NoError(t, err)
@@ -443,7 +446,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	wakuNode2, err := New(
 		WithHostAddress(hostAddr2),
 		WithWakuRelay(),
-		WithClusterID(uint16(21)),
+		WithClusterID(testClusterID),
 		WithDiscoveryV5(uint(discv5UDPPort2), []*enode.Node{wakuNode1.localNode.Node()}, true),
 	)
 	require.NoError(t, err)
@@ -463,9 +466,14 @@ func TestStaticShardingLimits(t *testing.T) {
 
 	r1 := wakuNode1.Relay()
 
-	var shardedPubSubTopics []string
+	var (
+		shardedPubSubTopics []string
+		expectedShardIDs    []uint16
+	)
+
 	for i := 0; i < 1024; i++ {
-		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/21/%d", i))
+		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
+		expectedShardIDs = append(expectedShardIDs, uint16(i))
 	}
 
 	// Subscribe topics related to static sharding
@@ -475,5 +483,12 @@ func TestStaticShardingLimits(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	// Check ENR value after 1024 subscriptions
+	shardsENR, err := wenr.RelaySharding(wakuNode1.ENR().Record())
+	require.NoError(t, err)
+	require.Equal(t, testClusterID, shardsENR.ClusterID)
+	require.Equal(t, 1024, len(shardsENR.ShardIDs))
+
 	time.Sleep(1 * time.Second)
+
 }
