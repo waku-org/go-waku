@@ -466,14 +466,10 @@ func TestStaticShardingLimits(t *testing.T) {
 
 	r1 := wakuNode1.Relay()
 
-	var (
-		shardedPubSubTopics []string
-		expectedShardIDs    []uint16
-	)
+	var shardedPubSubTopics []string
 
 	for i := 0; i < 1024; i++ {
 		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
-		expectedShardIDs = append(expectedShardIDs, uint16(i))
 	}
 
 	// Subscribe topics related to static sharding
