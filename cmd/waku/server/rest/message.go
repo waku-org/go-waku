@@ -13,6 +13,7 @@ type RestWakuMessage struct {
 	Version      *uint32              `json:"version,omitempty"`
 	Timestamp    *int64               `json:"timestamp,omitempty"`
 	Meta         []byte               `json:"meta,omitempty"`
+	Ephemeral    *bool                `json:"ephemeral"`
 }
 
 func (r *RestWakuMessage) FromProto(input *pb.WakuMessage) error {
@@ -25,6 +26,7 @@ func (r *RestWakuMessage) FromProto(input *pb.WakuMessage) error {
 	r.Timestamp = input.Timestamp
 	r.Version = input.Version
 	r.Meta = input.Meta
+	r.Ephemeral = input.Ephemeral
 
 	return nil
 }
@@ -40,6 +42,7 @@ func (r *RestWakuMessage) ToProto() (*pb.WakuMessage, error) {
 		Version:      r.Version,
 		Timestamp:    r.Timestamp,
 		Meta:         r.Meta,
+		Ephemeral:    r.Ephemeral,
 	}
 
 	return msg, nil

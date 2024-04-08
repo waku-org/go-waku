@@ -143,11 +143,9 @@ func NewDiscoveryV5(priv *ecdsa.PrivateKey, localnode *enode.LocalNode, peerConn
 		localnode:              localnode,
 		metrics:                newMetrics(reg),
 		config: discover.Config{
-			PrivateKey: priv,
-			Bootnodes:  bootnodes,
-			V5Config: discover.V5Config{
-				ProtocolID: &protocolID,
-			},
+			PrivateKey:   priv,
+			Bootnodes:    bootnodes,
+			V5ProtocolID: &protocolID,
 		},
 		udpAddr: &net.UDPAddr{
 			IP:   net.IPv4zero,
@@ -178,9 +176,10 @@ func (d *DiscoveryV5) listen(ctx context.Context) error {
 
 	}
 
+	d.params.udpPort = uint(d.udpAddr.Port)
 	d.localnode.SetFallbackUDP(d.udpAddr.Port)
 
-	listener, err := discover.ListenV5(conn, d.localnode, d.config)
+	listener, err := discover.ListenV5(ctx, conn, d.localnode, d.config)
 	if err != nil {
 		return err
 	}
