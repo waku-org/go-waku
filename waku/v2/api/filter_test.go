@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"go.uber.org/zap"
 )
 
 func TestFilterApiSuite(t *testing.T) {
@@ -29,9 +30,14 @@ func (s *FilterApiTestSuite) TearDownTest() {
 
 func (s *FilterApiTestSuite) TestSubscribe() {
 	contentFilter := protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
-	apiConfig := FilterConfig{MaxPeers: 1, Peers: []peer.ID{s.FullNodeHost.ID()}}
 
-	s.Require().Equal(apiConfig.MaxPeers, 1)
+	fullNodeData2 := s.GetWakuFilterFullNode(s.TestTopic, true)
+	s.ConnectHosts(s.LightNodeHost, fullNodeData2.FullNodeHost)
+	peers := []peer.ID{s.FullNodeHost.ID(), fullNodeData2.FullNodeHost.ID()}
+	s.Log.Info("FullNodeHost IDs:", zap.Any(peers))
+	apiConfig := FilterConfig{MaxPeers: 2, Peers: peers}
+
+	s.Require().Equal(apiConfig.MaxPeers, 2)
 	s.Require().Equal(contentFilter.PubsubTopic, s.TestTopic)
 
 	s.Log.Info("About to perform API Subscribe()")

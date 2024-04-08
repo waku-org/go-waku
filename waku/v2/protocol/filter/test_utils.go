@@ -24,7 +24,7 @@ import (
 
 type LightNodeData struct {
 	LightNode     *WakuFilterLightNode
-	lightNodeHost host.Host
+	LightNodeHost host.Host
 }
 
 type FullNodeData struct {
@@ -84,7 +84,7 @@ func (s *FilterTestSuite) SetupTest() {
 
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
-	s.ConnectHosts(s.lightNodeHost, s.FullNodeHost)
+	s.ConnectHosts(s.LightNodeHost, s.FullNodeHost)
 
 }
 

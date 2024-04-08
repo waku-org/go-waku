@@ -80,8 +80,8 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.LightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
+	err := s.LightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	messages := s.prepareData(2, true, true, true, nil)
@@ -117,8 +117,8 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.LightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.LightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	var messages, invalidMessages []WakuMsg
@@ -211,8 +211,8 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.LightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
+	err := s.LightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	messages := s.prepareData(2, true, true, true, nil)
@@ -255,7 +255,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 	s.Require().NoError(err)
 
 	s.Log.Info("Host ID", logging.HostID("FullNode", s.FullNodeHost.ID()))
-	s.Log.Info("Host ID", logging.HostID("LightNode", s.lightNodeHost.ID()))
+	s.Log.Info("Host ID", logging.HostID("LightNode", s.LightNodeHost.ID()))
 	s.Log.Info("Host ID", logging.HostID("Unrelated", host.ID()))
 
 	// Unsubscribe all with unrelated peer specification
