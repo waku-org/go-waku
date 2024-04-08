@@ -30,7 +30,7 @@ type LightNodeData struct {
 type FullNodeData struct {
 	relayNode    *relay.WakuRelay
 	RelaySub     *relay.Subscription
-	fullNodeHost host.Host
+	FullNodeHost host.Host
 	Broadcaster  relay.Broadcaster
 	fullNode     *WakuFilterFullNode
 }
@@ -85,8 +85,8 @@ func (s *FilterTestSuite) SetupTest() {
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 }
@@ -127,7 +127,7 @@ func (s *FilterTestSuite) GetWakuFilterFullNode(topic string, withRegisterAll bo
 	nodeData := s.GetWakuRelay(topic)
 
 	node2Filter := NewWakuFilterFullNode(timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
-	node2Filter.SetHost(nodeData.fullNodeHost)
+	node2Filter.SetHost(nodeData.FullNodeHost)
 
 	var sub *relay.Subscription
 	if withRegisterAll {

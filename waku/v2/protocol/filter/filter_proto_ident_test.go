@@ -30,20 +30,20 @@ import (
 
 func (s *FilterTestSuite) TestCreateSubscription() {
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, ""})
 }
 
 func (s *FilterTestSuite) TestModifySubscription() {
 
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, ""})
 
 	// Subscribe to another content_topic
 	newContentTopic := "Topic_modified"
-	s.subscribe(s.TestTopic, newContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, newContentTopic, s.FullNodeHost.ID())
 
 	s.waitForMsg(&WakuMsg{s.TestTopic, newContentTopic, ""})
 }
@@ -51,7 +51,7 @@ func (s *FilterTestSuite) TestModifySubscription() {
 func (s *FilterTestSuite) TestMultipleMessages() {
 
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, "first"})
 
@@ -217,11 +217,11 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
 	//Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
 
 	// Subscribe with incorrect SubscribeID
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
-	_, err := s.LightNode.IncorrectSubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err := s.LightNode.IncorrectSubscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().Error(err)
 
 	_, err = s.LightNode.UnsubscribeAll(s.ctx)
@@ -261,13 +261,13 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	s.Require().NoError(err)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err = s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	// Subscribe
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
-	s.subDetails, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	s.subDetails, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)

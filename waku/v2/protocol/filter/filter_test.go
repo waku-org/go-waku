@@ -25,14 +25,14 @@ func (s *FilterTestSuite) TestRunningGuard() {
 
 	contentFilter := protocol.ContentFilter{PubsubTopic: "test", ContentTopics: protocol.NewContentTopicSet("test")}
 
-	_, err := s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err := s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 
 	s.Require().ErrorIs(err, service.ErrNotStarted)
 
 	err = s.LightNode.Start(s.ctx)
 	s.Require().NoError(err)
 
-	_, err = s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 
 	s.Require().NoError(err)
 }
@@ -41,14 +41,14 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 
 	contentFilter := protocol.ContentFilter{PubsubTopic: "test", ContentTopics: protocol.NewContentTopicSet("test")}
 
-	_, err := s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err := s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	result, err := s.LightNode.Unsubscribe(s.ctx, contentFilter, DontWait())
 	s.Require().NoError(err)
 	s.Require().Equal(0, len(result.Errors()))
 
-	_, err = s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	wg := sync.WaitGroup{}
@@ -109,18 +109,18 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.StartLightNode()
 	s.MakeWakuFilterFullNode(pubSubTopic.String(), false)
 
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err = s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err = s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	s.Log.Info("Testing Autoshard:CreateSubscription")
-	s.subscribe("", s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe("", s.TestContentTopic, s.FullNodeHost.ID())
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, ""})
 
 	// Wrong content topic
 	s.waitForTimeout(&WakuMsg{s.TestTopic, "TopicB", "second"})
 
-	_, err = s.LightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)
@@ -128,17 +128,17 @@ func (s *FilterTestSuite) TestAutoShard() {
 	// Should not receive after unsubscribe
 	s.waitForTimeout(&WakuMsg{s.TestTopic, s.TestContentTopic, "third"})
 
-	s.subscribe("", s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe("", s.TestContentTopic, s.FullNodeHost.ID())
 
 	s.Log.Info("Testing Autoshard:SubscriptionPing")
-	err = s.LightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	err = s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
 	s.Require().NoError(err)
 
 	// Test ModifySubscription Subscribe to another content_topic
 	s.Log.Info("Testing Autoshard:ModifySubscription")
 
 	newContentTopic := "0/test/1/testTopic1/proto"
-	s.subscribe("", newContentTopic, s.fullNodeHost.ID())
+	s.subscribe("", newContentTopic, s.FullNodeHost.ID())
 
 	s.waitForMsg(&WakuMsg{s.TestTopic, newContentTopic, ""})
 
@@ -158,7 +158,7 @@ func (s *FilterTestSuite) TestLightNodeIsListening() {
 	messages := s.prepareData(2, true, true, false, nil)
 
 	// Subscribe with the first message only
-	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.fullNodeHost.ID())
+	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.FullNodeHost.ID())
 
 	// IsListening returns true for the first message
 	listenStatus := s.LightNode.IsListening(messages[0].PubSubTopic, messages[0].ContentTopic)

@@ -18,7 +18,7 @@ import (
 
 func (s *FilterTestSuite) TestWakuFilter() {
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Should be received
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, "first"})
@@ -26,16 +26,16 @@ func (s *FilterTestSuite) TestWakuFilter() {
 	// Wrong content topic
 	s.waitForTimeout(&WakuMsg{s.TestTopic, "TopicB", "second"})
 
-	_, err := s.LightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err := s.LightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Should not receive after unsubscribe
 	s.waitForTimeout(&WakuMsg{s.TestTopic, s.TestContentTopic, "third"})
 
 	// Two new subscriptions with same [peer, contentFilter]
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
-	secondSub := s.getSub(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	secondSub := s.getSub(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Assert that we have 2 subscriptions now
 	s.Require().Equal(len(s.LightNode.Subscriptions()), 2)
@@ -67,7 +67,7 @@ func (s *FilterTestSuite) TestWakuFilter() {
 
 func (s *FilterTestSuite) TestPubSubSingleContentTopic() {
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Message should be received
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, "test_msg"})
@@ -86,7 +86,7 @@ func (s *FilterTestSuite) TestPubSubMultiContentTopic() {
 
 	// Subscribe
 	for _, m := range messages {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// All messages should be received
@@ -108,15 +108,15 @@ func (s *FilterTestSuite) TestMultiPubSubMultiContentTopic() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	messages := s.prepareData(2, true, true, false, nil)
 
 	// Subscribe
 	for _, m := range messages {
-		s.subDetails = append(s.subDetails, s.getSub(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())...)
+		s.subDetails = append(s.subDetails, s.getSub(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())...)
 		s.Log.Info("Subscribing ", zap.String("PubSubTopic", m.PubSubTopic))
 		_, err := s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.PubSubTopic))
 		s.Require().NoError(err)
@@ -144,7 +144,7 @@ func (s *FilterTestSuite) TestPubSubMultiOverlapContentTopic() {
 
 	// Subscribe
 	for _, m := range messages {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// All messages should be received
@@ -160,10 +160,10 @@ func (s *FilterTestSuite) TestSubscriptionRefresh() {
 	messages := s.prepareData(2, false, false, true, nil)
 
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Repeat the same subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Both messages should be received
 	s.waitForMessages(messages)
@@ -191,7 +191,7 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 
 	// Subscribe
 	for _, m := range messages[:len(messages)-1] {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// All messages within limit should get received
@@ -201,14 +201,14 @@ func (s *FilterTestSuite) TestContentTopicsLimit() {
 	for _, sub := range s.subDetails {
 		if sub.ContentFilter.PubsubTopic == messages[len(messages)-1].PubSubTopic {
 			sub.Add(messages[len(messages)-1].ContentTopic)
-			_, err := s.LightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(s.fullNodeHost.ID()))
+			_, err := s.LightNode.Subscribe(s.ctx, sub.ContentFilter, WithPeer(s.FullNodeHost.ID()))
 			s.Require().Error(err)
 		}
 	}
 
 	// Unsubscribe for cleanup
 	for _, m := range messages {
-		_ = s.unsubscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		_ = s.unsubscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	_, err := s.LightNode.UnsubscribeAll(s.ctx)
@@ -234,12 +234,12 @@ func (s *FilterTestSuite) TestSubscribeErrorHandling() {
 
 	// Subscribe with empty pubsub
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: messages[0].PubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[0].ContentTopic)}
-	_, err := s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err := s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().Error(err)
 
 	// Subscribe with empty content topic
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: messages[1].PubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[1].ContentTopic)}
-	_, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().Error(err)
 
 }
@@ -252,8 +252,8 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	// Create test context
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
 
-	fullNodeIDHex := make([]byte, hex.EncodedLen(len([]byte(s.fullNodeHost.ID()))))
-	_ = hex.Encode(fullNodeIDHex, []byte(s.fullNodeHost.ID()))
+	fullNodeIDHex := make([]byte, hex.EncodedLen(len([]byte(s.FullNodeHost.ID()))))
+	_ = hex.Encode(fullNodeIDHex, []byte(s.FullNodeHost.ID()))
 
 	s.Log.Info("Already subscribed to", zap.String("fullNode", string(fullNodeIDHex)))
 
@@ -261,18 +261,18 @@ func (s *FilterTestSuite) TestMultipleFullNodeSubscriptions() {
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
 	// Connect to second full and relay node
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
-	fullNodeIDHex = make([]byte, hex.EncodedLen(len([]byte(s.fullNodeHost.ID()))))
-	_ = hex.Encode(fullNodeIDHex, []byte(s.fullNodeHost.ID()))
+	fullNodeIDHex = make([]byte, hex.EncodedLen(len([]byte(s.FullNodeHost.ID()))))
+	_ = hex.Encode(fullNodeIDHex, []byte(s.FullNodeHost.ID()))
 
 	s.Log.Info("Subscribing to second", zap.String("fullNode", string(fullNodeIDHex)))
 
 	// Subscribe to the second full node
 	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
-	_, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	_, err = s.LightNode.UnsubscribeAll(s.ctx)
@@ -290,18 +290,18 @@ func (s *FilterTestSuite) TestSubscribeMultipleLightNodes() {
 	s.Require().NoError(err)
 
 	// Connect node2
-	lightNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	lightNode2.h.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
 
 	messages := s.prepareData(2, true, true, true, nil)
 
 	// Subscribe separately: light node 1 -> full node
 	contentFilter := protocol.ContentFilter{PubsubTopic: messages[0].PubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[0].ContentTopic)}
-	_, err = s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Subscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Subscribe separately: light node 2 -> full node
 	contentFilter2 := protocol.ContentFilter{PubsubTopic: messages[1].PubSubTopic, ContentTopics: protocol.NewContentTopicSet(messages[1].ContentTopic)}
-	_, err = lightNode2.Subscribe(s.ctx, contentFilter2, WithPeer(s.fullNodeHost.ID()))
+	_, err = lightNode2.Subscribe(s.ctx, contentFilter2, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Unsubscribe
@@ -327,10 +327,10 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	fullNode2 := nodeData.fullNode
 
 	// Connect nodes
-	fullNode2.h.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	fullNode2.h.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
 
 	// Get stream
-	stream, err := fullNode2.h.NewStream(s.ctx, s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	stream, err := fullNode2.h.NewStream(s.ctx, s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	// Prepare subscribe request
@@ -344,7 +344,7 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	fullNode2.subscribe(s.ctx, stream, subscribeRequest)
 
 	// Check the pubsub topic related to the first node is stored within the second node
-	pubsubTopics, hasTopics := fullNode2.subscriptions.Get(s.fullNodeHost.ID())
+	pubsubTopics, hasTopics := fullNode2.subscriptions.Get(s.FullNodeHost.ID())
 	s.Require().True(hasTopics)
 
 	// Check the pubsub topic is what we have set
@@ -361,7 +361,7 @@ func (s *FilterTestSuite) TestIsSubscriptionAlive() {
 	messages := s.prepareData(2, false, true, false, nil)
 
 	// Subscribe with the first message only
-	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.fullNodeHost.ID())
+	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.FullNodeHost.ID())
 
 	// IsSubscriptionAlive returns no error for the first message
 	err := s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
@@ -384,16 +384,16 @@ func (s *FilterTestSuite) TestFilterSubscription() {
 	contentFilter := protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
 
 	// Subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Returns no error and SubscriptionDetails for existing subscription
-	_, err := s.LightNode.FilterSubscription(s.fullNodeHost.ID(), contentFilter)
+	_, err := s.LightNode.FilterSubscription(s.FullNodeHost.ID(), contentFilter)
 	s.Require().NoError(err)
 
 	otherFilter := protocol.ContentFilter{PubsubTopic: "34583495", ContentTopics: protocol.NewContentTopicSet("sjfa402")}
 
 	// Returns error and nil SubscriptionDetails for non existent subscription
-	nonSubscription, err := s.LightNode.FilterSubscription(s.fullNodeHost.ID(), otherFilter)
+	nonSubscription, err := s.LightNode.FilterSubscription(s.FullNodeHost.ID(), otherFilter)
 	s.Require().Error(err)
 	s.Require().Nil(nonSubscription)
 
@@ -412,19 +412,19 @@ func (s *FilterTestSuite) TestHandleFilterSubscribeOptions() {
 	contentFilter := protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
 
 	// Subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// With valid peer
-	opts := []FilterSubscribeOption{WithPeer(s.fullNodeHost.ID())}
+	opts := []FilterSubscribeOption{WithPeer(s.FullNodeHost.ID())}
 
 	// Positive case
 	_, _, err := s.LightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)
 	s.Require().NoError(err)
 
-	addr := s.fullNodeHost.Addrs()[0]
+	addr := s.FullNodeHost.Addrs()[0]
 
 	// Combine mutually exclusive options
-	opts = []FilterSubscribeOption{WithPeer(s.fullNodeHost.ID()), WithPeerAddr(addr)}
+	opts = []FilterSubscribeOption{WithPeer(s.FullNodeHost.ID()), WithPeerAddr(addr)}
 
 	// Should fail on wrong option combination
 	_, _, err = s.LightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)

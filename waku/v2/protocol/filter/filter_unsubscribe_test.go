@@ -18,8 +18,8 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	var newContentTopic = "TopicB"
 
 	// Initial subscribe
-	s.subscribe(s.TestTopic, s.TestContentTopic, s.fullNodeHost.ID())
-	s.subscribe(s.TestTopic, newContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
+	s.subscribe(s.TestTopic, newContentTopic, s.FullNodeHost.ID())
 
 	// Message is possible to receive for original contentTopic
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, "test_msg"})
@@ -27,7 +27,7 @@ func (s *FilterTestSuite) TestUnsubscribeSingleContentTopic() {
 	// Message is possible to receive for new contentTopic
 	s.waitForMsg(&WakuMsg{s.TestTopic, newContentTopic, "test_msg"})
 
-	_ = s.unsubscribe(s.TestTopic, newContentTopic, s.fullNodeHost.ID())
+	_ = s.unsubscribe(s.TestTopic, newContentTopic, s.FullNodeHost.ID())
 
 	// Message should not be received for new contentTopic as it was unsubscribed
 	s.waitForTimeout(&WakuMsg{s.TestTopic, newContentTopic, "test_msg"})
@@ -46,7 +46,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	// Subscribe with 3 content topics
 	for _, m := range messages {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// All messages should be received
@@ -54,7 +54,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiContentTopic() {
 
 	// Unsubscribe with the last 2 content topics
 	for _, m := range messages[1:] {
-		_ = s.unsubscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		_ = s.unsubscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// Messages should not be received for the last two contentTopics as it was unsubscribed
@@ -80,15 +80,15 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	messages := s.prepareData(2, true, true, true, nil)
 
 	// Subscribe
 	for _, m := range messages {
-		s.subDetails = append(s.subDetails, s.getSub(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())...)
+		s.subDetails = append(s.subDetails, s.getSub(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())...)
 		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.PubSubTopic))
 		s.Require().NoError(err)
 	}
@@ -98,7 +98,7 @@ func (s *FilterTestSuite) TestUnsubscribeMultiPubSubMultiContentTopic() {
 
 	// Unsubscribe
 	for _, m := range messages {
-		_ = s.unsubscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		_ = s.unsubscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// No messages can be received with previous subscriptions
@@ -117,8 +117,8 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	var messages, invalidMessages []WakuMsg
@@ -145,7 +145,7 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 
 	// Subscribe with valid topics
 	for _, m := range messages {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.PubSubTopic))
 		s.Require().NoError(err)
 	}
@@ -156,19 +156,19 @@ func (s *FilterTestSuite) TestUnsubscribeErrorHandling() {
 	// Unsubscribe with empty pubsub
 	contentFilter := protocol.ContentFilter{PubsubTopic: invalidMessages[0].PubSubTopic,
 		ContentTopics: protocol.NewContentTopicSet(invalidMessages[0].ContentTopic)}
-	_, err = s.LightNode.Unsubscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().Error(err)
 
 	// Unsubscribe with empty content topic
 	contentFilter = protocol.ContentFilter{PubsubTopic: invalidMessages[1].PubSubTopic,
 		ContentTopics: protocol.NewContentTopicSet(invalidMessages[1].ContentTopic)}
-	_, err = s.LightNode.Unsubscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().Error(err)
 
 	// Unsubscribe with non-existent topics, expect no error to prevent attacker from topic guessing
 	contentFilter = protocol.ContentFilter{PubsubTopic: invalidMessages[2].PubSubTopic,
 		ContentTopics: protocol.NewContentTopicSet(invalidMessages[2].ContentTopic)}
-	_, err = s.LightNode.Unsubscribe(s.ctx, contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, contentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// All messages should be still possible to receive for subscribed topics
@@ -185,14 +185,14 @@ func (s *FilterTestSuite) TestUnsubscribeAllWithoutContentTopics() {
 
 	// Subscribe with 2 content topics
 	for _, m := range messages {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// All messages should be received
 	s.waitForMessages(messages)
 
 	// Unsubscribe all with peer specification
-	_, err := s.LightNode.UnsubscribeAll(s.ctx, WithPeer(s.fullNodeHost.ID()))
+	_, err := s.LightNode.UnsubscribeAll(s.ctx, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	// Messages should not be received for any contentTopics
@@ -211,15 +211,15 @@ func (s *FilterTestSuite) TestUnsubscribeAllDiffPubSubContentTopics() {
 	s.MakeWakuFilterFullNode(s.TestTopic, true)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.lightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.fullNode.h), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
 	s.Require().NoError(err)
 
 	messages := s.prepareData(2, true, true, true, nil)
 
 	// Subscribe
 	for _, m := range messages {
-		s.subDetails = append(s.subDetails, s.getSub(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())...)
+		s.subDetails = append(s.subDetails, s.getSub(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())...)
 		_, err = s.relayNode.Subscribe(context.Background(), protocol.NewContentFilter(m.PubSubTopic))
 		s.Require().NoError(err)
 	}
@@ -244,7 +244,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 
 	// Subscribe with 2 content topics
 	for _, m := range messages {
-		s.subscribe(m.PubSubTopic, m.ContentTopic, s.fullNodeHost.ID())
+		s.subscribe(m.PubSubTopic, m.ContentTopic, s.FullNodeHost.ID())
 	}
 
 	// All messages should be received
@@ -254,7 +254,7 @@ func (s *FilterTestSuite) TestUnsubscribeAllUnrelatedPeer() {
 	host, err := tests.MakeHost(context.Background(), 12345, rand.Reader)
 	s.Require().NoError(err)
 
-	s.Log.Info("Host ID", logging.HostID("FullNode", s.fullNodeHost.ID()))
+	s.Log.Info("Host ID", logging.HostID("FullNode", s.FullNodeHost.ID()))
 	s.Log.Info("Host ID", logging.HostID("LightNode", s.lightNodeHost.ID()))
 	s.Log.Info("Host ID", logging.HostID("Unrelated", host.ID()))
 

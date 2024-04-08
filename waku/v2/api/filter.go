@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
@@ -12,7 +13,8 @@ import (
 )
 
 type FilterConfig struct {
-	MaxPeers uint
+	MaxPeers int
+	Peers    []peer.ID
 }
 
 type Sub struct {
@@ -38,7 +40,7 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
 	if err == nil {
-		sub.healthCheckLoop()
+		go sub.healthCheckLoop()
 		return sub, nil
 	} else {
 		return nil, err
@@ -76,7 +78,7 @@ func (apiSub *Sub) healthCheckLoop() {
 	}
 }
 
-func (apiSub *Sub) checkAliveness() map[string]uint {
+func (apiSub *Sub) checkAliveness() map[string]int {
 	apiSub.RLock()
 	defer apiSub.RUnlock()
 
@@ -104,7 +106,7 @@ func (apiSub *Sub) checkAliveness() map[string]uint {
 	wg.Wait()
 	close(ch)
 	// Collect healthy topics
-	m := make(map[string]uint)
+	m := make(map[string]int)
 	topicMap, _ := protocol.ContentFilterToPubSubTopicMap(apiSub.ContentFilter)
 	for _, t := range maps.Keys(topicMap) {
 		m[t] = 0
@@ -116,9 +118,15 @@ func (apiSub *Sub) checkAliveness() map[string]uint {
 	return m
 
 }
-func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount uint) error {
+func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int) error {
 	// Low-level subscribe, returns a set of SubscriptionDetails
-	subs, err := apiSub.wf.Subscribe(apiSub.ctx, contentFilter, filter.WithMaxPeersPerContentFilter(int(peerCount)))
+	options := make([]filter.FilterSubscribeOption, 0)
+	options = append(options, filter.WithMaxPeersPerContentFilter(int(peerCount)))
+	for _, p := range apiSub.Config.Peers {
+		options = append(options, filter.WithPeer(p))
+	}
+	subs, err := apiSub.wf.Subscribe(apiSub.ctx, contentFilter, options...)
+
 	if err != nil {
 		// TODO what if fails?
 		return err
