@@ -418,7 +418,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 }
 
 func TestStaticShardingLimits(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	testClusterID := uint16(21)
@@ -502,6 +502,10 @@ func TestStaticShardingLimits(t *testing.T) {
 
 	// Select shard to publish
 	randomShard := rand.Intn(1024)
+
+	// Check both nodes are subscribed
+	require.True(t, r1.IsSubscribed(shardedPubSubTopics[randomShard]))
+	require.True(t, r2.IsSubscribed(shardedPubSubTopics[randomShard]))
 
 	// Publish on node1
 	_, err = r1.Publish(ctx, msg1, relay.WithPubSubTopic(shardedPubSubTopics[randomShard]))
