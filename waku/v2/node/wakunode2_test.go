@@ -475,6 +475,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	for i := 0; i < 1024; i++ {
 		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
 		_, err = r1.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
+		require.NoError(t, err)
 		_, err = r2.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
 		time.Sleep(10 * time.Millisecond)
@@ -492,7 +493,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	// Prepare message
 	msg1 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message")
 
-	// Select shard to publish to
+	// Select shard to publish
 	randomShard := rand.Intn(1024)
 
 	// Publish on node1
@@ -501,12 +502,12 @@ func TestStaticShardingLimits(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	s, err := r2.GetSubscriptionWithPubsubTopic(shardedPubSubTopics[randomShard], contentTopic1)
+	s2, err := r2.GetSubscriptionWithPubsubTopic(shardedPubSubTopics[randomShard], contentTopic1)
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
 
 	// Retrieve on node2
-	tests.WaitForMsg(t, &wg, s.Ch)
+	tests.WaitForMsg(t, &wg, s2.Ch)
 
 }
