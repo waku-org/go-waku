@@ -6,6 +6,7 @@ import (
 	"fmt"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"math/big"
+	"math/rand"
 	"net"
 	"sync"
 	"testing"
@@ -417,7 +418,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 }
 
 func TestStaticShardingLimits(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 140*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	testClusterID := uint16(21)
@@ -465,19 +466,21 @@ func TestStaticShardingLimits(t *testing.T) {
 	contentTopic1 := "/test/2/my-app/sharded"
 
 	r1 := wakuNode1.Relay()
+	r2 := wakuNode1.Relay()
 
 	var shardedPubSubTopics []string
 
-	for i := 0; i < 1024; i++ {
-		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
-	}
-
 	// Subscribe topics related to static sharding
 	for i := 0; i < 1024; i++ {
+		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
 		_, err = r1.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
+		_, err = r2.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
+
+	// Let ENR updates to finish
+	time.Sleep(3 * time.Second)
 
 	// Check ENR value after 1024 subscriptions
 	shardsENR, err := wenr.RelaySharding(wakuNode1.ENR().Record())
@@ -485,6 +488,24 @@ func TestStaticShardingLimits(t *testing.T) {
 	require.Equal(t, testClusterID, shardsENR.ClusterID)
 	require.Equal(t, 1024, len(shardsENR.ShardIDs))
 
+	// Prepare message
+	msg1 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message")
+
+	// Select shard to publish to
+	randomShard := rand.Intn(1024)
+
+	// Publish on node1
+	_, err = r1.Publish(ctx, msg1, relay.WithPubSubTopic(shardedPubSubTopics[randomShard]))
+	require.NoError(t, err)
+
 	time.Sleep(1 * time.Second)
+
+	s, err := r2.GetSubscriptionWithPubsubTopic(shardedPubSubTopics[randomShard], contentTopic1)
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	// Retrieve on node2
+	tests.WaitForMsg(t, &wg, s.Ch)
 
 }
