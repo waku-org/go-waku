@@ -419,7 +419,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 }
 
 func TestStaticShardingLimits(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
 	testClusterID := uint16(21)
@@ -467,7 +467,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	contentTopic1 := "/test/2/my-app/sharded"
 
 	r1 := wakuNode1.Relay()
-	r2 := wakuNode1.Relay()
+	r2 := wakuNode2.Relay()
 
 	var shardedPubSubTopics []string
 
@@ -476,6 +476,14 @@ func TestStaticShardingLimits(t *testing.T) {
 		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
 		_, err = r1.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Let ENR updates to finish
+	time.Sleep(3 * time.Second)
+
+	// Subscribe topics related to static sharding
+	for i := 0; i < 1024; i++ {
 		_, err = r2.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
 		time.Sleep(10 * time.Millisecond)
