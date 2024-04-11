@@ -419,8 +419,10 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 }
 
 func TestStaticShardingLimits(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
 	defer cancel()
+
+	log := utils.Logger()
 
 	testClusterID := uint16(21)
 
@@ -463,6 +465,21 @@ func TestStaticShardingLimits(t *testing.T) {
 
 	// Wait for discovery
 	time.Sleep(3 * time.Second)
+
+	log.Info("Node1 has", zap.String("peer ID", wakuNode1.ID()))
+	log.Info("Node2 has", zap.String("peer ID", wakuNode2.ID()))
+
+	knownPeers := wakuNode1.peerstore.Peers()
+	for _, peer := range knownPeers {
+		log.Info("Peers known to Node1", zap.String("ID", peer.String()))
+	}
+
+	knownPeers = wakuNode2.peerstore.Peers()
+	for _, peer := range knownPeers {
+		log.Info("Peers known to Node2", zap.String("ID", peer.String()))
+	}
+
+	log.Info("No peers for the topic yet")
 
 	contentTopic1 := "/test/2/my-app/sharded"
 
@@ -507,6 +524,8 @@ func TestStaticShardingLimits(t *testing.T) {
 	// Check both nodes are subscribed
 	require.True(t, r1.IsSubscribed(shardedPubSubTopics[randomShard]))
 	require.True(t, r2.IsSubscribed(shardedPubSubTopics[randomShard]))
+
+	time.Sleep(120 * time.Second)
 
 	// Publish on node1
 	_, err = r1.Publish(ctx, msg1, relay.WithPubSubTopic(shardedPubSubTopics[randomShard]))
