@@ -33,6 +33,7 @@ func (msg lightpushRequest) Check() error {
 	if msg.Message == nil {
 		return errors.New("waku message is required")
 	}
+
 	return nil
 }
 
@@ -66,6 +67,19 @@ func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Req
 	message, err := request.Message.ToProto()
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		_, err = w.Write([]byte(err.Error()))
+		if err != nil {
+			serv.log.Error("writing response", zap.Error(err))
+		}
+		return
+	}
+
+	if err = message.Validate(); err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, err = w.Write([]byte(err.Error()))
+		if err != nil {
+			serv.log.Error("writing response", zap.Error(err))
+		}
 		return
 	}
 
