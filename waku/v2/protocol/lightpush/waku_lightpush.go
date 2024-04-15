@@ -151,7 +151,6 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 			wakuLP.metrics.RecordError(messagePushFailure)
 			responseMsg := fmt.Sprintf("Could not publish message: %s", err.Error())
 			responsePushRPC.Response.Info = &responseMsg
-			return
 		} else {
 			responsePushRPC.Response.IsSuccess = true
 			responseMsg := "OK"
