@@ -3,6 +3,7 @@
   self ? ./.,
   subPkgs ? "cmd/waku",
   ldflags ? [],
+  cgoLdflags ? "",
   output ? null,
   commit ? builtins.substring 0 7 (self.rev or "dirty"),
   version ? builtins.readFile ./VERSION,
@@ -18,6 +19,8 @@ pkgs.buildGo120Module {
     "-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=${commit}"
     "-X github.com/waku-org/go-waku/waku/v2/node.Version=${version}"
   ] ++ ldflags;
+  CGO_LDFLAGS = cgoLdflags;
+  GOGCCFLAGS = "-fPIC";
   doCheck = false;
 
   # Otherwise library would be just called bin/c.

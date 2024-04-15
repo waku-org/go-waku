@@ -53,7 +53,8 @@
           inherit self;
           subPkgs = ["library/c"];
           ldflags = ["-buildmode=c-shared"];
-          output = "libgowaku.a";
+          cgoLdflags = "-Wl,-Bsymbolic,-soname,libgowaku.so.0";
+          output = "libgowaku.so";
         };
       });
 
