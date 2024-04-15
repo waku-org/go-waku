@@ -38,7 +38,13 @@ func NewWakuRest(node *node.WakuNode, config RestConfig, log *zap.Logger) *WakuR
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.NoCache)
-
+	mux.Use(func(h http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			h.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(fn)
+	})
 	if config.EnablePProf {
 		mux.Mount("/debug", middleware.Profiler())
 	}
