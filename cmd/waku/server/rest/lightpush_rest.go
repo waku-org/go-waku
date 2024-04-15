@@ -73,7 +73,9 @@ func (serv *LightpushService) postMessagev1(w http.ResponseWriter, req *http.Req
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, err = w.Write([]byte(err.Error()))
-		serv.log.Error("writing response", zap.Error(err))
+		if err != nil {
+			serv.log.Error("writing response", zap.Error(err))
+		}
 	} else {
 		writeErrOrResponse(w, err, true)
 	}
