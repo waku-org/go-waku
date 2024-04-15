@@ -67,7 +67,13 @@ func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption
 			return nil, nil, err
 		}
 		options = append(options, store.WithPeerAddr(m))
+	} else {
+		// The user didn't specify a peer address and self-node is configured as a store node.
+		// In this case we assume that the user is willing to retrieve the messages stored by
+		// the local/self store node.
+		options = append(options, store.WithLocalQuery())
 	}
+
 	query.PubsubTopic = r.URL.Query().Get("pubsubTopic")
 
 	contentTopics := r.URL.Query().Get("contentTopics")
