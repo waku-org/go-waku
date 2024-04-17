@@ -63,10 +63,6 @@ func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, reg p
 
 	wakuLP.limiter = params.limiter
 
-	if pm != nil {
-		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, LightPushENRField)
-	}
-
 	return wakuLP
 }
 
@@ -79,6 +75,10 @@ func (wakuLP *WakuLightPush) SetHost(h host.Host) {
 func (wakuLP *WakuLightPush) Start(ctx context.Context) error {
 	if wakuLP.relayIsNotAvailable() {
 		return errors.New("relay is required, without it, it is only a client and cannot be started")
+	}
+
+	if wakuLP.pm != nil {
+		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, LightPushENRField)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
