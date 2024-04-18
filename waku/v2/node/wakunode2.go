@@ -316,13 +316,13 @@ func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-first:
-			addr := maps.Keys(addrsSet)
+			addr := maps.Values(addrsSet)
 			w.log.Info("listening", logging.MultiAddrs("multiaddr", addr...))
 		case <-w.addressChangesSub.Out():
 			newAddrs := utils.MultiAddrSet(w.ListenAddresses()...)
-			if !maps.Equal(addrsSet, newAddrs) {
+			if !utils.MultiAddrSetEquals(addrsSet, newAddrs) {
 				addrsSet = newAddrs
-				addrs := maps.Keys(addrsSet)
+				addrs := maps.Values(addrsSet)
 				w.log.Info("listening addresses update received", logging.MultiAddrs("multiaddr", addrs...))
 				err := w.setupENR(ctx, addrs)
 				if err != nil {
