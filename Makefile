@@ -220,3 +220,8 @@ test-postgres:
 test-postgres-with-race:
 	${GOBIN} test -race -p 1 -v -count 1 -tags="${PG_BUILD_TAGS}" github.com/waku-org/go-waku/waku/persistence/...
 
+test-filter:
+	${GOBIN} test -v github.com/waku-org/go-waku/waku/v2/protocol/filter -run TestFilterSuite -count=1
+
+test-filter-api:
+	${GOBIN} test -v github.com/waku-org/go-waku/waku/v2/api -run TestFilterApiSuite
