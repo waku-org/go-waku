@@ -43,6 +43,7 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
 	if err == nil {
+		sub.log.Info("go sub.healthCheckLoop()")
 		go sub.healthCheckLoop()
 		return sub, nil
 	} else {
@@ -51,8 +52,8 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 }
 
 func (apiSub *Sub) Unsubscribe() error {
-	apiSub.RLock()
-	defer apiSub.RUnlock()
+	apiSub.Lock()
+	defer apiSub.Unlock()
 	for _, s := range apiSub.subs {
 		apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
 	}
@@ -68,42 +69,38 @@ func (apiSub *Sub) healthCheckLoop() {
 	for {
 		select {
 		case <-apiSub.ctx.Done():
+			apiSub.log.Info("healthCheckLoop: Done()")
 			return
 		case <-ticker.C:
-			// Returns a map of pubsub topics to peer counts
-			m := apiSub.checkAliveness()
-			for t, cnt := range m {
-				if cnt < apiSub.Config.MaxPeers {
-					cFilter := protocol.ContentFilter{t, apiSub.ContentFilter.ContentTopics}
-					apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-cnt)
-				}
-			}
+			apiSub.log.Info("healthCheckLoop: checkAliveness()")
+			apiSub.checkAliveness()
 		}
 	}
 }
 
-func (apiSub *Sub) checkAliveness() map[string]int {
+func (apiSub *Sub) checkAliveness() {
+	apiSub.log.Info("ENTER checkAliveness()")
 	apiSub.RLock()
 	defer apiSub.RUnlock()
 
-	// Only healthy topics will be pushed here
-	ch := make(chan string)
+	// Buffered chan for sub aliveness results
+	type CheckResult struct {
+		sub   *subscription.SubscriptionDetails
+		alive bool
+	}
+	ch := make(chan CheckResult, len(apiSub.subs))
 
 	wg := &sync.WaitGroup{}
+
+	// Run pings asynchronously
 	wg.Add(len(apiSub.subs))
 	for _, subDetails := range apiSub.subs {
 		go func(subDetails *subscription.SubscriptionDetails) {
 			defer wg.Done()
-			err := apiSub.wf.IsSubscriptionAlive(apiSub.ctx, subDetails)
+			ctx, _ := context.WithTimeout(apiSub.ctx, 5*time.Second)
+			err := apiSub.wf.IsSubscriptionAlive(ctx, subDetails)
 
-			if err != nil {
-				subDetails.Close()
-				apiSub.Lock()
-				defer apiSub.Unlock()
-				delete(apiSub.subs, subDetails.ID)
-			} else {
-				ch <- subDetails.ContentFilter.PubsubTopic
-			}
+			ch <- CheckResult{subDetails, err == nil}
 		}(subDetails)
 
 	}
@@ -115,13 +112,31 @@ func (apiSub *Sub) checkAliveness() map[string]int {
 	for _, t := range maps.Keys(topicMap) {
 		m[t] = 0
 	}
-	for t := range ch {
-		m[t]++
+	// Close inactive subs
+	for s := range ch {
+		if !s.alive {
+			s.sub.Close()
+			delete(apiSub.subs, s.sub.ID)
+		} else {
+			m[s.sub.ContentFilter.PubsubTopic]++
+		}
 	}
+	// Re-subscribe asynchronously
+	for t, cnt := range m {
+		if cnt < apiSub.Config.MaxPeers {
+			wg.Add(1)
+			cFilter := protocol.ContentFilter{t, apiSub.ContentFilter.ContentTopics}
+			go func() {
+				defer wg.Done()
+				apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-cnt)
+			}()
+		}
+	}
+	wg.Wait()
 
-	return m
-
+	apiSub.log.Info("EXIT checkAliveness()")
 }
+
 func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int) error {
 	// Low-level subscribe, returns a set of SubscriptionDetails
 	options := make([]filter.FilterSubscribeOption, 0)
@@ -144,7 +159,7 @@ func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int
 	// Goroutines will exit once sub channels are closed
 	for _, subDetails := range subs {
 		go func(subDetails *subscription.SubscriptionDetails) {
-			apiSub.log.Info("New multiplex", zap.String("sub ID", subDetails.ID))
+			apiSub.log.Info("New multiplex", zap.String("subID", subDetails.ID))
 			for env := range subDetails.C {
 				apiSub.DataCh <- env
 			}

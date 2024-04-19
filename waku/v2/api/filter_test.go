@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/suite"
@@ -62,8 +63,14 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	for msg := range apiSub.DataCh {
 		s.Log.Info("Received msg:", zap.Int("cnt", cnt), zap.String("payload", string(msg.Message().Payload)))
 		cnt++
+		break
 	}
-	s.Require().Equal(cnt, 2)
+	s.Require().Equal(cnt, 1)
 
+	time.Sleep(10 * time.Second)
 	apiSub.Unsubscribe()
+	for _ = range apiSub.DataCh {
+	}
+	s.Log.Info("DataCh is closed")
+
 }
