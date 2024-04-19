@@ -9,6 +9,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 func TestFilterApiSuite(t *testing.T) {
@@ -31,10 +32,14 @@ func (s *FilterApiTestSuite) TearDownTest() {
 func (s *FilterApiTestSuite) TestSubscribe() {
 	contentFilter := protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
 
+	// We have one full node already created in SetupTest(),
+	// create another one
 	fullNodeData2 := s.GetWakuFilterFullNode(s.TestTopic, true)
 	s.ConnectHosts(s.LightNodeHost, fullNodeData2.FullNodeHost)
 	peers := []peer.ID{s.FullNodeHost.ID(), fullNodeData2.FullNodeHost.ID()}
-	s.Log.Info("FullNodeHost IDs:", zap.Any(peers))
+	s.Log.Info("FullNodeHost IDs:", zap.Any("peers", peers))
+	// Make sure IDs are different
+	s.Require().True(peers[0] != peers[1])
 	apiConfig := FilterConfig{MaxPeers: 2, Peers: peers}
 
 	s.Require().Equal(apiConfig.MaxPeers, 2)
@@ -45,4 +50,20 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	s.Require().NoError(err)
 	s.Require().Equal(apiSub.ContentFilter, contentFilter)
 	s.Log.Info("Subscribed")
+
+	s.Require().Len(apiSub.subs, 2)
+	for sub := range apiSub.subs {
+		s.Log.Info("SubDetails:", zap.String("id", sub))
+	}
+	s.Require().True(maps.Keys(apiSub.subs)[0] != maps.Keys(apiSub.subs)[1])
+	// Publish msg and confirm it's received twice because of multiplexing
+	s.PublishMsg(&filter.WakuMsg{s.TestTopic, s.TestContentTopic, "Test msg"})
+	cnt := 0
+	for msg := range apiSub.DataCh {
+		s.Log.Info("Received msg:", zap.Int("cnt", cnt), zap.String("payload", string(msg.Message().Payload)))
+		cnt++
+	}
+	s.Require().Equal(cnt, 2)
+
+	apiSub.Unsubscribe()
 }

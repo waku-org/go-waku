@@ -9,6 +9,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
+	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
 
@@ -26,6 +27,7 @@ type Sub struct {
 	wf            *filter.WakuFilterLightNode
 	ctx           context.Context
 	cancel        context.CancelFunc
+	log           *zap.Logger
 }
 
 func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilter protocol.ContentFilter, config FilterConfig) (*Sub, error) {
@@ -36,6 +38,7 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	sub.DataCh = make(chan *protocol.Envelope)
 	sub.ContentFilter = contentFilter
 	sub.Config = config
+	sub.log = func() *zap.Logger { log, _ := zap.NewDevelopment(); return log }().Named("filterv2-api")
 
 	err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
@@ -47,13 +50,14 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	}
 }
 
-func Unsubscribe(apiSub *Sub) error {
+func (apiSub *Sub) Unsubscribe() error {
 	apiSub.RLock()
 	defer apiSub.RUnlock()
 	for _, s := range apiSub.subs {
 		apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
 	}
 	apiSub.cancel()
+	close(apiSub.DataCh)
 	return nil
 }
 
@@ -140,6 +144,7 @@ func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int
 	// Goroutines will exit once sub channels are closed
 	for _, subDetails := range subs {
 		go func(subDetails *subscription.SubscriptionDetails) {
+			apiSub.log.Info("New multiplex", zap.String("sub ID", subDetails.ID))
 			for env := range subDetails.C {
 				apiSub.DataCh <- env
 			}

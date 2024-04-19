@@ -201,7 +201,7 @@ func (s *FilterTestSuite) waitForMsgFromChan(msg *WakuMsg, ch chan *protocol.Env
 	}()
 
 	if msg != nil {
-		s.publishMsg(msg)
+		s.PublishMsg(msg)
 	}
 
 	s.wg.Wait()
@@ -283,7 +283,7 @@ func (s *FilterTestSuite) waitForTimeoutFromChan(msg *WakuMsg, ch chan *protocol
 		}
 	}()
 
-	s.publishMsg(msg)
+	s.PublishMsg(msg)
 
 	s.wg.Wait()
 }
@@ -333,7 +333,7 @@ func (s *FilterTestSuite) unsubscribe(pubsubTopic string, contentTopic string, p
 	return s.LightNode.Subscriptions()
 }
 
-func (s *FilterTestSuite) publishMsg(msg *WakuMsg) {
+func (s *FilterTestSuite) PublishMsg(msg *WakuMsg) {
 	if len(msg.Payload) == 0 {
 		msg.Payload = "123"
 	}
