@@ -326,28 +326,31 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	nodeNativeClusterID := uint16(20)
+	shardingClusterID := uint16(21)
+
 	// Node1 with Relay
 	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	require.NoError(t, err)
 	wakuNode1, err := New(
 		WithHostAddress(hostAddr1),
 		WithWakuRelay(),
-		WithClusterID(uint16(20)),
+		WithClusterID(nodeNativeClusterID),
 	)
 	require.NoError(t, err)
 	err = wakuNode1.Start(ctx)
 	require.NoError(t, err)
 	defer wakuNode1.Stop()
 
-	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(uint16(21), uint16(0))
+	pubSubTopic1 := protocol.NewStaticShardingPubsubTopic(shardingClusterID, uint16(0))
 	pubSubTopic1Str := pubSubTopic1.String()
 	contentTopic1 := "/test/2/my-app/sharded"
 
-	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(uint16(21), uint16(10))
+	pubSubTopic2 := protocol.NewStaticShardingPubsubTopic(shardingClusterID, uint16(10))
 	pubSubTopic2Str := pubSubTopic2.String()
 	contentTopic2 := "/test/3/my-app/sharded"
 
-	require.Equal(t, uint16(20), wakuNode1.ClusterID())
+	require.Equal(t, nodeNativeClusterID, wakuNode1.ClusterID())
 
 	r := wakuNode1.Relay()
 
@@ -395,13 +398,13 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	// Send another message to non-subscribed pubsub topic, but subscribed content topic
 	msg2 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message 2")
 
-	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic("/waku/2/rs/0/321"))
+	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic("/waku/2/rs/100/321"))
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
-	tests.WaitForTimeout(t, ctx, &wg, subs1[0].Ch)
+	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, subs1[0].Ch)
 
 	// Send another message to subscribed pubsub topic, but not subscribed content topic - mix it up
 	msg3 := tests.CreateWakuMessage(contentTopic2, utils.GetUnixEpoch(), "test message 3")
@@ -412,7 +415,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// No message could be retrieved
-	tests.WaitForTimeout(t, ctx, &wg, subs1[0].Ch)
+	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, subs1[0].Ch)
 
 }
 
@@ -537,6 +540,6 @@ func TestStaticShardingLimits(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Retrieve on node2
-	tests.WaitForMsg(t, &wg, s2.Ch)
+	tests.WaitForMsg(t, 2*time.Second, &wg, s2.Ch)
 
 }

@@ -426,6 +426,6 @@ func TestWakuRelayStaticSharding(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Msg should get received on host1
-	tests.WaitForMsg(t, &wg, subs1[0].Ch)
+	tests.WaitForMsg(t, 2*time.Second, &wg, subs1[0].Ch)
 
 }

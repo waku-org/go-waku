@@ -389,7 +389,7 @@ func GenerateRandomSQLInsert(maxLength int) (string, error) {
 	return query, nil
 }
 
-func WaitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+func WaitForMsg(t *testing.T, timeout time.Duration, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
 	wg.Add(1)
 	log := utils.Logger()
 	go func() {
@@ -398,21 +398,21 @@ func WaitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
 		case env := <-ch:
 			msg := env.Message()
 			log.Info("Received ", zap.String("msg", msg.String()))
-		case <-time.After(2 * time.Second):
+		case <-time.After(timeout):
 			require.Fail(t, "Message timeout")
 		}
 	}()
 	wg.Wait()
 }
 
-func WaitForTimeout(t *testing.T, ctx context.Context, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+func WaitForTimeout(t *testing.T, ctx context.Context, timeout time.Duration, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		select {
 		case _, ok := <-ch:
 			require.False(t, ok, "should not retrieve message")
-		case <-time.After(1 * time.Second):
+		case <-time.After(timeout):
 			// All good
 		case <-ctx.Done():
 			require.Fail(t, "test exceeded allocated time")
