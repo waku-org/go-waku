@@ -63,10 +63,6 @@ func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, reg p
 
 	wakuLP.limiter = params.limiter
 
-	if pm != nil {
-		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, LightPushENRField)
-	}
-
 	return wakuLP
 }
 
@@ -79,6 +75,10 @@ func (wakuLP *WakuLightPush) SetHost(h host.Host) {
 func (wakuLP *WakuLightPush) Start(ctx context.Context) error {
 	if wakuLP.relayIsNotAvailable() {
 		return errors.New("relay is required, without it, it is only a client and cannot be started")
+	}
+
+	if wakuLP.pm != nil {
+		wakuLP.pm.RegisterWakuProtocol(LightPushID_v20beta1, LightPushENRField)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -126,7 +126,7 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 
 		responsePushRPC.RequestId = requestPushRPC.RequestId
 		if err := requestPushRPC.ValidateRequest(); err != nil {
-			responseMsg := err.Error()
+			responseMsg := "invalid request: " + err.Error()
 			responsePushRPC.Response.Info = &responseMsg
 			wakuLP.metrics.RecordError(requestBodyFailure)
 			wakuLP.reply(stream, responsePushRPC, logger)
@@ -151,7 +151,6 @@ func (wakuLP *WakuLightPush) onRequest(ctx context.Context) func(network.Stream)
 			wakuLP.metrics.RecordError(messagePushFailure)
 			responseMsg := fmt.Sprintf("Could not publish message: %s", err.Error())
 			responsePushRPC.Response.Info = &responseMsg
-			return
 		} else {
 			responsePushRPC.Response.IsSuccess = true
 			responseMsg := "OK"
@@ -205,6 +204,9 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 		return nil, err
 	}
 	pushRequestRPC := &pb.PushRpc{RequestId: hex.EncodeToString(params.requestID), Request: req}
+	if err = pushRequestRPC.ValidateRequest(); err != nil {
+		return nil, err
+	}
 
 	writer := pbio.NewDelimitedWriter(stream)
 	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
@@ -234,7 +236,7 @@ func (wakuLP *WakuLightPush) request(ctx context.Context, req *pb.PushRequest, p
 
 	if err = pushResponseRPC.ValidateResponse(pushRequestRPC.RequestId); err != nil {
 		wakuLP.metrics.RecordError(responseBodyFailure)
-		return nil, err
+		return nil, fmt.Errorf("invalid response: %w", err)
 	}
 
 	return pushResponseRPC.Response, nil

@@ -275,6 +275,10 @@ func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResp
 	return historyResponseRPC.Response, nil
 }
 
+func (store *WakuStore) isLocalQuery(p *HistoryRequestParameters) bool {
+	return p.localQuery && store.started
+}
+
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
 	params := new(HistoryRequestParameters)
 	params.s = store
@@ -288,7 +292,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		}
 	}
 
-	if !params.localQuery {
+	if !store.isLocalQuery(params) {
 		pubsubTopics := []string{}
 		if query.PubsubTopic == "" {
 			for _, cTopic := range query.ContentTopics {
@@ -343,7 +347,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		historyRequest.Query.ContentFilters = append(historyRequest.Query.ContentFilters, &pb.ContentFilter{ContentTopic: cf})
 	}
 
-	if !params.localQuery && params.selectedPeer == "" {
+	if !store.isLocalQuery(params) && params.selectedPeer == "" {
 		store.metrics.RecordError(peerNotFoundFailure)
 		return nil, ErrNoPeersAvailable
 	}
@@ -373,7 +377,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 
 	var response *pb.HistoryResponse
 
-	if params.localQuery {
+	if store.isLocalQuery(params) {
 		response, err = store.localQuery(historyRequest)
 	} else {
 		response, err = store.queryFrom(ctx, historyRequest, params.selectedPeer)

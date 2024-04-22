@@ -119,6 +119,10 @@ func (store *WakuStore) Start(ctx context.Context, sub *relay.Subscription) erro
 		return err
 	}
 
+	if store.pm != nil {
+		store.pm.RegisterWakuProtocol(StoreID_v20beta4, StoreENRField)
+	}
+
 	store.started = true
 	store.ctx, store.cancel = context.WithCancel(ctx)
 	store.MsgC = sub
