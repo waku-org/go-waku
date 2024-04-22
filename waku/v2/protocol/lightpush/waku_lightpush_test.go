@@ -287,7 +287,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the nominal case message at node1
-	tests.WaitForMsg(t, &wg, sub1.Ch)
+	tests.WaitForMsg(t, 2*time.Second, &wg, sub1.Ch)
 
 	// Test error case with nil message
 	_, err = client.Publish(ctx, nil, lpOptions...)
@@ -367,11 +367,11 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 	// Check that msg publish has led to message deliver for existing topic
 	_, err = client.Publish(ctx, msg, WithPubSubTopic(pubSubTopic), WithPeer(host2.ID()))
 	require.NoError(t, err)
-	tests.WaitForMsg(t, &wg, sub1.Ch)
+	tests.WaitForMsg(t, 2*time.Second, &wg, sub1.Ch)
 
 	// Check that msg2 publish finished without message delivery for unconfigured topic
 	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
 	require.NoError(t, err)
-	tests.WaitForTimeout(t, ctx, &wg, sub1.Ch)
+	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, sub1.Ch)
 
 }
