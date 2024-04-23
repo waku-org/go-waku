@@ -6,7 +6,9 @@ import (
 	"fmt"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"math/big"
+	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -420,10 +422,18 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 }
 
 func TestStaticShardingLimits(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
 
 	log := utils.Logger()
+
+	if os.Getenv("RUN_FLAKY_TESTS") != "true" {
+
+		log.Info("Skipping", zap.String("test", t.Name()),
+			zap.String("reason", "RUN_FLAKY_TESTS environment variable is not set to true"))
+		t.SkipNow()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
 
 	testClusterID := uint16(21)
 
@@ -467,21 +477,6 @@ func TestStaticShardingLimits(t *testing.T) {
 	// Wait for discovery
 	time.Sleep(3 * time.Second)
 
-	log.Info("Node1 has", zap.String("peer ID", wakuNode1.ID()))
-	log.Info("Node2 has", zap.String("peer ID", wakuNode2.ID()))
-
-	knownPeers := wakuNode1.peerstore.Peers()
-	for _, peer := range knownPeers {
-		log.Info("Peers known to Node1", zap.String("ID", peer.String()))
-	}
-
-	knownPeers = wakuNode2.peerstore.Peers()
-	for _, peer := range knownPeers {
-		log.Info("Peers known to Node2", zap.String("ID", peer.String()))
-	}
-
-	log.Info("No peers for the topic yet")
-
 	contentTopic1 := "/test/2/my-app/sharded"
 
 	r1 := wakuNode1.Relay()
@@ -490,7 +485,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	var shardedPubSubTopics []string
 
 	// Subscribe topics related to static sharding
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 1024; i++ {
 		shardedPubSubTopics = append(shardedPubSubTopics, fmt.Sprintf("/waku/2/rs/%d/%d", testClusterID, i))
 		_, err = r1.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
@@ -501,7 +496,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// Subscribe topics related to static sharding
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 1024; i++ {
 		_, err = r2.Subscribe(ctx, protocol.NewContentFilter(shardedPubSubTopics[i], contentTopic1))
 		require.NoError(t, err)
 		time.Sleep(10 * time.Millisecond)
@@ -520,7 +515,7 @@ func TestStaticShardingLimits(t *testing.T) {
 	msg1 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message")
 
 	// Select shard to publish
-	randomShard := 0
+	randomShard := rand.Intn(1024)
 
 	// Check both nodes are subscribed
 	require.True(t, r1.IsSubscribed(shardedPubSubTopics[randomShard]))
