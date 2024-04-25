@@ -23,6 +23,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -315,7 +316,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
 	// NODE2 should have returned the message received via filter
-	result, err := wakuNode3.Store().Query(ctx, store.Query{})
+	result, err := wakuNode3.LegacyStore().Query(ctx, store.Query{})
 	require.NoError(t, err)
 	require.Len(t, result.Messages, 1)
 	require.Equal(t, msg.Timestamp, result.Messages[0].Timestamp)

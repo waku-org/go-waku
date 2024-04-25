@@ -277,11 +277,7 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, requestID []byte,
 
 	if filterSubscribeResponse.StatusCode != http.StatusOK {
 		wf.metrics.RecordError(errorResponse)
-		errMessage := ""
-		if filterSubscribeResponse.StatusDesc != nil {
-			errMessage = *filterSubscribeResponse.StatusDesc
-		}
-		err := NewFilterError(int(filterSubscribeResponse.StatusCode), errMessage)
+		err := NewFilterError(int(filterSubscribeResponse.StatusCode), filterSubscribeResponse.GetStatusDesc())
 		return &err
 	}
 

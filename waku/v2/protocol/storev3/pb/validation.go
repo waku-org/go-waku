@@ -8,21 +8,20 @@ import (
 const MaxContentTopics = 10
 
 var (
-	errMissingRequestID         = errors.New("missing RequestId field")
-	errMessageHashOtherFields   = errors.New("cannot use MessageHashes with ContentTopics/PubsubTopic")
-	errRequestIDMismatch        = errors.New("requestID in response does not match request")
-	errMaxContentTopics         = errors.New("exceeds the maximum number of ContentTopics allowed")
-	errEmptyContentTopic        = errors.New("one or more content topics specified is empty")
-	errMissingPubsubTopic       = errors.New("missing PubsubTopic field")
-	errMissingContentTopics     = errors.New("missing ContentTopics field")
-	errMissingStatusCode        = errors.New("missing StatusCode field")
-	errMissingStatusDescription = errors.New("missing StatusDescription field")
-	errMissingMessage           = errors.New("missing Message field")
-	errInvalidTimeRange         = errors.New("invalid time range")
-	errInvalidMessageHash       = errors.New("invalid message hash")
+	errMissingRequestID       = errors.New("missing RequestId field")
+	errMessageHashOtherFields = errors.New("cannot use MessageHashes with ContentTopics/PubsubTopic")
+	errRequestIDMismatch      = errors.New("requestID in response does not match request")
+	errMaxContentTopics       = errors.New("exceeds the maximum number of ContentTopics allowed")
+	errEmptyContentTopic      = errors.New("one or more content topics specified is empty")
+	errMissingPubsubTopic     = errors.New("missing PubsubTopic field")
+	errMissingContentTopics   = errors.New("missing ContentTopics field")
+	errMissingStatusCode      = errors.New("missing StatusCode field")
+	errMissingMessage         = errors.New("missing Message field")
+	errInvalidTimeRange       = errors.New("invalid time range")
+	errInvalidMessageHash     = errors.New("invalid message hash")
 )
 
-func (x *StoreRequest) Validate() error {
+func (x *StoreQueryRequest) Validate() error {
 	if x.RequestId == "" {
 		return errMissingRequestID
 	}
@@ -37,32 +36,31 @@ func (x *StoreRequest) Validate() error {
 				return errInvalidMessageHash
 			}
 		}
-	}
-
-	if x.GetPubsubTopic() == "" {
-		return errMissingPubsubTopic
-	}
-
-	if len(x.ContentTopics) == 0 {
-		return errMissingContentTopics
-	} else if len(x.ContentTopics) > MaxContentTopics {
-		return errMaxContentTopics
 	} else {
-		for _, m := range x.ContentTopics {
-			if m == "" {
-				return errEmptyContentTopic
+		if x.GetPubsubTopic() == "" {
+			return errMissingPubsubTopic
+		}
+
+		if len(x.ContentTopics) == 0 {
+			return errMissingContentTopics
+		} else if len(x.ContentTopics) > MaxContentTopics {
+			return errMaxContentTopics
+		} else {
+			for _, m := range x.ContentTopics {
+				if m == "" {
+					return errEmptyContentTopic
+				}
 			}
 		}
-	}
 
-	if x.GetTimeStart() > 0 && x.GetTimeEnd() > 0 && x.GetTimeStart() > x.GetTimeEnd() {
-		return errInvalidTimeRange
+		if x.GetTimeStart() > 0 && x.GetTimeEnd() > 0 && x.GetTimeStart() > x.GetTimeEnd() {
+			return errInvalidTimeRange
+		}
 	}
-
 	return nil
 }
 
-func (x *StoreResponse) Validate(requestID string) error {
+func (x *StoreQueryResponse) Validate(requestID string) error {
 	if x.RequestId == "" {
 		return errMissingRequestID
 	}
@@ -73,10 +71,6 @@ func (x *StoreResponse) Validate(requestID string) error {
 
 	if x.StatusCode == nil {
 		return errMissingStatusCode
-	}
-
-	if x.GetStatusDesc() == "" {
-		return errMissingStatusDescription
 	}
 
 	for _, m := range x.Messages {

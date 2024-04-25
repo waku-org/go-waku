@@ -18,7 +18,7 @@ type Parameters struct {
 	cursor            []byte
 	pageLimit         uint64
 	forward           bool
-	returnValues      bool
+	includeData       bool
 }
 
 type RequestOption func(*Parameters) error
@@ -107,10 +107,10 @@ func WithPaging(forward bool, limit uint64) RequestOption {
 	}
 }
 
-// WithReturnValues is an option used to indicate whether you want to return the message content or not
-func WithReturnValues(v bool) RequestOption {
+// IncludeData is an option used to indicate whether you want to return the message content or not
+func IncludeData(v bool) RequestOption {
 	return func(params *Parameters) error {
-		params.returnValues = v
+		params.includeData = v
 		return nil
 	}
 }
@@ -121,6 +121,6 @@ func DefaultOptions() []RequestOption {
 		WithAutomaticRequestID(),
 		WithAutomaticPeerSelection(),
 		WithPaging(true, DefaultPageSize),
-		WithReturnValues(true),
+		IncludeData(true),
 	}
 }

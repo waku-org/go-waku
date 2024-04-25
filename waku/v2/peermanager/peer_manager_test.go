@@ -167,7 +167,6 @@ func TestPeerSelection(t *testing.T) {
 	require.NoError(t, err)
 
 	peerIDs, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}, MaxPeers: 3})
-	fmt.Println("peerIDs", peerIDs)
 	require.Equal(t, 2, peerIDs.Len())
 	require.NoError(t, err)
 

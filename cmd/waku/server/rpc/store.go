@@ -45,7 +45,7 @@ func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs,
 		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
 		store.WithCursor(args.PagingOptions.Cursor),
 	}
-	res, err := s.node.Store().Query(
+	res, err := s.node.LegacyStore().Query(
 		req.Context(),
 		store.Query{
 			PubsubTopic:   args.Topic,
