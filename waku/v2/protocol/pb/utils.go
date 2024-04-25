@@ -16,6 +16,10 @@ func (h MessageHash) String() string {
 	return hexutil.Encode(h[:])
 }
 
+func (h MessageHash) Bytes() []byte {
+	return h[:]
+}
+
 // ToMessageHash converts a byte slice into a MessageHash
 func ToMessageHash(b []byte) MessageHash {
 	var result MessageHash

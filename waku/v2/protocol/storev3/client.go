@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -21,8 +22,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// StoreID_v300 is the Store protocol v3 identifier
-const StoreID_v300 = libp2pProtocol.ID("/vac/waku/store/3.0.0")
+// StoreQueryID_v300 is the Store protocol v3 identifier
+const StoreQueryID_v300 = libp2pProtocol.ID("/vac/waku/store-query/3.0.0")
+const StoreENRField = uint8(1 << 1)
 
 // MaxPageSize is the maximum number of waku messages to return per page
 const MaxPageSize = 100
@@ -30,14 +32,38 @@ const MaxPageSize = 100
 // DefaultPageSize is the default number of waku messages per page
 const DefaultPageSize = 20
 
+const ok = uint32(200)
+
 var (
 
 	// ErrNoPeersAvailable is returned when there are no store peers in the peer store
 	// that could be used to retrieve message history
 	ErrNoPeersAvailable = errors.New("no suitable remote peers")
-	ErrMustSelectPeer   = errors.New("a peer ID or multiaddress is required")
+	ErrMustSelectPeer   = errors.New("a peer ID or multiaddress is required when checking for message hashes")
 )
 
+// StoreError represents an error code returned by a storenode
+type StoreError struct {
+	Code    int
+	Message string
+}
+
+// NewStoreError creates a new instance of StoreError
+func NewStoreError(code int, message string) StoreError {
+	return StoreError{
+		Code:    code,
+		Message: message,
+	}
+}
+
+const errorStringFmt = "%d - %s"
+
+// Error returns a string with the error message
+func (e *StoreError) Error() string {
+	return fmt.Sprintf(errorStringFmt, e.Code, e.Message)
+}
+
+// WakuStoreV3 represents an instance of a storev3 client
 type WakuStoreV3 struct {
 	h          host.Host
 	timesource timesource.Timesource
@@ -45,11 +71,17 @@ type WakuStoreV3 struct {
 	pm         *peermanager.PeerManager
 }
 
+// NewWakuStoreV3 is used to instantiate a StoreV3 client
 func NewWakuStoreV3(pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStoreV3 {
 	s := new(WakuStoreV3)
 	s.log = log.Named("storev3-client")
 	s.timesource = timesource
 	s.pm = pm
+
+	if pm != nil {
+		pm.RegisterWakuProtocol(StoreQueryID_v300, StoreENRField)
+	}
+
 	return s
 }
 
@@ -58,6 +90,9 @@ func (s *WakuStoreV3) SetHost(h host.Host) {
 	s.h = h
 }
 
+// Request is used to send a store query. This function requires understanding how to prepare a store query
+// and most of the time you can use `Query`, `QueryByHash` and `Exists` instead, as they provide
+// a simpler API
 func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...RequestOption) (*Result, error) {
 	params := new(Parameters)
 
@@ -79,7 +114,7 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 
 	//Add Peer to peerstore.
 	if s.pm != nil && params.peerAddr != nil {
-		pData, err := s.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, StoreID_v300)
+		pData, err := s.pm.AddPeer(params.peerAddr, peerstore.Static, pubsubTopics, StoreQueryID_v300)
 		if err != nil {
 			return nil, err
 		}
@@ -92,8 +127,9 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 			selectedPeers, err := s.pm.SelectPeers(
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
-					Proto:         StoreID_v300,
-					PubsubTopics:  []string{filterCriteria.PubsubTopic},
+					Proto:         StoreQueryID_v300,
+					// TODO:
+					//		PubsubTopics:  []string{filterCriteria.PubsubTopic},
 					SpecificPeers: params.preferredPeers,
 					Ctx:           ctx,
 				},
@@ -118,9 +154,9 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 		pageLimit = MaxPageSize
 	}
 
-	storeRequest := &pb.StoreRequest{
+	storeRequest := &pb.StoreQueryRequest{
 		RequestId:         hex.EncodeToString(params.requestID),
-		ReturnValues:      params.returnValues,
+		IncludeData:       params.includeData,
 		PaginationForward: params.forward,
 		PaginationLimit:   proto.Uint64(pageLimit),
 	}
@@ -143,7 +179,7 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 
 	result := &Result{
 		store:        s,
-		Messages:     response.Messages,
+		messages:     response.Messages,
 		storeRequest: storeRequest,
 		peerID:       params.selectedPeer,
 		cursor:       response.PaginationCursor,
@@ -152,45 +188,42 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 	return result, nil
 }
 
-func (s *WakuStoreV3) Retrieve(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (*Result, error) {
-	opts = append(opts, WithReturnValues(true))
+// Query retrieves all the messages that match a criteria. Use the options to indicate whether to return the message themselves or not.
+func (s *WakuStoreV3) Query(ctx context.Context, criteria FilterCriteria, opts ...RequestOption) (*Result, error) {
+	return s.Request(ctx, criteria, opts...)
+}
+
+// Query retrieves all the messages with specific message hashes
+func (s *WakuStoreV3) QueryByHash(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (*Result, error) {
 	return s.Request(ctx, MessageHashCriteria{messageHashes}, opts...)
 }
 
-// Exists is used to determine if a set of message hashes exist. Also returns a cursor in case there is more than one page of results
-func (s *WakuStoreV3) Exists(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (map[wpb.MessageHash]bool, []byte, error) {
-	opts = append(opts, WithReturnValues(false))
-	result, err := s.Request(ctx, MessageHashCriteria{messageHashes}, opts...)
+// Exists is an utility function to determine if a message exists. For checking the presence of more than one message, use QueryByHash
+// and pass the option WithReturnValues(false). You will have to iterate the results and check whether the full list of messages contains
+// the list of messages to verify
+func (s *WakuStoreV3) Exists(ctx context.Context, messageHash wpb.MessageHash, opts ...RequestOption) (bool, error) {
+	opts = append(opts, IncludeData(false))
+	result, err := s.Request(ctx, MessageHashCriteria{MessageHashes: []wpb.MessageHash{messageHash}}, opts...)
 	if err != nil {
-		return nil, nil, err
+		return false, err
 	}
 
-	msgMap := make(map[wpb.MessageHash]bool)
-	for i, _ := range messageHashes {
-		msgMap[messageHashes[i]] = false
-	}
-
-	for _, m := range result.Messages {
-		h := wpb.ToMessageHash(m.MessageHash)
-		msgMap[h] = true
-	}
-
-	return msgMap, result.cursor, nil
+	return len(result.messages) != 0, nil
 }
 
-func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
+func (s *WakuStoreV3) next(ctx context.Context, r *Result) (*Result, error) {
 	if r.IsComplete() {
 		return &Result{
 			store:        s,
 			started:      true,
-			Messages:     []*pb.WakuMessageKeyValue{},
+			messages:     []*pb.WakuMessageKeyValue{},
 			cursor:       nil,
 			storeRequest: r.storeRequest,
 			peerID:       r.PeerID(),
 		}, nil
 	}
 
-	storeRequest := proto.Clone(r.storeRequest).(*pb.StoreRequest)
+	storeRequest := proto.Clone(r.storeRequest).(*pb.StoreQueryRequest)
 	storeRequest.RequestId = hex.EncodeToString(protocol.GenerateRequestID())
 	storeRequest.PaginationCursor = r.Cursor()
 
@@ -202,7 +235,7 @@ func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
 	result := &Result{
 		started:      true,
 		store:        s,
-		Messages:     response.Messages,
+		messages:     response.Messages,
 		storeRequest: storeRequest,
 		peerID:       r.PeerID(),
 		cursor:       response.PaginationCursor,
@@ -212,11 +245,11 @@ func (s *WakuStoreV3) Next(ctx context.Context, r *Result) (*Result, error) {
 
 }
 
-func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreRequest, selectedPeer peer.ID) (*pb.StoreResponse, error) {
+func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreQueryRequest, selectedPeer peer.ID) (*pb.StoreQueryResponse, error) {
 	logger := s.log.With(logging.HostID("peer", selectedPeer))
 	logger.Info("sending store request")
 
-	stream, err := s.h.NewStream(ctx, selectedPeer, StoreID_v300)
+	stream, err := s.h.NewStream(ctx, selectedPeer, StoreQueryID_v300)
 	if err != nil {
 		logger.Error("creating stream to peer", zap.Error(err))
 		return nil, err
@@ -234,7 +267,7 @@ func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreReque
 		return nil, err
 	}
 
-	storeResponse := &pb.StoreResponse{RequestId: storeRequest.RequestId}
+	storeResponse := &pb.StoreQueryResponse{RequestId: storeRequest.RequestId}
 	err = reader.ReadMsg(storeResponse)
 	if err != nil {
 		logger.Error("reading response", zap.Error(err))
@@ -250,7 +283,9 @@ func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreReque
 		return nil, err
 	}
 
-	// TODO: validate error codes
-
+	if storeResponse.GetStatusCode() != ok {
+		err := NewStoreError(int(storeResponse.GetStatusCode()), storeResponse.GetStatusDesc())
+		return nil, &err
+	}
 	return storeResponse, nil
 }

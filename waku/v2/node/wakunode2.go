@@ -437,6 +437,8 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		w.log.Info("Subscribing store to broadcaster")
 	}
 
+	w.storeV3.SetHost(host)
+
 	w.lightPush.SetHost(host)
 	if w.opts.enableLightPush {
 		if err := w.lightPush.Start(ctx); err != nil {
@@ -587,9 +589,14 @@ func (w *WakuNode) Relay() *relay.WakuRelay {
 	return nil
 }
 
-// Store is used to access any operation related to Waku Store protocol
-func (w *WakuNode) Store() store.Store {
+// LegacyStore is used to access any operation related to Waku Store protocol
+func (w *WakuNode) LegacyStore() store.Store {
 	return w.store.(store.Store)
+}
+
+// Store is used to access any operation related to Waku Store protocol
+func (w *WakuNode) Store() *storev3.WakuStoreV3 {
+	return w.storeV3
 }
 
 // FilterLightnode is used to access any operation related to Waku Filter protocol Full node feature

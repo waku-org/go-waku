@@ -8,7 +8,7 @@ import (
 )
 
 type Criteria interface {
-	PopulateStoreRequest(request *pb.StoreRequest)
+	PopulateStoreRequest(request *pb.StoreQueryRequest)
 }
 
 type FilterCriteria struct {
@@ -17,7 +17,7 @@ type FilterCriteria struct {
 	TimeEnd   *int64
 }
 
-func (f FilterCriteria) PopulateStoreRequest(request *pb.StoreRequest) {
+func (f FilterCriteria) PopulateStoreRequest(request *pb.StoreQueryRequest) {
 	request.ContentTopics = f.ContentTopicsList()
 	request.PubsubTopic = proto.String(f.PubsubTopic)
 	request.TimeStart = f.TimeStart
@@ -28,7 +28,7 @@ type MessageHashCriteria struct {
 	MessageHashes []wpb.MessageHash
 }
 
-func (m MessageHashCriteria) PopulateStoreRequest(request *pb.StoreRequest) {
+func (m MessageHashCriteria) PopulateStoreRequest(request *pb.StoreQueryRequest) {
 	request.MessageHashes = make([][]byte, len(m.MessageHashes))
 	for i := range m.MessageHashes {
 		request.MessageHashes[i] = m.MessageHashes[i][:]

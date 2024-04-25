@@ -202,7 +202,7 @@ func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	result, err := d.node.Store().Query(ctx, *query, options...)
+	result, err := d.node.LegacyStore().Query(ctx, *query, options...)
 	if err != nil {
 		writeStoreError(w, http.StatusInternalServerError, err)
 		return

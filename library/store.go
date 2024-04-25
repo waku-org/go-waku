@@ -36,7 +36,7 @@ type storeMessagesReply struct {
 }
 
 func queryResponse(ctx context.Context, instance *WakuInstance, args storeMessagesArgs, options []store.HistoryRequestOption) (string, error) {
-	res, err := instance.node.Store().Query(
+	res, err := instance.node.LegacyStore().Query(
 		ctx,
 		store.Query{
 			PubsubTopic:   args.Topic,

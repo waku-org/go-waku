@@ -10,9 +10,9 @@ import (
 // Result represents a valid response from a store node
 type Result struct {
 	started      bool
-	Messages     []*pb.WakuMessageKeyValue
+	messages     []*pb.WakuMessageKeyValue
 	store        *WakuStoreV3
-	storeRequest *pb.StoreRequest
+	storeRequest *pb.StoreQueryRequest
 	cursor       []byte
 	peerID       peer.ID
 }
@@ -29,34 +29,40 @@ func (r *Result) PeerID() peer.ID {
 	return r.peerID
 }
 
-func (r *Result) Query() *pb.StoreRequest {
+func (r *Result) Query() *pb.StoreQueryRequest {
 	return r.storeRequest
+}
+
+func (r *Result) PubsubTopic() string {
+	return r.storeRequest.GetPubsubTopic()
 }
 
 func (r *Result) Next(ctx context.Context) (bool, error) {
 	if !r.started {
 		r.started = true
-		return len(r.Messages) != 0, nil
+		return len(r.messages) != 0, nil
 	}
 
 	if r.IsComplete() {
+		r.cursor = nil
+		r.messages = nil
 		return false, nil
 	}
 
-	newResult, err := r.store.Next(ctx, r)
+	newResult, err := r.store.next(ctx, r)
 	if err != nil {
 		return false, err
 	}
 
 	r.cursor = newResult.cursor
-	r.Messages = newResult.Messages
+	r.messages = newResult.messages
 
-	return true, nil
+	return !r.IsComplete(), nil
 }
 
-func (r *Result) GetMessages() []*pb.WakuMessageKeyValue {
+func (r *Result) Messages() []*pb.WakuMessageKeyValue {
 	if !r.started {
 		return nil
 	}
-	return r.Messages
+	return r.messages
 }

@@ -10,15 +10,15 @@ message WakuMessageKeyValue {
   optional waku.message.v1.WakuMessage message = 2; // Full message content as value
 }
 
-message StoreRequest {
+message StoreQueryRequest {
   string request_id = 1;
-  bool return_values = 2; // Response should include full message content
+  bool include_data = 2; // Response should include full message content
   
   // Filter criteria for content-filtered queries
   optional string pubsub_topic = 10;
   repeated string content_topics = 11;
-  optional int64 time_start = 12;
-  optional int64 time_end = 13;
+  optional sint64 time_start = 12;
+  optional sint64 time_end = 13;
 
   // List of key criteria for lookup queries
   repeated bytes message_hashes = 20; // Message hashes (keys) to lookup
@@ -29,7 +29,7 @@ message StoreRequest {
   optional uint64 pagination_limit = 53;
 }
 
-message StoreResponse {
+message StoreQueryResponse {
   string request_id = 1;
 
   optional uint32 status_code = 10;
