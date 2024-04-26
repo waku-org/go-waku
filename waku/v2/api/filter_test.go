@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/suite"
@@ -67,7 +66,6 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	}
 	s.Require().Equal(cnt, 1)
 
-	time.Sleep(10 * time.Second)
 	apiSub.Unsubscribe()
 	for _ = range apiSub.DataCh {
 	}
