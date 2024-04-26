@@ -1,4 +1,4 @@
-package storev3
+package store
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/storev3/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -63,18 +63,18 @@ func (e *StoreError) Error() string {
 	return fmt.Sprintf(errorStringFmt, e.Code, e.Message)
 }
 
-// WakuStoreV3 represents an instance of a storev3 client
-type WakuStoreV3 struct {
+// WakuStore represents an instance of a store client
+type WakuStore struct {
 	h          host.Host
 	timesource timesource.Timesource
 	log        *zap.Logger
 	pm         *peermanager.PeerManager
 }
 
-// NewWakuStoreV3 is used to instantiate a StoreV3 client
-func NewWakuStoreV3(pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStoreV3 {
-	s := new(WakuStoreV3)
-	s.log = log.Named("storev3-client")
+// NewWakuStore is used to instantiate a StoreV3 client
+func NewWakuStore(pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
+	s := new(WakuStore)
+	s.log = log.Named("store-client")
 	s.timesource = timesource
 	s.pm = pm
 
@@ -86,14 +86,14 @@ func NewWakuStoreV3(pm *peermanager.PeerManager, timesource timesource.Timesourc
 }
 
 // Sets the host to be able to mount or consume a protocol
-func (s *WakuStoreV3) SetHost(h host.Host) {
+func (s *WakuStore) SetHost(h host.Host) {
 	s.h = h
 }
 
 // Request is used to send a store query. This function requires understanding how to prepare a store query
 // and most of the time you can use `Query`, `QueryByHash` and `Exists` instead, as they provide
 // a simpler API
-func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...RequestOption) (*Result, error) {
+func (s *WakuStore) Request(ctx context.Context, criteria Criteria, opts ...RequestOption) (*Result, error) {
 	params := new(Parameters)
 
 	optList := DefaultOptions()
@@ -128,8 +128,7 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
 					Proto:         StoreQueryID_v300,
-					// TODO:
-					//		PubsubTopics:  []string{filterCriteria.PubsubTopic},
+					PubsubTopics:  []string{filterCriteria.PubsubTopic},
 					SpecificPeers: params.preferredPeers,
 					Ctx:           ctx,
 				},
@@ -189,19 +188,19 @@ func (s *WakuStoreV3) Request(ctx context.Context, criteria Criteria, opts ...Re
 }
 
 // Query retrieves all the messages that match a criteria. Use the options to indicate whether to return the message themselves or not.
-func (s *WakuStoreV3) Query(ctx context.Context, criteria FilterCriteria, opts ...RequestOption) (*Result, error) {
+func (s *WakuStore) Query(ctx context.Context, criteria FilterCriteria, opts ...RequestOption) (*Result, error) {
 	return s.Request(ctx, criteria, opts...)
 }
 
 // Query retrieves all the messages with specific message hashes
-func (s *WakuStoreV3) QueryByHash(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (*Result, error) {
+func (s *WakuStore) QueryByHash(ctx context.Context, messageHashes []wpb.MessageHash, opts ...RequestOption) (*Result, error) {
 	return s.Request(ctx, MessageHashCriteria{messageHashes}, opts...)
 }
 
 // Exists is an utility function to determine if a message exists. For checking the presence of more than one message, use QueryByHash
 // and pass the option WithReturnValues(false). You will have to iterate the results and check whether the full list of messages contains
 // the list of messages to verify
-func (s *WakuStoreV3) Exists(ctx context.Context, messageHash wpb.MessageHash, opts ...RequestOption) (bool, error) {
+func (s *WakuStore) Exists(ctx context.Context, messageHash wpb.MessageHash, opts ...RequestOption) (bool, error) {
 	opts = append(opts, IncludeData(false))
 	result, err := s.Request(ctx, MessageHashCriteria{MessageHashes: []wpb.MessageHash{messageHash}}, opts...)
 	if err != nil {
@@ -211,7 +210,7 @@ func (s *WakuStoreV3) Exists(ctx context.Context, messageHash wpb.MessageHash, o
 	return len(result.messages) != 0, nil
 }
 
-func (s *WakuStoreV3) next(ctx context.Context, r *Result) (*Result, error) {
+func (s *WakuStore) next(ctx context.Context, r *Result) (*Result, error) {
 	if r.IsComplete() {
 		return &Result{
 			store:        s,
@@ -245,7 +244,7 @@ func (s *WakuStoreV3) next(ctx context.Context, r *Result) (*Result, error) {
 
 }
 
-func (s *WakuStoreV3) queryFrom(ctx context.Context, storeRequest *pb.StoreQueryRequest, selectedPeer peer.ID) (*pb.StoreQueryResponse, error) {
+func (s *WakuStore) queryFrom(ctx context.Context, storeRequest *pb.StoreQueryRequest, selectedPeer peer.ID) (*pb.StoreQueryResponse, error) {
 	logger := s.log.With(logging.HostID("peer", selectedPeer))
 	logger.Info("sending store request")
 

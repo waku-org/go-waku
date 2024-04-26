@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 	"go.uber.org/zap"
 )
 
@@ -39,15 +39,15 @@ type StoreMessagesReply struct {
 }
 
 func (s *StoreService) GetV1Messages(req *http.Request, args *StoreMessagesArgs, reply *StoreMessagesReply) error {
-	options := []store.HistoryRequestOption{
-		store.WithAutomaticRequestID(),
-		store.WithAutomaticPeerSelection(),
-		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
-		store.WithCursor(args.PagingOptions.Cursor),
+	options := []legacy_store.HistoryRequestOption{
+		legacy_store.WithAutomaticRequestID(),
+		legacy_store.WithAutomaticPeerSelection(),
+		legacy_store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
+		legacy_store.WithCursor(args.PagingOptions.Cursor),
 	}
 	res, err := s.node.LegacyStore().Query(
 		req.Context(),
-		store.Query{
+		legacy_store.Query{
 			PubsubTopic:   args.Topic,
 			ContentTopics: args.ContentFilters,
 			StartTime:     args.StartTime,

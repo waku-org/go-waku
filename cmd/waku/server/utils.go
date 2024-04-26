@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -18,7 +19,8 @@ func IsWakuProtocol(protocol protocol.ID) bool {
 		protocol == filter.FilterSubscribeID_v20beta1 ||
 		protocol == relay.WakuRelayID_v200 ||
 		protocol == lightpush.LightPushID_v20beta1 ||
-		protocol == store.StoreID_v20beta4
+		protocol == legacy_store.StoreID_v20beta4 ||
+		protocol == store.StoreQueryID_v300
 }
 
 type Base64URLByte []byte

@@ -1,4 +1,4 @@
-package store
+package legacy_store
 
 import (
 	"testing"

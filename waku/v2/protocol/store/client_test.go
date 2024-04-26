@@ -1,4 +1,4 @@
-package storev3
+package store
 
 //111go:build include_storev3_tests
 // 111+build include_storev3_tests
@@ -34,12 +34,6 @@ func TestStoreClient(t *testing.T) {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
 
-	// Creating a storeV3 instance for all queries
-	pm := peermanager.NewPeerManager(5, 5, utils.Logger())
-	pm.SetHost(host)
-	wakuStore := NewWakuStoreV3(pm, timesource.NewDefaultClock(), utils.Logger())
-	wakuStore.SetHost(host)
-
 	// Creating a relay instance for pushing messages to the store node
 	b := relay.NewBroadcaster(10)
 	require.NoError(t, b.Start(context.Background()))
@@ -48,6 +42,16 @@ func TestStoreClient(t *testing.T) {
 	require.NoError(t, err)
 	err = wakuRelay.Start(context.Background())
 	require.NoError(t, err)
+
+	pm := peermanager.NewPeerManager(5, 5, utils.Logger())
+	pm.SetHost(host)
+	err = pm.SubscribeToRelayEvtBus(wakuRelay.Events())
+	require.NoError(t, err)
+	pm.Start(ctx)
+
+	// Creating a storeV3 instance for all queries
+	wakuStore := NewWakuStore(pm, timesource.NewDefaultClock(), utils.Logger())
+	wakuStore.SetHost(host)
 
 	_, err = wakuRelay.Subscribe(context.Background(), protocol.NewContentFilter(protocol.DefaultPubsubTopic{}.String()), relay.WithoutConsumer())
 	require.NoError(t, err)

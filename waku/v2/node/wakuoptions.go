@@ -28,8 +28,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -86,7 +86,7 @@ type WakuNodeParameters struct {
 	maxMsgSizeBytes        int
 
 	enableStore     bool
-	messageProvider store.MessageProvider
+	messageProvider legacy_store.MessageProvider
 
 	enableRendezvousPoint bool
 	rendezvousDB          *rendezvous.DB
@@ -462,7 +462,7 @@ func WithWakuStoreFactory(factory storeFactory) WakuNodeOption {
 
 // WithMessageProvider is a WakuNodeOption that sets the MessageProvider
 // used to store and retrieve persisted messages
-func WithMessageProvider(s store.MessageProvider) WakuNodeOption {
+func WithMessageProvider(s legacy_store.MessageProvider) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		if s == nil {
 			return errors.New("message provider can't be nil")

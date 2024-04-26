@@ -2,8 +2,8 @@ package protocol
 
 import (
 	"github.com/waku-org/go-waku/waku/v2/hash"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
 
 // Envelope contains information about the pubsub topic of a WakuMessage

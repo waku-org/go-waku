@@ -1,17 +1,17 @@
-package storev3
+package store
 
 import (
 	"context"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/waku-org/go-waku/waku/v2/protocol/storev3/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
 
 // Result represents a valid response from a store node
 type Result struct {
 	started      bool
 	messages     []*pb.WakuMessageKeyValue
-	store        *WakuStoreV3
+	store        *WakuStore
 	storeRequest *pb.StoreQueryRequest
 	cursor       []byte
 	peerID       peer.ID

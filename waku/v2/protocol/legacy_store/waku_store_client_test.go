@@ -1,8 +1,10 @@
-package store
+package legacy_store
 
 import (
 	"context"
 	"crypto/rand"
+	"testing"
+
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -13,7 +15,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestQueryOptions(t *testing.T) {

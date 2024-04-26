@@ -10,6 +10,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -157,7 +158,7 @@ func (w *WakuNode) Status() (isOnline bool, hasHistory bool) {
 			if !hasLightPush && protocol == lightpush.LightPushID_v20beta1 {
 				hasLightPush = true
 			}
-			if !hasStore && protocol == store.StoreID_v20beta4 {
+			if !hasStore && (protocol == legacy_store.StoreID_v20beta4 || protocol == store.StoreQueryID_v300) {
 				hasStore = true
 			}
 			if !hasFilter && protocol == legacy_filter.FilterID_v20beta1 {
