@@ -317,8 +317,10 @@ func (d *DBStore) Put(env *protocol.Envelope) error {
 		storedAt = env.Index().ReceiverTime
 	}
 
+	hash := env.Hash()
+
 	start := time.Now()
-	_, err = stmt.Exec(env.Index().Digest, env.Hash(), storedAt, env.Message().GetTimestamp(), env.Message().ContentTopic, env.PubsubTopic(), env.Message().Payload, env.Message().GetVersion())
+	_, err = stmt.Exec(env.Index().Digest, hash[:], storedAt, env.Message().GetTimestamp(), env.Message().ContentTopic, env.PubsubTopic(), env.Message().Payload, env.Message().GetVersion())
 	if err != nil {
 		return err
 	}

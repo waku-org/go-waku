@@ -16,7 +16,6 @@ var (
 	errMissingPubsubTopic     = errors.New("missing PubsubTopic field")
 	errMissingContentTopics   = errors.New("missing ContentTopics field")
 	errMissingStatusCode      = errors.New("missing StatusCode field")
-	errMissingMessage         = errors.New("missing Message field")
 	errInvalidTimeRange       = errors.New("invalid time range")
 	errInvalidMessageHash     = errors.New("invalid message hash")
 )
@@ -61,11 +60,7 @@ func (x *StoreQueryRequest) Validate() error {
 }
 
 func (x *StoreQueryResponse) Validate(requestID string) error {
-	if x.RequestId == "" {
-		return errMissingRequestID
-	}
-
-	if x.RequestId != requestID {
+	if x.RequestId != "" && x.RequestId != requestID {
 		return errRequestIDMismatch
 	}
 
@@ -87,9 +82,9 @@ func (x *WakuMessageKeyValue) Validate() error {
 		return errInvalidMessageHash
 	}
 
-	if x.Message == nil {
-		return errMissingMessage
-	} else {
+	if x.Message != nil {
 		return x.Message.Validate()
 	}
+
+	return nil
 }

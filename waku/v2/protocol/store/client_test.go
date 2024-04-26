@@ -1,7 +1,7 @@
-package store
+//go:build include_storev3_tests
+// +build include_storev3_tests
 
-//111go:build include_storev3_tests
-// 111+build include_storev3_tests
+package store
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func TestStoreClient(t *testing.T) {
 	err = wakuRelay.Start(context.Background())
 	require.NoError(t, err)
 
-	pm := peermanager.NewPeerManager(5, 5, utils.Logger())
+	pm := peermanager.NewPeerManager(5, 5, nil, utils.Logger())
 	pm.SetHost(host)
 	err = pm.SubscribeToRelayEvtBus(wakuRelay.Events())
 	require.NoError(t, err)
@@ -189,14 +189,17 @@ func TestStoreClient(t *testing.T) {
 	require.Len(t, response.messages, 5)
 	require.Empty(t, response.Cursor())
 
-	// Invalid cursors should return an empty response
-	// TODO: nwaku is returning values even with invalid cursors
-	/*
-		response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor([]byte{1, 2, 3, 4, 5, 6}))
-		require.NoError(t, err)
-		require.Len(t, response.messages, 0)
-		require.Empty(t, response.Cursor())
-	*/
+	// Invalid cursors should fail
+	// TODO: nwaku does not support this feature yet
+	//_, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor([]byte{1, 2, 3, 4, 5, 6}))
+	//require.Error(t, err)
+
+	// Inexistent cursors should return an empty response
+	// TODO: nwaku does not support this feature yet
+	//response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor(make([]byte, 32))) // Requesting cursor 0x00...00
+	//require.NoError(t, err)
+	//require.Len(t, response.messages, 0)
+	//require.Empty(t, response.Cursor())
 
 	// Handle temporal history query with an invalid time window
 	_, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: endTime, TimeEnd: startTime})
@@ -209,16 +212,13 @@ func TestStoreClient(t *testing.T) {
 	require.Empty(t, response.Cursor())
 
 	// Should not include data
-	// TODO: nwaku is returning the data always
-	/*
-		response, err = wakuStore.Request(ctx, MessageHashCriteria{MessageHashes: []pb.MessageHash{messages[0].Hash(relay.DefaultWakuTopic)}}, IncludeData(false), WithPeer(storenode.ID))
-		require.NoError(t, err)
-		require.Len(t, response.messages, 1)
-		require.Nil(t, response.messages[0].Message)
+	response, err = wakuStore.Request(ctx, MessageHashCriteria{MessageHashes: []pb.MessageHash{messages[0].Hash(relay.DefaultWakuTopic)}}, IncludeData(false), WithPeer(storenode.ID))
+	require.NoError(t, err)
+	require.Len(t, response.messages, 1)
+	require.Nil(t, response.messages[0].Message)
 
-		response, err = wakuStore.Request(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test")}, IncludeData(false))
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, response.messages, 1)
-		require.Nil(t, response.messages[0].Message)
-	*/
+	response, err = wakuStore.Request(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test")}, IncludeData(false))
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(response.messages), 1)
+	require.Nil(t, response.messages[0].Message)
 }
