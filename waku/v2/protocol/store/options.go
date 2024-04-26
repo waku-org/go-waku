@@ -1,4 +1,4 @@
-package storev3
+package store
 
 import (
 	"errors"

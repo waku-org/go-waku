@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	r "github.com/waku-org/go-zerokit-rln/rln"
 	"go.uber.org/zap"
@@ -17,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/persistence"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
 func handleSpam(msg *pb.WakuMessage, topic string) error {
@@ -43,8 +43,8 @@ func TestWakuOptions(t *testing.T) {
 	addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4000/ws")
 	require.NoError(t, err)
 
-	storeFactory := func(w *WakuNode) store.Store {
-		return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, prometheus.DefaultRegisterer, w.log)
+	storeFactory := func(w *WakuNode) legacy_store.Store {
+		return legacy_store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, prometheus.DefaultRegisterer, w.log)
 	}
 
 	options := []WakuNodeOption{
@@ -88,8 +88,8 @@ func TestWakuRLNOptions(t *testing.T) {
 	addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4000/ws")
 	require.NoError(t, err)
 
-	storeFactory := func(w *WakuNode) store.Store {
-		return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, prometheus.DefaultRegisterer, w.log)
+	storeFactory := func(w *WakuNode) legacy_store.Store {
+		return legacy_store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, prometheus.DefaultRegisterer, w.log)
 	}
 
 	index := r.MembershipIndex(5)

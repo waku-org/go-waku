@@ -46,10 +46,10 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 
 	humanize "github.com/dustin/go-humanize"
@@ -336,7 +336,7 @@ func Execute(options NodeOptions) error {
 
 	//For now assuming that static peers added support/listen on all topics specified via commandLine.
 	staticPeers := map[protocol.ID][]multiaddr.Multiaddr{
-		store.StoreID_v20beta4:            options.Store.Nodes,
+		legacy_store.StoreID_v20beta4:     options.Store.Nodes,
 		lightpush.LightPushID_v20beta1:    options.LightPush.Nodes,
 		rendezvous.RendezvousID:           options.Rendezvous.Nodes,
 		filter.FilterSubscribeID_v20beta1: options.Filter.Nodes,

@@ -1,9 +1,9 @@
-package storev3
+package store
 
 import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/storev3/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"google.golang.org/protobuf/proto"
 )
 

@@ -1,4 +1,4 @@
-package store
+package legacy_store
 
 import (
 	"github.com/libp2p/go-libp2p/p2p/metricshelper"

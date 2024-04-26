@@ -36,13 +36,13 @@ import (
 	wakuprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/metadata"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/protocol/storev3"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -60,7 +60,7 @@ type Peer struct {
 	PubsubTopics []string       `json:"pubsubTopics"`
 }
 
-type storeFactory func(w *WakuNode) store.Store
+type storeFactory func(w *WakuNode) legacy_store.Store
 
 type byte32 = [32]byte
 
@@ -101,8 +101,8 @@ type WakuNode struct {
 	metadata        Service
 	filterFullNode  ReceptorService
 	filterLightNode Service
-	store           ReceptorService
-	storeV3         *storev3.WakuStoreV3
+	legacyStore     ReceptorService
+	store           *store.WakuStore
 	rlnRelay        RLNRelay
 
 	wakuFlag          enr.WakuEnrBitfield
@@ -127,8 +127,8 @@ type WakuNode struct {
 	peermanager *peermanager.PeerManager
 }
 
-func defaultStoreFactory(w *WakuNode) store.Store {
-	return store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
+func defaultStoreFactory(w *WakuNode) legacy_store.Store {
+	return legacy_store.NewWakuStore(w.opts.messageProvider, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
 }
 
 // New is used to instantiate a WakuNode using a set of WakuNodeOptions
@@ -293,7 +293,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.filterLightNode = filter.NewWakuFilterLightNode(w.bcaster, w.peermanager, w.timesource, w.opts.prometheusReg, w.log)
 	w.lightPush = lightpush.NewWakuLightPush(w.Relay(), w.peermanager, w.opts.prometheusReg, w.log)
 
-	w.storeV3 = storev3.NewWakuStoreV3(w.peermanager, w.timesource, w.log)
+	w.store = store.NewWakuStore(w.peermanager, w.timesource, w.log)
 
 	if params.storeFactory != nil {
 		w.storeFactory = params.storeFactory
@@ -426,8 +426,8 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		w.registerAndMonitorReachability(ctx)
 	}
 
-	w.store = w.storeFactory(w)
-	w.store.SetHost(host)
+	w.legacyStore = w.storeFactory(w)
+	w.legacyStore.SetHost(host)
 	if w.opts.enableStore {
 		sub := w.bcaster.RegisterForAll()
 		err := w.startStore(ctx, sub)
@@ -437,7 +437,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		w.log.Info("Subscribing store to broadcaster")
 	}
 
-	w.storeV3.SetHost(host)
+	w.store.SetHost(host)
 
 	w.lightPush.SetHost(host)
 	if w.opts.enableLightPush {
@@ -504,7 +504,7 @@ func (w *WakuNode) Stop() {
 
 	w.relay.Stop()
 	w.lightPush.Stop()
-	w.store.Stop()
+	w.legacyStore.Stop()
 	w.filterFullNode.Stop()
 	w.filterLightNode.Stop()
 
@@ -590,13 +590,13 @@ func (w *WakuNode) Relay() *relay.WakuRelay {
 }
 
 // LegacyStore is used to access any operation related to Waku Store protocol
-func (w *WakuNode) LegacyStore() store.Store {
-	return w.store.(store.Store)
+func (w *WakuNode) LegacyStore() legacy_store.Store {
+	return w.legacyStore.(legacy_store.Store)
 }
 
 // Store is used to access any operation related to Waku Store protocol
-func (w *WakuNode) Store() *storev3.WakuStoreV3 {
-	return w.storeV3
+func (w *WakuNode) Store() *store.WakuStore {
+	return w.store
 }
 
 // FilterLightnode is used to access any operation related to Waku Filter protocol Full node feature
@@ -678,7 +678,7 @@ func (w *WakuNode) mountDiscV5() error {
 }
 
 func (w *WakuNode) startStore(ctx context.Context, sub *relay.Subscription) error {
-	err := w.store.Start(ctx, sub)
+	err := w.legacyStore.Start(ctx, sub)
 	if err != nil {
 		w.log.Error("starting store", zap.Error(err))
 		return err
