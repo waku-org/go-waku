@@ -1,0 +1,6 @@
+services:
+  nwaku:
+    image: "quay.io/wakuorg/nwaku-pr:2636-rln-v2"
+    command: ["--relay --store --nodekey=1122334455667788990011223344556677889900112233445566778899001122"]
+    ports:
+      - "60000"

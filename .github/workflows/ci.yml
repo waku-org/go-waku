@@ -166,3 +166,9 @@ jobs:
         run: |
           docker compose -f .github/docker-compose/ganache.yml up -d
           make test-onchain${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}
+
+      - name: "Run storev3 tests"
+        run: |
+          docker compose -f .github/docker-compose/nwaku.yml up -d
+          nwaku_port=$(docker-compose port nwaku 60000)
+          echo "Mapped port for nwaku: $nwaku_port"
