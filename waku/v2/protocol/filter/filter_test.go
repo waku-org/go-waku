@@ -553,13 +553,13 @@ func (s *FilterTestSuite) TestStaticSharding() {
 	s.ctx = ctx
 	s.ctxCancel = cancel
 
-	// Gen pubsub topic "/waku/2/rs/1024/0"
-	s.testTopic = protocol.NewStaticShardingPubsubTopic(uint16(1024), uint16(100)).String()
+	// Gen pubsub topic "/waku/2/rs/100/100"
+	s.testTopic = protocol.NewStaticShardingPubsubTopic(uint16(100), uint16(100)).String()
 
 	// Pubsub topics for neg. test cases
 	testTopics := []string{
 		"/waku/2/rs/100/1024",
-		"/waku/2/rs/1024/101",
+		"/waku/2/rs/100/101",
 	}
 	s.testContentTopic = "/test/10/my-filter-app/proto"
 
