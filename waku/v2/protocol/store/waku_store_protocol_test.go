@@ -437,7 +437,7 @@ func TestWakuStoreWithStaticSharding(t *testing.T) {
 	s1.SetHost(host1)
 
 	// Prepare pubsub topics for static sharding
-	pubSubTopics := protocol.ShardsToTopics(20, []int{1, 2, 3})
+	pubSubTopics := protocol.ShardsToTopics(20, []int{1, 2, 3, 4})
 
 	// Prepare test messages
 	now := *utils.GetUnixEpoch()
@@ -469,8 +469,8 @@ func TestWakuStoreWithStaticSharding(t *testing.T) {
 	s2 := NewWakuStore(MemoryDB(t), nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
 	s2.SetHost(host2)
 
-	// Subscribe to DefaultWakuTopic at store2 + host2
-	sub1 := relay.NewSubscription(protocol.NewContentFilter(relay.DefaultWakuTopic))
+	// Subscribe to different pubSubTopics[3] at store2 + host2
+	sub1 := relay.NewSubscription(protocol.NewContentFilter(pubSubTopics[3]))
 
 	err = s2.Start(ctx, sub1)
 	require.NoError(t, err)
