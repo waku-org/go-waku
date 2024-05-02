@@ -40,19 +40,6 @@ func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Su
 	return relay, sub[0], host
 }
 
-func makeWakuLightPush(t *testing.T, relay *relay.WakuRelay, pm *peermanager.PeerManager) (*WakuLightPush, host.Host) {
-	port, err := tests.FindFreePort(t, "", 5)
-	require.NoError(t, err)
-
-	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
-	require.NoError(t, err)
-
-	lightPushNode := NewWakuLightPush(relay, pm, prometheus.DefaultRegisterer, utils.Logger())
-	lightPushNode.SetHost(host)
-
-	return lightPushNode, host
-}
-
 // Node1: Relay
 // Node2: Relay+Lightpush
 // Client that will lightpush a message
@@ -340,16 +327,30 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 	defer node1.Stop()
 	defer sub1.Unsubscribe()
 
-	_, host2 := makeWakuLightPush(t, nil, nil)
+	node2, sub2, host2 := makeWakuRelay(t, pubSubTopic)
+	defer node2.Stop()
+	defer sub2.Unsubscribe()
+
+	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2.SetHost(host2)
+	err := lightPushNode2.Start(ctx)
+	require.NoError(t, err)
+	defer lightPushNode2.Stop()
 
 	host2.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
-	err := host2.Peerstore().AddProtocols(host1.ID(), relay.WakuRelayID_v200)
+	err = host2.Peerstore().AddProtocols(host1.ID(), relay.WakuRelayID_v200)
 	require.NoError(t, err)
 
 	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host1.ID()))
 	require.NoError(t, err)
 
-	client, clientHost := makeWakuLightPush(t, nil, nil)
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
+	client.SetHost(clientHost)
 
 	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
 	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
@@ -372,5 +373,4 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
 	require.NoError(t, err)
 	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, sub1.Ch)
-
 }
