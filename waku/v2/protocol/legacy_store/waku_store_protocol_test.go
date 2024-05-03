@@ -1,12 +1,13 @@
-package store
+package legacy_store
 
 import (
 	"context"
 	"database/sql"
-	"github.com/waku-org/go-waku/waku/persistence"
-	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 	"testing"
 	"time"
+
+	"github.com/waku-org/go-waku/waku/persistence"
+	"github.com/waku-org/go-waku/waku/persistence/sqlite"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/peerstore"

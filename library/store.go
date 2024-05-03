@@ -4,15 +4,15 @@ import (
 	"C"
 	"encoding/json"
 
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
 import (
 	"context"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 )
 
 type storePagingOptions struct {
@@ -35,10 +35,10 @@ type storeMessagesReply struct {
 	Error      string             `json:"error,omitempty"`
 }
 
-func queryResponse(ctx context.Context, instance *WakuInstance, args storeMessagesArgs, options []store.HistoryRequestOption) (string, error) {
-	res, err := instance.node.Store().Query(
+func queryResponse(ctx context.Context, instance *WakuInstance, args storeMessagesArgs, options []legacy_store.HistoryRequestOption) (string, error) {
+	res, err := instance.node.LegacyStore().Query(
 		ctx,
-		store.Query{
+		legacy_store.Query{
 			PubsubTopic:   args.Topic,
 			ContentTopics: args.ContentTopics,
 			StartTime:     args.StartTime,
@@ -75,10 +75,10 @@ func StoreQuery(instance *WakuInstance, queryJSON string, peerID string, ms int)
 		return "", err
 	}
 
-	options := []store.HistoryRequestOption{
-		store.WithAutomaticRequestID(),
-		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
-		store.WithCursor(args.PagingOptions.Cursor),
+	options := []legacy_store.HistoryRequestOption{
+		legacy_store.WithAutomaticRequestID(),
+		legacy_store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
+		legacy_store.WithCursor(args.PagingOptions.Cursor),
 	}
 
 	if peerID != "" {
@@ -86,9 +86,9 @@ func StoreQuery(instance *WakuInstance, queryJSON string, peerID string, ms int)
 		if err != nil {
 			return "", err
 		}
-		options = append(options, store.WithPeer(p))
+		options = append(options, legacy_store.WithPeer(p))
 	} else {
-		options = append(options, store.WithAutomaticPeerSelection())
+		options = append(options, legacy_store.WithAutomaticPeerSelection())
 	}
 
 	var ctx context.Context
@@ -116,11 +116,11 @@ func StoreLocalQuery(instance *WakuInstance, queryJSON string) (string, error) {
 		return "", err
 	}
 
-	options := []store.HistoryRequestOption{
-		store.WithAutomaticRequestID(),
-		store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
-		store.WithCursor(args.PagingOptions.Cursor),
-		store.WithLocalQuery(),
+	options := []legacy_store.HistoryRequestOption{
+		legacy_store.WithAutomaticRequestID(),
+		legacy_store.WithPaging(args.PagingOptions.Forward, args.PagingOptions.PageSize),
+		legacy_store.WithCursor(args.PagingOptions.Cursor),
+		legacy_store.WithLocalQuery(),
 	}
 
 	return queryResponse(instance.ctx, instance, args, options)

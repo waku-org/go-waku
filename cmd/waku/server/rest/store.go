@@ -12,8 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 )
 
 type StoreService struct {
@@ -55,9 +55,9 @@ func NewStoreService(node *node.WakuNode, m *chi.Mux) *StoreService {
 	return s
 }
 
-func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption, error) {
-	query := &store.Query{}
-	var options []store.HistoryRequestOption
+func getStoreParams(r *http.Request) (*legacy_store.Query, []legacy_store.HistoryRequestOption, error) {
+	query := &legacy_store.Query{}
+	var options []legacy_store.HistoryRequestOption
 	var err error
 	peerAddrStr := r.URL.Query().Get("peerAddr")
 	var m multiaddr.Multiaddr
@@ -66,12 +66,12 @@ func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption
 		if err != nil {
 			return nil, nil, err
 		}
-		options = append(options, store.WithPeerAddr(m))
+		options = append(options, legacy_store.WithPeerAddr(m))
 	} else {
 		// The user didn't specify a peer address and self-node is configured as a store node.
 		// In this case we assume that the user is willing to retrieve the messages stored by
 		// the local/self store node.
-		options = append(options, store.WithLocalQuery())
+		options = append(options, legacy_store.WithLocalQuery())
 	}
 
 	query.PubsubTopic = r.URL.Query().Get("pubsubTopic")
@@ -131,14 +131,14 @@ func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption
 
 		cursor.PubsubTopic = query.PubsubTopic
 
-		options = append(options, store.WithCursor(cursor))
+		options = append(options, legacy_store.WithCursor(cursor))
 	}
 
 	pageSizeStr := r.URL.Query().Get("pageSize")
 	ascendingStr := r.URL.Query().Get("ascending")
 	if ascendingStr != "" || pageSizeStr != "" {
 		ascending := true
-		pageSize := uint64(store.DefaultPageSize)
+		pageSize := uint64(legacy_store.DefaultPageSize)
 		if ascendingStr != "" {
 			ascending, err = strconv.ParseBool(ascendingStr)
 			if err != nil {
@@ -151,12 +151,12 @@ func getStoreParams(r *http.Request) (*store.Query, []store.HistoryRequestOption
 			if err != nil {
 				return nil, nil, err
 			}
-			if pageSize > store.MaxPageSize {
-				pageSize = store.MaxPageSize
+			if pageSize > legacy_store.MaxPageSize {
+				pageSize = legacy_store.MaxPageSize
 			}
 		}
 
-		options = append(options, store.WithPaging(ascending, pageSize))
+		options = append(options, legacy_store.WithPaging(ascending, pageSize))
 	}
 
 	return query, options, nil
@@ -166,7 +166,7 @@ func writeStoreError(w http.ResponseWriter, code int, err error) {
 	writeResponse(w, StoreResponse{ErrorMessage: err.Error()}, code)
 }
 
-func toStoreResponse(result *store.Result) StoreResponse {
+func toStoreResponse(result *legacy_store.Result) StoreResponse {
 	response := StoreResponse{}
 
 	cursor := result.Cursor()
@@ -202,7 +202,7 @@ func (d *StoreService) getV1Messages(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	result, err := d.node.Store().Query(ctx, *query, options...)
+	result, err := d.node.LegacyStore().Query(ctx, *query, options...)
 	if err != nil {
 		writeStoreError(w, http.StatusInternalServerError, err)
 		return

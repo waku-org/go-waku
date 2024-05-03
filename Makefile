@@ -219,3 +219,7 @@ test-postgres:
 
 test-postgres-with-race:
 	${GOCMD} test -race -p 1 -v -count 1 -tags="${PG_BUILD_TAGS}" github.com/waku-org/go-waku/waku/persistence/...
+
+TEST_STOREV3_NODE ?=
+test-storev3:
+	TEST_STOREV3_NODE=${TEST_STOREV3_NODE} ${GOCMD} test -p 1 -v -count 1 -tags="${BUILD_TAGS} include_storev3_tests" github.com/waku-org/go-waku/waku/v2/protocol/store/...

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -40,7 +39,8 @@ func relayPublish(instance *WakuInstance, msg *pb.WakuMessage, pubsubTopic strin
 	}
 
 	hash, err := instance.node.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic))
-	return hexutil.Encode(hash), err
+
+	return hash.String(), err
 }
 
 // RelayPublish publishes a message using waku relay and returns the message ID
