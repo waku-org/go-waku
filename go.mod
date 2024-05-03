@@ -1,6 +1,6 @@
 module github.com/waku-org/go-waku
 
-go 1.21
+go 1.20
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
