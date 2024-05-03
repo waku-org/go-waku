@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"math/big"
 	"math/rand"
 	"net"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -399,8 +400,9 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 
 	// Send another message to non-subscribed pubsub topic, but subscribed content topic
 	msg2 := tests.CreateWakuMessage(contentTopic1, utils.GetUnixEpoch(), "test message 2")
-
-	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic("/waku/2/rs/100/321"))
+	pubSubTopic3 := protocol.NewStaticShardingPubsubTopic(testClusterID, uint16(321))
+	pubSubTopic3Str := pubSubTopic3.String()
+	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic(pubSubTopic3Str))
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
