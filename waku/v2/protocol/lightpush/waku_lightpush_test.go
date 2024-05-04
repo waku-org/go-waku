@@ -7,14 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"go.uber.org/zap"
-
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -40,22 +38,6 @@ func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Su
 	require.NoError(t, err)
 
 	return relay, sub[0], host
-}
-
-func waitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
-	wg.Add(1)
-	log := utils.Logger()
-	go func() {
-		defer wg.Done()
-		select {
-		case env := <-ch:
-			msg := env.Message()
-			log.Info("Received ", zap.String("msg", msg.String()))
-		case <-time.After(2 * time.Second):
-			require.Fail(t, "Message timeout")
-		}
-	}()
-	wg.Wait()
 }
 
 // Node1: Relay
@@ -305,7 +287,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the nominal case message at node1
-	waitForMsg(t, &wg, sub1.Ch)
+	tests.WaitForMsg(t, 2*time.Second, &wg, sub1.Ch)
 
 	// Test error case with nil message
 	_, err = client.Publish(ctx, nil, lpOptions...)
@@ -331,4 +313,71 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 
 	// Test situation when cancel func is nil
 	lightPushNode2.cancel = nil
+}
+
+func TestWakuLightPushWithStaticSharding(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Prepare pubsub topic for static sharding
+	pubSubTopic := protocol.NewStaticShardingPubsubTopic(uint16(25), uint16(0)).String()
+	testContentTopic := "/test/10/my-lp-app/proto"
+
+	// Node topology: clientNode (lightpush client) <-> node2(relay+lightpush server) <-> node3(relay)
+	// ClientNode
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
+	client.SetHost(clientHost)
+
+	// Node2
+	node2, sub2, host2 := makeWakuRelay(t, pubSubTopic)
+	defer node2.Stop()
+	defer sub2.Unsubscribe()
+
+	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2.SetHost(host2)
+	err = lightPushNode2.Start(ctx)
+	require.NoError(t, err)
+	defer lightPushNode2.Stop()
+
+	// Node3
+	node3, sub3, host3 := makeWakuRelay(t, pubSubTopic)
+	defer node3.Stop()
+	defer sub3.Unsubscribe()
+
+	// Add path clientNode (lightpush client) -> node2(relay+lightpush server)
+	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
+	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
+	require.NoError(t, err)
+
+	// Add path node2(relay+lightpush server) -> node3(relay)
+	host2.Peerstore().AddAddr(host3.ID(), tests.GetHostAddress(host3), peerstore.PermanentAddrTTL)
+	err = host2.Peerstore().AddProtocols(host3.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
+	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host3.ID()))
+	require.NoError(t, err)
+
+	// Create messages
+	msg := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch())
+	msg2 := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch())
+
+	// Wait for the mesh connection to happen between nodes
+	time.Sleep(2 * time.Second)
+
+	var wg sync.WaitGroup
+
+	// Check that msg publish has led to message deliver for existing topic
+	_, err = client.Publish(ctx, msg, WithPubSubTopic(pubSubTopic), WithPeer(host2.ID()))
+	require.NoError(t, err)
+	tests.WaitForMsg(t, 2*time.Second, &wg, sub3.Ch)
+
+	// Check that msg2 publish finished without message delivery for unconfigured topic
+	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
+	require.NoError(t, err)
+	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, sub3.Ch)
 }
