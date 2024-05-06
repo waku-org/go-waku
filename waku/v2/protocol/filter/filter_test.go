@@ -12,6 +12,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/service"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -186,7 +187,7 @@ func (s *FilterTestSuite) AfterTest(suiteName, testName string) {
 
 func (s *FilterTestSuite) TestStaticSharding() {
 	log := utils.Logger()
-	s.log = log
+	s.Log = log
 	s.wg = &sync.WaitGroup{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
@@ -194,56 +195,40 @@ func (s *FilterTestSuite) TestStaticSharding() {
 	s.ctxCancel = cancel
 
 	// Gen pubsub topic "/waku/2/rs/100/100"
-	s.testTopic = protocol.NewStaticShardingPubsubTopic(uint16(100), uint16(100)).String()
+	s.TestTopic = protocol.NewStaticShardingPubsubTopic(uint16(100), uint16(100)).String()
 
 	// Pubsub topics for neg. test cases
 	testTopics := []string{
 		"/waku/2/rs/100/1024",
 		"/waku/2/rs/100/101",
 	}
-	s.testContentTopic = "/test/10/my-filter-app/proto"
+	s.TestContentTopic = "/test/10/my-filter-app/proto"
 
 	// Prepare new nodes
-	s.lightNode = s.makeWakuFilterLightNode(true, true)
-	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
+	s.MakeWakuFilterLightNode()
+	s.StartLightNode()
+	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
 	// Connect nodes
-	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
-	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
-	s.Require().NoError(err)
+	s.ConnectHosts(s.LightNodeHost, s.FullNodeHost)
 
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
-
-	msg := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch())
-	msg2 := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// Test positive case for static shard pubsub topic - message gets received
-	s.waitForMsg(func() {
-		_, err := s.relayNode.Publish(s.ctx, msg, relay.WithPubSubTopic(s.testTopic))
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
+	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, ""})
 
 	// Test two negative cases for static shard pubsub topic - message times out
-	s.waitForTimeout(func() {
-		_, err := s.relayNode.Publish(s.ctx, msg2, relay.WithPubSubTopic(testTopics[0]))
-		s.Require().NoError(err)
+	s.waitForTimeout(&WakuMsg{testTopics[0], s.TestContentTopic, ""})
 
-	}, s.subDetails[0].C)
-
-	s.waitForTimeout(func() {
-		_, err := s.relayNode.Publish(s.ctx, msg2, relay.WithPubSubTopic(testTopics[1]))
-		s.Require().NoError(err)
-
-	}, s.subDetails[0].C)
+	s.waitForTimeout(&WakuMsg{testTopics[1], s.TestContentTopic, ""})
 
 	// Cleanup
-	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
-		PubsubTopic:   s.testTopic,
-		ContentTopics: protocol.NewContentTopicSet(s.testContentTopic),
+	_, err := s.LightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
+		PubsubTopic:   s.TestTopic,
+		ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic),
 	})
 	s.Require().NoError(err)
 
-	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	_, err = s.LightNode.UnsubscribeAll(s.ctx)
 	s.Require().NoError(err)
 }
