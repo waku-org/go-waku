@@ -28,6 +28,7 @@ type Sub struct {
 	log           *zap.Logger
 }
 
+// Subscribe
 func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilter protocol.ContentFilter, config FilterConfig) (*Sub, error) {
 	sub := new(Sub)
 	sub.wf = wf
@@ -36,7 +37,10 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	sub.DataCh = make(chan *protocol.Envelope)
 	sub.ContentFilter = contentFilter
 	sub.Config = config
-	sub.log = func() *zap.Logger { log, _ := zap.NewDevelopment(); return log }().Named("filterv2-api")
+	sub.log = func() *zap.Logger {
+		log, _ := zap.NewDevelopment()
+		return log
+	}().Named("filterv2-api")
 
 	subs, err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
@@ -52,10 +56,6 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 
 func (apiSub *Sub) Unsubscribe() {
 	apiSub.cancel()
-	for _, s := range apiSub.subs {
-		apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
-	}
-	close(apiSub.DataCh)
 
 }
 
@@ -67,24 +67,43 @@ func (apiSub *Sub) healthCheckLoop() {
 		select {
 		case <-apiSub.ctx.Done():
 			apiSub.log.Info("healthCheckLoop: Done()")
+			apiSub.cleanup()
 			return
 		case <-ticker.C:
 			apiSub.log.Info("healthCheckLoop: checkAliveness()")
-			apiSub.checkAliveness()
+			topicCounts := apiSub.getTopicCounts()
+			apiSub.resubscribe(topicCounts)
 		}
 	}
 
 }
 
-func (apiSub *Sub) checkAliveness() {
-	apiSub.log.Info("ENTER checkAliveness()")
+func (apiSub *Sub) cleanup() {
+	apiSub.log.Info("ENTER cleanup()")
+	defer func() {
+		apiSub.log.Info("EXIT cleanup()")
+	}()
+
+	for _, s := range apiSub.subs {
+		apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
+	}
+	close(apiSub.DataCh)
+
+}
+
+// Returns active sub counts for each pubsub topic
+func (apiSub *Sub) getTopicCounts() map[string]int {
+	apiSub.log.Info("ENTER getTopicCounts()")
+	defer func() {
+		apiSub.log.Info("EXIT getTopicCounts()")
+	}()
 
 	// Buffered chan for sub aliveness results
 	type CheckResult struct {
 		sub   *subscription.SubscriptionDetails
 		alive bool
 	}
-	ch := make(chan CheckResult, len(apiSub.subs))
+	checkResults := make(chan CheckResult, len(apiSub.subs))
 
 	// Run pings asynchronously
 	for _, s := range apiSub.subs {
@@ -92,7 +111,8 @@ func (apiSub *Sub) checkAliveness() {
 			ctx, _ := context.WithTimeout(apiSub.ctx, 5*time.Second)
 			err := apiSub.wf.IsSubscriptionAlive(ctx, s)
 
-			ch <- CheckResult{s, err == nil}
+			apiSub.log.Info("Check result:", zap.Any("subID", s.ID), zap.Bool("result", err == nil))
+			checkResults <- CheckResult{s, err == nil}
 		}()
 	}
 
@@ -103,49 +123,72 @@ func (apiSub *Sub) checkAliveness() {
 	for _, t := range maps.Keys(topicMap) {
 		topicCounts[t] = 0
 	}
-	// Close inactive subs
 	cnt := 0
-	for s := range ch {
+	subLen := len(apiSub.subs)
+	for s := range checkResults {
 		cnt++
 		if !s.alive {
+			// Close inactive subs
 			s.sub.Close()
 			delete(apiSub.subs, s.sub.ID)
 		} else {
 			topicCounts[s.sub.ContentFilter.PubsubTopic]++
 		}
 
-		if cnt == len(apiSub.subs) {
+		if cnt == subLen {
 			// All values received
 			break
 		}
 	}
-	close(ch)
+
+	close(checkResults)
+	return topicCounts
+}
+
+// Attempts to resubscribe on topics that lack subscriptions
+func (apiSub *Sub) resubscribe(topicCounts map[string]int) {
+	apiSub.log.Info("ENTER resubscribe()")
+	defer func() {
+		apiSub.log.Info("EXIT resubscribe()")
+	}()
+
+	// Delete healthy topics
 	for t, cnt := range topicCounts {
 		if cnt == apiSub.Config.MaxPeers {
 			delete(topicCounts, t)
 		}
 	}
+
+	if len(topicCounts) == 0 {
+		// All topics healthy, return
+		return
+	}
+
 	// Re-subscribe asynchronously
 	newSubs := make(chan []*subscription.SubscriptionDetails)
+
 	for t, cnt := range topicCounts {
 		cFilter := protocol.ContentFilter{t, apiSub.ContentFilter.ContentTopics}
 		go func() {
-			subs, err := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-cnt)
-			if err != nil {
-				newSubs <- subs
-			}
+			subs, _ := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-cnt)
+			newSubs <- subs
 		}()
 	}
 
+	cnt := 0
+	apiSub.log.Info("resubscribe(): before range newSubs")
 	for subs := range newSubs {
-		apiSub.multiplex(subs)
+		cnt++
+		if subs != nil {
+			apiSub.multiplex(subs)
+		}
 		if cnt == len(topicCounts) {
+			// Received all subscription results
 			break
 		}
 	}
+	apiSub.log.Info("checkAliveness(): close(newSubs)")
 	close(newSubs)
-
-	apiSub.log.Info("EXIT checkAliveness()")
 }
 
 func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int) ([]*subscription.SubscriptionDetails, error) {
