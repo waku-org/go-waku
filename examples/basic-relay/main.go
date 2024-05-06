@@ -191,7 +191,7 @@ func write(ctx context.Context, wakuNode *node.WakuNode, contentTopic string, ms
 	if err != nil {
 		log.Error("Error sending a message", zap.Error(err))
 	}
-	log.Info("Published msg,", zap.String("data", string(msg.Payload)), logging.HexBytes("hash", hash))
+	log.Info("Published msg,", zap.String("data", string(msg.Payload)), logging.HexBytes("hash", hash.Bytes()))
 }
 
 func writeLoop(ctx context.Context, wakuNode *node.WakuNode, contentTopic string) {

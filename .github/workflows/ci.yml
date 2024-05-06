@@ -52,13 +52,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-
-    - uses: xom9ikk/dotenv@v2
-      with:
-        path: ".github/"
-    - run: |
-        echo "go_version=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
-
     - run: |
         VERSION=$(cat ./VERSION)
         echo "waku_version=$VERSION" >> $GITHUB_OUTPUT
@@ -73,9 +66,9 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.env.outputs.go_version }}
+          go-version-file: 'go.mod'
           cache: false
 
       - name: Execute golangci-lint
@@ -112,9 +105,9 @@ jobs:
           key: ${{ runner.os }}-vendor-modules-${{ steps.submodules.outputs.hash }}
       
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.env.outputs.go_version }}
+          go-version-file: 'go.mod'
           cache: false
 
       - name: Build binary
@@ -154,9 +147,9 @@ jobs:
           key: ${{ runner.os }}-vendor-modules-${{ steps.submodules.outputs.hash }}
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.env.outputs.go_version }} 
+          go-version-file: 'go.mod'
           cache: false
 
       - name: "Run tests"
@@ -166,3 +159,11 @@ jobs:
         run: |
           docker compose -f .github/docker-compose/ganache.yml up -d
           make test-onchain${{ matrix.tests == 'test-with-race' && '-with-race' || '' }}
+
+      - name: "Run storev3 tests"
+        run: |
+          docker compose -f .github/docker-compose/nwaku.yml up -d
+          NWAKU_HOST=$(docker-compose -f .github/docker-compose/nwaku.yml port nwaku 60000)
+          NWAKU_PORT=$(echo $NWAKU_HOST | cut -d ":" -f 2)
+          sleep 5
+          make test-storev3 TEST_STOREV3_NODE="/ip4/127.0.0.1/tcp/${NWAKU_PORT}/p2p/16Uiu2HAmMGhfSTUzKbsjMWxc6T1X4wiTWSF1bEWSLjAukCm7KiHV"

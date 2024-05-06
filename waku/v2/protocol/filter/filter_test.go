@@ -183,3 +183,67 @@ func (s *FilterTestSuite) BeforeTest(suiteName, testName string) {
 func (s *FilterTestSuite) AfterTest(suiteName, testName string) {
 	s.Log.Info("Finished executing ", zap.String("testName", testName))
 }
+
+func (s *FilterTestSuite) TestStaticSharding() {
+	log := utils.Logger()
+	s.log = log
+	s.wg = &sync.WaitGroup{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Test can't exceed 10 seconds
+	s.ctx = ctx
+	s.ctxCancel = cancel
+
+	// Gen pubsub topic "/waku/2/rs/100/100"
+	s.testTopic = protocol.NewStaticShardingPubsubTopic(uint16(100), uint16(100)).String()
+
+	// Pubsub topics for neg. test cases
+	testTopics := []string{
+		"/waku/2/rs/100/1024",
+		"/waku/2/rs/100/101",
+	}
+	s.testContentTopic = "/test/10/my-filter-app/proto"
+
+	// Prepare new nodes
+	s.lightNode = s.makeWakuFilterLightNode(true, true)
+	s.relayNode, s.fullNode = s.makeWakuFilterFullNode(s.testTopic, false, true)
+
+	// Connect nodes
+	s.lightNodeHost.Peerstore().AddAddr(s.fullNodeHost.ID(), tests.GetHostAddress(s.fullNodeHost), peerstore.PermanentAddrTTL)
+	err := s.lightNodeHost.Peerstore().AddProtocols(s.fullNodeHost.ID(), FilterSubscribeID_v20beta1)
+	s.Require().NoError(err)
+
+	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+
+	msg := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch())
+	msg2 := tests.CreateWakuMessage(s.testContentTopic, utils.GetUnixEpoch())
+
+	// Test positive case for static shard pubsub topic - message gets received
+	s.waitForMsg(func() {
+		_, err := s.relayNode.Publish(s.ctx, msg, relay.WithPubSubTopic(s.testTopic))
+		s.Require().NoError(err)
+
+	}, s.subDetails[0].C)
+
+	// Test two negative cases for static shard pubsub topic - message times out
+	s.waitForTimeout(func() {
+		_, err := s.relayNode.Publish(s.ctx, msg2, relay.WithPubSubTopic(testTopics[0]))
+		s.Require().NoError(err)
+
+	}, s.subDetails[0].C)
+
+	s.waitForTimeout(func() {
+		_, err := s.relayNode.Publish(s.ctx, msg2, relay.WithPubSubTopic(testTopics[1]))
+		s.Require().NoError(err)
+
+	}, s.subDetails[0].C)
+
+	// Cleanup
+	_, err = s.lightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
+		PubsubTopic:   s.testTopic,
+		ContentTopics: protocol.NewContentTopicSet(s.testContentTopic),
+	})
+	s.Require().NoError(err)
+
+	_, err = s.lightNode.UnsubscribeAll(s.ctx)
+	s.Require().NoError(err)
+}

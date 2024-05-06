@@ -1,4 +1,4 @@
-package store
+package legacy_store
 
 import (
 	"context"
@@ -67,8 +67,5 @@ func NewWakuStore(p MessageProvider, pm *peermanager.PeerManager, timesource tim
 	wakuStore.pm = pm
 	wakuStore.metrics = newMetrics(reg)
 
-	if pm != nil {
-		pm.RegisterWakuProtocol(StoreID_v20beta4, StoreENRField)
-	}
 	return wakuStore
 }

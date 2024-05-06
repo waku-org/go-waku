@@ -12,9 +12,9 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
 func execute(options Options) {
@@ -77,7 +77,7 @@ func execute(options Options) {
 		return
 	}
 
-	err = addPeer(wakuNode, options.Store.Node, options.Relay.Topics.Value(), store.StoreID_v20beta4)
+	err = addPeer(wakuNode, options.Store.Node, options.Relay.Topics.Value(), legacy_store.StoreID_v20beta4)
 	if err != nil {
 		fmt.Println(err.Error())
 		return

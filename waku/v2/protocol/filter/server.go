@@ -222,7 +222,7 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 	handle := func(envelope *protocol.Envelope) error {
 		msg := envelope.Message()
 		pubsubTopic := envelope.PubsubTopic()
-		logger := utils.MessagesLogger("filter").With(logging.HexBytes("hash", envelope.Hash()),
+		logger := utils.MessagesLogger("filter").With(logging.Hash(envelope.Hash()),
 			zap.String("pubsubTopic", envelope.PubsubTopic()),
 			zap.String("contentTopic", envelope.Message().ContentTopic),
 		)

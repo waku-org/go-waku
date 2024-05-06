@@ -1,4 +1,4 @@
-package store
+package legacy_store
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
