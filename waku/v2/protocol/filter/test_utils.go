@@ -260,7 +260,7 @@ func (s *FilterTestSuite) waitForMessages(msgs []WakuMsg) {
 	}
 
 	s.wg.Wait()
-	s.Require().True(msgCount == found)
+	s.Require().Equal(msgCount, found)
 }
 
 func (s *FilterTestSuite) waitForTimeout(msg *WakuMsg) {
