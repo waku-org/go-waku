@@ -85,7 +85,11 @@ func (apiSub *Sub) cleanup() {
 	}()
 
 	for _, s := range apiSub.subs {
-		apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
+		_, err := apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
+		if err != nil {
+			//Logging with info as this is part of cleanup
+			apiSub.log.Info("failed to unsubscribe filter", zap.Error(err))
+		}
 	}
 	close(apiSub.DataCh)
 
@@ -107,13 +111,14 @@ func (apiSub *Sub) getTopicCounts() map[string]int {
 
 	// Run pings asynchronously
 	for _, s := range apiSub.subs {
-		go func() {
-			ctx, _ := context.WithTimeout(apiSub.ctx, 5*time.Second)
-			err := apiSub.wf.IsSubscriptionAlive(ctx, s)
+		go func(sub *subscription.SubscriptionDetails) {
+			ctx, cancelFunc := context.WithTimeout(apiSub.ctx, 5*time.Second)
+			defer cancelFunc()
+			err := apiSub.wf.IsSubscriptionAlive(ctx, sub)
 
-			apiSub.log.Info("Check result:", zap.Any("subID", s.ID), zap.Bool("result", err == nil))
-			checkResults <- CheckResult{s, err == nil}
-		}()
+			apiSub.log.Info("Check result:", zap.Any("subID", sub.ID), zap.Bool("result", err == nil))
+			checkResults <- CheckResult{sub, err == nil}
+		}(s)
 	}
 
 	// Collect healthy topic counts
@@ -168,11 +173,11 @@ func (apiSub *Sub) resubscribe(topicCounts map[string]int) {
 	newSubs := make(chan []*subscription.SubscriptionDetails)
 
 	for t, cnt := range topicCounts {
-		cFilter := protocol.ContentFilter{t, apiSub.ContentFilter.ContentTopics}
-		go func() {
-			subs, _ := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-cnt)
+		cFilter := protocol.ContentFilter{PubsubTopic: t, ContentTopics: apiSub.ContentFilter.ContentTopics}
+		go func(count int) {
+			subs, _ := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-count)
 			newSubs <- subs
-		}()
+		}(cnt)
 	}
 
 	cnt := 0

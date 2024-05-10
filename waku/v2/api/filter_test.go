@@ -58,7 +58,7 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	}
 	s.Require().True(maps.Keys(apiSub.subs)[0] != maps.Keys(apiSub.subs)[1])
 	// Publish msg and confirm it's received twice because of multiplexing
-	s.PublishMsg(&filter.WakuMsg{s.TestTopic, s.TestContentTopic, "Test msg"})
+	s.PublishMsg(&filter.WakuMsg{PubSubTopic: s.TestTopic, ContentTopic: s.TestContentTopic, Payload: "Test msg"})
 	cnt := 0
 	for msg := range apiSub.DataCh {
 		s.Log.Info("Received msg:", zap.Int("cnt", cnt), zap.String("payload", string(msg.Message().Payload)))
@@ -69,7 +69,7 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 
 	time.Sleep(20 * time.Second)
 	apiSub.Unsubscribe()
-	for _ = range apiSub.DataCh {
+	for range apiSub.DataCh {
 	}
 	s.Log.Info("DataCh is closed")
 
