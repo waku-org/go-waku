@@ -113,7 +113,7 @@ func (s *FilterTestSuite) GetWakuRelay(topic string) FullNodeData {
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	s.Require().NoError(err)
 
-	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
+	relay := relay.NewWakuRelay(broadcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log, relay.WithMaxMsgSize(1024*1024))
 	relay.SetHost(host)
 
 	err = relay.Start(context.Background())
