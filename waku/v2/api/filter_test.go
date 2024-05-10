@@ -56,7 +56,8 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	for sub := range apiSub.subs {
 		s.Log.Info("SubDetails:", zap.String("id", sub))
 	}
-	s.Require().True(maps.Keys(apiSub.subs)[0] != maps.Keys(apiSub.subs)[1])
+	subsArray := maps.Keys(apiSub.subs)
+	s.Require().True(subsArray[0] != subsArray[1])
 	// Publish msg and confirm it's received twice because of multiplexing
 	s.PublishMsg(&filter.WakuMsg{PubSubTopic: s.TestTopic, ContentTopic: s.TestContentTopic, Payload: "Test msg"})
 	cnt := 0
@@ -67,7 +68,7 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	}
 	s.Require().Equal(cnt, 1)
 
-	time.Sleep(20 * time.Second)
+	time.Sleep(2 * time.Second)
 	apiSub.Unsubscribe()
 	for range apiSub.DataCh {
 	}
