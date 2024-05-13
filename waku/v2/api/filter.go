@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -11,6 +12,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
+
+const FilterPingTimeout = 5
 
 type FilterConfig struct {
 	MaxPeers int
@@ -44,14 +47,13 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 
 	subs, err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
-	if err == nil {
-		sub.multiplex(subs)
-		sub.log.Info("go sub.healthCheckLoop()")
-		go sub.healthCheckLoop()
-		return sub, nil
-	} else {
+	if err != nil {
 		return nil, err
 	}
+	sub.multiplex(subs)
+	sub.log.Info("go sub.healthCheckLoop()")
+	go sub.healthCheckLoop()
+	return sub, nil
 }
 
 func (apiSub *Sub) Unsubscribe() {
@@ -61,7 +63,7 @@ func (apiSub *Sub) Unsubscribe() {
 
 func (apiSub *Sub) healthCheckLoop() {
 	// Health checks
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(FilterPingTimeout * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -97,22 +99,20 @@ func (apiSub *Sub) cleanup() {
 
 // Returns active sub counts for each pubsub topic
 func (apiSub *Sub) getTopicCounts() map[string]int {
-	apiSub.log.Info("ENTER getTopicCounts()")
-	defer func() {
-		apiSub.log.Info("EXIT getTopicCounts()")
-	}()
-
 	// Buffered chan for sub aliveness results
 	type CheckResult struct {
 		sub   *subscription.SubscriptionDetails
 		alive bool
 	}
 	checkResults := make(chan CheckResult, len(apiSub.subs))
+	var wg sync.WaitGroup
 
 	// Run pings asynchronously
 	for _, s := range apiSub.subs {
+		wg.Add(1)
 		go func(sub *subscription.SubscriptionDetails) {
-			ctx, cancelFunc := context.WithTimeout(apiSub.ctx, 5*time.Second)
+			defer wg.Done()
+			ctx, cancelFunc := context.WithTimeout(apiSub.ctx, FilterPingTimeout*time.Second)
 			defer cancelFunc()
 			err := apiSub.wf.IsSubscriptionAlive(ctx, sub)
 
@@ -129,7 +129,8 @@ func (apiSub *Sub) getTopicCounts() map[string]int {
 		topicCounts[t] = 0
 	}
 	cnt := 0
-	subLen := len(apiSub.subs)
+	wg.Wait()
+	close(checkResults)
 	for s := range checkResults {
 		cnt++
 		if !s.alive {
@@ -139,23 +140,13 @@ func (apiSub *Sub) getTopicCounts() map[string]int {
 		} else {
 			topicCounts[s.sub.ContentFilter.PubsubTopic]++
 		}
-
-		if cnt == subLen {
-			// All values received
-			break
-		}
 	}
 
-	close(checkResults)
 	return topicCounts
 }
 
 // Attempts to resubscribe on topics that lack subscriptions
 func (apiSub *Sub) resubscribe(topicCounts map[string]int) {
-	apiSub.log.Info("ENTER resubscribe()")
-	defer func() {
-		apiSub.log.Info("EXIT resubscribe()")
-	}()
 
 	// Delete healthy topics
 	for t, cnt := range topicCounts {
@@ -181,7 +172,7 @@ func (apiSub *Sub) resubscribe(topicCounts map[string]int) {
 	}
 
 	cnt := 0
-	apiSub.log.Info("resubscribe(): before range newSubs")
+	apiSub.log.Debug("resubscribe(): before range newSubs")
 	for subs := range newSubs {
 		cnt++
 		if subs != nil {
@@ -214,12 +205,11 @@ func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int
 }
 
 func (apiSub *Sub) multiplex(subs []*subscription.SubscriptionDetails) {
-	for _, s := range subs {
-		apiSub.subs[s.ID] = s
-	}
+
 	// Multiplex onto single channel
 	// Goroutines will exit once sub channels are closed
 	for _, subDetails := range subs {
+		apiSub.subs[subDetails.ID] = subDetails
 		go func(subDetails *subscription.SubscriptionDetails) {
 			apiSub.log.Info("New multiplex", zap.String("subID", subDetails.ID))
 			for env := range subDetails.C {
