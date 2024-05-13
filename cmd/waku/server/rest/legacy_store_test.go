@@ -52,7 +52,7 @@ func TestGetMessages(t *testing.T) {
 	defer node2.Stop()
 	router := chi.NewRouter()
 
-	_ = NewStoreService(node2, router)
+	_ = NewLegacyStoreService(node2, router)
 
 	// TEST: get cursor
 	// TEST: get no messages
@@ -64,12 +64,12 @@ func TestGetMessages(t *testing.T) {
 		"pubsubTopic": {pubsubTopic1},
 		"pageSize":    {"2"},
 	}
-	path := routeStoreMessagesV1 + "?" + queryParams.Encode()
+	path := routeLegacyStoreMessagesV1 + "?" + queryParams.Encode()
 	req, _ := http.NewRequest(http.MethodGet, path, nil)
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	response := StoreResponse{}
+	response := LegacyStoreResponse{}
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 2)
@@ -84,12 +84,12 @@ func TestGetMessages(t *testing.T) {
 		"digest":      {base64.URLEncoding.EncodeToString(response.Cursor.Digest)},
 		"pageSize":    {"2"},
 	}
-	path = routeStoreMessagesV1 + "?" + queryParams.Encode()
+	path = routeLegacyStoreMessagesV1 + "?" + queryParams.Encode()
 	req, _ = http.NewRequest(http.MethodGet, path, nil)
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	response = StoreResponse{}
+	response = LegacyStoreResponse{}
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	require.NoError(t, err)
 	require.Len(t, response.Messages, 1)
