@@ -20,15 +20,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type StoreService struct {
+type StoreQueryService struct {
 	node *node.WakuNode
 	mux  *chi.Mux
 }
 
 const routeStoreMessagesV1 = "/store/v3/messages"
 
-func NewStoreService(node *node.WakuNode, m *chi.Mux) *StoreService {
-	s := &StoreService{
+func NewStoreQueryService(node *node.WakuNode, m *chi.Mux) *StoreQueryService {
+	s := &StoreQueryService{
 		node: node,
 		mux:  m,
 	}
@@ -51,7 +51,7 @@ func getStoreParams(r *http.Request) (store.Criteria, []store.RequestOption, err
 		options = append(options, store.WithPeerAddr(m))
 	}
 
-	includeData := true
+	includeData := false
 	includeDataStr := r.URL.Query().Get("includeData")
 	if includeDataStr != "" {
 		includeData, err = strconv.ParseBool(includeDataStr)
@@ -85,7 +85,7 @@ func getStoreParams(r *http.Request) (store.Criteria, []store.RequestOption, err
 	isMsgHashCriteria := false
 	if len(hashes) != 0 {
 		isMsgHashCriteria = true
-		if pubsubTopic != "" {
+		if pubsubTopic != "" || len(contentTopics) != 0 {
 			return nil, nil, errors.New("cant use content filters while specifying message hashes")
 		}
 	} else {
@@ -167,7 +167,7 @@ func writeStoreError(w http.ResponseWriter, code int, err error) {
 	writeResponse(w, &storepb.StoreQueryResponse{StatusCode: proto.Uint32(uint32(code)), StatusDesc: proto.String(err.Error())}, code)
 }
 
-func (d *StoreService) getV3Messages(w http.ResponseWriter, r *http.Request) {
+func (d *StoreQueryService) getV3Messages(w http.ResponseWriter, r *http.Request) {
 	query, options, err := getStoreParams(r)
 	if err != nil {
 		writeStoreError(w, http.StatusBadRequest, err)
