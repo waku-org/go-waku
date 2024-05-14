@@ -32,7 +32,7 @@ type Sub struct {
 }
 
 // Subscribe
-func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilter protocol.ContentFilter, config FilterConfig) (*Sub, error) {
+func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilter protocol.ContentFilter, config FilterConfig, log *zap.Logger) (*Sub, error) {
 	sub := new(Sub)
 	sub.wf = wf
 	sub.ctx, sub.cancel = context.WithCancel(ctx)
@@ -40,10 +40,7 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	sub.DataCh = make(chan *protocol.Envelope)
 	sub.ContentFilter = contentFilter
 	sub.Config = config
-	sub.log = func() *zap.Logger {
-		log, _ := zap.NewDevelopment()
-		return log
-	}().Named("filterv2-api")
+	sub.log = log.Named("filter-api")
 
 	subs, err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
@@ -128,11 +125,9 @@ func (apiSub *Sub) getTopicCounts() map[string]int {
 	for _, t := range maps.Keys(topicMap) {
 		topicCounts[t] = 0
 	}
-	cnt := 0
 	wg.Wait()
 	close(checkResults)
 	for s := range checkResults {
-		cnt++
 		if !s.alive {
 			// Close inactive subs
 			s.sub.Close()
@@ -197,7 +192,15 @@ func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int
 	subs, err := apiSub.wf.Subscribe(apiSub.ctx, contentFilter, options...)
 
 	if err != nil {
-		// TODO what if fails?
+		if len(subs) > 0 {
+			// Partial Failure, for now proceed as we don't expect this to happen wrt specific topics.
+			// Rather it can happen in case subscription with one of the peer fails.
+			// This can further get automatically handled at resubscribe,
+			apiSub.log.Error("partial failure in Filter subscribe", zap.Error(err))
+			return subs, nil
+		}
+		// In case of complete subscription failure, application or user needs to handle and probably retry based on error
+		// TODO: Once filter error handling indicates specific error, this can be addressed based on the error at this layer.
 		return nil, err
 	}
 
