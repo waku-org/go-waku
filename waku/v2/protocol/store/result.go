@@ -9,12 +9,13 @@ import (
 
 // Result represents a valid response from a store node
 type Result struct {
-	started      bool
-	messages     []*pb.WakuMessageKeyValue
-	store        *WakuStore
-	storeRequest *pb.StoreQueryRequest
-	cursor       []byte
-	peerID       peer.ID
+	started       bool
+	messages      []*pb.WakuMessageKeyValue
+	store         *WakuStore
+	storeRequest  *pb.StoreQueryRequest
+	storeResponse *pb.StoreQueryResponse
+	cursor        []byte
+	peerID        peer.ID
 }
 
 func (r *Result) Cursor() []byte {
@@ -31,6 +32,10 @@ func (r *Result) PeerID() peer.ID {
 
 func (r *Result) Query() *pb.StoreQueryRequest {
 	return r.storeRequest
+}
+
+func (r *Result) Response() *pb.StoreQueryResponse {
+	return r.storeResponse
 }
 
 func (r *Result) Next(ctx context.Context) (bool, error) {
