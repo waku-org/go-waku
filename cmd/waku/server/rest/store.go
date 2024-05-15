@@ -89,8 +89,8 @@ func getStoreParams(r *http.Request) (store.Criteria, []store.RequestOption, err
 			return nil, nil, errors.New("cant use content filters while specifying message hashes")
 		}
 	} else {
-		if pubsubTopic == "" || len(contentTopicsArr) != 0 {
-			return nil, nil, errors.New("pubsubTOpic and contentTopics are required")
+		if pubsubTopic == "" || len(contentTopicsArr) == 0 {
+			return nil, nil, errors.New("pubsubTopic and contentTopics are required")
 		}
 	}
 
