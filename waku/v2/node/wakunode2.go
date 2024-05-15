@@ -843,7 +843,7 @@ func (w *WakuNode) Peers() ([]*Peer, error) {
 			Protocols:    protocols,
 			Connected:    connected,
 			Addrs:        addrs,
-			PubsubTopics: topics,
+			PubsubTopics: maps.Keys(topics),
 		})
 	}
 	return peers, nil
