@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -13,11 +14,20 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-const FilterPingTimeout = 5
+const FilterPingTimeout = 5 * time.Second
+const MultiplexChannelBuffer = 100
 
 type FilterConfig struct {
-	MaxPeers int
-	Peers    []peer.ID
+	MaxPeers int       `json:"maxPeers"`
+	Peers    []peer.ID `json:"peers"`
+}
+
+func (fc FilterConfig) String() string {
+	jsonStr, err := json.Marshal(fc)
+	if err != nil {
+		return ""
+	}
+	return string(jsonStr)
 }
 
 type Sub struct {
@@ -37,18 +47,17 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	sub.wf = wf
 	sub.ctx, sub.cancel = context.WithCancel(ctx)
 	sub.subs = make(subscription.SubscriptionSet)
-	sub.DataCh = make(chan *protocol.Envelope)
+	sub.DataCh = make(chan *protocol.Envelope, MultiplexChannelBuffer)
 	sub.ContentFilter = contentFilter
 	sub.Config = config
 	sub.log = log.Named("filter-api")
-
+	sub.log.Debug("filter subscribe params", zap.Int("maxPeers", config.MaxPeers), zap.Stringer("contentFilter", contentFilter))
 	subs, err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
 
 	if err != nil {
 		return nil, err
 	}
 	sub.multiplex(subs)
-	sub.log.Info("go sub.healthCheckLoop()")
 	go sub.healthCheckLoop()
 	return sub, nil
 }
@@ -60,16 +69,16 @@ func (apiSub *Sub) Unsubscribe() {
 
 func (apiSub *Sub) healthCheckLoop() {
 	// Health checks
-	ticker := time.NewTicker(FilterPingTimeout * time.Second)
+	ticker := time.NewTicker(FilterPingTimeout)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-apiSub.ctx.Done():
-			apiSub.log.Info("healthCheckLoop: Done()")
+			apiSub.log.Debug("healthCheckLoop: Done()")
 			apiSub.cleanup()
 			return
 		case <-ticker.C:
-			apiSub.log.Info("healthCheckLoop: checkAliveness()")
+			apiSub.log.Debug("healthCheckLoop: checkAliveness()")
 			topicCounts := apiSub.getTopicCounts()
 			apiSub.resubscribe(topicCounts)
 		}
@@ -78,9 +87,9 @@ func (apiSub *Sub) healthCheckLoop() {
 }
 
 func (apiSub *Sub) cleanup() {
-	apiSub.log.Info("ENTER cleanup()")
+	apiSub.log.Debug("ENTER cleanup()")
 	defer func() {
-		apiSub.log.Info("EXIT cleanup()")
+		apiSub.log.Debug("EXIT cleanup()")
 	}()
 
 	for _, s := range apiSub.subs {
@@ -109,11 +118,11 @@ func (apiSub *Sub) getTopicCounts() map[string]int {
 		wg.Add(1)
 		go func(sub *subscription.SubscriptionDetails) {
 			defer wg.Done()
-			ctx, cancelFunc := context.WithTimeout(apiSub.ctx, FilterPingTimeout*time.Second)
+			ctx, cancelFunc := context.WithTimeout(apiSub.ctx, FilterPingTimeout)
 			defer cancelFunc()
 			err := apiSub.wf.IsSubscriptionAlive(ctx, sub)
 
-			apiSub.log.Info("Check result:", zap.Any("subID", sub.ID), zap.Bool("result", err == nil))
+			apiSub.log.Debug("Check result:", zap.Any("subID", sub.ID), zap.Bool("result", err == nil))
 			checkResults <- CheckResult{sub, err == nil}
 		}(s)
 	}
@@ -154,32 +163,33 @@ func (apiSub *Sub) resubscribe(topicCounts map[string]int) {
 		// All topics healthy, return
 		return
 	}
+	var wg sync.WaitGroup
 
 	// Re-subscribe asynchronously
 	newSubs := make(chan []*subscription.SubscriptionDetails)
 
 	for t, cnt := range topicCounts {
 		cFilter := protocol.ContentFilter{PubsubTopic: t, ContentTopics: apiSub.ContentFilter.ContentTopics}
+		wg.Add(1)
 		go func(count int) {
-			subs, _ := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-count)
+			defer wg.Done()
+			subs, err := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-count)
+			if err != nil {
+				return
+			} //Not handling scenario where all requested subs are not received as that will get handled in next cycle.
 			newSubs <- subs
 		}(cnt)
 	}
-
-	cnt := 0
+	wg.Wait()
+	close(newSubs)
 	apiSub.log.Debug("resubscribe(): before range newSubs")
 	for subs := range newSubs {
-		cnt++
 		if subs != nil {
 			apiSub.multiplex(subs)
 		}
-		if cnt == len(topicCounts) {
-			// Received all subscription results
-			break
-		}
 	}
-	apiSub.log.Info("checkAliveness(): close(newSubs)")
-	close(newSubs)
+	apiSub.log.Debug("checkAliveness(): close(newSubs)")
+	//close(newSubs)
 }
 
 func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int) ([]*subscription.SubscriptionDetails, error) {
@@ -214,7 +224,7 @@ func (apiSub *Sub) multiplex(subs []*subscription.SubscriptionDetails) {
 	for _, subDetails := range subs {
 		apiSub.subs[subDetails.ID] = subDetails
 		go func(subDetails *subscription.SubscriptionDetails) {
-			apiSub.log.Info("New multiplex", zap.String("subID", subDetails.ID))
+			apiSub.log.Debug("New multiplex", zap.String("subID", subDetails.ID))
 			for env := range subDetails.C {
 				apiSub.DataCh <- env
 			}
