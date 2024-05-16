@@ -215,8 +215,7 @@ func (s *WakuStore) next(ctx context.Context, r *Result) (*Result, error) {
 	if r.IsComplete() {
 		return &Result{
 			store:         s,
-			started:       true,
-			messages:      []*pb.WakuMessageKeyValue{},
+			messages:      nil,
 			cursor:        nil,
 			storeRequest:  r.storeRequest,
 			storeResponse: r.storeResponse,
@@ -234,7 +233,6 @@ func (s *WakuStore) next(ctx context.Context, r *Result) (*Result, error) {
 	}
 
 	result := &Result{
-		started:       true,
 		store:         s,
 		messages:      response.Messages,
 		storeRequest:  storeRequest,

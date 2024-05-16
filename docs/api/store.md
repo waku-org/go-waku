@@ -28,19 +28,14 @@ if err != nil {
     // Handle error ...
 }
 
-for {
-    hasNext, err := result.Next(ctx)
-    if err != nil {
-        // Handle error ...
-        break
-    }
-
-    if !hasNext { // No more messages available
-        break
-    }
-
+for !result.IsComplete() {
     for _, msg := range result.GetMessages() {
         // Do something with the messages
+    }
+
+    err := result.Next(ctx)
+    if err != nil {
+        // Handle error ...
     }
 }
 ```

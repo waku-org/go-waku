@@ -9,7 +9,9 @@ import (
 
 // Result represents a valid response from a store node
 type Result struct {
-	started       bool
+	noCursor bool
+	done     bool
+
 	messages      []*pb.WakuMessageKeyValue
 	store         *WakuStore
 	storeRequest  *pb.StoreQueryRequest
@@ -23,7 +25,7 @@ func (r *Result) Cursor() []byte {
 }
 
 func (r *Result) IsComplete() bool {
-	return r.cursor == nil
+	return r.noCursor && r.done
 }
 
 func (r *Result) PeerID() peer.ID {
@@ -38,30 +40,28 @@ func (r *Result) Response() *pb.StoreQueryResponse {
 	return r.storeResponse
 }
 
-func (r *Result) Next(ctx context.Context) (bool, error) {
-	if !r.started {
-		r.started = true
-		return len(r.messages) != 0, nil
-	}
-
-	if r.IsComplete() {
-		return false, nil
+func (r *Result) Next(ctx context.Context) error {
+	if r.noCursor {
+		r.done = true
+		r.messages = nil
+		return nil
 	}
 
 	newResult, err := r.store.next(ctx, r)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	r.cursor = newResult.cursor
 	r.messages = newResult.messages
 
-	return !r.IsComplete(), nil
+	if r.cursor == nil {
+		r.noCursor = true
+	}
+
+	return nil
 }
 
 func (r *Result) Messages() []*pb.WakuMessageKeyValue {
-	if !r.started {
-		return nil
-	}
 	return r.messages
 }

@@ -78,7 +78,7 @@ func TestStoreClient(t *testing.T) {
 	startTime := utils.GetUnixEpoch(timesource.NewDefaultClock())
 	for i := 0; i < 5; i++ {
 		msg := &pb.WakuMessage{
-			Payload:      []byte{1, 2, 3, 4, 5},
+			Payload:      []byte{byte(i), 1, 2, 3, 4, 5},
 			ContentTopic: "test",
 			Version:      proto.Uint32(0),
 			Timestamp:    utils.GetUnixEpoch(timesource.NewDefaultClock()),
@@ -108,71 +108,71 @@ func TestStoreClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// -- First page:
-	hasNext, err := response.Next(ctx)
-	require.NoError(t, err)
-	require.True(t, hasNext)
 	require.False(t, response.IsComplete())
 	require.Len(t, response.messages, 2)
 	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[0].GetTimestamp())
 	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[1].GetTimestamp())
 
-	// -- Second page:
-	hasNext, err = response.Next(ctx)
+	err = response.Next(ctx)
 	require.NoError(t, err)
-	require.True(t, hasNext)
+
+	// -- Second page:
 	require.False(t, response.IsComplete())
 	require.Len(t, response.messages, 2)
 	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[2].GetTimestamp())
 	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[3].GetTimestamp())
 
-	// -- Third page:
-	hasNext, err = response.Next(ctx)
+	err = response.Next(ctx)
 	require.NoError(t, err)
-	require.False(t, hasNext)
-	require.True(t, response.IsComplete())
+
+	// -- Third page:
+	require.False(t, response.IsComplete())
 	require.Len(t, response.messages, 1)
 	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[4].GetTimestamp())
 
-	// -- Trying to continue a completed cursor
-	hasNext, err = response.Next(ctx)
+	err = response.Next(ctx)
 	require.NoError(t, err)
-	require.False(t, hasNext)
+
+	// -- Trying to continue a completed cursor
 	require.True(t, response.IsComplete())
+	require.Len(t, response.messages, 0)
+
+	err = response.Next(ctx)
+	require.NoError(t, err)
 
 	// Query messages with backward pagination
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(false, 2))
 	require.NoError(t, err)
 
 	// -- First page:
-	hasNext, err = response.Next(ctx)
-	require.NoError(t, err)
-	require.True(t, hasNext)
 	require.False(t, response.IsComplete())
 	require.Len(t, response.messages, 2)
 	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[3].GetTimestamp())
 	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[4].GetTimestamp())
 
-	// -- Second page:
-	hasNext, err = response.Next(ctx)
+	err = response.Next(ctx)
 	require.NoError(t, err)
-	require.True(t, hasNext)
+
+	// -- Second page:
 	require.False(t, response.IsComplete())
 	require.Len(t, response.messages, 2)
 	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[1].GetTimestamp())
 	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[2].GetTimestamp())
 
-	// -- Third page:
-	hasNext, err = response.Next(ctx)
+	err = response.Next(ctx)
 	require.NoError(t, err)
-	require.False(t, hasNext)
-	require.True(t, response.IsComplete())
+
+	// -- Third page:
+	require.False(t, response.IsComplete())
 	require.Len(t, response.messages, 1)
 	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[0].GetTimestamp())
 
-	// -- Trying to continue a completed cursor
-	hasNext, err = response.Next(ctx)
+	err = response.Next(ctx)
 	require.NoError(t, err)
-	require.False(t, hasNext)
+
+	// -- Trying to continue a completed cursor
+	err = response.Next(ctx)
+	require.NoError(t, err)
 	require.True(t, response.IsComplete())
 
 	// No cursor should be returned if there are no messages that match the criteria
