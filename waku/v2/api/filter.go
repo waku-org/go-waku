@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -11,7 +10,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 )
 
 const FilterPingTimeout = 5 * time.Second
@@ -39,6 +37,7 @@ type Sub struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	log           *zap.Logger
+	closing       chan string
 }
 
 // Subscribe
@@ -77,13 +76,17 @@ func (apiSub *Sub) healthCheckLoop() {
 			apiSub.log.Debug("healthCheckLoop: Done()")
 			apiSub.cleanup()
 			return
-		case <-ticker.C:
-			apiSub.log.Debug("healthCheckLoop: checkAliveness()")
-			topicCounts := apiSub.getTopicCounts()
-			apiSub.resubscribe(topicCounts)
+		case subId := <-apiSub.closing:
+			//trigger closing and resubscribe flow for subscription.
+			apiSub.closeAndResubscribe(subId)
 		}
 	}
+}
 
+func (apiSub *Sub) closeAndResubscribe(subId string) {
+	apiSub.subs[subId].Close()
+	apiSub.resubscribe()
+	delete(apiSub.subs, subId)
 }
 
 func (apiSub *Sub) cleanup() {
@@ -103,93 +106,19 @@ func (apiSub *Sub) cleanup() {
 
 }
 
-// Returns active sub counts for each pubsub topic
-func (apiSub *Sub) getTopicCounts() map[string]int {
-	// Buffered chan for sub aliveness results
-	type CheckResult struct {
-		sub   *subscription.SubscriptionDetails
-		alive bool
-	}
-	checkResults := make(chan CheckResult, len(apiSub.subs))
-	var wg sync.WaitGroup
-
-	// Run pings asynchronously
-	for _, s := range apiSub.subs {
-		wg.Add(1)
-		go func(sub *subscription.SubscriptionDetails) {
-			defer wg.Done()
-			ctx, cancelFunc := context.WithTimeout(apiSub.ctx, FilterPingTimeout)
-			defer cancelFunc()
-			err := apiSub.wf.IsSubscriptionAlive(ctx, sub)
-
-			apiSub.log.Debug("Check result:", zap.Any("subID", sub.ID), zap.Bool("result", err == nil))
-			checkResults <- CheckResult{sub, err == nil}
-		}(s)
-	}
-
-	// Collect healthy topic counts
-	topicCounts := make(map[string]int)
-
-	topicMap, _ := protocol.ContentFilterToPubSubTopicMap(apiSub.ContentFilter)
-	for _, t := range maps.Keys(topicMap) {
-		topicCounts[t] = 0
-	}
-	wg.Wait()
-	close(checkResults)
-	for s := range checkResults {
-		if !s.alive {
-			// Close inactive subs
-			s.sub.Close()
-			delete(apiSub.subs, s.sub.ID)
-		} else {
-			topicCounts[s.sub.ContentFilter.PubsubTopic]++
-		}
-	}
-
-	return topicCounts
-}
-
 // Attempts to resubscribe on topics that lack subscriptions
-func (apiSub *Sub) resubscribe(topicCounts map[string]int) {
-
-	// Delete healthy topics
-	for t, cnt := range topicCounts {
-		if cnt == apiSub.Config.MaxPeers {
-			delete(topicCounts, t)
-		}
-	}
-
-	if len(topicCounts) == 0 {
-		// All topics healthy, return
-		return
-	}
-	var wg sync.WaitGroup
-
+func (apiSub *Sub) resubscribe() {
 	// Re-subscribe asynchronously
-	newSubs := make(chan []*subscription.SubscriptionDetails)
+	count := len(apiSub.subs) - 1
 
-	for t, cnt := range topicCounts {
-		cFilter := protocol.ContentFilter{PubsubTopic: t, ContentTopics: apiSub.ContentFilter.ContentTopics}
-		wg.Add(1)
-		go func(count int) {
-			defer wg.Done()
-			subs, err := apiSub.subscribe(cFilter, apiSub.Config.MaxPeers-count)
-			if err != nil {
-				return
-			} //Not handling scenario where all requested subs are not received as that will get handled in next cycle.
-			newSubs <- subs
-		}(cnt)
-	}
-	wg.Wait()
-	close(newSubs)
+	subs, err := apiSub.subscribe(apiSub.ContentFilter, apiSub.Config.MaxPeers-count)
+	if err != nil {
+		return
+	} //Not handling scenario where all requested subs are not received as that will get handled in next cycle.
+
 	apiSub.log.Debug("resubscribe(): before range newSubs")
-	for subs := range newSubs {
-		if subs != nil {
-			apiSub.multiplex(subs)
-		}
-	}
-	apiSub.log.Debug("checkAliveness(): close(newSubs)")
-	//close(newSubs)
+
+	apiSub.multiplex(subs)
 }
 
 func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int) ([]*subscription.SubscriptionDetails, error) {
@@ -228,6 +157,13 @@ func (apiSub *Sub) multiplex(subs []*subscription.SubscriptionDetails) {
 			for env := range subDetails.C {
 				apiSub.DataCh <- env
 			}
+		}(subDetails)
+		go func(subDetails *subscription.SubscriptionDetails) {
+			_, ok := <-subDetails.Closing
+			if !ok {
+				return
+			}
+			apiSub.closing <- subDetails.ID
 		}(subDetails)
 	}
 }

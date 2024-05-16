@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -43,13 +44,14 @@ var (
 
 type WakuFilterLightNode struct {
 	*service.CommonService
-	h             host.Host
-	broadcaster   relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
-	timesource    timesource.Timesource
-	metrics       Metrics
-	log           *zap.Logger
-	subscriptions *subscription.SubscriptionsMap
-	pm            *peermanager.PeerManager
+	h                host.Host
+	broadcaster      relay.Broadcaster //TODO: Move the broadcast functionality outside of relay client to a higher SDK layer.s
+	timesource       timesource.Timesource
+	metrics          Metrics
+	log              *zap.Logger
+	subscriptions    *subscription.SubscriptionsMap
+	pm               *peermanager.PeerManager
+	peerPingInterval time.Duration
 }
 
 type WakuFilterPushError struct {
@@ -86,7 +88,6 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	wf.pm = pm
 	wf.CommonService = service.NewCommonService()
 	wf.metrics = newMetrics(reg)
-
 	return wf
 }
 
@@ -97,13 +98,13 @@ func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 
 func (wf *WakuFilterLightNode) Start(ctx context.Context) error {
 	return wf.CommonService.Start(ctx, wf.start)
-
 }
 
 func (wf *WakuFilterLightNode) start() error {
 	wf.subscriptions = subscription.NewSubscriptionMap(wf.log)
 	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(wf.Context()))
-
+	//Start Filter liveness check
+	go wf.FilterHealthCheckLoop()
 	wf.log.Info("filter-push protocol started")
 	return nil
 }
@@ -463,7 +464,7 @@ func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscrip
 	if err := wf.ErrOnNotRunning(); err != nil {
 		return err
 	}
-
+	//TODO: Don't ping, rather check status of last ping and return status?? or something else.
 	return wf.Ping(ctx, subscription.PeerID)
 }
 
