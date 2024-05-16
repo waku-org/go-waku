@@ -45,8 +45,6 @@ func (r *Result) Next(ctx context.Context) (bool, error) {
 	}
 
 	if r.IsComplete() {
-		r.cursor = nil
-		r.messages = nil
 		return false, nil
 	}
 

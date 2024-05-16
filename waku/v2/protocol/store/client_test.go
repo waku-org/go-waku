@@ -138,7 +138,6 @@ func TestStoreClient(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, hasNext)
 	require.True(t, response.IsComplete())
-	require.Len(t, response.messages, 0)
 
 	// Query messages with backward pagination
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(false, 2))
@@ -175,7 +174,6 @@ func TestStoreClient(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, hasNext)
 	require.True(t, response.IsComplete())
-	require.Len(t, response.messages, 0)
 
 	// No cursor should be returned if there are no messages that match the criteria
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "no-messages"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 2))
