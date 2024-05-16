@@ -18,6 +18,7 @@ import (
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -64,6 +65,7 @@ func main() {
 		node.WithHostAddress(hostAddr1),
 		node.WithWakuRelay(),
 		node.WithWakuFilterFullNode(),
+		node.WithLightPush(lightpush.WithRateLimiter(1, 1)),
 	)
 	if err != nil {
 		panic(err)
@@ -118,6 +120,7 @@ func main() {
 
 	go writeLoop(ctx, fullNode)
 	go readLoop(ctx, fullNode)
+	go writeLightpushLoop(ctx, lightNode)
 
 	go func() {
 		// Unsubscribe filter after 5 seconds
@@ -144,6 +147,24 @@ func randomHex(n int) (string, error) {
 }
 
 func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
+	msg := createMessage(wakuNode, msgContent)
+
+	_, err := wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic.String()))
+	if err != nil {
+		log.Error("Error sending a message: ", err)
+	}
+}
+
+func writeLightpush(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
+	msg := createMessage(wakuNode, msgContent)
+
+	_, err := wakuNode.Lightpush().Publish(ctx, msg, lightpush.WithPubSubTopic(pubSubTopic.String()))
+	if err != nil {
+		log.Error("Error sending a LP message: ", err)
+	}
+}
+
+func createMessage(wakuNode *node.WakuNode, msgContent string) *pb.WakuMessage {
 	var version uint32 = 0
 
 	p := new(payload.Payload)
@@ -159,16 +180,21 @@ func write(ctx context.Context, wakuNode *node.WakuNode, msgContent string) {
 		Timestamp:    utils.GetUnixEpoch(wakuNode.Timesource()),
 	}
 
-	_, err := wakuNode.Relay().Publish(ctx, msg, relay.WithPubSubTopic(pubSubTopic.String()))
-	if err != nil {
-		log.Error("Error sending a message: ", err)
-	}
+	return msg
 }
 
 func writeLoop(ctx context.Context, wakuNode *node.WakuNode) {
 	for {
 		time.Sleep(2 * time.Second)
 		write(ctx, wakuNode, "Hello world!")
+	}
+}
+
+func writeLightpushLoop(ctx context.Context, wakuNode *node.WakuNode) {
+	for {
+		//Change this sleep value to lower than 1 second to get Lightpush rate limiting kick in
+		time.Sleep(1000 * time.Millisecond)
+		writeLightpush(ctx, wakuNode, "Hello World via Lightpush!")
 	}
 }
 
