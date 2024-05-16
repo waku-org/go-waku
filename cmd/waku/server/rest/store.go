@@ -89,27 +89,29 @@ func getStoreParams(r *http.Request) (store.Criteria, []store.RequestOption, err
 			return nil, nil, errors.New("cant use content filters while specifying message hashes")
 		}
 	} else {
-		if pubsubTopic == "" || len(contentTopicsArr) != 0 {
-			return nil, nil, errors.New("pubsubTOpic and contentTopics are required")
+		if pubsubTopic == "" || len(contentTopicsArr) == 0 {
+			return nil, nil, errors.New("pubsubTopic and contentTopics are required")
 		}
 	}
 
 	startTimeStr := r.URL.Query().Get("startTime")
-	var startTime int64
+	var startTime *int64
 	if startTimeStr != "" {
-		startTime, err = strconv.ParseInt(startTimeStr, 10, 64)
+		startTimeValue, err := strconv.ParseInt(startTimeStr, 10, 64)
 		if err != nil {
 			return nil, nil, err
 		}
+		startTime = &startTimeValue
 	}
 
 	endTimeStr := r.URL.Query().Get("endTime")
-	var endTime int64
+	var endTime *int64
 	if endTimeStr != "" {
-		endTime, err = strconv.ParseInt(endTimeStr, 10, 64)
+		endTimeValue, err := strconv.ParseInt(endTimeStr, 10, 64)
 		if err != nil {
 			return nil, nil, err
 		}
+		endTime = &endTimeValue
 	}
 
 	var cursor []byte
@@ -155,8 +157,8 @@ func getStoreParams(r *http.Request) (store.Criteria, []store.RequestOption, err
 	} else {
 		query = store.FilterCriteria{
 			ContentFilter: protocol.NewContentFilter(pubsubTopic, contentTopicsArr...),
-			TimeStart:     &startTime,
-			TimeEnd:       &endTime,
+			TimeStart:     startTime,
+			TimeEnd:       endTime,
 		}
 	}
 
