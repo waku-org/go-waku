@@ -24,9 +24,14 @@ func (wf *WakuFilterLightNode) PingPeers() {
 func (wf *WakuFilterLightNode) FilterHealthCheckLoop() {
 	wf.CommonService.WaitGroup().Add(1)
 	defer wf.WaitGroup().Done()
+	ticker := time.NewTicker(wf.peerPingInterval)
+	defer ticker.Stop()
 	for {
-		//TODO: Do we have to wait for wf.ctx context completion and exit as well?
-		time.Sleep(wf.peerPingInterval)
-		wf.PingPeers()
+		select {
+		case <-ticker.C:
+			wf.PingPeers()
+		case <-wf.CommonService.Context().Done():
+			return
+		}
 	}
 }

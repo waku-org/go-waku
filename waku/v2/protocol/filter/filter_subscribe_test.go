@@ -364,19 +364,8 @@ func (s *FilterTestSuite) TestIsSubscriptionAlive() {
 	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.FullNodeHost.ID())
 
 	// IsSubscriptionAlive returns no error for the first message
-	err := s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
-	s.Require().NoError(err)
-
-	// Create new host/peer - not related to any node
-	host, err := tests.MakeHost(context.Background(), 54321, rand.Reader)
-	s.Require().NoError(err)
-
-	// Alter the existing peer ID in sub details
-	s.subDetails[0].PeerID = host.ID()
-
-	// IsSubscriptionAlive returns error for the second message, peer ID doesn't match
-	err = s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
-	s.Require().Error(err)
+	isAlive := s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
+	s.Require().Equal(true, isAlive)
 
 }
 

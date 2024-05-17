@@ -88,6 +88,7 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	wf.pm = pm
 	wf.CommonService = service.NewCommonService()
 	wf.metrics = newMetrics(reg)
+	wf.peerPingInterval = 5 * time.Second
 	return wf
 }
 
@@ -458,14 +459,14 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ..
 		peerID)
 }
 
-func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscription *subscription.SubscriptionDetails) error {
+func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscription *subscription.SubscriptionDetails) bool {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
-		return err
+		return false
 	}
-	//TODO: Don't ping, rather check status of last ping and return status?? or something else.
-	return wf.Ping(ctx, subscription.PeerID)
+	//Don't ping, rather check status of last ping and return status?? or something else.
+	return subscription.Closed
 }
 
 // Unsubscribe is used to stop receiving messages from specified peers for the content filter
