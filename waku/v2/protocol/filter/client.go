@@ -466,7 +466,7 @@ func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscrip
 		return false
 	}
 	//Don't ping, rather check status of last ping and return status?? or something else.
-	return subscription.Closed
+	return !subscription.Closed
 }
 
 // Unsubscribe is used to stop receiving messages from specified peers for the content filter
