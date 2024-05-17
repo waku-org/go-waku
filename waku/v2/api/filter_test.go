@@ -68,6 +68,19 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	}
 	s.Require().Equal(cnt, 1)
 
+	//Verify HealthCheck
+	isAlive := s.LightNode.IsSubscriptionAlive(context.Background(), apiSub.subs[subsArray[0]])
+	s.Require().True(isAlive)
+	isAlive = s.LightNode.IsSubscriptionAlive(context.Background(), apiSub.subs[subsArray[1]])
+	s.Require().True(isAlive)
+	s.Log.Info("stopping full node", zap.Stringer("id", fullNodeData2.FullNodeHost.ID()))
+	fullNodeData2.FullNode.Stop()
+	time.Sleep(1 * time.Second)
+	for sub := range apiSub.subs {
+		s.Log.Info("SubDetails:", zap.String("id", sub))
+	}
+	s.Require().Equal(1, len(apiSub.subs))
+
 	time.Sleep(2 * time.Second)
 	apiSub.Unsubscribe()
 	for range apiSub.DataCh {

@@ -32,7 +32,7 @@ type FullNodeData struct {
 	RelaySub     *relay.Subscription
 	FullNodeHost host.Host
 	Broadcaster  relay.Broadcaster
-	fullNode     *WakuFilterFullNode
+	FullNode     *WakuFilterFullNode
 }
 
 type FilterTestSuite struct {
@@ -78,6 +78,7 @@ func (s *FilterTestSuite) SetupTest() {
 	s.TestContentTopic = DefaultTestContentTopic
 
 	s.MakeWakuFilterLightNode()
+	s.LightNode.setPeerPingInterval(1 * time.Second)
 	s.StartLightNode()
 
 	//TODO: Add tests to verify broadcaster.
@@ -89,7 +90,7 @@ func (s *FilterTestSuite) SetupTest() {
 }
 
 func (s *FilterTestSuite) TearDownTest() {
-	s.fullNode.Stop()
+	s.FullNode.Stop()
 	s.LightNode.Stop()
 	s.RelaySub.Unsubscribe()
 	s.LightNode.Stop()
@@ -142,7 +143,7 @@ func (s *FilterTestSuite) GetWakuFilterFullNode(topic string, withRegisterAll bo
 	err := node2Filter.Start(s.ctx, sub)
 	s.Require().NoError(err)
 
-	nodeData.fullNode = node2Filter
+	nodeData.FullNode = node2Filter
 
 	return nodeData
 }

@@ -3,6 +3,8 @@ package filter
 import (
 	"context"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func (wf *WakuFilterLightNode) PingPeers() {
@@ -11,8 +13,12 @@ func (wf *WakuFilterLightNode) PingPeers() {
 	for _, peer := range wf.subscriptions.GetSubscribedPeers() {
 		err := wf.Ping(context.TODO(), peer)
 		if err != nil {
+			wf.log.Info("Filter ping failed towards peer", zap.Stringer("peer", peer))
+
 			subscriptions := wf.subscriptions.GetAllSubscriptionsForPeer(peer)
 			for _, subscription := range subscriptions {
+				wf.log.Debug("Notifying sub closing", zap.String("subID", subscription.ID))
+
 				//Indicating that subscription is closing
 				//This feels like a hack, but taking this approach for now so as to avoid refactoring.
 				subscription.Closing <- true

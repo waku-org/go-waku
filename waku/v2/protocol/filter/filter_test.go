@@ -92,7 +92,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 
 	//Workaround as could not find a way to reuse setup test with params
 	// Stop what is run in setup
-	s.fullNode.Stop()
+	s.FullNode.Stop()
 	s.LightNode.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // Test can't exceed 10 seconds
 	s.ctx = ctx

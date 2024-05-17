@@ -52,12 +52,12 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 	sub.log = log.Named("filter-api")
 	sub.log.Debug("filter subscribe params", zap.Int("maxPeers", config.MaxPeers), zap.Stringer("contentFilter", contentFilter))
 	subs, err := sub.subscribe(contentFilter, sub.Config.MaxPeers)
-
+	sub.closing = make(chan string, config.MaxPeers)
 	if err != nil {
 		return nil, err
 	}
 	sub.multiplex(subs)
-	go sub.healthCheckLoop()
+	go sub.waitOnSubClose()
 	return sub, nil
 }
 
@@ -66,10 +66,7 @@ func (apiSub *Sub) Unsubscribe() {
 
 }
 
-func (apiSub *Sub) healthCheckLoop() {
-	// Health checks
-	ticker := time.NewTicker(FilterPingTimeout)
-	defer ticker.Stop()
+func (apiSub *Sub) waitOnSubClose() {
 	for {
 		select {
 		case <-apiSub.ctx.Done():
@@ -84,6 +81,8 @@ func (apiSub *Sub) healthCheckLoop() {
 }
 
 func (apiSub *Sub) closeAndResubscribe(subId string) {
+	apiSub.log.Debug("sub closeAndResubscribe", zap.String("subID", subId))
+
 	apiSub.subs[subId].Close()
 	apiSub.resubscribe()
 	delete(apiSub.subs, subId)
@@ -110,7 +109,7 @@ func (apiSub *Sub) cleanup() {
 func (apiSub *Sub) resubscribe() {
 	// Re-subscribe asynchronously
 	count := len(apiSub.subs) - 1
-
+	apiSub.log.Debug("subscribing again", zap.Stringer("contentFilter", apiSub.ContentFilter), zap.Int("numPeers", apiSub.Config.MaxPeers-count))
 	subs, err := apiSub.subscribe(apiSub.ContentFilter, apiSub.Config.MaxPeers-count)
 	if err != nil {
 		return
@@ -135,7 +134,7 @@ func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int
 			// Partial Failure, for now proceed as we don't expect this to happen wrt specific topics.
 			// Rather it can happen in case subscription with one of the peer fails.
 			// This can further get automatically handled at resubscribe,
-			apiSub.log.Error("partial failure in Filter subscribe", zap.Error(err))
+			apiSub.log.Error("partial failure in Filter subscribe", zap.Error(err), zap.Int("successCount", len(subs)))
 			return subs, nil
 		}
 		// In case of complete subscription failure, application or user needs to handle and probably retry based on error
@@ -163,6 +162,8 @@ func (apiSub *Sub) multiplex(subs []*subscription.SubscriptionDetails) {
 			if !ok {
 				return
 			}
+			apiSub.log.Debug("sub closing", zap.String("subID", subDetails.ID))
+
 			apiSub.closing <- subDetails.ID
 		}(subDetails)
 	}

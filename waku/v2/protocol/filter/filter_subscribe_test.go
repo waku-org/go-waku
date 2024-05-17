@@ -324,7 +324,7 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second)
 
 	nodeData := s.GetWakuFilterFullNode(testTopic, false)
-	fullNode2 := nodeData.fullNode
+	fullNode2 := nodeData.FullNode
 
 	// Connect nodes
 	fullNode2.h.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)

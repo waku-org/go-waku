@@ -92,6 +92,10 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	return wf
 }
 
+func (wf *WakuFilterLightNode) setPeerPingInterval(duration time.Duration) {
+	wf.peerPingInterval = duration
+}
+
 // Sets the host to be able to mount or consume a protocol
 func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 	wf.h = h
@@ -397,6 +401,7 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 				failedContentTopics = append(failedContentTopics, cTopics...)
 				continue
 			}
+			wf.log.Debug("subscription successful", zap.String("pubSubTopic", pubSubTopic), zap.Strings("contentTopics", cTopics), zap.Stringer("peer", peer))
 			subscriptions = append(subscriptions, wf.subscriptions.NewSubscription(peer, cFilter))
 		}
 	}
