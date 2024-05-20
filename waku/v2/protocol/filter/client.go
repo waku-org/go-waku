@@ -92,10 +92,6 @@ func NewWakuFilterLightNode(broadcaster relay.Broadcaster, pm *peermanager.PeerM
 	return wf
 }
 
-func (wf *WakuFilterLightNode) setPeerPingInterval(duration time.Duration) {
-	wf.peerPingInterval = duration
-}
-
 // Sets the host to be able to mount or consume a protocol
 func (wf *WakuFilterLightNode) SetHost(h host.Host) {
 	wf.h = h
@@ -109,6 +105,8 @@ func (wf *WakuFilterLightNode) start() error {
 	wf.subscriptions = subscription.NewSubscriptionMap(wf.log)
 	wf.h.SetStreamHandlerMatch(FilterPushID_v20beta1, protocol.PrefixTextMatch(string(FilterPushID_v20beta1)), wf.onRequest(wf.Context()))
 	//Start Filter liveness check
+	wf.CommonService.WaitGroup().Add(1)
+
 	go wf.FilterHealthCheckLoop()
 	wf.log.Info("filter-push protocol started")
 	return nil
@@ -462,16 +460,6 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ..
 		pb.FilterSubscribeRequest_SUBSCRIBER_PING,
 		protocol.ContentFilter{},
 		peerID)
-}
-
-func (wf *WakuFilterLightNode) IsSubscriptionAlive(ctx context.Context, subscription *subscription.SubscriptionDetails) bool {
-	wf.RLock()
-	defer wf.RUnlock()
-	if err := wf.ErrOnNotRunning(); err != nil {
-		return false
-	}
-	//Don't ping, rather check status of last ping and return status?? or something else.
-	return !subscription.Closed
 }
 
 // Unsubscribe is used to stop receiving messages from specified peers for the content filter

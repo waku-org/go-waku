@@ -84,8 +84,8 @@ func (apiSub *Sub) closeAndResubscribe(subId string) {
 	apiSub.log.Debug("sub closeAndResubscribe", zap.String("subID", subId))
 
 	apiSub.subs[subId].Close()
-	apiSub.resubscribe()
 	delete(apiSub.subs, subId)
+	apiSub.resubscribe()
 }
 
 func (apiSub *Sub) cleanup() {
@@ -108,9 +108,9 @@ func (apiSub *Sub) cleanup() {
 // Attempts to resubscribe on topics that lack subscriptions
 func (apiSub *Sub) resubscribe() {
 	// Re-subscribe asynchronously
-	count := len(apiSub.subs) - 1
-	apiSub.log.Debug("subscribing again", zap.Stringer("contentFilter", apiSub.ContentFilter), zap.Int("numPeers", apiSub.Config.MaxPeers-count))
-	subs, err := apiSub.subscribe(apiSub.ContentFilter, apiSub.Config.MaxPeers-count)
+	existingSubCount := len(apiSub.subs)
+	apiSub.log.Debug("subscribing again", zap.Stringer("contentFilter", apiSub.ContentFilter), zap.Int("numPeers", apiSub.Config.MaxPeers-existingSubCount))
+	subs, err := apiSub.subscribe(apiSub.ContentFilter, apiSub.Config.MaxPeers-existingSubCount)
 	if err != nil {
 		return
 	} //Not handling scenario where all requested subs are not received as that will get handled in next cycle.

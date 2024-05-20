@@ -78,7 +78,7 @@ func (s *FilterTestSuite) SetupTest() {
 	s.TestContentTopic = DefaultTestContentTopic
 
 	s.MakeWakuFilterLightNode()
-	s.LightNode.setPeerPingInterval(1 * time.Second)
+	s.LightNode.peerPingInterval = 1 * time.Second
 	s.StartLightNode()
 
 	//TODO: Add tests to verify broadcaster.

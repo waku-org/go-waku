@@ -29,7 +29,7 @@ type SubscriptionDetails struct {
 	mapRef  *SubscriptionsMap
 	Closed  bool `json:"-"`
 	once    sync.Once
-	Closing chan bool
+	Closing chan struct{}
 
 	PeerID        peer.ID                 `json:"peerID"`
 	ContentFilter protocol.ContentFilter  `json:"contentFilters"`
@@ -97,7 +97,7 @@ func (s *SubscriptionDetails) CloseC() {
 	s.once.Do(func() {
 		s.Lock()
 		defer s.Unlock()
-		close(s.Closing)
+		close(s.Closing) //Can this cause race condition with healthcheck??
 		s.Closed = true
 		close(s.C)
 	})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/zap"
 )
 
@@ -11,24 +12,29 @@ func (wf *WakuFilterLightNode) PingPeers() {
 	//Send a ping to all the peers and report their status to corresponding subscriptions
 	// Alive or not or set state of subcription??
 	for _, peer := range wf.subscriptions.GetSubscribedPeers() {
-		err := wf.Ping(context.TODO(), peer)
-		if err != nil {
-			wf.log.Info("Filter ping failed towards peer", zap.Stringer("peer", peer))
+		go wf.PingPeer(peer)
+	}
+}
 
-			subscriptions := wf.subscriptions.GetAllSubscriptionsForPeer(peer)
-			for _, subscription := range subscriptions {
-				wf.log.Debug("Notifying sub closing", zap.String("subID", subscription.ID))
+func (wf *WakuFilterLightNode) PingPeer(peer peer.ID) {
+	ctxWithTimeout, cancel := context.WithTimeout(wf.CommonService.Context(), wf.peerPingInterval)
+	defer cancel()
+	err := wf.Ping(ctxWithTimeout, peer)
+	if err != nil {
+		wf.log.Info("Filter ping failed towards peer", zap.Stringer("peer", peer), zap.Error(err))
 
-				//Indicating that subscription is closing
-				//This feels like a hack, but taking this approach for now so as to avoid refactoring.
-				subscription.Closing <- true
-			}
+		subscriptions := wf.subscriptions.GetAllSubscriptionsForPeer(peer)
+		for _, subscription := range subscriptions {
+			wf.log.Debug("Notifying sub closing", zap.String("subID", subscription.ID))
+
+			//Indicating that subscription is closing,
+			//Can this cause race condition with subscription close?
+			close(subscription.Closing)
 		}
 	}
 }
 
 func (wf *WakuFilterLightNode) FilterHealthCheckLoop() {
-	wf.CommonService.WaitGroup().Add(1)
 	defer wf.WaitGroup().Done()
 	ticker := time.NewTicker(wf.peerPingInterval)
 	defer ticker.Stop()

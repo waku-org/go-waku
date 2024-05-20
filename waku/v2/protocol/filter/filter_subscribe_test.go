@@ -357,18 +357,6 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 
 }
 
-func (s *FilterTestSuite) TestIsSubscriptionAlive() {
-	messages := s.prepareData(2, false, true, false, nil)
-
-	// Subscribe with the first message only
-	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.FullNodeHost.ID())
-
-	// IsSubscriptionAlive returns no error for the first message
-	isAlive := s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
-	s.Require().Equal(true, isAlive)
-
-}
-
 func (s *FilterTestSuite) TestFilterSubscription() {
 	contentFilter := protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
 
