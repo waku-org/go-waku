@@ -28,7 +28,6 @@ func (wf *WakuFilterLightNode) PingPeer(peer peer.ID) {
 			wf.log.Debug("Notifying sub closing", zap.String("subID", subscription.ID))
 
 			//Indicating that subscription is closing,
-			//Can this cause race condition with subscription close?
 			close(subscription.Closing)
 		}
 	}

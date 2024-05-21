@@ -63,7 +63,6 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 
 func (apiSub *Sub) Unsubscribe() {
 	apiSub.cancel()
-
 }
 
 func (apiSub *Sub) waitOnSubClose() {
@@ -95,6 +94,7 @@ func (apiSub *Sub) cleanup() {
 	}()
 
 	for _, s := range apiSub.subs {
+		close(s.Closing)
 		_, err := apiSub.wf.UnsubscribeWithSubscription(apiSub.ctx, s)
 		if err != nil {
 			//Logging with info as this is part of cleanup
@@ -110,7 +110,11 @@ func (apiSub *Sub) resubscribe() {
 	// Re-subscribe asynchronously
 	existingSubCount := len(apiSub.subs)
 	apiSub.log.Debug("subscribing again", zap.Stringer("contentFilter", apiSub.ContentFilter), zap.Int("numPeers", apiSub.Config.MaxPeers-existingSubCount))
-	subs, err := apiSub.subscribe(apiSub.ContentFilter, apiSub.Config.MaxPeers-existingSubCount)
+	var peersToExclude peer.IDSlice
+	for _, sub := range apiSub.subs {
+		peersToExclude = append(peersToExclude, sub.PeerID)
+	}
+	subs, err := apiSub.subscribe(apiSub.ContentFilter, apiSub.Config.MaxPeers-existingSubCount, peersToExclude...)
 	if err != nil {
 		return
 	} //Not handling scenario where all requested subs are not received as that will get handled in next cycle.
@@ -120,12 +124,16 @@ func (apiSub *Sub) resubscribe() {
 	apiSub.multiplex(subs)
 }
 
-func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int) ([]*subscription.SubscriptionDetails, error) {
+func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int, peersToExclude ...peer.ID) ([]*subscription.SubscriptionDetails, error) {
 	// Low-level subscribe, returns a set of SubscriptionDetails
 	options := make([]filter.FilterSubscribeOption, 0)
 	options = append(options, filter.WithMaxPeersPerContentFilter(int(peerCount)))
 	for _, p := range apiSub.Config.Peers {
 		options = append(options, filter.WithPeer(p))
+	}
+	if len(peersToExclude) > 0 {
+		apiSub.log.Debug("subscribing with peersToExclude", zap.Stringer("peersToExclude", peersToExclude[0]))
+		options = append(options, filter.WithPeersToExclude(peersToExclude...))
 	}
 	subs, err := apiSub.wf.Subscribe(apiSub.ctx, contentFilter, options...)
 
@@ -158,10 +166,7 @@ func (apiSub *Sub) multiplex(subs []*subscription.SubscriptionDetails) {
 			}
 		}(subDetails)
 		go func(subDetails *subscription.SubscriptionDetails) {
-			_, ok := <-subDetails.Closing
-			if !ok {
-				return
-			}
+			<-subDetails.Closing
 			apiSub.log.Debug("sub closing", zap.String("subID", subDetails.ID))
 
 			apiSub.closing <- subDetails.ID

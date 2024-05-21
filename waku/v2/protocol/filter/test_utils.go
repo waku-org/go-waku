@@ -10,10 +10,11 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/tests"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
@@ -85,7 +86,7 @@ func (s *FilterTestSuite) SetupTest() {
 
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
-	s.ConnectHosts(s.LightNodeHost, s.FullNodeHost)
+	s.ConnectToFullNode(s.LightNode, s.FullNode)
 
 }
 
@@ -97,9 +98,12 @@ func (s *FilterTestSuite) TearDownTest() {
 	s.ctxCancel()
 }
 
-func (s *FilterTestSuite) ConnectHosts(h1, h2 host.Host) {
-	h1.Peerstore().AddAddr(h2.ID(), tests.GetHostAddress(h2), peerstore.PermanentAddrTTL)
-	err := h1.Peerstore().AddProtocols(h2.ID(), FilterSubscribeID_v20beta1)
+func (s *FilterTestSuite) ConnectToFullNode(h1 *WakuFilterLightNode, h2 *WakuFilterFullNode) {
+	mAddr := tests.GetAddr(h2.h)
+	_, err := h1.pm.AddPeer(mAddr, wps.Static, []string{s.TestTopic}, FilterSubscribeID_v20beta1)
+	//h1.Peerstore().AddAddr(h2.ID(), tests.GetHostAddress(h2), peerstore.PermanentAddrTTL)
+	//err := h1.Peerstore().AddProtocols(h2.ID())
+	s.Log.Info("add peer", zap.Stringer("mAddr", mAddr))
 	s.Require().NoError(err)
 }
 
@@ -162,9 +166,10 @@ func (s *FilterTestSuite) GetWakuFilterLightNode() LightNodeData {
 	s.Require().NoError(err)
 	b := relay.NewBroadcaster(10)
 	s.Require().NoError(b.Start(context.Background()))
-	filterPush := NewWakuFilterLightNode(b, nil, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
+	pm := peermanager.NewPeerManager(5, 5, nil, s.Log)
+	filterPush := NewWakuFilterLightNode(b, pm, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, s.Log)
 	filterPush.SetHost(host)
-
+	pm.SetHost(host)
 	return LightNodeData{filterPush, host}
 }
 

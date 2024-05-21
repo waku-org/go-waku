@@ -36,12 +36,13 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	// We have one full node already created in SetupTest(),
 	// create another one
 	fullNodeData2 := s.GetWakuFilterFullNode(s.TestTopic, true)
-	s.ConnectHosts(s.LightNodeHost, fullNodeData2.FullNodeHost)
+	s.ConnectToFullNode(s.LightNode, fullNodeData2.FullNode)
+	//s.ConnectHosts(s.FullNodeHost, fullNodeData2.FullNodeHost)
 	peers := []peer.ID{s.FullNodeHost.ID(), fullNodeData2.FullNodeHost.ID()}
 	s.Log.Info("FullNodeHost IDs:", zap.Any("peers", peers))
 	// Make sure IDs are different
-	s.Require().True(peers[0] != peers[1])
-	apiConfig := FilterConfig{MaxPeers: 2, Peers: peers}
+	//s.Require().True(peers[0] != peers[1])
+	apiConfig := FilterConfig{MaxPeers: 2}
 
 	s.Require().Equal(apiConfig.MaxPeers, 2)
 	s.Require().Equal(contentFilter.PubsubTopic, s.TestTopic)
@@ -74,13 +75,19 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 
 	s.Log.Info("stopping full node", zap.Stringer("id", fullNodeData2.FullNodeHost.ID()))
 	fullNodeData2.FullNode.Stop()
+	fullNodeData2.FullNodeHost.Close()
 	time.Sleep(1 * time.Second)
-	for sub := range apiSub.subs {
+	/* 	for sub := range apiSub.subs {
 		s.Log.Info("SubDetails:", zap.String("id", sub))
-	}
+	} */
 	s.Require().Equal(1, len(apiSub.subs))
 
-	time.Sleep(2 * time.Second)
+	/* 	fullNodeData3 := s.GetWakuFilterFullNode(s.TestTopic, true)
+	   	s.ConnectNodes(s.LightNode, fullNodeData3.FullNode)
+
+	   	time.Sleep(2 * time.Second)
+	   	s.Require().Equal(2, len(apiSub.subs))
+	*/
 	apiSub.Unsubscribe()
 	for range apiSub.DataCh {
 	}

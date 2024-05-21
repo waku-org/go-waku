@@ -317,24 +317,29 @@ func (wf *WakuFilterLightNode) handleFilterSubscribeOptions(ctx context.Context,
 		wf.pm.Connect(pData)
 		params.selectedPeers = append(params.selectedPeers, pData.AddrInfo.ID)
 	}
-	if params.pm != nil {
+	reqPeerCount := params.maxPeers - len(params.selectedPeers)
 
-		peerCount := params.maxPeers - len(params.selectedPeers)
+	if params.pm != nil && reqPeerCount > 0 {
 
+		wf.log.Debug("handleFilterSubscribeOptions", zap.Int("peerCount", reqPeerCount), zap.Int("excludePeersLen", len(params.peersToExclude)))
 		params.selectedPeers, err = wf.pm.SelectPeers(
 			peermanager.PeerSelectionCriteria{
 				SelectionType: params.peerSelectionType,
 				Proto:         FilterSubscribeID_v20beta1,
 				PubsubTopics:  maps.Keys(pubSubTopicMap),
 				SpecificPeers: params.preferredPeers,
-				MaxPeers:      peerCount,
+				MaxPeers:      reqPeerCount,
 				Ctx:           ctx,
+				ExcludePeers:  params.peersToExclude,
 			},
 		)
 		if err != nil {
+			wf.log.Error("peer selection returned err", zap.Error(err))
 			return nil, nil, err
 		}
 	}
+	wf.log.Debug("handleFilterSubscribeOptions exit", zap.Int("selectedPeerCount", len(params.selectedPeers)))
+
 	return params, pubSubTopicMap, nil
 }
 
@@ -358,7 +363,10 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 	subscriptions := make([]*subscription.SubscriptionDetails, 0)
 	for pubSubTopic, cTopics := range pubSubTopicMap {
 		var selectedPeers peer.IDSlice
+		wf.log.Debug("peer selection", zap.Int("params.maxPeers", params.maxPeers))
+
 		if params.pm != nil && len(params.selectedPeers) < params.maxPeers {
+			wf.log.Debug("selected peers less than maxPeers", zap.Int("maxpPeers", params.maxPeers))
 			selectedPeers, err = wf.pm.SelectPeers(
 				peermanager.PeerSelectionCriteria{
 					SelectionType: params.peerSelectionType,
@@ -367,6 +375,7 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 					SpecificPeers: params.preferredPeers,
 					MaxPeers:      params.maxPeers - params.selectedPeers.Len(),
 					Ctx:           ctx,
+					ExcludePeers:  params.peersToExclude,
 				},
 			)
 		} else {
@@ -379,7 +388,6 @@ func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter prot
 			failedContentTopics = append(failedContentTopics, cTopics...)
 			continue
 		}
-
 		var cFilter protocol.ContentFilter
 		cFilter.PubsubTopic = pubSubTopic
 		cFilter.ContentTopics = protocol.NewContentTopicSet(cTopics...)

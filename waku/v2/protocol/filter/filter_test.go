@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/stretchr/testify/suite"
-	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -46,6 +44,7 @@ func (s *FilterTestSuite) TestFireAndForgetAndCustomWg() {
 	s.Require().NoError(err)
 
 	result, err := s.LightNode.Unsubscribe(s.ctx, contentFilter, DontWait())
+
 	s.Require().NoError(err)
 	s.Require().Equal(0, len(result.Errors()))
 
@@ -109,10 +108,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	s.MakeWakuFilterLightNode()
 	s.StartLightNode()
 	s.MakeWakuFilterFullNode(pubSubTopic.String(), false)
-
-	s.LightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
-	err = s.LightNodeHost.Peerstore().AddProtocols(s.FullNodeHost.ID(), FilterSubscribeID_v20beta1)
-	s.Require().NoError(err)
+	s.ConnectToFullNode(s.LightNode, s.FullNode)
 
 	s.Log.Info("Testing Autoshard:CreateSubscription")
 	s.subscribe("", s.TestContentTopic, s.FullNodeHost.ID())
@@ -210,7 +206,7 @@ func (s *FilterTestSuite) TestStaticSharding() {
 	s.MakeWakuFilterFullNode(s.TestTopic, false)
 
 	// Connect nodes
-	s.ConnectHosts(s.LightNodeHost, s.FullNodeHost)
+	s.ConnectToFullNode(s.LightNode, s.FullNode)
 
 	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
