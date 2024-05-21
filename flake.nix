@@ -29,7 +29,7 @@
           ];
           doCheck = false;
           # FIXME: This needs to be manually changed when updating modules.
-          vendorSha256 = "sha256-sl46fu5IGxjGNERJxRFb1ujdRvPf9AZlwKR2z/F5/lI=";
+          vendorSha256 = "sha256-FNG4fq7B2/86Mhk1vgFTcsgQ6Xg1A6W0PrmY82iUTro=";
           # Fix for 'nix run' trying to execute 'go-waku'.
           meta = { mainProgram = "waku"; };
         };
