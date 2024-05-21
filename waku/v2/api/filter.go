@@ -83,8 +83,9 @@ func (apiSub *Sub) closeAndResubscribe(subId string) {
 	apiSub.log.Debug("sub closeAndResubscribe", zap.String("subID", subId))
 
 	apiSub.subs[subId].Close()
+	failedPeer := apiSub.subs[subId].PeerID
 	delete(apiSub.subs, subId)
-	apiSub.resubscribe()
+	apiSub.resubscribe(failedPeer)
 }
 
 func (apiSub *Sub) cleanup() {
@@ -106,11 +107,12 @@ func (apiSub *Sub) cleanup() {
 }
 
 // Attempts to resubscribe on topics that lack subscriptions
-func (apiSub *Sub) resubscribe() {
+func (apiSub *Sub) resubscribe(failedPeer peer.ID) {
 	// Re-subscribe asynchronously
 	existingSubCount := len(apiSub.subs)
 	apiSub.log.Debug("subscribing again", zap.Stringer("contentFilter", apiSub.ContentFilter), zap.Int("numPeers", apiSub.Config.MaxPeers-existingSubCount))
 	var peersToExclude peer.IDSlice
+	peersToExclude = append(peersToExclude, failedPeer)
 	for _, sub := range apiSub.subs {
 		peersToExclude = append(peersToExclude, sub.PeerID)
 	}

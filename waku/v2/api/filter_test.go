@@ -74,20 +74,15 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	s.Require().Equal(2, len(subs))
 
 	s.Log.Info("stopping full node", zap.Stringer("id", fullNodeData2.FullNodeHost.ID()))
+	fullNodeData3 := s.GetWakuFilterFullNode(s.TestTopic, true)
+
+	s.ConnectToFullNode(s.LightNode, fullNodeData3.FullNode)
+
 	fullNodeData2.FullNode.Stop()
 	fullNodeData2.FullNodeHost.Close()
-	time.Sleep(1 * time.Second)
-	/* 	for sub := range apiSub.subs {
-		s.Log.Info("SubDetails:", zap.String("id", sub))
-	} */
-	s.Require().Equal(1, len(apiSub.subs))
+	time.Sleep(2 * time.Second)
+	s.Require().Equal(2, len(apiSub.subs))
 
-	/* 	fullNodeData3 := s.GetWakuFilterFullNode(s.TestTopic, true)
-	   	s.ConnectNodes(s.LightNode, fullNodeData3.FullNode)
-
-	   	time.Sleep(2 * time.Second)
-	   	s.Require().Equal(2, len(apiSub.subs))
-	*/
 	apiSub.Unsubscribe()
 	for range apiSub.DataCh {
 	}
