@@ -69,7 +69,7 @@ func (apiSub *Sub) waitOnSubClose() {
 	for {
 		select {
 		case <-apiSub.ctx.Done():
-			apiSub.log.Debug("healthCheckLoop: Done()")
+			apiSub.log.Debug("apiSub context: Done()")
 			apiSub.cleanup()
 			return
 		case subId := <-apiSub.closing:
