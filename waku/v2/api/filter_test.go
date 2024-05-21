@@ -81,10 +81,11 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	fullNodeData2.FullNode.Stop()
 	fullNodeData2.FullNodeHost.Close()
 	time.Sleep(2 * time.Second)
-	s.Require().Equal(2, len(apiSub.subs))
+	subs = s.LightNode.Subscriptions()
 
-	for subId := range apiSub.subs {
-		sub := apiSub.subs[subId]
+	s.Require().Equal(2, len(subs))
+
+	for _, sub := range subs {
 		s.Require().NotEqual(fullNodeData2.FullNodeHost.ID(), sub.PeerID)
 	}
 
