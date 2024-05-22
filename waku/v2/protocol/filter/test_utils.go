@@ -101,8 +101,6 @@ func (s *FilterTestSuite) TearDownTest() {
 func (s *FilterTestSuite) ConnectToFullNode(h1 *WakuFilterLightNode, h2 *WakuFilterFullNode) {
 	mAddr := tests.GetAddr(h2.h)
 	_, err := h1.pm.AddPeer(mAddr, wps.Static, []string{s.TestTopic}, FilterSubscribeID_v20beta1)
-	//h1.Peerstore().AddAddr(h2.ID(), tests.GetHostAddress(h2), peerstore.PermanentAddrTTL)
-	//err := h1.Peerstore().AddProtocols(h2.ID())
 	s.Log.Info("add peer", zap.Stringer("mAddr", mAddr))
 	s.Require().NoError(err)
 }

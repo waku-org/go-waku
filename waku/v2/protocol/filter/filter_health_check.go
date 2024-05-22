@@ -21,7 +21,7 @@ func (wf *WakuFilterLightNode) PingPeer(peer peer.ID) {
 	defer cancel()
 	err := wf.Ping(ctxWithTimeout, peer)
 	if err != nil {
-		wf.log.Info("Filter ping failed towards peer", zap.Stringer("peer", peer), zap.Error(err))
+		wf.log.Warn("Filter ping failed towards peer", zap.Stringer("peer", peer), zap.Error(err))
 
 		subscriptions := wf.subscriptions.GetAllSubscriptionsForPeer(peer)
 		for _, subscription := range subscriptions {
