@@ -3,8 +3,6 @@ package peermanager
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
@@ -25,19 +22,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
-
-func getAddr(h host.Host) multiaddr.Multiaddr {
-	id, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().String()))
-	var selectedAddr multiaddr.Multiaddr
-	//For now skipping circuit relay addresses as libp2p seems to be returning empty p2p-circuit addresses.
-	for _, addr := range h.Network().ListenAddresses() {
-		if strings.Contains(addr.String(), "p2p-circuit") {
-			continue
-		}
-		selectedAddr = addr
-	}
-	return selectedAddr.Encapsulate(id)
-}
 
 func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -72,7 +56,7 @@ func TestServiceSlots(t *testing.T) {
 
 	// add h2 peer to peer manager
 	t.Log(h2.ID())
-	_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(tests.GetAddr(h2), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	///////////////
@@ -86,7 +70,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, h2.ID(), peers[0])
 
 	// add h3 peer to peer manager
-	_, err = pm.AddPeer(getAddr(h3), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(tests.GetAddr(h3), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	// check that returned peer is h2 or h3 peer
@@ -111,7 +95,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Error(t, err, ErrNoPeersAvailable)
 
 	// add h4 peer for protocol1
-	_, err = pm.AddPeer(getAddr(h4), wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
+	_, err = pm.AddPeer(tests.GetAddr(h4), wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
 	require.NoError(t, err)
 
 	//Test peer selection for protocol1
@@ -139,10 +123,10 @@ func TestPeerSelection(t *testing.T) {
 	defer h3.Close()
 
 	protocol := libp2pProtocol.ID("test/protocol")
-	_, err = pm.AddPeer(getAddr(h2), wps.Static, []string{"/waku/2/rs/2/1", "/waku/2/rs/2/2"}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(tests.GetAddr(h2), wps.Static, []string{"/waku/2/rs/2/1", "/waku/2/rs/2/2"}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
-	_, err = pm.AddPeer(getAddr(h3), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(tests.GetAddr(h3), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol})
@@ -173,7 +157,7 @@ func TestPeerSelection(t *testing.T) {
 	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h4.Close()
-	_, err = pm.AddPeer(getAddr(h4), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer(tests.GetAddr(h4), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	peerIDs, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}, MaxPeers: 3})
@@ -200,7 +184,7 @@ func TestDefaultProtocol(t *testing.T) {
 	defer h5.Close()
 
 	//Test peer selection for relay protocol from peer store
-	_, err = pm.AddPeer(getAddr(h5), wps.Static, []string{""}, relay.WakuRelayID_v200)
+	_, err = pm.AddPeer(tests.GetAddr(h5), wps.Static, []string{""}, relay.WakuRelayID_v200)
 	require.NoError(t, err)
 
 	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
@@ -221,7 +205,7 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer h6.Close()
 
-	_, err = pm.AddPeer(getAddr(h6), wps.Static, []string{""}, protocol2)
+	_, err = pm.AddPeer(tests.GetAddr(h6), wps.Static, []string{""}, protocol2)
 	require.NoError(t, err)
 
 	peers, err := pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol2})

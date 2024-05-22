@@ -1,11 +1,12 @@
 package peermanager
 
 import (
+	"testing"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
-	"testing"
 )
 
 func TestServiceSlot(t *testing.T) {
@@ -18,13 +19,13 @@ func TestServiceSlot(t *testing.T) {
 	//
 	slots.getPeers(protocol).add(peerID)
 	//
-	fetchedPeers, err := slots.getPeers(protocol).getRandom(1)
+	fetchedPeers, err := slots.getPeers(protocol).getRandom(1, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, maps.Keys(fetchedPeers)[0])
 	//
 	slots.getPeers(protocol).remove(peerID)
 	//
-	_, err = slots.getPeers(protocol).getRandom(1)
+	_, err = slots.getPeers(protocol).getRandom(1, nil)
 	require.Equal(t, err, ErrNoPeersAvailable)
 
 	// Test with more peers
@@ -36,7 +37,7 @@ func TestServiceSlot(t *testing.T) {
 	slots.getPeers(protocol).add(peerID3)
 	//
 
-	fetchedPeers, err = slots.getPeers(protocol).getRandom(2)
+	fetchedPeers, err = slots.getPeers(protocol).getRandom(2, nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(maps.Keys(fetchedPeers)))
 
@@ -47,7 +48,7 @@ func TestServiceSlot(t *testing.T) {
 
 	slots.getPeers(protocol).remove(peerID2)
 
-	fetchedPeers, err = slots.getPeers(protocol).getRandom(10)
+	fetchedPeers, err = slots.getPeers(protocol).getRandom(10, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID3, maps.Keys(fetchedPeers)[0])
 
@@ -65,15 +66,15 @@ func TestServiceSlotRemovePeerFromAll(t *testing.T) {
 	slots.getPeers(protocol).add(peerID)
 	slots.getPeers(protocol1).add(peerID)
 	//
-	fetchedPeers, err := slots.getPeers(protocol1).getRandom(1)
+	fetchedPeers, err := slots.getPeers(protocol1).getRandom(1, nil)
 	require.NoError(t, err)
 	require.Equal(t, peerID, maps.Keys(fetchedPeers)[0])
 
 	//
 	slots.removePeer(peerID)
 	//
-	_, err = slots.getPeers(protocol).getRandom(1)
+	_, err = slots.getPeers(protocol).getRandom(1, nil)
 	require.Equal(t, err, ErrNoPeersAvailable)
-	_, err = slots.getPeers(protocol1).getRandom(1)
+	_, err = slots.getPeers(protocol1).getRandom(1, nil)
 	require.Equal(t, err, ErrNoPeersAvailable)
 }

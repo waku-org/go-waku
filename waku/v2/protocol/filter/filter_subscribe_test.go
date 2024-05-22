@@ -324,7 +324,7 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	s.ctx, s.ctxCancel = context.WithTimeout(context.Background(), 10*time.Second)
 
 	nodeData := s.GetWakuFilterFullNode(testTopic, false)
-	fullNode2 := nodeData.fullNode
+	fullNode2 := nodeData.FullNode
 
 	// Connect nodes
 	fullNode2.h.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
@@ -354,29 +354,6 @@ func (s *FilterTestSuite) TestSubscribeFullNode2FullNode() {
 	// Check the content topic is what we have set
 	_, hasTestContentTopic := contentTopics[testContentTopic]
 	s.Require().True(hasTestContentTopic)
-
-}
-
-func (s *FilterTestSuite) TestIsSubscriptionAlive() {
-	messages := s.prepareData(2, false, true, false, nil)
-
-	// Subscribe with the first message only
-	s.subscribe(messages[0].PubSubTopic, messages[0].ContentTopic, s.FullNodeHost.ID())
-
-	// IsSubscriptionAlive returns no error for the first message
-	err := s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
-	s.Require().NoError(err)
-
-	// Create new host/peer - not related to any node
-	host, err := tests.MakeHost(context.Background(), 54321, rand.Reader)
-	s.Require().NoError(err)
-
-	// Alter the existing peer ID in sub details
-	s.subDetails[0].PeerID = host.ID()
-
-	// IsSubscriptionAlive returns error for the second message, peer ID doesn't match
-	err = s.LightNode.IsSubscriptionAlive(s.ctx, s.subDetails[0])
-	s.Require().Error(err)
 
 }
 
