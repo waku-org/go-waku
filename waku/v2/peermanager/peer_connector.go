@@ -130,7 +130,7 @@ func (c *PeerConnectionStrategy) consumeSubscription(s subscription) {
 				if len(c.host.Network().Peers()) < waku_proto.GossipSubDMin {
 					triggerImmediateConnection = true
 				}
-				c.logger.Debug("adding discovered peer", logging.HostID("peerID", p.AddrInfo.ID))
+				c.logger.Debug("adding discovered peer", logging.HostID("peerID", p.AddrInfo.ID), zap.Int64("origin", int64(p.Origin)))
 				c.pm.AddDiscoveredPeer(p, triggerImmediateConnection)
 
 			case <-time.After(1 * time.Second):
