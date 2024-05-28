@@ -74,7 +74,7 @@ func TestConnectionStatusChanges(t *testing.T) {
 
 	goCheckConnectedness(t, &wg, topicHealthStatusChan, peermanager.MinimallyHealthy)
 
-	node1.AddDiscoveredPeer(node2.host.ID(), node2.ListenAddresses(), peerstore.Static, []string{pubsubTopic}, true)
+	node1.AddDiscoveredPeer(node2.host.ID(), node2.ListenAddresses(), peerstore.Static, []string{pubsubTopic}, nil, true)
 
 	wg.Wait()
 
