@@ -65,10 +65,11 @@ type storeFactory func(w *WakuNode) legacy_store.Store
 type byte32 = [32]byte
 
 type IdentityCredential = struct {
-	IDTrapdoor   byte32 `json:"idTrapdoor"`
-	IDNullifier  byte32 `json:"idNullifier"`
-	IDSecretHash byte32 `json:"idSecretHash"`
-	IDCommitment byte32 `json:"idCommitment"`
+	IDTrapdoor       byte32 `json:"idTrapdoor"`
+	IDNullifier      byte32 `json:"idNullifier"`
+	IDSecretHash     byte32 `json:"idSecretHash"`
+	IDCommitment     byte32 `json:"idCommitment"`
+	UserMessageLimit uint32 `json:"userMessageLimit"`
 }
 
 type SpamHandler = func(message *pb.WakuMessage, topic string) error

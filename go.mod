@@ -36,17 +36,18 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/jackc/pgx/v5 v5.4.1
-	github.com/libp2p/go-libp2p-mplex v0.9.0
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20240110193335-a67d1cc760a0
 	github.com/waku-org/go-noise v0.0.4
-	github.com/waku-org/go-zerokit-rln v0.1.14-0.20240102145250-fa738c0bdf59
+	github.com/waku-org/go-zerokit-rln v0.1.14-0.20240531051154-88462cf65458
 	github.com/wk8/go-ordered-map v1.0.0
 )
 
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d // indirect
+	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -71,9 +72,9 @@ require (
 	github.com/rjeczalik/notify v0.9.3 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/status-im/status-go/extkeys v1.1.2 // indirect
-	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20230916172309-ee0ee61dde2b // indirect
-	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20230916171929-1dd9494ff065 // indirect
-	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20230916171518-2a77c3734dd1 // indirect
+	github.com/waku-org/go-zerokit-rln-apple v0.0.0-20240529153423-5df5db48b69f // indirect
+	github.com/waku-org/go-zerokit-rln-arm v0.0.0-20240529153432-be2c8ac0a840 // indirect
+	github.com/waku-org/go-zerokit-rln-x86_64 v0.0.0-20240529153442-f5fb416605f5 // indirect
 	go.uber.org/dig v1.17.1 // indirect
 	go.uber.org/fx v1.20.1 // indirect
 	go.uber.org/mock v0.3.0 // indirect
@@ -121,7 +122,6 @@ require (
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.3.0 // indirect
-	github.com/libp2p/go-mplex v0.7.0 // indirect
 	github.com/libp2p/go-nat v0.2.0 // indirect
 	github.com/libp2p/go-netroute v0.2.1 // indirect
 	github.com/libp2p/go-reuseport v0.4.0 // indirect

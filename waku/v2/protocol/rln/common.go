@@ -51,14 +51,15 @@ func BytesToRateLimitProof(data []byte) (*rln.RateLimitProof, error) {
 		return nil, err
 	}
 
+	// TODO: Not working
 	result := &rln.RateLimitProof{
-		Proof:         rln.ZKSNARK(rln.Bytes128(rateLimitProof.Proof)),
-		MerkleRoot:    rln.MerkleNode(rln.Bytes32(rateLimitProof.MerkleRoot)),
-		Epoch:         rln.Epoch(rln.Bytes32(rateLimitProof.Epoch)),
-		ShareX:        rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareX)),
-		ShareY:        rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareY)),
-		Nullifier:     rln.Nullifier(rln.Bytes32(rateLimitProof.Nullifier)),
-		RLNIdentifier: rln.RLNIdentifier(rln.Bytes32(rateLimitProof.RlnIdentifier)),
+		Proof:      rln.ZKSNARK(rln.Bytes128(rateLimitProof.Proof)),
+		MerkleRoot: rln.MerkleNode(rln.Bytes32(rateLimitProof.MerkleRoot)),
+		//Epoch:         rln.Epoch(rln.Bytes32(rateLimitProof.Epoch)),
+		ShareX:    rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareX)),
+		ShareY:    rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareY)),
+		Nullifier: rln.Nullifier(rln.Bytes32(rateLimitProof.Nullifier)),
+		//RLNIdentifier: rln.RLNIdentifier(rln.Bytes32(rateLimitProof.RlnIdentifier)),
 	}
 
 	return result, nil
