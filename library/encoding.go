@@ -2,7 +2,6 @@ package library
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"encoding/json"
 	"errors"
 
@@ -231,7 +230,7 @@ func DecodeAsymmetric(messageJSON string, privateKey string) (string, error) {
 }
 
 func unmarshalPubkey(pub []byte) (ecdsa.PublicKey, error) {
-	x, y := elliptic.Unmarshal(secp256k1.S256(), pub)
+	x, y := secp256k1.S256().Unmarshal(pub)
 	if x == nil {
 		return ecdsa.PublicKey{}, errors.New("invalid public key")
 	}

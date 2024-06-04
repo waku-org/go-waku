@@ -17,7 +17,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
-	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
@@ -179,7 +178,7 @@ func useFilterAndLightPush(lightNode *node.WakuNode, contentTopic string, pubsub
 	if err != nil {
 		panic(err)
 	}
-	log.Info("published msg via lightpush with hash:", logging.HexBytes("hash", hash))
+	log.Info("published msg via lightpush with hash:", zap.Stringer("hash", hash))
 
 	log.Info("Done sending msgs.......")
 
