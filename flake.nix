@@ -1,7 +1,7 @@
 {
   description = "Nix flake for Go implementaion of Waku v2 node.";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/master;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-23.11;
 
   outputs = { self, nixpkgs }:
     let
@@ -18,7 +18,7 @@
           pkgs = nixpkgsFor.${system};
           commit = builtins.substring 0 7 (self.rev or "dirty");
           version = builtins.readFile ./VERSION;
-        in pkgs.buildGo120Module {
+        in pkgs.buildGo121Module {
           name = "go-waku";
           src = self;
           inherit subPackages;
@@ -29,7 +29,7 @@
           ];
           doCheck = false;
           # FIXME: This needs to be manually changed when updating modules.
-          vendorSha256 = "sha256-FNG4fq7B2/86Mhk1vgFTcsgQ6Xg1A6W0PrmY82iUTro=";
+          vendorHash = "sha256-VXYhEnCNHVMgyQs028kraYebQbGSFi2hLB35hkbF7aA=";
           # Fix for 'nix run' trying to execute 'go-waku'.
           meta = { mainProgram = "waku"; };
         };
