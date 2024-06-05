@@ -86,7 +86,7 @@ func nonRecoverError(err error) error {
 func Execute(options NodeOptions) error {
 	// Set encoding for logs (console, json, ...)
 	// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
-	utils.InitLogger(options.LogEncoding, options.LogOutput)
+	utils.InitLogger(options.LogEncoding, options.LogOutput, "gowaku")
 
 	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
 	if err != nil {
