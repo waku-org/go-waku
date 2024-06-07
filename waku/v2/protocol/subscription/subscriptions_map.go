@@ -75,7 +75,7 @@ func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf protocol.Content
 		PeerID:        peerID,
 		C:             make(chan *protocol.Envelope, 1024),
 		ContentFilter: protocol.ContentFilter{PubsubTopic: cf.PubsubTopic, ContentTopics: maps.Clone(cf.ContentTopics)},
-		Closing:       make(chan struct{}),
+		Closing:       make(chan bool),
 	}
 
 	// Increase the number of subscriptions for this (pubsubTopic, contentTopic) pair
@@ -145,6 +145,11 @@ func (sub *SubscriptionsMap) Delete(subscription *SubscriptionDetails) error {
 	// Decrease the number of subscriptions for this (pubsubTopic, contentTopic) pair
 	for contentTopic := range contentFilter.ContentTopics {
 		sub.decreaseSubFor(contentFilter.PubsubTopic, contentTopic)
+	}
+
+	if len(peerSubscription.SubsPerPubsubTopic) == 0 {
+		sub.logger.Debug("no more subs for peer", zap.Stringer("id", subscription.PeerID))
+		delete(sub.items, subscription.PeerID)
 	}
 
 	return nil
