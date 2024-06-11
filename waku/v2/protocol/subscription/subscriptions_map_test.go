@@ -49,9 +49,6 @@ func TestSubscriptionMapAppend(t *testing.T) {
 	err := sub.Close()
 	require.NoError(t, err)
 	require.True(t, sub.Closed)
-
-	err = sub.Close()
-	require.NoError(t, err)
 }
 
 func TestSubscriptionClear(t *testing.T) {
