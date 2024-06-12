@@ -957,3 +957,7 @@ func GetDiscv5Option(dnsDiscoveredNodes []dnsdisc.DiscoveredNode, discv5Nodes []
 func (w *WakuNode) ClusterID() uint16 {
 	return w.opts.clusterID
 }
+
+func (w *WakuNode) PeerConnector() *peermanager.PeerConnectionStrategy {
+	return w.peerConnector
+}

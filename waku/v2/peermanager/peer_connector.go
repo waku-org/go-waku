@@ -173,6 +173,10 @@ func (c *PeerConnectionStrategy) isPaused() bool {
 	return c.paused.Load()
 }
 
+func (c *PeerConnectionStrategy) SetPause(paused bool) {
+	c.paused.Store(paused)
+}
+
 // it might happen Subscribe is called before peerConnector has started so store these subscriptions in subscriptions array and custom after c.cancel is set.
 func (c *PeerConnectionStrategy) consumeSubscriptions() {
 	for _, subs := range c.subscriptions {
@@ -236,24 +240,35 @@ func (c *PeerConnectionStrategy) dialPeers() {
 
 	for {
 		select {
-		case pd, ok := <-c.GetListeningChan():
-			if !ok {
-				return
-			}
-			addrInfo := pd.AddrInfo
-
-			if addrInfo.ID == c.host.ID() || addrInfo.ID == "" ||
-				c.host.Network().Connectedness(addrInfo.ID) == network.Connected {
+		case <-c.Context().Done():
+			return
+		default:
+			if c.isPaused() {
+				time.Sleep(100 * time.Millisecond) // Sleep for a while to avoid busy waiting
 				continue
 			}
 
-			if c.canDialPeer(addrInfo) {
-				sem <- struct{}{}
-				c.WaitGroup().Add(1)
-				go c.dialPeer(addrInfo, sem)
+			select {
+			case <-c.Context().Done():
+				return
+			case pd, ok := <-c.GetListeningChan():
+				if !ok {
+					return
+				}
+				addrInfo := pd.AddrInfo
+
+				if addrInfo.ID == c.host.ID() || addrInfo.ID == "" ||
+					c.host.Network().Connectedness(addrInfo.ID) == network.Connected {
+					continue
+				}
+
+				if c.canDialPeer(addrInfo) {
+					sem <- struct{}{}
+					c.WaitGroup().Add(1)
+					go c.dialPeer(addrInfo, sem)
+				}
+			default:
 			}
-		case <-c.Context().Done():
-			return
 		}
 	}
 }
