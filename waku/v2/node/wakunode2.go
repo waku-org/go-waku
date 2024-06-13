@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"sync"
@@ -385,6 +386,23 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	}
 
 	w.metadata.SetHost(host)
+
+	go func() {
+		t := time.NewTicker(3 * time.Second)
+		for {
+			select {
+			case <-t.C:
+				fmt.Println("===============")
+				fmt.Println("===============")
+				fmt.Println("===============")
+				fmt.Println("===============")
+				fmt.Println("PEERS: ", len(host.Network().Peers()))
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	err = w.metadata.Start(ctx)
 	if err != nil {
 		return err

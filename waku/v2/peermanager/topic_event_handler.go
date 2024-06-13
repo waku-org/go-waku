@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
-	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
@@ -48,7 +47,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 
 	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[pubsubTopic])
 
-	if connectedPeers >= waku_proto.GossipSubDMin { //TODO: Use a config rather than hard-coding.
+	if connectedPeers >= 300 { //TODO: Use a config rather than hard-coding.
 		// Should we use optimal number or define some sort of a config for the node to choose from?
 		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
 		// or bandwidth it can support.
@@ -62,10 +61,10 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		numPeersToConnect := notConnectedPeers.Len() - connectedPeers
 		if numPeersToConnect < 0 {
 			numPeersToConnect = notConnectedPeers.Len()
-		} else if numPeersToConnect-connectedPeers > waku_proto.GossipSubDMin {
-			numPeersToConnect = waku_proto.GossipSubDMin - connectedPeers
+		} else if numPeersToConnect-connectedPeers > 300 {
+			numPeersToConnect = 300 - connectedPeers
 		}
-		if numPeersToConnect+connectedPeers < waku_proto.GossipSubDMin {
+		if numPeersToConnect+connectedPeers < 300 {
 			triggerDiscovery = true
 		}
 		//For now all peers are being given same priority,

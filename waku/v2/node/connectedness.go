@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -55,6 +56,11 @@ func (c ConnectionNotifier) ListenClose(n network.Network, m multiaddr.Multiaddr
 
 // Connected is called when a connection is opened
 func (c ConnectionNotifier) Connected(n network.Network, cc network.Conn) {
+	fmt.Println("===============")
+	fmt.Println("===============")
+	fmt.Println("===============")
+	fmt.Println("===============")
+	fmt.Println("PEERS: ", len(c.h.Network().Peers()))
 	c.log.Info("peer connected", logging.HostID("peer", cc.RemotePeer()), zap.String("direction", cc.Stat().Direction.String()))
 	if c.connNotifCh != nil {
 		select {
@@ -76,6 +82,12 @@ func (c ConnectionNotifier) Connected(n network.Network, cc network.Conn) {
 // Disconnected is called when a connection closed
 func (c ConnectionNotifier) Disconnected(n network.Network, cc network.Conn) {
 	c.log.Info("peer disconnected", logging.HostID("peer", cc.RemotePeer()))
+	fmt.Println("===============")
+	fmt.Println("===============")
+	fmt.Println("===============")
+	fmt.Println("===============")
+	fmt.Println("PEERS: ", len(c.h.Network().Peers()))
+
 	c.metrics.RecordPeerDisconnected()
 	c.DisconnectChan <- cc.RemotePeer()
 	if c.connNotifCh != nil {

@@ -176,6 +176,7 @@ func (pm *PeerManager) TopicHealth(pubsubTopic string) (TopicHealth, error) {
 // NewPeerManager creates a new peerManager instance.
 func NewPeerManager(maxConnections int, maxPeers int, metadata *metadata.WakuMetadata, logger *zap.Logger) *PeerManager {
 
+	maxConnections = 300
 	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
 	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
 
@@ -302,7 +303,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 		// match those peers that are currently connected
 
 		curPeerLen := pm.checkAndUpdateTopicHealth(topicInst)
-		if curPeerLen < waku_proto.GossipSubDMin {
+		if curPeerLen < 300 {
 			pm.logger.Debug("subscribed topic is not sufficiently healthy, initiating more connections to maintain health",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
 				zap.Int("optimumPeers", waku_proto.GossipSubDMin))
@@ -315,7 +316,7 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			}
 			pm.logger.Debug("connecting to eligible peers in peerstore", zap.String("pubSubTopic", topicStr))
 			//Connect to eligible peers.
-			numPeersToConnect := waku_proto.GossipSubDMin - curPeerLen
+			numPeersToConnect := 300 - curPeerLen
 
 			if numPeersToConnect > notConnectedPeers.Len() {
 				numPeersToConnect = notConnectedPeers.Len()
