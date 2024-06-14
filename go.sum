@@ -568,6 +568,7 @@ github.com/go-latex/latex v0.0.0-20210118124228-b3d85cf34e07/go.mod h1:CO1AlKB2C
 github.com/go-logfmt/logfmt v0.3.0/go.mod h1:Qt1PoO58o5twSAckw1HlFXLmHsOX5/0LbT9GBnD5lWE=
 github.com/go-logfmt/logfmt v0.4.0/go.mod h1:3RMwSq7FuexP4Kalkev3ejPJsZTpXXBr9+V4qmtdjCk=
 github.com/go-logfmt/logfmt v0.5.0/go.mod h1:wCYkCAKZfumFQihp8CzCvQ3paCTfi41vtzG1KdI/P7A=
+github.com/go-logfmt/logfmt v0.5.1/go.mod h1:WYhtIu8zTZfxdn5+rREduYbwxfcBr/Vr6KEVveWlfTs=
 github.com/go-logr/logr v0.1.0/go.mod h1:ixOQHD9gLJUVQQ2ZOR7zLEifBX6tGkNJF4QyIY7sIas=
 github.com/go-logr/logr v0.2.0/go.mod h1:z6/tIYblkpsD+a4lm/fGIIU9mZ+XfAiaFtq7xTgseGU=
 github.com/go-logr/logr v0.4.0/go.mod h1:z6/tIYblkpsD+a4lm/fGIIU9mZ+XfAiaFtq7xTgseGU=
@@ -1540,6 +1541,8 @@ github.com/waku-org/go-noise v0.0.4 h1:ZfQDcCw8pazm89EBl5SXY7GGAnzDQb9AHFXlw3Ktb
 github.com/waku-org/go-noise v0.0.4/go.mod h1:+PWRfs2eSOVwKrPcQlfhwDngSh3faL/1QoxvoqggEKc=
 github.com/waku-org/go-zerokit-rln v0.1.14-0.20240531051154-88462cf65458 h1:ws4jm3UVUwjkN19i5kVOFnt0nhRe1TKlIB91ShZEn+A=
 github.com/waku-org/go-zerokit-rln v0.1.14-0.20240531051154-88462cf65458/go.mod h1:CR9oP81b9G5TfZ6VDNKvB3GWS052hhmt36t+C1rcMbo=
+github.com/waku-org/go-zerokit-rln v0.1.14-0.20240614081832-cbb253d8910e h1:8uwYIiMFgYPpd7PYsc3YC60+3JM+5awbPv0iW5+M3zs=
+github.com/waku-org/go-zerokit-rln v0.1.14-0.20240614081832-cbb253d8910e/go.mod h1:CR9oP81b9G5TfZ6VDNKvB3GWS052hhmt36t+C1rcMbo=
 github.com/waku-org/go-zerokit-rln-apple v0.0.0-20240529153423-5df5db48b69f h1:CEBW4vu8I60OakKExZUE7G4oY7Z/glQXxPYedpZ4Sq8=
 github.com/waku-org/go-zerokit-rln-apple v0.0.0-20240529153423-5df5db48b69f/go.mod h1:KYykqtdApHVYZ3G0spwMnoxc5jH5eI3jyO9SwsSfi48=
 github.com/waku-org/go-zerokit-rln-arm v0.0.0-20240529153432-be2c8ac0a840 h1:DKub+sG+vfKqwOCaKrthhJA/bP7gTZWxbdrFV86Q5Ms=

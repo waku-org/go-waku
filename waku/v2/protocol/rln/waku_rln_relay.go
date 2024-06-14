@@ -100,10 +100,12 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	// it corresponds to the validation of rln external nullifier
 	var epoch rln.Epoch
 	if optionalTime != nil {
-		epoch = rln.CalcEpoch(*optionalTime)
+		// TODO: Hardcoded epoch size
+		epoch = rln.CalcEpoch(*optionalTime, uint64(1))
 	} else {
 		// get current rln epoch
-		epoch = rln.CalcEpoch(rlnRelay.timesource.Now())
+		// TODO: Hardcoded epoch size
+		epoch = rln.CalcEpoch(rlnRelay.timesource.Now(), uint64(1))
 	}
 	_ = epoch
 
@@ -210,7 +212,8 @@ func (rlnRelay *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTim
 	input := toRLNSignal(msg)
 
 	start := time.Now()
-	proof, err := rlnRelay.generateProof(input, rln.CalcEpoch(senderEpochTime))
+	// TODO: Hardcoded epoch size
+	proof, err := rlnRelay.generateProof(input, rln.CalcEpoch(senderEpochTime, uint64(1)))
 	if err != nil {
 		return err
 	}

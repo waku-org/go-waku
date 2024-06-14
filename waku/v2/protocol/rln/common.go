@@ -21,7 +21,8 @@ const (
 const maxClockGapSeconds = 20
 
 // maximum allowed gap between the epochs of messages' RateLimitProofs
-const maxEpochGap = int64(maxClockGapSeconds / rln.EPOCH_UNIT_SECONDS)
+// TODO: Hardcoded to 1 epoch for now
+const maxEpochGap = int64(maxClockGapSeconds / uint64(1))
 
 // acceptable roots for merkle root validation of incoming messages
 const acceptableRootWindowSize = 5
