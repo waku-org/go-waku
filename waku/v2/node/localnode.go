@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -20,7 +21,6 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 	var options []wenr.ENROption
 	options = append(options, wenr.WithUDPPort(udpPort))
 	options = append(options, wenr.WithWakuBitfield(wakuFlags))
-	options = append(options, wenr.WithMultiaddress(multiaddrs...))
 
 	if advertiseAddr != nil {
 		// An advertised address disables libp2p address updates
@@ -36,30 +36,36 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 		// Using a static ip will disable endpoint prediction.
 		options = append(options, wenr.WithIP(ipAddr))
 	} else {
-		// We received a libp2p address update, but we should still
-		// allow discv5 to update the enr record. We set the localnode
-		// keys manually. It's possible that the ENR record might get
-		// updated automatically
-		ip4 := ipAddr.IP.To4()
-		ip6 := ipAddr.IP.To16()
-		if ip4 != nil && !ip4.IsUnspecified() {
-			localnode.SetFallbackIP(ip4)
-			localnode.Set(enr.IPv4(ip4))
-			localnode.Set(enr.TCP(uint16(ipAddr.Port)))
-		} else {
-			localnode.Delete(enr.IPv4{})
-			localnode.Delete(enr.TCP(0))
-			localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
-		}
+		if ipAddr.Port != 0 {
+			// We received a libp2p address update, but we should still
+			// allow discv5 to update the enr record. We set the localnode
+			// keys manually. It's possible that the ENR record might get
+			// updated automatically
+			ip4 := ipAddr.IP.To4()
+			ip6 := ipAddr.IP.To16()
+			if ip4 != nil && !ip4.IsUnspecified() {
+				localnode.SetFallbackIP(ip4)
+				localnode.Set(enr.IPv4(ip4))
+				localnode.Set(enr.TCP(uint16(ipAddr.Port)))
+			} else {
+				localnode.Delete(enr.IPv4{})
+				localnode.Delete(enr.TCP(0))
+				localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
+			}
 
-		if ip4 == nil && ip6 != nil && !ip6.IsUnspecified() {
-			localnode.Set(enr.IPv6(ip6))
-			localnode.Set(enr.TCP6(ipAddr.Port))
-		} else {
-			localnode.Delete(enr.IPv6{})
-			localnode.Delete(enr.TCP6(0))
+			if ip4 == nil && ip6 != nil && !ip6.IsUnspecified() {
+				localnode.Set(enr.IPv6(ip6))
+				localnode.Set(enr.TCP6(ipAddr.Port))
+			} else {
+				localnode.Delete(enr.IPv6{})
+				localnode.Delete(enr.TCP6(0))
+			}
 		}
 	}
+
+	// Writing the IP + Port has priority over writting the multiaddress which might fail or not
+	// depending on the enr having space
+	options = append(options, wenr.WithMultiaddress(multiaddrs...))
 
 	return wenr.Update(localnode, options...)
 }
@@ -228,8 +234,28 @@ func selectCircuitRelayListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr
 	return result, nil
 }
 
-func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, multiaddr []ma.Multiaddr, err error) {
+func filter0Port(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
+	var result []ma.Multiaddr
+	for _, addr := range addresses {
+		portStr, err := addr.ValueForProtocol(ma.P_TCP)
+		if err != nil && !errors.Is(err, multiaddr.ErrProtocolNotFound) {
+			return nil, err
+		}
 
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return nil, err
+		}
+
+		if port != 0 {
+			result = append(result, addr)
+		}
+	}
+
+	return result, nil
+}
+
+func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, multiaddr []ma.Multiaddr, err error) {
 	extAddr, err = selectMostExternalAddress(addrs)
 	if err != nil {
 		return nil, nil, err
@@ -251,6 +277,11 @@ func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, 
 		multiaddr = append(multiaddr, circuitAddrs...)
 	} else {
 		multiaddr = append(multiaddr, wssAddrs...)
+	}
+
+	multiaddr, err = filter0Port(multiaddr)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return
