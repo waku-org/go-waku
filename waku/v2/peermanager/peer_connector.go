@@ -180,7 +180,7 @@ func (c *PeerConnectionStrategy) isPaused() bool {
 	return c.paused.Load()
 }
 
-func (c *PeerConnectionStrategy) SetPause(paused bool) {
+func (c *PeerConnectionStrategy) SetPaused(paused bool) {
 	c.paused.Store(paused)
 }
 

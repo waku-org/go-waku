@@ -714,3 +714,7 @@ func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...Filte
 func (wf *WakuFilterLightNode) OnlineChecker() onlinechecker.OnlineChecker {
 	return wf.onlineChecker
 }
+
+func (wf *WakuFilterLightNode) SetOnlineChecker(onlineChecker onlinechecker.OnlineChecker) {
+	wf.onlineChecker = onlineChecker
+}
