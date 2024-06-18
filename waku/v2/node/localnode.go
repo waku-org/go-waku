@@ -67,7 +67,7 @@ func (w *WakuNode) updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.M
 	// depending on the enr having space
 	options = append(options, wenr.WithMultiaddress(multiaddrs...))
 
-	return wenr.Update(localnode, options...)
+	return wenr.Update(w.log, localnode, options...)
 }
 
 func isPrivate(addr *net.TCPAddr) bool {
@@ -354,7 +354,7 @@ func (w *WakuNode) watchTopicShards(ctx context.Context) error {
 						w.log.Warn("A mix of named and static shards found. ENR shard will contain only the following shards", zap.Any("shards", rs[0]))
 					}
 
-					err = wenr.Update(w.localNode, wenr.WithWakuRelaySharding(rs[0]))
+					err = wenr.Update(w.log, w.localNode, wenr.WithWakuRelaySharding(rs[0]))
 					if err != nil {
 						w.log.Warn("could not set ENR shard info", zap.Error(err))
 						continue

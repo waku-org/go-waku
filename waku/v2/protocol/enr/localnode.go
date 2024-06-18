@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
+	"go.uber.org/zap"
 )
 
 func NewLocalnode(priv *ecdsa.PrivateKey) (*enode.LocalNode, error) {
@@ -72,7 +73,7 @@ func WithWakuBitfield(flags WakuEnrBitfield) ENROption {
 func WithIP(ipAddr *net.TCPAddr) ENROption {
 	return func(localnode *enode.LocalNode) (err error) {
 		if ipAddr.Port == 0 {
-			return
+			return ErrNoPortAvailable
 		}
 
 		localnode.SetStaticIP(ipAddr.IP)
@@ -95,11 +96,15 @@ func WithUDPPort(udpPort uint) ENROption {
 	}
 }
 
-func Update(localnode *enode.LocalNode, enrOptions ...ENROption) error {
+func Update(logger *zap.Logger, localnode *enode.LocalNode, enrOptions ...ENROption) error {
 	for _, opt := range enrOptions {
 		err := opt(localnode)
 		if err != nil {
-			return err
+			if errors.Is(err, ErrNoPortAvailable) {
+				logger.Warn("no tcp port available. ENR will not contain tcp key")
+			} else {
+				return err
+			}
 		}
 	}
 	return nil
