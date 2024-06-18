@@ -895,12 +895,12 @@ func (w *WakuNode) findRelayNodes(ctx context.Context) {
 		for _, p := range peers {
 			pENR, err := w.Host().Peerstore().(wps.WakuPeerstore).ENR(p.ID)
 			if err != nil {
-				w.log.Error("could not get ENR for the peer, skipping for circuit-relay", zap.Stringer("peer", p.ID), zap.Error(err))
+				w.log.Debug("could not get ENR for the peer, skipping for circuit-relay", zap.Stringer("peer", p.ID), zap.Error(err))
 				continue
 			}
 			rs, err := enr.RelayShardList(pENR.Record())
-			if err != nil {
-				w.log.Error("could not get shard info for the peer from ENR, skipping for circuit-relay", zap.Stringer("peer", p.ID), zap.Error(err))
+			if err != nil || rs == nil {
+				w.log.Debug("could not get shard info for the peer from ENR, skipping for circuit-relay", zap.Stringer("peer", p.ID), zap.Error(err))
 				continue
 			}
 			if rs.ClusterID != w.ClusterID() {
