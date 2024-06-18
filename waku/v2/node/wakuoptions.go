@@ -25,6 +25,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/waku-org/go-waku/waku/v2/onlinechecker"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
@@ -60,6 +61,8 @@ type WakuNodeParameters struct {
 
 	circuitRelayMinInterval time.Duration
 	circuitRelayBootDelay   time.Duration
+
+	onlineChecker onlinechecker.OnlineChecker
 
 	enableNTP bool
 	ntpURLs   []string
@@ -127,6 +130,7 @@ var DefaultWakuNodeOptions = []WakuNodeOption{
 	WithMaxPeerConnections(50),
 	WithMaxConnectionsPerIP(DefaultMaxConnectionsPerIP),
 	WithCircuitRelayParams(2*time.Second, 3*time.Minute),
+	WithOnlineChecker(onlinechecker.NewDefaultOnlineChecker(true)),
 }
 
 // MultiAddresses return the list of multiaddresses configured in the node
@@ -547,6 +551,16 @@ func WithCircuitRelayParams(minInterval time.Duration, bootDelay time.Duration) 
 func WithTopicHealthStatusChannel(ch chan<- peermanager.TopicHealthStatus) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.topicHealthNotifCh = ch
+		return nil
+	}
+}
+
+// WithOnlineChecker sets up an OnlineChecker which will be used to determine whether the node
+// is online or not. The OnlineChecker must be implemented by consumers of go-waku since they
+// have additional context to determine what it means for a node to be online/offline
+func WithOnlineChecker(onlineChecker onlinechecker.OnlineChecker) WakuNodeOption {
+	return func(params *WakuNodeParameters) error {
+		params.onlineChecker = onlineChecker
 		return nil
 	}
 }

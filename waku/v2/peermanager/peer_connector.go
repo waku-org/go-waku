@@ -16,6 +16,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/onlinechecker"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/service"
@@ -28,10 +29,11 @@ import (
 // PeerConnectionStrategy is a utility to connect to peers,
 // but only if we have not recently tried connecting to them already
 type PeerConnectionStrategy struct {
-	mux   sync.Mutex
-	cache *lru.TwoQueueCache
-	host  host.Host
-	pm    *PeerManager
+	mux           sync.Mutex
+	cache         *lru.TwoQueueCache
+	host          host.Host
+	pm            *PeerManager
+	onlineChecker onlinechecker.OnlineChecker
 
 	paused      atomic.Bool
 	dialTimeout time.Duration
@@ -60,8 +62,12 @@ func getBackOff() backoff.BackoffFactory {
 //
 // dialTimeout is how long we attempt to connect to a peer before giving up
 // minPeers is the minimum number of peers that the node should have
-func NewPeerConnectionStrategy(pm *PeerManager,
-	dialTimeout time.Duration, logger *zap.Logger) (*PeerConnectionStrategy, error) {
+func NewPeerConnectionStrategy(
+	pm *PeerManager,
+	onlineChecker onlinechecker.OnlineChecker,
+	dialTimeout time.Duration,
+	logger *zap.Logger,
+) (*PeerConnectionStrategy, error) {
 	// cacheSize is the size of a TwoQueueCache
 	cacheSize := 600
 	cache, err := lru.New2Q(cacheSize)
@@ -73,6 +79,7 @@ func NewPeerConnectionStrategy(pm *PeerManager,
 		cache:                  cache,
 		dialTimeout:            dialTimeout,
 		CommonDiscoveryService: service.NewCommonDiscoveryService(),
+		onlineChecker:          onlineChecker,
 		pm:                     pm,
 		backoff:                getBackOff(),
 		logger:                 logger.Named("discovery-connector"),
@@ -242,32 +249,26 @@ func (c *PeerConnectionStrategy) dialPeers() {
 		select {
 		case <-c.Context().Done():
 			return
-		default:
-			if c.isPaused() {
-				time.Sleep(100 * time.Millisecond) // Sleep for a while to avoid busy waiting
+		case pd, ok := <-c.GetListeningChan():
+			if !ok {
+				return
+			}
+
+			if !c.onlineChecker.IsOnline() {
 				continue
 			}
 
-			select {
-			case <-c.Context().Done():
-				return
-			case pd, ok := <-c.GetListeningChan():
-				if !ok {
-					return
-				}
-				addrInfo := pd.AddrInfo
+			addrInfo := pd.AddrInfo
 
-				if addrInfo.ID == c.host.ID() || addrInfo.ID == "" ||
-					c.host.Network().Connectedness(addrInfo.ID) == network.Connected {
-					continue
-				}
+			if addrInfo.ID == c.host.ID() || addrInfo.ID == "" ||
+				c.host.Network().Connectedness(addrInfo.ID) == network.Connected {
+				continue
+			}
 
-				if c.canDialPeer(addrInfo) {
-					sem <- struct{}{}
-					c.WaitGroup().Add(1)
-					go c.dialPeer(addrInfo, sem)
-				}
-			default:
+			if c.canDialPeer(addrInfo) {
+				sem <- struct{}{}
+				c.WaitGroup().Add(1)
+				go c.dialPeer(addrInfo, sem)
 			}
 		}
 	}
