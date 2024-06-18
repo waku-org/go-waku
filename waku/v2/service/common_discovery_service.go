@@ -18,8 +18,9 @@ type PeerData struct {
 }
 
 type CommonDiscoveryService struct {
-	commonService *CommonService
-	channel       chan PeerData
+	commonService     *CommonService
+	channel           chan PeerData
+	canWriteToChannel sync.Mutex
 }
 
 func NewCommonDiscoveryService() *CommonDiscoveryService {
@@ -42,7 +43,9 @@ func (sp *CommonDiscoveryService) Stop(stopFn func()) {
 		stopFn()
 		sp.WaitGroup().Wait() // waitgroup is waited here so that channel can be closed after all the go rountines have stopped in service.
 		// there is a wait in the CommonService too
+		sp.canWriteToChannel.Lock()
 		close(sp.channel)
+		sp.canWriteToChannel.Unlock()
 	})
 }
 func (sp *CommonDiscoveryService) GetListeningChan() <-chan PeerData {
@@ -52,6 +55,10 @@ func (sp *CommonDiscoveryService) PushToChan(data PeerData) bool {
 	if err := sp.ErrOnNotRunning(); err != nil {
 		return false
 	}
+
+	sp.canWriteToChannel.Lock()
+	defer sp.canWriteToChannel.Unlock()
+
 	select {
 	case sp.channel <- data:
 		return true
