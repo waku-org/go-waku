@@ -120,9 +120,7 @@ func writeMultiaddressField(localnode *enode.LocalNode, addrAggr []multiaddr.Mul
 		fieldRaw = append(fieldRaw, maRaw...)
 	}
 
-	if len(fieldRaw) != 0 && len(fieldRaw) <= 100 { // Max length for multiaddr field before triggering the 300 bytes limit
-		localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
-	}
+	localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
 
 	// This is to trigger the signing record err due to exceeding 300bytes limit
 	_ = localnode.Node()
