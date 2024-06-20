@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -183,7 +184,7 @@ func decapsulateP2P(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return addr, nil
 }
 
-func decapsulateCircuitRelayAddr(addr ma.Multiaddr) (ma.Multiaddr, error) {
+func decapsulateCircuitRelayAddr(ctx context.Context, addr ma.Multiaddr) (ma.Multiaddr, error) {
 	_, err := addr.ValueForProtocol(ma.P_CIRCUIT)
 	if err != nil {
 		return nil, errors.New("not a circuit relay address")
@@ -193,6 +194,16 @@ func decapsulateCircuitRelayAddr(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	addr, _ = ma.SplitFunc(addr, func(c ma.Component) bool {
 		return c.Protocol().Code == ma.P_CIRCUIT
 	})
+
+	// If the multiaddress is a dns4 address, we resolve it
+	addrs, err := madns.DefaultResolver.Resolve(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(addrs) > 0 {
+		return addrs[0], nil
+	}
 
 	return addr, nil
 }
@@ -221,10 +232,10 @@ func selectWSListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	return result, nil
 }
 
-func selectCircuitRelayListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
+func selectCircuitRelayListenAddresses(ctx context.Context, addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	var result []ma.Multiaddr
 	for _, addr := range addresses {
-		addr, err := decapsulateCircuitRelayAddr(addr)
+		addr, err := decapsulateCircuitRelayAddr(ctx, addr)
 		if err != nil {
 			continue
 		}
@@ -233,6 +244,7 @@ func selectCircuitRelayListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr
 
 	return result, nil
 }
+
 
 func filter0Port(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	var result []ma.Multiaddr
@@ -255,7 +267,7 @@ func filter0Port(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	return result, nil
 }
 
-func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, multiaddr []ma.Multiaddr, err error) {
+func (w *WakuNode) getENRAddresses(ctx context.Context, addrs []ma.Multiaddr) (extAddr *net.TCPAddr, multiaddr []ma.Multiaddr, err error) {
 	extAddr, err = selectMostExternalAddress(addrs)
 	if err != nil {
 		return nil, nil, err
@@ -266,7 +278,7 @@ func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, 
 		return nil, nil, err
 	}
 
-	circuitAddrs, err := selectCircuitRelayListenAddresses(addrs)
+	circuitAddrs, err := selectCircuitRelayListenAddresses(ctx, addrs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -288,7 +300,7 @@ func (w *WakuNode) getENRAddresses(addrs []ma.Multiaddr) (extAddr *net.TCPAddr, 
 }
 
 func (w *WakuNode) setupENR(ctx context.Context, addrs []ma.Multiaddr) error {
-	ipAddr, multiaddresses, err := w.getENRAddresses(addrs)
+	ipAddr, multiaddresses, err := w.getENRAddresses(ctx, addrs)
 	if err != nil {
 		w.log.Error("obtaining external address", zap.Error(err))
 		return err
