@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func TestEnodeToMultiAddr(t *testing.T) {
@@ -65,7 +66,7 @@ func updateLocalNode(localnode *enode.LocalNode, multiaddrs []ma.Multiaddr, ipAd
 		}
 	}
 
-	return Update(localnode, options...)
+	return Update(utils.Logger(), localnode, options...)
 }
 
 func TestMultiaddr(t *testing.T) {
