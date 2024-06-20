@@ -2,13 +2,14 @@ package discv5
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	dto "github.com/prometheus/client_model/go"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	wakuproto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/prometheus/client_golang/prometheus"
@@ -255,7 +256,7 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	// Update node with shard info
-	err = wenr.Update(l1, wenr.WithWakuRelaySharding(rs1[0]))
+	err = wenr.Update(utils.Logger(), l1, wenr.WithWakuRelaySharding(rs1[0]))
 	require.NoError(t, err)
 
 	// H2
@@ -271,7 +272,7 @@ func TestDiscV5WithShardFilter(t *testing.T) {
 	d2.SetHost(host2)
 
 	// Update second node with shard info used for first node as well
-	err = wenr.Update(l2, wenr.WithWakuRelaySharding(rs1[0]))
+	err = wenr.Update(utils.Logger(), l2, wenr.WithWakuRelaySharding(rs1[0]))
 	require.NoError(t, err)
 
 	// H3
