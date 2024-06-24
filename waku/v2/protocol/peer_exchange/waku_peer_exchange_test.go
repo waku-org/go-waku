@@ -291,7 +291,7 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	require.NoError(t, err)
 
 	// Prepare peer manager for host3
-	pm3 := peermanager.NewPeerManager(10, 20, nil, log)
+	pm3 := peermanager.NewPeerManager(10, 20, nil, true, log)
 	pm3.SetHost(host3)
 	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
 	require.NoError(t, err)
@@ -366,7 +366,7 @@ func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	// Prepare peer manager for host3
-	pm3 := peermanager.NewPeerManager(10, 20, nil, log)
+	pm3 := peermanager.NewPeerManager(10, 20, nil, true, log)
 	pm3.SetHost(host3)
 	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
 	require.NoError(t, err)

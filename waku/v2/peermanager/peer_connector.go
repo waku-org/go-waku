@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/waku-org/go-waku/logging"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
-	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/service"
 
 	"go.uber.org/zap"
@@ -127,7 +126,7 @@ func (c *PeerConnectionStrategy) consumeSubscription(s subscription) {
 				triggerImmediateConnection := false
 				//Not connecting to peer as soon as it is discovered,
 				// rather expecting this to be pushed from PeerManager based on the need.
-				if len(c.host.Network().Peers()) < waku_proto.GossipSubDMin {
+				if len(c.host.Network().Peers()) < c.pm.OutPeersTarget {
 					triggerImmediateConnection = true
 				}
 				c.logger.Debug("adding discovered peer", logging.HostID("peerID", p.AddrInfo.ID))
@@ -227,7 +226,7 @@ func (c *PeerConnectionStrategy) addConnectionBackoff(peerID peer.ID) {
 func (c *PeerConnectionStrategy) dialPeers() {
 	defer c.WaitGroup().Done()
 
-	maxGoRoutines := c.pm.OutRelayPeersTarget
+	maxGoRoutines := c.pm.OutPeersTarget
 	if maxGoRoutines > maxActiveDials {
 		maxGoRoutines = maxActiveDials
 	}
