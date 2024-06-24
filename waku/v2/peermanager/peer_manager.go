@@ -73,8 +73,8 @@ type PeerManager struct {
 	maxPeers               int
 	maxRelayPeers          int
 	logger                 *zap.Logger
-	InRelayPeersTarget     int
-	OutRelayPeersTarget    int
+	InPeersTarget          int
+	OutPeersTarget         int
 	host                   host.Host
 	serviceSlots           *ServiceSlots
 	ctx                    context.Context
@@ -85,6 +85,7 @@ type PeerManager struct {
 	wakuprotoToENRFieldMap map[protocol.ID]WakuProtoInfo
 	TopicHealthNotifCh     chan<- TopicHealthStatus
 	rttCache               *FastestPeerSelector
+	RelayEnabled           bool
 }
 
 // PeerSelection provides various options based on which Peer is selected from a list of peers.
@@ -143,6 +144,7 @@ func (pm *PeerManager) checkAndUpdateTopicHealth(topic *NodeTopicDetails) int {
 		}
 	}
 	//Update topic's health
+	//TODO: This should be done based on number of full-mesh peers.
 	oldHealth := topic.healthStatus
 	if healthyPeerCount < 1 { //Ideally this check should be done with minPeersForRelay, but leaving it as is for now.
 		topic.healthStatus = UnHealthy
@@ -174,31 +176,38 @@ func (pm *PeerManager) TopicHealth(pubsubTopic string) (TopicHealth, error) {
 }
 
 // NewPeerManager creates a new peerManager instance.
-func NewPeerManager(maxConnections int, maxPeers int, metadata *metadata.WakuMetadata, logger *zap.Logger) *PeerManager {
+func NewPeerManager(maxConnections int, maxPeers int, metadata *metadata.WakuMetadata, relayEnabled bool, logger *zap.Logger) *PeerManager {
+	var inPeersTarget, outPeersTarget, maxRelayPeers int
+	if relayEnabled {
+		maxRelayPeers, _ := relayAndServicePeers(maxConnections)
+		inPeersTarget, outPeersTarget = inAndOutRelayPeers(maxRelayPeers)
 
-	maxRelayPeers, _ := relayAndServicePeers(maxConnections)
-	inRelayPeersTarget, outRelayPeersTarget := inAndOutRelayPeers(maxRelayPeers)
-
-	if maxPeers == 0 || maxConnections > maxPeers {
-		maxPeers = maxConnsToPeerRatio * maxConnections
+		if maxPeers == 0 || maxConnections > maxPeers {
+			maxPeers = maxConnsToPeerRatio * maxConnections
+		}
+	} else {
+		maxRelayPeers = 0
+		inPeersTarget = 0
+		//TODO: ideally this should be 2 filter peers per topic, 2 lightpush peers per topic and 2-4 store nodes per topic
+		outPeersTarget = 10
 	}
-
 	pm := &PeerManager{
 		logger:                 logger.Named("peer-manager"),
 		metadata:               metadata,
 		maxRelayPeers:          maxRelayPeers,
-		InRelayPeersTarget:     inRelayPeersTarget,
-		OutRelayPeersTarget:    outRelayPeersTarget,
+		InPeersTarget:          inPeersTarget,
+		OutPeersTarget:         outPeersTarget,
 		serviceSlots:           NewServiceSlot(),
 		subRelayTopics:         make(map[string]*NodeTopicDetails),
 		maxPeers:               maxPeers,
 		wakuprotoToENRFieldMap: map[protocol.ID]WakuProtoInfo{},
 		rttCache:               NewFastestPeerSelector(logger),
+		RelayEnabled:           relayEnabled,
 	}
 	logger.Info("PeerManager init values", zap.Int("maxConnections", maxConnections),
 		zap.Int("maxRelayPeers", maxRelayPeers),
-		zap.Int("outRelayPeersTarget", outRelayPeersTarget),
-		zap.Int("inRelayPeersTarget", pm.InRelayPeersTarget),
+		zap.Int("outPeersTarget", outPeersTarget),
+		zap.Int("inPeersTarget", pm.InPeersTarget),
 		zap.Int("maxPeers", maxPeers))
 
 	return pm
@@ -225,7 +234,7 @@ func (pm *PeerManager) Start(ctx context.Context) {
 	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
 
 	pm.ctx = ctx
-	if pm.sub != nil {
+	if pm.sub != nil && pm.RelayEnabled {
 		go pm.peerEventLoop(ctx)
 	}
 	go pm.connectivityLoop(ctx)
@@ -233,7 +242,7 @@ func (pm *PeerManager) Start(ctx context.Context) {
 
 // This is a connectivity loop, which currently checks and prunes inbound connections.
 func (pm *PeerManager) connectivityLoop(ctx context.Context) {
-	pm.connectToRelayPeers()
+	pm.connectToPeers()
 	t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
 	defer t.Stop()
 	for {
@@ -241,7 +250,7 @@ func (pm *PeerManager) connectivityLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			pm.connectToRelayPeers()
+			pm.connectToPeers()
 		}
 	}
 }
@@ -302,10 +311,10 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 		// match those peers that are currently connected
 
 		curPeerLen := pm.checkAndUpdateTopicHealth(topicInst)
-		if curPeerLen < waku_proto.GossipSubDMin {
-			pm.logger.Debug("subscribed topic is not sufficiently healthy, initiating more connections to maintain health",
+		if curPeerLen < pm.OutPeersTarget {
+			pm.logger.Debug("subscribed topic has not reached target peers, initiating more connections to maintain healthy mesh",
 				zap.String("pubSubTopic", topicStr), zap.Int("connectedPeerCount", curPeerLen),
-				zap.Int("optimumPeers", waku_proto.GossipSubDMin))
+				zap.Int("targetPeers", pm.OutPeersTarget))
 			//Find not connected peers.
 			notConnectedPeers := pm.getNotConnectedPers(topicStr)
 			if notConnectedPeers.Len() == 0 {
@@ -315,35 +324,42 @@ func (pm *PeerManager) ensureMinRelayConnsPerTopic() {
 			}
 			pm.logger.Debug("connecting to eligible peers in peerstore", zap.String("pubSubTopic", topicStr))
 			//Connect to eligible peers.
-			numPeersToConnect := waku_proto.GossipSubDMin - curPeerLen
+			numPeersToConnect := pm.OutPeersTarget - curPeerLen
 
 			if numPeersToConnect > notConnectedPeers.Len() {
 				numPeersToConnect = notConnectedPeers.Len()
 			}
-			pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
+			pm.connectToSpecifiedPeers(notConnectedPeers[0:numPeersToConnect])
 		}
 	}
 }
 
-// connectToRelayPeers ensures minimum D connections are there for each pubSubTopic.
+// connectToPeers ensures minimum D connections are there for each pubSubTopic.
 // If not, initiates connections to additional peers.
 // It also checks for incoming relay connections and prunes once they cross inRelayTarget
-func (pm *PeerManager) connectToRelayPeers() {
-	//Check for out peer connections and connect to more peers.
-	pm.ensureMinRelayConnsPerTopic()
+func (pm *PeerManager) connectToPeers() {
+	if pm.RelayEnabled {
+		//Check for out peer connections and connect to more peers.
+		pm.ensureMinRelayConnsPerTopic()
 
-	inRelayPeers, outRelayPeers := pm.getRelayPeers()
-	pm.logger.Debug("number of relay peers connected",
-		zap.Int("in", inRelayPeers.Len()),
-		zap.Int("out", outRelayPeers.Len()))
-	if inRelayPeers.Len() > 0 &&
-		inRelayPeers.Len() > pm.InRelayPeersTarget {
-		pm.pruneInRelayConns(inRelayPeers)
+		inRelayPeers, outRelayPeers := pm.getRelayPeers()
+		pm.logger.Debug("number of relay peers connected",
+			zap.Int("in", inRelayPeers.Len()),
+			zap.Int("out", outRelayPeers.Len()))
+		if inRelayPeers.Len() > 0 &&
+			inRelayPeers.Len() > pm.InPeersTarget {
+			pm.pruneInRelayConns(inRelayPeers)
+		}
+	} else {
+		//TODO: Connect to filter peers per topic as of now.
+		//Fetch filter peers from peerStore, TODO: topics for lightNode not available here?
+		//Filter subscribe to notify peerManager whenever a new topic/shard is subscribed to.
+		pm.logger.Debug("light mode..not doing anything")
 	}
 }
 
-// connectToPeers connects to peers provided in the list if the addresses have not expired.
-func (pm *PeerManager) connectToPeers(peers peer.IDSlice) {
+// connectToSpecifiedPeers connects to peers provided in the list if the addresses have not expired.
+func (pm *PeerManager) connectToSpecifiedPeers(peers peer.IDSlice) {
 	for _, peerID := range peers {
 		peerData := AddrInfoToPeerData(wps.PeerManager, peerID, pm.host)
 		if peerData == nil {
@@ -377,8 +393,8 @@ func (pm *PeerManager) pruneInRelayConns(inRelayPeers peer.IDSlice) {
 	//TODO: Need to have more intelligent way of doing this, maybe peer scores.
 	//TODO: Keep optimalPeersRequired for a pubSubTopic in mind while pruning connections to peers.
 	pm.logger.Info("peer connections exceed target relay peers, hence pruning",
-		zap.Int("cnt", inRelayPeers.Len()), zap.Int("target", pm.InRelayPeersTarget))
-	for pruningStartIndex := pm.InRelayPeersTarget; pruningStartIndex < inRelayPeers.Len(); pruningStartIndex++ {
+		zap.Int("cnt", inRelayPeers.Len()), zap.Int("target", pm.InPeersTarget))
+	for pruningStartIndex := pm.InPeersTarget; pruningStartIndex < inRelayPeers.Len(); pruningStartIndex++ {
 		p := inRelayPeers[pruningStartIndex]
 		err := pm.host.Network().ClosePeer(p)
 		if err != nil {

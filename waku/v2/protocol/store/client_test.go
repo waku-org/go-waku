@@ -43,7 +43,7 @@ func TestStoreClient(t *testing.T) {
 	err = wakuRelay.Start(context.Background())
 	require.NoError(t, err)
 
-	pm := peermanager.NewPeerManager(5, 5, nil, utils.Logger())
+	pm := peermanager.NewPeerManager(5, 5, nil, true, utils.Logger())
 	pm.SetHost(host)
 	err = pm.SubscribeToRelayEvtBus(wakuRelay.Events())
 	require.NoError(t, err)
