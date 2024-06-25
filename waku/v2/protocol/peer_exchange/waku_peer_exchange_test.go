@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/waku-org/go-waku/waku/v2/onlinechecker"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"go.uber.org/zap"
@@ -293,7 +294,7 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 	// Prepare peer manager for host3
 	pm3 := peermanager.NewPeerManager(10, 20, nil, log)
 	pm3.SetHost(host3)
-	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
+	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, onlinechecker.NewDefaultOnlineChecker(true), 30*time.Second, utils.Logger())
 	require.NoError(t, err)
 	pxPeerConn3.SetHost(host3)
 	err = pxPeerConn3.Start(context.Background())
@@ -368,7 +369,7 @@ func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
 	// Prepare peer manager for host3
 	pm3 := peermanager.NewPeerManager(10, 20, nil, log)
 	pm3.SetHost(host3)
-	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, 30*time.Second, utils.Logger())
+	pxPeerConn3, err := peermanager.NewPeerConnectionStrategy(pm3, onlinechecker.NewDefaultOnlineChecker(true), 30*time.Second, utils.Logger())
 	require.NoError(t, err)
 	pxPeerConn3.SetHost(host3)
 	err = pxPeerConn3.Start(context.Background())
