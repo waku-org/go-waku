@@ -251,7 +251,7 @@ func createHostWithDiscv5AndPM(t *testing.T, hostName string, topic string, enrF
 	rs, err := wakuproto.TopicsToRelayShards(topic)
 	require.NoError(t, err)
 
-	err = wenr.Update(localNode, wenr.WithWakuRelaySharding(rs[0]))
+	err = wenr.Update(utils.Logger(), localNode, wenr.WithWakuRelaySharding(rs[0]))
 	require.NoError(t, err)
 	pm := NewPeerManager(10, 20, nil, logger)
 	pm.SetHost(host)

@@ -66,15 +66,15 @@ vendor:
 
 lint-install:
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		bash -s -- -b $(shell ${GOCMD} env GOPATH)/bin v1.52.2
+		bash -s -- -b $(shell ${GOCMD} env GOPATH)/bin v1.59.1
 
 lint:
 	@echo "lint"
-	@golangci-lint run ./... --deadline=5m
+	@golangci-lint run ./...
 
 lint-full:
 	@echo "lint"
-	@golangci-lint run ./... --config=./.golangci.full.yaml --deadline=5m
+	@golangci-lint run ./... --config=./.golangci.full.yaml 
 
 test-with-race:
 	${GOCMD} test -race -timeout 300s ./waku/... ./cmd/waku/server/...
