@@ -234,17 +234,24 @@ func selectWSListenAddresses(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 
 func selectCircuitRelayListenAddresses(ctx context.Context, addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	var result []ma.Multiaddr
+
 	for _, addr := range addresses {
 		addr, err := decapsulateCircuitRelayAddr(ctx, addr)
 		if err != nil {
 			continue
 		}
+
+		_, noWS := addr.ValueForProtocol(ma.P_WSS)
+		_, noWSS := addr.ValueForProtocol(ma.P_WS)
+		if noWS == nil || noWSS == nil { // WS or WSS found
+			continue
+		}
+
 		result = append(result, addr)
 	}
 
 	return result, nil
 }
-
 
 func filter0Port(addresses []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	var result []ma.Multiaddr
