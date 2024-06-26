@@ -7,7 +7,9 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
@@ -30,12 +32,34 @@ func WithMultiaddress(multiaddrs ...multiaddr.Multiaddr) ENROption {
 		// Randomly shuffle multiaddresses
 		rand.Shuffle(len(multiaddrs), func(i, j int) { multiaddrs[i], multiaddrs[j] = multiaddrs[j], multiaddrs[i] })
 
+		// Creating a temporary localnode to test writing the multiaddresses
+		// Without affecting the node's localnode (since the .Node()) is called
+		// async in go-discover, and while testing for how many multiaddresses
+		// can be stored in the ENR might end up with more than 300 bytes in the
+		// node's ENR, and panic
+		privk, err := crypto.GenerateKey()
+		if err != nil {
+			return err
+		}
+
+		b, err := localnode.Node().MarshalText()
+		if err != nil {
+			return err
+		}
+
+		tmpDb, err := enode.OpenDB("")
+		if err != nil {
+			return err
+		}
+		tmpLocalnode := enode.NewLocalNode(tmpDb, privk)
+		tmpLocalnode.Node().UnmarshalText(b)
+
 		// Adding extra multiaddresses. Should probably not exceed the enr max size of 300bytes
 		failedOnceWritingENR := false
 		couldWriteENRatLeastOnce := false
 		successIdx := -1
 		for i := len(multiaddrs); i > 0; i-- {
-			err = writeMultiaddressField(localnode, multiaddrs[0:i])
+			err = writeMultiaddressField(tmpLocalnode, multiaddrs[0:i])
 			if err == nil {
 				couldWriteENRatLeastOnce = true
 				successIdx = i
@@ -46,6 +70,14 @@ func WithMultiaddress(multiaddrs ...multiaddr.Multiaddr) ENROption {
 
 		if failedOnceWritingENR && couldWriteENRatLeastOnce {
 			// Could write a subset of multiaddresses but not all
+			err = writeMultiaddressField(tmpLocalnode, multiaddrs[0:successIdx])
+			if err != nil {
+				return errors.New("could not write new ENR")
+			}
+		}
+
+		// Multiaddress was written succesfully. Now writting on the actual node
+		if couldWriteENRatLeastOnce {
 			err = writeMultiaddressField(localnode, multiaddrs[0:successIdx])
 			if err != nil {
 				return errors.New("could not write new ENR")
@@ -130,6 +162,10 @@ func writeMultiaddressField(localnode *enode.LocalNode, addrAggr []multiaddr.Mul
 	}
 
 	localnode.Set(enr.WithEntry(MultiaddrENRField, fieldRaw))
+
+	// Writting is async and done every `recordUpdateThrottle` (1ms) according to
+	// locanode implementation. We are waiting some milliseconds to trigger the signature
+	time.Sleep(5 * time.Millisecond)
 
 	// This is to trigger the signing record err due to exceeding 300bytes limit
 	_ = localnode.Node()
