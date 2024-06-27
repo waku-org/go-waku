@@ -91,12 +91,12 @@ func TestRetrieveProvidePeerExchangePeers(t *testing.T) {
 
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, 0, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
 	pxPeerConn3 := discv5.NewTestPeerDiscoverer()
-	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px3, err := NewWakuPeerExchange(nil, 0, pxPeerConn3, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
 
@@ -171,12 +171,12 @@ func TestRetrieveFilteredPeerExchangePeers(t *testing.T) {
 
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, 0, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
 	pxPeerConn3 := discv5.NewTestPeerDiscoverer()
-	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px3, err := NewWakuPeerExchange(nil, 0, pxPeerConn3, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
 
@@ -234,7 +234,7 @@ func TestPeerExchangeOptions(t *testing.T) {
 
 	// Mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, 0, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
@@ -302,11 +302,11 @@ func TestRetrieveProvidePeerExchangeWithPMAndPeerAddr(t *testing.T) {
 
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, 0, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
-	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
+	px3, err := NewWakuPeerExchange(nil, 0, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
 
@@ -382,11 +382,11 @@ func TestRetrieveProvidePeerExchangeWithPMOnly(t *testing.T) {
 
 	// mount peer exchange
 	pxPeerConn1 := discv5.NewTestPeerDiscoverer()
-	px1, err := NewWakuPeerExchange(d1, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
+	px1, err := NewWakuPeerExchange(d1, 0, pxPeerConn1, nil, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px1.SetHost(host1)
 
-	px3, err := NewWakuPeerExchange(nil, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
+	px3, err := NewWakuPeerExchange(nil, 0, pxPeerConn3, pm3, prometheus.DefaultRegisterer, utils.Logger())
 	require.NoError(t, err)
 	px3.SetHost(host3)
 
