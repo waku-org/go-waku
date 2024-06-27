@@ -52,8 +52,10 @@ func WithMultiaddress(multiaddrs ...multiaddr.Multiaddr) ENROption {
 			return err
 		}
 		tmpLocalnode := enode.NewLocalNode(tmpDb, privk)
-		tmpLocalnode.Node().UnmarshalText(b)
-
+		err = tmpLocalnode.Node().UnmarshalText(b)
+		if err != nil {
+			return err
+		}
 		// Adding extra multiaddresses. Should probably not exceed the enr max size of 300bytes
 		failedOnceWritingENR := false
 		couldWriteENRatLeastOnce := false
