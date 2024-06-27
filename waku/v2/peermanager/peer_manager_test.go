@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/discv5"
+	"github.com/waku-org/go-waku/waku/v2/onlinechecker"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	wakuproto "github.com/waku-org/go-waku/waku/v2/protocol"
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -30,7 +31,7 @@ func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	require.NoError(t, err)
 
 	// host 1 is used by peer manager
-	pm := NewPeerManager(10, 20, nil, utils.Logger())
+	pm := NewPeerManager(10, 20, nil, true, utils.Logger())
 	pm.SetHost(h1)
 
 	return ctx, pm, func() {
@@ -220,7 +221,7 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 func TestConnectToRelayPeers(t *testing.T) {
 
 	ctx, pm, deferFn := initTest(t)
-	pc, err := NewPeerConnectionStrategy(pm, 120*time.Second, pm.logger)
+	pc, err := NewPeerConnectionStrategy(pm, onlinechecker.NewDefaultOnlineChecker(true), 120*time.Second, pm.logger)
 	require.NoError(t, err)
 	err = pc.Start(ctx)
 	require.NoError(t, err)
@@ -228,7 +229,7 @@ func TestConnectToRelayPeers(t *testing.T) {
 
 	defer deferFn()
 
-	pm.connectToRelayPeers()
+	pm.connectToPeers()
 
 }
 
@@ -252,9 +253,9 @@ func createHostWithDiscv5AndPM(t *testing.T, hostName string, topic string, enrF
 
 	err = wenr.Update(utils.Logger(), localNode, wenr.WithWakuRelaySharding(rs[0]))
 	require.NoError(t, err)
-	pm := NewPeerManager(10, 20, nil, logger)
+	pm := NewPeerManager(10, 20, nil, true, logger)
 	pm.SetHost(host)
-	peerconn, err := NewPeerConnectionStrategy(pm, 30*time.Second, logger)
+	peerconn, err := NewPeerConnectionStrategy(pm, onlinechecker.NewDefaultOnlineChecker(true), 30*time.Second, logger)
 	require.NoError(t, err)
 	discv5, err := discv5.NewDiscoveryV5(prvKey1, localNode, peerconn, prometheus.DefaultRegisterer, logger, discv5.WithUDPPort(uint(udpPort)), discv5.WithBootnodes(bootnode))
 	require.NoError(t, err)

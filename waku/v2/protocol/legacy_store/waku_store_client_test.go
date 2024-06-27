@@ -36,7 +36,7 @@ func TestQueryOptions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Let peer manager reside at host
-	pm := peermanager.NewPeerManager(5, 5, nil, utils.Logger())
+	pm := peermanager.NewPeerManager(5, 5, nil, true, utils.Logger())
 	pm.SetHost(host)
 
 	// Add host2 to peerstore
