@@ -89,7 +89,7 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 		s.Require().NotEqual(fullNodeData2.FullNodeHost.ID(), sub.PeerID)
 	}
 
-	apiSub.Unsubscribe()
+	apiSub.cleanup()
 	for range apiSub.DataCh {
 	}
 	s.Log.Info("DataCh is closed")
