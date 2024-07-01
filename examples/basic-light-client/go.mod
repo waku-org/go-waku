@@ -6,7 +6,7 @@ toolchain go1.21.10
 
 replace github.com/waku-org/go-waku => ../..
 
-replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.4
+replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.15
 
 require (
 	github.com/ethereum/go-ethereum v1.10.26
