@@ -46,9 +46,9 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 
 	s.Require().Equal(apiConfig.MaxPeers, 2)
 	s.Require().Equal(contentFilter.PubsubTopic, s.TestTopic)
-
+	ctx, cancel := context.WithCancel(context.Background())
 	s.Log.Info("About to perform API Subscribe()")
-	apiSub, err := Subscribe(context.Background(), s.LightNode, contentFilter, apiConfig, s.Log)
+	apiSub, err := Subscribe(ctx, s.LightNode, contentFilter, apiConfig, s.Log)
 	s.Require().NoError(err)
 	s.Require().Equal(apiSub.ContentFilter, contentFilter)
 	s.Log.Info("Subscribed")
@@ -89,7 +89,8 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 		s.Require().NotEqual(fullNodeData2.FullNodeHost.ID(), sub.PeerID)
 	}
 
-	apiSub.Unsubscribe()
+	apiSub.Unsubscribe(contentFilter)
+	cancel()
 	for range apiSub.DataCh {
 	}
 	s.Log.Info("DataCh is closed")
