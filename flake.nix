@@ -34,17 +34,32 @@
           meta = { mainProgram = "waku"; };
         };
     in rec {
-      packages = forAllSystems (system: {
-        node    = buildPackage system ["cmd/waku"];
-        library = buildPackage system ["library/c"];
+      packages = forAllSystems (system: let
+        pkgs = pkgsFor.${system};
+        buildPackage = pkgs.callPackage ./default.nix;
+      in rec {
+        default = node;
+        node = buildPackage {
+          inherit self;
+          subPkgs = ["cmd/waku"];
+        };
+        static-library = buildPackage {
+          inherit self;
+          subPkgs = ["library/c"];
+          ldflags = ["-buildmode=c-archive"];
+          output = "libgowaku.a";
+        };
+        dynamic-library = buildPackage {
+          inherit self;
+          subPkgs = ["library/c"];
+          ldflags = ["-buildmode=c-shared"];
+          cgoLdflags = "-Wl,-Bsymbolic,-soname,libgowaku.so.0";
+          output = "libgowaku.so";
+        };
       });
 
-      defaultPackage = forAllSystems (system:
-        buildPackage system ["cmd/waku"]
-      );
-
       devShells = forAllSystems (system: let
-        pkgs = nixpkgsFor.${system};
+        pkgs = pkgsFor.${system};
         inherit (pkgs) lib stdenv mkShell;
       in {
         default = mkShell {
