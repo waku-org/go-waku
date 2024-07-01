@@ -2,9 +2,12 @@ package node
 
 import (
 	"context"
+	"errors"
+	"math/rand"
 	"sync"
 	"time"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
@@ -18,6 +21,8 @@ const maxAllowedPingFailures = 2
 // than sleepDectectionIntervalFactor * keepAlivePeriod, force the ping verification to disconnect
 // the peers if they don't reply back
 const sleepDetectionIntervalFactor = 3
+
+const maxPeersToPing = 10
 
 // startKeepAlive creates a go routine that periodically pings connected peers.
 // This is necessary because TCP connections are automatically closed due to inactivity,
@@ -36,23 +41,47 @@ func (w *WakuNode) startKeepAlive(ctx context.Context, t time.Duration) {
 		select {
 		case <-ticker.C:
 			difference := w.timesource.Now().UnixNano() - lastTimeExecuted.UnixNano()
-			forceDisconnectOnPingFailure := false
 			if difference > sleepDetectionInterval {
-				forceDisconnectOnPingFailure = true
 				lastTimeExecuted = w.timesource.Now()
-				w.log.Warn("keep alive hasnt been executed recently. Killing connections to peers if ping fails")
+				w.log.Warn("keep alive hasnt been executed recently. Killing all connections")
+				for _, p := range w.host.Network().Peers() {
+					err := w.host.Network().ClosePeer(p)
+					if err != nil {
+						w.log.Debug("closing conn to peer", zap.Error(err))
+					}
+				}
 				continue
 			}
 
-			// Network's peers collection,
-			// contains only currently active peers
-			pingWg := sync.WaitGroup{}
-			peersToPing := w.host.Network().Peers()
-			pingWg.Add(len(peersToPing))
-			for _, p := range peersToPing {
-				if p != w.host.ID() {
-					go w.pingPeer(ctx, &pingWg, p, forceDisconnectOnPingFailure)
+			peersToPing := make(map[peer.ID]struct{})
+
+			// if relay is enabled, we priorize pinging full mesh peers
+			if w.Relay() != nil {
+				for _, t := range w.Relay().Topics() {
+					for _, m := range w.Relay().PubSub().Router().(*pubsub.GossipSubRouter).MeshPeers(t) {
+						peersToPing[m] = struct{}{}
+					}
 				}
+			}
+
+			// Add some other peers that are connected but are not full mesh peers
+			if maxPeersToPing-len(peersToPing) > 0 {
+				connectedPeers := w.host.Network().Peers()
+				rand.Shuffle(len(connectedPeers), func(i, j int) { connectedPeers[i], connectedPeers[j] = connectedPeers[j], connectedPeers[i] })
+				for _, p := range connectedPeers {
+					if _, ok := peersToPing[p]; !ok && p != w.host.ID() {
+						peersToPing[p] = struct{}{}
+					}
+					if len(peersToPing) == maxPeersToPing {
+						break
+					}
+				}
+			}
+
+			pingWg := sync.WaitGroup{}
+			pingWg.Add(len(peersToPing))
+			for p := range peersToPing {
+				go w.pingPeer(ctx, &pingWg, p)
 			}
 			pingWg.Wait()
 
@@ -64,41 +93,44 @@ func (w *WakuNode) startKeepAlive(ctx context.Context, t time.Duration) {
 	}
 }
 
-func (w *WakuNode) pingPeer(ctx context.Context, wg *sync.WaitGroup, peerID peer.ID, forceDisconnectOnFail bool) {
+func (w *WakuNode) pingPeer(ctx context.Context, wg *sync.WaitGroup, peerID peer.ID) {
 	defer wg.Done()
 
-	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
-	defer cancel()
-
 	logger := w.log.With(logging.HostID("peer", peerID))
-	logger.Debug("pinging")
-	pr := ping.Ping(ctx, w.host, peerID)
-	select {
-	case res := <-pr:
-		if res.Error != nil {
-			w.keepAliveMutex.Lock()
-			w.keepAliveFails[peerID]++
-			w.keepAliveMutex.Unlock()
-			logger.Debug("could not ping", zap.Error(res.Error))
-		} else {
-			w.keepAliveMutex.Lock()
-			delete(w.keepAliveFails, peerID)
-			w.keepAliveMutex.Unlock()
+
+	for i := 0; i < maxAllowedPingFailures; i++ {
+		if w.host.Network().Connectedness(peerID) != network.Connected {
+			// Peer is no longer connected. No need to ping
+			return
 		}
-	case <-ctx.Done():
-		w.keepAliveMutex.Lock()
-		w.keepAliveFails[peerID]++
-		w.keepAliveMutex.Unlock()
-		logger.Debug("could not ping (context done)", zap.Error(ctx.Err()))
+
+		logger.Debug("pinging")
+		func() {
+			ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
+			defer cancel()
+
+			pr := ping.Ping(ctx, w.host, peerID)
+			select {
+			case res := <-pr:
+				if res.Error != nil {
+					logger.Debug("could not ping", zap.Error(res.Error))
+				} else {
+					return
+				}
+			case <-ctx.Done():
+				if errors.Is(ctx.Err(), context.Canceled) {
+					// Parent context was cancelled
+					return
+				}
+
+				logger.Debug("could not ping (context)", zap.Error(ctx.Err()))
+			}
+		}()
+
 	}
 
-	w.keepAliveMutex.Lock()
-	if (forceDisconnectOnFail || w.keepAliveFails[peerID] > maxAllowedPingFailures) && w.host.Network().Connectedness(peerID) == network.Connected {
-		logger.Info("disconnecting peer")
-		if err := w.host.Network().ClosePeer(peerID); err != nil {
-			logger.Debug("closing conn to peer", zap.Error(err))
-		}
-		w.keepAliveFails[peerID] = 0
+	logger.Info("disconnecting dead peer")
+	if err := w.host.Network().ClosePeer(peerID); err != nil {
+		logger.Debug("closing conn to peer", zap.Error(err))
 	}
-	w.keepAliveMutex.Unlock()
 }

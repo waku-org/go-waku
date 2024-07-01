@@ -116,9 +116,6 @@ type WakuNode struct {
 	addressChangesSub event.Subscription
 	enrChangeCh       chan struct{}
 
-	keepAliveMutex sync.Mutex
-	keepAliveFails map[peer.ID]int
-
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
 
@@ -193,7 +190,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.opts = params
 	w.log = params.logger.Named("node2")
 	w.wg = &sync.WaitGroup{}
-	w.keepAliveFails = make(map[peer.ID]int)
 	w.wakuFlag = enr.NewWakuEnrBitfield(w.opts.enableLightPush, w.opts.enableFilterFullNode, w.opts.enableStore, w.opts.enableRelay)
 	w.circuitRelayNodes = make(chan peer.AddrInfo)
 	w.metrics = newMetrics(params.prometheusReg)
