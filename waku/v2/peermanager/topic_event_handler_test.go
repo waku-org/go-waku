@@ -3,6 +3,9 @@ package peermanager
 import (
 	"context"
 	"crypto/rand"
+	"testing"
+	"time"
+
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -17,8 +20,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 )
 
 func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, relay.Broadcaster) {
@@ -44,7 +45,7 @@ func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, 
 
 func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h *host.Host) (*PeerManager, event.Bus) {
 	// Host 1 used by peer manager
-	pm := NewPeerManager(10, 20, nil, utils.Logger())
+	pm := NewPeerManager(10, 20, nil, true, utils.Logger())
 	pm.SetHost(*h)
 
 	// Create a new relay event bus
@@ -77,7 +78,7 @@ func TestSubscribeToRelayEvtBus(t *testing.T) {
 	r, h1, _ := makeWakuRelay(t, log)
 
 	// Host 1 used by peer manager
-	pm := NewPeerManager(10, 20, nil, utils.Logger())
+	pm := NewPeerManager(10, 20, nil, true, utils.Logger())
 	pm.SetHost(h1)
 
 	// Create a new relay event bus
