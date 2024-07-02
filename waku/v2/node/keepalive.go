@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
@@ -27,19 +26,28 @@ const maxPeersToPing = 10
 // startKeepAlive creates a go routine that periodically pings connected peers.
 // This is necessary because TCP connections are automatically closed due to inactivity,
 // and doing a ping will avoid this (with a small bandwidth cost)
-func (w *WakuNode) startKeepAlive(ctx context.Context, t time.Duration) {
+func (w *WakuNode) startKeepAlive(ctx context.Context, randomPeersPingDuration time.Duration, allPeersPingDuration time.Duration) {
 	defer w.wg.Done()
-	w.log.Info("setting up ping protocol", zap.Duration("duration", t))
-	ticker := time.NewTicker(t)
-	defer ticker.Stop()
+	w.log.Info("setting up ping protocol", zap.Duration("randomPeersPingDuration", randomPeersPingDuration), zap.Duration("allPeersPingDuration", allPeersPingDuration))
+
+	randomPeersTicker := time.NewTicker(randomPeersPingDuration)
+	defer randomPeersTicker.Stop()
+
+	allPeersTicker := time.NewTicker(randomPeersPingDuration)
+	defer allPeersTicker.Stop()
 
 	lastTimeExecuted := w.timesource.Now()
 
-	sleepDetectionInterval := int64(t) * sleepDetectionIntervalFactor
+	sleepDetectionInterval := int64(randomPeersPingDuration) * sleepDetectionIntervalFactor
 
 	for {
+		peersToPing := []peer.ID{}
+
 		select {
-		case <-ticker.C:
+		case <-allPeersTicker.C:
+			peersToPing = w.host.Network().Peers()
+
+		case <-randomPeersTicker.C:
 			difference := w.timesource.Now().UnixNano() - lastTimeExecuted.UnixNano()
 			if difference > sleepDetectionInterval {
 				lastTimeExecuted = w.timesource.Now()
@@ -53,43 +61,29 @@ func (w *WakuNode) startKeepAlive(ctx context.Context, t time.Duration) {
 				continue
 			}
 
-			peersToPing := make(map[peer.ID]struct{})
-
-			// if relay is enabled, we priorize pinging full mesh peers
-			if w.Relay() != nil {
-				for _, t := range w.Relay().Topics() {
-					for _, m := range w.Relay().PubSub().Router().(*pubsub.GossipSubRouter).MeshPeers(t) {
-						peersToPing[m] = struct{}{}
-					}
-				}
-			}
-
-			// Add some other peers that are connected but are not full mesh peers
 			if maxPeersToPing-len(peersToPing) > 0 {
 				connectedPeers := w.host.Network().Peers()
 				rand.Shuffle(len(connectedPeers), func(i, j int) { connectedPeers[i], connectedPeers[j] = connectedPeers[j], connectedPeers[i] })
-				for _, p := range connectedPeers {
-					if _, ok := peersToPing[p]; !ok && p != w.host.ID() {
-						peersToPing[p] = struct{}{}
-					}
-					if len(peersToPing) == maxPeersToPing {
-						break
-					}
+				peerLen := len(peersToPing)
+				if peerLen > maxPeersToPing {
+					peerLen = maxPeersToPing
 				}
+				peersToPing = connectedPeers[0:peerLen]
 			}
 
-			pingWg := sync.WaitGroup{}
-			pingWg.Add(len(peersToPing))
-			for p := range peersToPing {
-				go w.pingPeer(ctx, &pingWg, p)
-			}
-			pingWg.Wait()
-
-			lastTimeExecuted = w.timesource.Now()
 		case <-ctx.Done():
 			w.log.Info("stopping ping protocol")
 			return
 		}
+
+		pingWg := sync.WaitGroup{}
+		pingWg.Add(len(peersToPing))
+		for _, p := range peersToPing {
+			go w.pingPeer(ctx, &pingWg, p)
+		}
+		pingWg.Wait()
+
+		lastTimeExecuted = w.timesource.Now()
 	}
 }
 

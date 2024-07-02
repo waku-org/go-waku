@@ -134,7 +134,7 @@ func Execute(options NodeOptions) error {
 		node.WithLogLevel(lvl),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
-		node.WithKeepAlive(options.KeepAlive),
+		node.WithKeepAlive(10*time.Second, options.KeepAlive),
 		node.WithMaxPeerConnections(options.MaxPeerConnections),
 		node.WithPrometheusRegisterer(prometheus.DefaultRegisterer),
 		node.WithPeerStoreCapacity(options.PeerStoreCapacity),

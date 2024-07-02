@@ -67,7 +67,7 @@ func TestPeriodicKeepAlive(t *testing.T) {
 		WithPrivateKey(prvKey),
 		WithHostAddress(hostAddr),
 		WithWakuRelay(),
-		WithKeepAlive(time.Second),
+		WithKeepAlive(time.Minute, time.Second),
 	)
 
 	require.NoError(t, err)
