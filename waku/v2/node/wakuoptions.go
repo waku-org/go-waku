@@ -114,7 +114,8 @@ type WakuNodeParameters struct {
 	rlnTreePath                  string
 	rlnMembershipContractAddress common.Address
 
-	keepAliveInterval time.Duration
+	keepAliveRandomPeersInterval time.Duration
+	keepAliveAllPeersInterval    time.Duration
 
 	enableLightPush bool
 
@@ -477,9 +478,10 @@ func WithLightPush(lightpushOpts ...lightpush.Option) WakuNodeOption {
 
 // WithKeepAlive is a WakuNodeOption used to set the interval of time when
 // each peer will be ping to keep the TCP connection alive
-func WithKeepAlive(t time.Duration) WakuNodeOption {
+func WithKeepAlive(randomPeersInterval time.Duration, allPeersInterval time.Duration) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
-		params.keepAliveInterval = t
+		params.keepAliveRandomPeersInterval = randomPeersInterval
+		params.keepAliveAllPeersInterval = allPeersInterval
 		return nil
 	}
 }

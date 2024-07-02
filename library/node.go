@@ -163,7 +163,7 @@ func NewNode(instance *WakuInstance, configJSON string) error {
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
-		node.WithKeepAlive(time.Duration(*config.KeepAliveInterval) * time.Second),
+		node.WithKeepAlive(10*time.Second, time.Duration(*config.KeepAliveInterval)*time.Second),
 	}
 
 	if *config.EnableRelay {
