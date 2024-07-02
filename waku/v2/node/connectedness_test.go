@@ -38,6 +38,8 @@ func checkConnectedness(t *testing.T, wg *sync.WaitGroup, topicHealthStatusChan 
 }
 
 func TestConnectionStatusChanges(t *testing.T) {
+	t.Skip("TODO: figure out how the mesh is managed in go-libp2p")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

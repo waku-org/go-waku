@@ -255,8 +255,14 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	metadata := metadata.NewWakuMetadata(w.opts.clusterID, w.localNode, w.log)
 	w.metadata = metadata
 
+	relay := relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log,
+		relay.WithPubSubOptions(w.opts.pubsubOpts),
+		relay.WithMaxMsgSize(w.opts.maxMsgSizeBytes))
+
+	w.relay = relay
+
 	//Initialize peer manager.
-	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.opts.peerStoreCapacity, metadata, params.enableRelay, w.log)
+	w.peermanager = peermanager.NewPeerManager(w.opts.maxPeerConnections, w.opts.peerStoreCapacity, metadata, relay, params.enableRelay, w.log)
 
 	w.peerConnector, err = peermanager.NewPeerConnectionStrategy(w.peermanager, w.opts.onlineChecker, discoveryConnectTimeout, w.log)
 	if err != nil {
@@ -276,9 +282,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	}
 
 	w.rendezvous = rendezvous.NewRendezvous(w.opts.rendezvousDB, w.peerConnector, w.log)
-	w.relay = relay.NewWakuRelay(w.bcaster, w.opts.minRelayPeersToPublish, w.timesource, w.opts.prometheusReg, w.log,
-		relay.WithPubSubOptions(w.opts.pubsubOpts),
-		relay.WithMaxMsgSize(w.opts.maxMsgSizeBytes))
 
 	if w.opts.enableRelay {
 		err = w.setupRLNRelay()
