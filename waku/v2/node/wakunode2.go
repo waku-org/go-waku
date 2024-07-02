@@ -378,9 +378,9 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		return err
 	}
 
-	if w.opts.keepAliveInterval > time.Duration(0) {
+	if w.opts.keepAliveRandomPeersInterval > time.Duration(0) || w.opts.keepAliveAllPeersInterval > time.Duration(0) {
 		w.wg.Add(1)
-		go w.startKeepAlive(ctx, w.opts.keepAliveInterval)
+		go w.startKeepAlive(ctx, w.opts.keepAliveRandomPeersInterval, w.opts.keepAliveAllPeersInterval)
 	}
 
 	w.metadata.SetHost(host)
