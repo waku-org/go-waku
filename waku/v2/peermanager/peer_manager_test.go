@@ -31,7 +31,7 @@ func initTest(t *testing.T) (context.Context, *PeerManager, func()) {
 	require.NoError(t, err)
 
 	// host 1 is used by peer manager
-	pm := NewPeerManager(10, 20, nil, true, utils.Logger())
+	pm := NewPeerManager(10, 20, nil, nil, true, utils.Logger())
 	pm.SetHost(h1)
 
 	return ctx, pm, func() {
@@ -253,7 +253,7 @@ func createHostWithDiscv5AndPM(t *testing.T, hostName string, topic string, enrF
 
 	err = wenr.Update(utils.Logger(), localNode, wenr.WithWakuRelaySharding(rs[0]))
 	require.NoError(t, err)
-	pm := NewPeerManager(10, 20, nil, true, logger)
+	pm := NewPeerManager(10, 20, nil, nil, true, logger)
 	pm.SetHost(host)
 	peerconn, err := NewPeerConnectionStrategy(pm, onlinechecker.NewDefaultOnlineChecker(true), 30*time.Second, logger)
 	require.NoError(t, err)

@@ -45,7 +45,7 @@ func makeWakuRelay(t *testing.T, log *zap.Logger) (*relay.WakuRelay, host.Host, 
 
 func makePeerManagerWithEventBus(t *testing.T, r *relay.WakuRelay, h *host.Host) (*PeerManager, event.Bus) {
 	// Host 1 used by peer manager
-	pm := NewPeerManager(10, 20, nil, true, utils.Logger())
+	pm := NewPeerManager(10, 20, nil, r, true, utils.Logger())
 	pm.SetHost(*h)
 
 	// Create a new relay event bus
@@ -78,7 +78,7 @@ func TestSubscribeToRelayEvtBus(t *testing.T) {
 	r, h1, _ := makeWakuRelay(t, log)
 
 	// Host 1 used by peer manager
-	pm := NewPeerManager(10, 20, nil, true, utils.Logger())
+	pm := NewPeerManager(10, 20, nil, nil, true, utils.Logger())
 	pm.SetHost(h1)
 
 	// Create a new relay event bus

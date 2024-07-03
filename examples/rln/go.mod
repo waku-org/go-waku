@@ -8,6 +8,8 @@ replace github.com/waku-org/go-waku => ../..
 
 replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.15
 
+replace github.com/libp2p/go-libp2p-pubsub v0.11.0 => github.com/waku-org/go-libp2p-pubsub v0.0.0-20240703191659-2cbb09eac9b5
+
 require (
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
