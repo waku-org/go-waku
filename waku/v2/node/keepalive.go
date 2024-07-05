@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/waku-org/go-waku/logging"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 const maxAllowedPingFailures = 2
@@ -28,6 +29,11 @@ const maxPeersToPing = 10
 // and doing a ping will avoid this (with a small bandwidth cost)
 func (w *WakuNode) startKeepAlive(ctx context.Context, randomPeersPingDuration time.Duration, allPeersPingDuration time.Duration) {
 	defer w.wg.Done()
+
+	if !w.opts.enableRelay {
+		return
+	}
+
 	w.log.Info("setting up ping protocol", zap.Duration("randomPeersPingDuration", randomPeersPingDuration), zap.Duration("allPeersPingDuration", allPeersPingDuration))
 
 	randomPeersTickerC := make(<-chan time.Time)
@@ -53,7 +59,13 @@ func (w *WakuNode) startKeepAlive(ctx context.Context, randomPeersPingDuration t
 
 		select {
 		case <-allPeersTickerC:
-			peersToPing = w.host.Network().Peers()
+			relayPeersSet := make(map[peer.ID]struct{})
+			for _, t := range w.Relay().Topics() {
+				for _, p := range w.Relay().PubSub().ListPeers(t) {
+					relayPeersSet[p] = struct{}{}
+				}
+			}
+			peersToPing = maps.Keys(relayPeersSet)
 
 		case <-randomPeersTickerC:
 			difference := w.timesource.Now().UnixNano() - lastTimeExecuted.UnixNano()
@@ -69,21 +81,34 @@ func (w *WakuNode) startKeepAlive(ctx context.Context, randomPeersPingDuration t
 				continue
 			}
 
-			// if relay is enabled, we priorize pinging full mesh peers
-			if w.Relay() != nil {
-				for _, t := range w.Relay().Topics() {
-					peersToPing = append(peersToPing, w.Relay().PubSub().MeshPeers(t)...)
+			// Priorize mesh peers
+			meshPeersSet := make(map[peer.ID]struct{})
+			for _, t := range w.Relay().Topics() {
+				for _, p := range w.Relay().PubSub().MeshPeers(t) {
+					meshPeersSet[p] = struct{}{}
 				}
 			}
+			peersToPing = append(peersToPing, maps.Keys(meshPeersSet)...)
 
+			// Ping also some random relay peers
 			if maxPeersToPing-len(peersToPing) > 0 {
-				connectedPeers := w.host.Network().Peers()
-				rand.Shuffle(len(connectedPeers), func(i, j int) { connectedPeers[i], connectedPeers[j] = connectedPeers[j], connectedPeers[i] })
-				peerLen := maxPeersToPing - len(peersToPing)
-				if peerLen > len(connectedPeers) {
-					peerLen = len(connectedPeers)
+				relayPeersSet := make(map[peer.ID]struct{})
+				for _, t := range w.Relay().Topics() {
+					for _, p := range w.Relay().PubSub().ListPeers(t) {
+						if _, ok := meshPeersSet[p]; !ok {
+							relayPeersSet[p] = struct{}{}
+						}
+					}
 				}
-				peersToPing = append(peersToPing, connectedPeers[0:peerLen]...)
+
+				relayPeers := maps.Keys(relayPeersSet)
+				rand.Shuffle(len(relayPeers), func(i, j int) { relayPeers[i], relayPeers[j] = relayPeers[j], relayPeers[i] })
+
+				peerLen := maxPeersToPing - len(peersToPing)
+				if peerLen > len(relayPeers) {
+					peerLen = len(relayPeers)
+				}
+				peersToPing = append(peersToPing, relayPeers[0:peerLen]...)
 			}
 
 		case <-ctx.Done():
@@ -115,7 +140,7 @@ func (w *WakuNode) pingPeer(ctx context.Context, wg *sync.WaitGroup, peerID peer
 
 		logger.Debug("pinging")
 
-		if w.couldPing(ctx, peerID, logger) {
+		if w.tryPing(ctx, peerID, logger) {
 			return
 		}
 	}
@@ -130,7 +155,7 @@ func (w *WakuNode) pingPeer(ctx context.Context, wg *sync.WaitGroup, peerID peer
 	}
 }
 
-func (w *WakuNode) couldPing(ctx context.Context, peerID peer.ID, logger *zap.Logger) bool {
+func (w *WakuNode) tryPing(ctx context.Context, peerID peer.ID, logger *zap.Logger) bool {
 	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
 
