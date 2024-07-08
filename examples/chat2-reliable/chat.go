@@ -323,13 +323,19 @@ func (c *Chat) SendMessage(line string) {
 
 	c.lamportTimestamp++
 
+	bloomBytes, err := c.bloomFilter.MarshalBinary()
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
+		return
+	}
+
 	msg := &pb.Message{
 		SenderId:         c.node.Host().ID().String(),
 		MessageId:        generateUniqueID(),
 		LamportTimestamp: c.lamportTimestamp,
 		CausalHistory:    c.getRecentMessageIDs(2),
 		ChannelId:        c.options.ContentTopic,
-		BloomFilter:      c.bloomFilter.JSONMarshal(),
+		BloomFilter:      bloomBytes,
 		Content:          line,
 	}
 
@@ -338,7 +344,7 @@ func (c *Chat) SendMessage(line string) {
 	tCtx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
 	defer cancel()
 
-	err := c.publish(tCtx, msg)
+	err = c.publish(tCtx, msg)
 	if err != nil {
 		if err.Error() == "validation failed" {
 			err = errors.New("message rate violation")
@@ -670,21 +676,27 @@ func (c *Chat) periodicSyncMessage() {
 }
 
 func (c *Chat) sendSyncMessage() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+    c.mutex.Lock()
+    defer c.mutex.Unlock()
 
-	syncMsg := &pb.Message{
-		SenderId:         c.node.Host().ID().String(),
-		MessageId:        generateUniqueID(),
-		LamportTimestamp: c.lamportTimestamp,
-		CausalHistory:    c.getRecentMessageIDs(2),
-		ChannelId:        c.options.ContentTopic,
-		BloomFilter:      c.bloomFilter.JSONMarshal(),
-		Content:          "", // Empty content for sync messages
-	}
+    bloomBytes, err := c.bloomFilter.MarshalBinary()
+    if err != nil {
+        c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
+        return
+    }
 
-	err := c.publish(c.ctx, syncMsg)
-	if err != nil {
-		c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
-	}
+    syncMsg := &pb.Message{
+        SenderId:         c.node.Host().ID().String(),
+        MessageId:        generateUniqueID(),
+        LamportTimestamp: c.lamportTimestamp,
+        CausalHistory:    c.getRecentMessageIDs(2),
+        ChannelId:        c.options.ContentTopic,
+        BloomFilter:      bloomBytes,
+        Content:          "", // Empty content for sync messages
+    }
+
+    err = c.publish(c.ctx, syncMsg)
+    if err != nil {
+        c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
+    }
 }
