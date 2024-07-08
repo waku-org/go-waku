@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -26,9 +28,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Chat represents a subscription to a single PubSub topic. Messages
-// can be published to the topic with Chat.Publish, and received
-// messages are pushed to the Messages channel.
+const (
+	maxMessageHistory   = 100
+	bloomFilterSize     = 10000
+	bloomFilterFPRate   = 0.01
+	bufferSweepInterval = 5 * time.Second
+	syncMessageInterval = 30 * time.Second
+)
+
 type Chat struct {
 	ctx       context.Context
 	wg        sync.WaitGroup
@@ -40,17 +47,28 @@ type Chat struct {
 
 	C chan *protocol.Envelope
 
-	nick string
+	nick             string
+	lamportTimestamp int32
+	bloomFilter      *bloom.BloomFilter
+	outgoingBuffer   []*pb.Message
+	incomingBuffer   []*pb.Message
+	messageHistory   []*pb.Message
+	mutex            sync.Mutex
 }
 
 func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.PeerConnection, options Options) *Chat {
 	chat := &Chat{
-		ctx:       ctx,
-		node:      node,
-		options:   options,
-		nick:      options.Nickname,
-		uiReady:   make(chan struct{}, 1),
-		inputChan: make(chan string, 100),
+		ctx:              ctx,
+		node:             node,
+		options:          options,
+		nick:             options.Nickname,
+		uiReady:          make(chan struct{}, 1),
+		inputChan:        make(chan string, 100),
+		lamportTimestamp: 0,
+		bloomFilter:      bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate),
+		outgoingBuffer:   make([]*pb.Message, 0),
+		incomingBuffer:   make([]*pb.Message, 0),
+		messageHistory:   make([]*pb.Message, 0),
 	}
 
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
@@ -80,7 +98,6 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 			chat.C = theFilters[0].C //Picking first subscription since there is only 1 contentTopic specified.
 		}
 	} else {
-
 		for _, topic := range topics {
 			sub, err := node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
 			if err != nil {
@@ -96,19 +113,16 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		}
 	}
 
-	chat.wg.Add(7)
+	chat.wg.Add(9) // Added 2 more goroutines for periodic tasks
 	go chat.parseInput()
 	go chat.receiveMessages()
-
-	connectionWg := sync.WaitGroup{}
-	connectionWg.Add(2)
-
 	go chat.welcomeMessage()
-
-	go chat.connectionWatcher(&connectionWg, connNotifier)
-	go chat.staticNodes(&connectionWg)
-	go chat.discoverNodes(&connectionWg)
-	go chat.retrieveHistory(&connectionWg)
+	go chat.connectionWatcher(&chat.wg, connNotifier)
+	go chat.staticNodes(&chat.wg)
+	go chat.discoverNodes(&chat.wg)
+	go chat.retrieveHistory(&chat.wg)
+	go chat.periodicBufferSweep()
+	go chat.periodicSyncMessage()
 
 	return chat
 }
@@ -119,7 +133,7 @@ func (c *Chat) Stop() {
 }
 
 func (c *Chat) connectionWatcher(connectionWg *sync.WaitGroup, connNotifier <-chan node.PeerConnection) {
-	defer c.wg.Done()
+	defer connectionWg.Done()
 
 	for conn := range connNotifier {
 		if conn.Connected {
@@ -137,7 +151,6 @@ func (c *Chat) receiveMessages() {
 		case <-c.ctx.Done():
 			return
 		case value := <-c.C:
-
 			msgContentTopic := value.Message().ContentTopic
 			if msgContentTopic != c.options.ContentTopic {
 				continue // Discard messages from other topics
@@ -145,12 +158,58 @@ func (c *Chat) receiveMessages() {
 
 			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
 			if err == nil {
-				// send valid messages to the UI
-				c.ui.ChatMessage(int64(msg.Timestamp), msg.Nick, string(msg.Payload))
+				c.processReceivedMessage(msg)
 			}
 		}
 	}
 }
+
+func (c *Chat) processReceivedMessage(msg *pb.Message) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	// Update Lamport timestamp
+	if msg.LamportTimestamp > c.lamportTimestamp {
+		c.lamportTimestamp = msg.LamportTimestamp
+	}
+	c.lamportTimestamp++
+
+	// Check causal dependencies
+	if c.checkCausalDependencies(msg) {
+		// Process the message
+		c.ui.ChatMessage(int64(c.lamportTimestamp), msg.SenderId, msg.Content)
+
+		// Update bloom filter
+		c.updateBloomFilter(msg.MessageId)
+
+		// Add to message history
+		c.addToMessageHistory(msg)
+	} else {
+		// Add to incoming buffer
+		c.incomingBuffer = append(c.incomingBuffer, msg)
+	}
+}
+
+func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
+	for _, depID := range msg.CausalHistory {
+		if !c.bloomFilter.Test([]byte(depID)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Chat) updateBloomFilter(messageID string) {
+	c.bloomFilter.Add([]byte(messageID))
+}
+
+func (c *Chat) addToMessageHistory(msg *pb.Message) {
+	c.messageHistory = append(c.messageHistory, msg)
+	if len(c.messageHistory) > maxMessageHistory {
+		c.messageHistory = c.messageHistory[1:]
+	}
+}
+
 func (c *Chat) parseInput() {
 	defer c.wg.Done()
 	for {
@@ -259,28 +318,40 @@ func (c *Chat) parseInput() {
 }
 
 func (c *Chat) SendMessage(line string) {
-	tCtx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
-	defer func() {
-		cancel()
-	}()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-	err := c.publish(tCtx, line)
+	c.lamportTimestamp++
+
+	msg := &pb.Message{
+		SenderId:         c.node.Host().ID().String(),
+		MessageId:        generateUniqueID(),
+		LamportTimestamp: c.lamportTimestamp,
+		CausalHistory:    c.getRecentMessageIDs(2),
+		ChannelId:        c.options.ContentTopic,
+		BloomFilter:      c.bloomFilter.JSONMarshal(),
+		Content:          line,
+	}
+
+	c.outgoingBuffer = append(c.outgoingBuffer, msg)
+
+	tCtx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
+	defer cancel()
+
+	err := c.publish(tCtx, msg)
 	if err != nil {
 		if err.Error() == "validation failed" {
 			err = errors.New("message rate violation")
 		}
 		c.ui.ErrorMessage(err)
+	} else {
+		c.addToMessageHistory(msg)
+		c.updateBloomFilter(msg.MessageId)
 	}
 }
 
-func (c *Chat) publish(ctx context.Context, message string) error {
-	msg := &pb.Chat2Message{
-		Timestamp: uint64(c.node.Timesource().Now().Unix()),
-		Nick:      c.nick,
-		Payload:   []byte(message),
-	}
-
-	msgBytes, err := proto.Marshal(msg)
+func (c *Chat) publish(ctx context.Context, message *pb.Message) error {
+	msgBytes, err := proto.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -303,13 +374,11 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
 		Version:      proto.Uint32(version),
-		ContentTopic: options.ContentTopic,
+		ContentTopic: c.options.ContentTopic,
 		Timestamp:    timestamp,
 	}
 
 	if c.options.RLNRelay.Enable {
-		// for future version when we support more than one rln protected content topic,
-		// we should check the message content topic as well
 		err = c.node.RLNRelay().AppendRLNProof(wakuMsg, c.node.Timesource().Now())
 		if err != nil {
 			return err
@@ -326,7 +395,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	if c.options.LightPush.Enable {
 		lightOpt := []lightpush.RequestOption{lightpush.WithDefaultPubsubTopic()}
 		var peerID peer.ID
-		peerID, err = options.LightPush.NodePeerID()
+		peerID, err = c.options.LightPush.NodePeerID()
 		if err != nil {
 			lightOpt = append(lightOpt, lightpush.WithAutomaticPeerSelection())
 		} else {
@@ -341,7 +410,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	return err
 }
 
-func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
+func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Message, error) {
 	keyInfo := &payload.KeyInfo{
 		Kind: payload.None,
 	}
@@ -351,7 +420,7 @@ func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Mess
 		return nil, err
 	}
 
-	msg := &pb.Chat2Message{}
+	msg := &pb.Message{}
 	if err := proto.Unmarshal(payload.Data, msg); err != nil {
 		return nil, err
 	}
@@ -385,14 +454,13 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 		}
 		storeOpt = legacy_store.WithPeer(pID)
 		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", peerID))
-
 	}
 
 	tCtx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 	defer cancel()
 
 	q := legacy_store.Query{
-		ContentTopics: []string{options.ContentTopic},
+		ContentTopics: []string{c.options.ContentTopic},
 	}
 
 	response, err := c.node.LegacyStore().Query(tCtx, q,
@@ -421,8 +489,8 @@ func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
 
 	wg := sync.WaitGroup{}
 
-	wg.Add(len(options.StaticNodes))
-	for _, n := range options.StaticNodes {
+	wg.Add(len(c.options.StaticNodes))
+	for _, n := range c.options.StaticNodes {
 		go func(addr multiaddr.Multiaddr) {
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(c.ctx, time.Duration(10)*time.Second)
@@ -438,7 +506,6 @@ func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
 	}
 
 	wg.Wait()
-
 }
 
 func (c *Chat) welcomeMessage() {
@@ -489,8 +556,8 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	<-c.uiReady // wait until UI is ready
 
 	var dnsDiscoveryUrl string
-	if options.Fleet != fleetNone {
-		if options.Fleet == fleetTest {
+	if c.options.Fleet != fleetNone {
+		if c.options.Fleet == fleetTest {
 			dnsDiscoveryUrl = "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
 		} else {
 			// Connect to prod by default
@@ -498,13 +565,13 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 		}
 	}
 
-	if options.DNSDiscovery.Enable && options.DNSDiscovery.URL != "" {
-		dnsDiscoveryUrl = options.DNSDiscovery.URL
+	if c.options.DNSDiscovery.Enable && c.options.DNSDiscovery.URL != "" {
+		dnsDiscoveryUrl = c.options.DNSDiscovery.URL
 	}
 
 	if dnsDiscoveryUrl != "" {
 		c.ui.InfoMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
-		nodes, err := dnsdisc.RetrieveNodes(c.ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
+		nodes, err := dnsdisc.RetrieveNodes(c.ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(c.options.DNSDiscovery.Nameserver))
 		if err != nil {
 			c.ui.ErrorMessage(errors.New(err.Error()))
 		} else {
@@ -523,13 +590,101 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 					defer cancel()
 					err = c.node.DialPeerWithInfo(ctx, info)
 					if err != nil {
-
-						c.ui.ErrorMessage(fmt.Errorf("co!!uld not connect to %s: %w", info.ID.String(), err))
+						c.ui.ErrorMessage(fmt.Errorf("could not connect to %s: %w", info.ID.String(), err))
 					}
 				}(c.ctx, n)
-
 			}
 			wg.Wait()
 		}
+	}
+}
+
+func generateUniqueID() string {
+	return uuid.New().String()
+}
+
+func (c *Chat) getRecentMessageIDs(n int) []string {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	result := make([]string, 0, n)
+	for i := len(c.messageHistory) - 1; i >= 0 && len(result) < n; i-- {
+		result = append(result, c.messageHistory[i].MessageId)
+	}
+	return result
+}
+
+func (c *Chat) periodicBufferSweep() {
+	defer c.wg.Done()
+
+	ticker := time.NewTicker(bufferSweepInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			c.sweepBuffers()
+		}
+	}
+}
+
+func (c *Chat) sweepBuffers() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	// Process incoming buffer
+	newIncomingBuffer := make([]*pb.Message, 0)
+	for _, msg := range c.incomingBuffer {
+		if c.checkCausalDependencies(msg) {
+			c.processReceivedMessage(msg)
+		} else {
+			newIncomingBuffer = append(newIncomingBuffer, msg)
+		}
+	}
+	c.incomingBuffer = newIncomingBuffer
+
+	// Resend unacknowledged messages from outgoing buffer
+	for _, msg := range c.outgoingBuffer {
+		// In a real implementation, you'd check if the message has been acknowledged
+		// For now, we'll just resend all messages in the buffer
+		c.publish(c.ctx, msg)
+	}
+}
+
+func (c *Chat) periodicSyncMessage() {
+	defer c.wg.Done()
+
+	ticker := time.NewTicker(syncMessageInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			c.sendSyncMessage()
+		}
+	}
+}
+
+func (c *Chat) sendSyncMessage() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	syncMsg := &pb.Message{
+		SenderId:         c.node.Host().ID().String(),
+		MessageId:        generateUniqueID(),
+		LamportTimestamp: c.lamportTimestamp,
+		CausalHistory:    c.getRecentMessageIDs(2),
+		ChannelId:        c.options.ContentTopic,
+		BloomFilter:      c.bloomFilter.JSONMarshal(),
+		Content:          "", // Empty content for sync messages
+	}
+
+	err := c.publish(c.ctx, syncMsg)
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
 	}
 }
