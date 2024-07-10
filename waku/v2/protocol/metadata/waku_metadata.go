@@ -60,11 +60,6 @@ func (wakuM *WakuMetadata) SetHost(h host.Host) {
 
 // Start inits the metadata protocol
 func (wakuM *WakuMetadata) Start(ctx context.Context) error {
-	if wakuM.clusterID == 0 {
-		wakuM.log.Warn("no clusterID is specified. Protocol will not be initialized")
-		return nil
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	wakuM.ctx = ctx
