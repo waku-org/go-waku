@@ -13,6 +13,7 @@ import (
 	"time"
 
 	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -539,4 +540,63 @@ func TestStaticShardingLimits(t *testing.T) {
 	// Retrieve on node2
 	tests.WaitForMsg(t, 2*time.Second, &wg, s2.Ch)
 
+}
+
+func TestPeerExchangeRatelimit(t *testing.T) {
+	log := utils.Logger()
+
+	if os.Getenv("RUN_FLAKY_TESTS") != "true" {
+
+		log.Info("Skipping", zap.String("test", t.Name()),
+			zap.String("reason", "RUN_FLAKY_TESTS environment variable is not set to true"))
+		t.SkipNow()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	testClusterID := uint16(21)
+
+	// Node1 with Relay
+	hostAddr1, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	require.NoError(t, err)
+	wakuNode1, err := New(
+		WithHostAddress(hostAddr1),
+		WithWakuRelay(),
+		WithClusterID(testClusterID),
+		WithPeerExchange(peer_exchange.WithRateLimiter(1, 1)),
+	)
+	require.NoError(t, err)
+	err = wakuNode1.Start(ctx)
+	require.NoError(t, err)
+	defer wakuNode1.Stop()
+
+	// Node2 with Relay
+	hostAddr2, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
+	require.NoError(t, err)
+	wakuNode2, err := New(
+		WithHostAddress(hostAddr2),
+		WithWakuRelay(),
+		WithClusterID(testClusterID),
+		WithPeerExchange(peer_exchange.WithRateLimiter(1, 1)),
+	)
+	require.NoError(t, err)
+	err = wakuNode2.Start(ctx)
+	require.NoError(t, err)
+	defer wakuNode2.Stop()
+
+	err = wakuNode2.DialPeer(ctx, wakuNode1.ListenAddresses()[0].String())
+	require.NoError(t, err)
+
+	//time.Sleep(1 * time.Second)
+
+	err = wakuNode1.PeerExchange().Request(ctx, 1)
+	require.NoError(t, err)
+
+	err = wakuNode1.PeerExchange().Request(ctx, 1)
+	require.Error(t, err)
+
+	time.Sleep(1 * time.Second)
+	err = wakuNode1.PeerExchange().Request(ctx, 1)
+	require.NoError(t, err)
 }
