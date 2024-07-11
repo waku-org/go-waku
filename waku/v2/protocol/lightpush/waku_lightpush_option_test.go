@@ -36,7 +36,7 @@ func TestLightPushOption(t *testing.T) {
 	}
 
 	require.Equal(t, host, params.host)
-	require.NotNil(t, params.selectedPeer)
+	require.NotEqual(t, 0, len(params.selectedPeers))
 	require.NotNil(t, params.requestID)
 
 	maddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/12345/p2p/16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy")
