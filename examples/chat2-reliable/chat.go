@@ -34,6 +34,7 @@ const (
 	bloomFilterFPRate   = 0.01
 	bufferSweepInterval = 5 * time.Second
 	syncMessageInterval = 30 * time.Second
+	messageAckTimeout   = 10 * time.Second
 )
 
 type Chat struct {
@@ -47,13 +48,14 @@ type Chat struct {
 
 	C chan *protocol.Envelope
 
-	nick             string
-	lamportTimestamp int32
-	bloomFilter      *bloom.BloomFilter
-	outgoingBuffer   []*pb.Message
-	incomingBuffer   []*pb.Message
-	messageHistory   []*pb.Message
-	mutex            sync.Mutex
+	nick                 string
+	lamportTimestamp     int32
+	bloomFilter          *bloom.BloomFilter
+	outgoingBuffer       []*pb.Message
+	incomingBuffer       []*pb.Message
+	messageHistory       []*pb.Message
+	receivedBloomFilters map[string]*bloom.BloomFilter
+	mutex                sync.Mutex
 }
 
 func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.PeerConnection, options Options) *Chat {
@@ -184,10 +186,68 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 
 		// Add to message history
 		c.addToMessageHistory(msg)
+
+		// Update received bloom filter for the sender
+		if msg.BloomFilter != nil {
+			receivedFilter := &bloom.BloomFilter{}
+			err := receivedFilter.UnmarshalBinary(msg.BloomFilter)
+			if err == nil {
+				c.receivedBloomFilters[msg.SenderId] = receivedFilter
+			}
+		}
 	} else {
+		// Request missing dependencies
+		for _, depID := range msg.CausalHistory {
+			if !c.bloomFilter.Test([]byte(depID)) {
+				c.requestMissingMessage(depID)
+			}
+		}
 		// Add to incoming buffer
 		c.incomingBuffer = append(c.incomingBuffer, msg)
 	}
+}
+
+func (c *Chat) requestMissingMessage(messageID string) {
+	// Implement logic to request a missing message from Store nodes or other participants
+	go func() {
+		ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+		defer cancel()
+
+		// Use a time range that's likely to include the message
+		endTime := time.Now()
+		startTime := endTime.Add(-24 * time.Hour) // Look back 24 hours
+
+		query := legacy_store.Query{
+			ContentTopics: []string{c.options.ContentTopic},
+			StartTime:     utils.GetUnixEpochFrom(startTime),
+			EndTime:       utils.GetUnixEpochFrom(endTime),
+		}
+
+		response, err := c.node.LegacyStore().Query(ctx, query,
+			legacy_store.WithAutomaticRequestID(),
+			legacy_store.WithAutomaticPeerSelection(),
+			legacy_store.WithPaging(true, 100), // Use paging to handle potentially large result sets
+		)
+
+		if err != nil {
+			c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message: %w", err))
+			return
+		}
+
+		// Filter the response to find the specific message
+		for _, msg := range response.Messages {
+			decodedMsg, err := decodeMessage(c.options.ContentTopic, msg)
+			if err != nil {
+				continue
+			}
+			if decodedMsg.MessageId == messageID {
+				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
+				return
+			}
+		}
+
+		c.ui.ErrorMessage(fmt.Errorf("missing message not found: %s", messageID))
+	}()
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
@@ -653,10 +713,37 @@ func (c *Chat) sweepBuffers() {
 
 	// Resend unacknowledged messages from outgoing buffer
 	for _, msg := range c.outgoingBuffer {
-		// In a real implementation, you'd check if the message has been acknowledged
-		// For now, we'll just resend all messages in the buffer
-		c.publish(c.ctx, msg)
+		if !c.isMessageAcknowledged(msg) {
+			c.resendMessage(msg)
+		}
 	}
+}
+
+func (c *Chat) isMessageAcknowledged(msg *pb.Message) bool {
+	ackCount := 0
+	totalPeers := len(c.receivedBloomFilters)
+
+	for _, filter := range c.receivedBloomFilters {
+		if filter.Test([]byte(msg.MessageId)) {
+			ackCount++
+		}
+	}
+
+	// Consider a message acknowledged if at least 2/3 of peers have it in their bloom filter
+	return ackCount >= (2 * totalPeers / 3)
+}
+
+func (c *Chat) resendMessage(msg *pb.Message) {
+	// Implement logic to resend the message
+	go func() {
+		ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
+		defer cancel()
+
+		err := c.publish(ctx, msg)
+		if err != nil {
+			c.ui.ErrorMessage(fmt.Errorf("failed to resend message: %w", err))
+		}
+	}()
 }
 
 func (c *Chat) periodicSyncMessage() {
@@ -676,27 +763,27 @@ func (c *Chat) periodicSyncMessage() {
 }
 
 func (c *Chat) sendSyncMessage() {
-    c.mutex.Lock()
-    defer c.mutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-    bloomBytes, err := c.bloomFilter.MarshalBinary()
-    if err != nil {
-        c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
-        return
-    }
+	bloomBytes, err := c.bloomFilter.MarshalBinary()
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
+		return
+	}
 
-    syncMsg := &pb.Message{
-        SenderId:         c.node.Host().ID().String(),
-        MessageId:        generateUniqueID(),
-        LamportTimestamp: c.lamportTimestamp,
-        CausalHistory:    c.getRecentMessageIDs(2),
-        ChannelId:        c.options.ContentTopic,
-        BloomFilter:      bloomBytes,
-        Content:          "", // Empty content for sync messages
-    }
+	syncMsg := &pb.Message{
+		SenderId:         c.node.Host().ID().String(),
+		MessageId:        generateUniqueID(),
+		LamportTimestamp: c.lamportTimestamp,
+		CausalHistory:    c.getRecentMessageIDs(2),
+		ChannelId:        c.options.ContentTopic,
+		BloomFilter:      bloomBytes,
+		Content:          "", // Empty content for sync messages
+	}
 
-    err = c.publish(c.ctx, syncMsg)
-    if err != nil {
-        c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
-    }
+	err = c.publish(c.ctx, syncMsg)
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
+	}
 }
