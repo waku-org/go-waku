@@ -329,9 +329,10 @@ func (wakuLP *WakuLightPush) Publish(ctx context.Context, message *wpb.WakuMessa
 	for _, peerID := range params.selectedPeers {
 		wg.Add(1)
 		go func(id peer.ID) {
-			params.requestID = protocol.GenerateRequestID()
+			paramsValue := *params
+			paramsValue.requestID = protocol.GenerateRequestID()
 			defer wg.Done()
-			response, err := wakuLP.request(ctx, req, params, id)
+			response, err := wakuLP.request(ctx, req, &paramsValue, id)
 			if err != nil {
 				logger.Error("could not publish message", zap.Error(err), zap.Stringer("peer", id))
 			}
