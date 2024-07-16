@@ -45,9 +45,11 @@ func TestKeepAlive(t *testing.T) {
 	}
 
 	w.wg.Add(1)
-	w.pingPeer(ctx2, w.wg, peerID2)
 
+	peerFailureSignalChan := make(chan bool, 1)
+	w.pingPeer(ctx2, w.wg, peerID2, peerFailureSignalChan)
 	require.NoError(t, ctx.Err())
+	close(peerFailureSignalChan)
 }
 
 func TestPeriodicKeepAlive(t *testing.T) {
