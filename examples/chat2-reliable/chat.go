@@ -115,14 +115,17 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		}
 	}
 
+	connWg := sync.WaitGroup{}
+	connWg.Add(2)
+
 	chat.wg.Add(9) // Added 2 more goroutines for periodic tasks
 	go chat.parseInput()
 	go chat.receiveMessages()
 	go chat.welcomeMessage()
-	go chat.connectionWatcher(&chat.wg, connNotifier)
-	go chat.staticNodes(&chat.wg)
-	go chat.discoverNodes(&chat.wg)
-	go chat.retrieveHistory(&chat.wg)
+	go chat.connectionWatcher(connNotifier)
+	go chat.staticNodes(&connWg)
+	go chat.discoverNodes(&connWg)
+	go chat.retrieveHistory(&connWg)
 	go chat.periodicBufferSweep()
 	go chat.periodicSyncMessage()
 
@@ -134,14 +137,18 @@ func (c *Chat) Stop() {
 	close(c.inputChan)
 }
 
-func (c *Chat) connectionWatcher(connectionWg *sync.WaitGroup, connNotifier <-chan node.PeerConnection) {
-	defer connectionWg.Done()
-
-	for conn := range connNotifier {
-		if conn.Connected {
-			c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID.String()))
-		} else {
-			c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID.String()))
+func (c *Chat) connectionWatcher(connNotifier <-chan node.PeerConnection) {
+	defer c.wg.Done()
+	for {
+		select {
+		case conn := <-connNotifier:
+			if conn.Connected {
+				c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID.String()))
+			} else {
+				c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID.String()))
+			}
+		case <-c.ctx.Done():
+			return
 		}
 	}
 }
