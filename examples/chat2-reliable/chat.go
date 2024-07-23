@@ -3,6 +3,7 @@ package main
 import (
 	"chat2-reliable/pb"
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -19,11 +20,11 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	wrln "github.com/waku-org/go-waku/waku/v2/protocol/rln"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -60,17 +61,18 @@ type Chat struct {
 
 func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.PeerConnection, options Options) *Chat {
 	chat := &Chat{
-		ctx:              ctx,
-		node:             node,
-		options:          options,
-		nick:             options.Nickname,
-		uiReady:          make(chan struct{}, 1),
-		inputChan:        make(chan string, 100),
-		lamportTimestamp: 0,
-		bloomFilter:      bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate),
-		outgoingBuffer:   make([]*pb.Message, 0),
-		incomingBuffer:   make([]*pb.Message, 0),
-		messageHistory:   make([]*pb.Message, 0),
+		ctx:                  ctx,
+		node:                 node,
+		options:              options,
+		nick:                 options.Nickname,
+		uiReady:              make(chan struct{}, 1),
+		inputChan:            make(chan string, 100),
+		lamportTimestamp:     0,
+		bloomFilter:          bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate),
+		outgoingBuffer:       make([]*pb.Message, 0),
+		incomingBuffer:       make([]*pb.Message, 0),
+		messageHistory:       make([]*pb.Message, 0),
+		receivedBloomFilters: make(map[string]*bloom.BloomFilter),
 	}
 
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
@@ -174,19 +176,17 @@ func (c *Chat) receiveMessages() {
 }
 
 func (c *Chat) processReceivedMessage(msg *pb.Message) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	// Update Lamport timestamp
-	if msg.LamportTimestamp > c.lamportTimestamp {
-		c.lamportTimestamp = msg.LamportTimestamp
-	}
-	c.lamportTimestamp++
+	c.updateLamportTimestamp(msg.LamportTimestamp)
+
+	c.incLamportTimestamp()
 
 	// Check causal dependencies
 	if c.checkCausalDependencies(msg) {
-		// Process the message
-		c.ui.ChatMessage(int64(c.lamportTimestamp), msg.SenderId, msg.Content)
+		if msg.Content != "" {
+			// Process the message
+			c.ui.ChatMessage(int64(c.lamportTimestamp), msg.SenderId, msg.Content)
+		}
 
 		// Update bloom filter
 		c.updateBloomFilter(msg.MessageId)
@@ -199,7 +199,7 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 			receivedFilter := &bloom.BloomFilter{}
 			err := receivedFilter.UnmarshalBinary(msg.BloomFilter)
 			if err == nil {
-				c.receivedBloomFilters[msg.SenderId] = receivedFilter
+				c.updateReceivedBloomFilter(msg.SenderId, receivedFilter)
 			}
 		}
 	} else {
@@ -210,7 +210,7 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 			}
 		}
 		// Add to incoming buffer
-		c.incomingBuffer = append(c.incomingBuffer, msg)
+		c.addIncomingBuffer(msg)
 	}
 }
 
@@ -220,20 +220,26 @@ func (c *Chat) requestMissingMessage(messageID string) {
 		ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 		defer cancel()
 
-		// Use a time range that's likely to include the message
-		endTime := time.Now()
-		startTime := endTime.Add(-24 * time.Hour) // Look back 24 hours
-
-		query := legacy_store.Query{
-			ContentTopics: []string{c.options.ContentTopic},
-			StartTime:     utils.GetUnixEpochFrom(startTime),
-			EndTime:       utils.GetUnixEpochFrom(endTime),
+		hash, err := base64.URLEncoding.DecodeString(messageID)
+		if err != nil {
+			c.ui.ErrorMessage(fmt.Errorf("failed to parse message hash: %w", err))
+			return
 		}
 
-		response, err := c.node.LegacyStore().Query(ctx, query,
-			legacy_store.WithAutomaticRequestID(),
-			legacy_store.WithAutomaticPeerSelection(),
-			legacy_store.WithPaging(true, 100), // Use paging to handle potentially large result sets
+		x := store.MessageHashCriteria{
+			MessageHashes: []wpb.MessageHash{wpb.ToMessageHash(hash)},
+		}
+
+		pID, err := c.getStoreNodePID()
+		if err != nil {
+			c.ui.ErrorMessage(fmt.Errorf("failed to parse store node peerID: %w", err))
+			return
+		}
+		response, err := c.node.Store().Request(ctx, x,
+			store.WithAutomaticRequestID(),
+			store.WithPeer(*pID),
+			//store.WithAutomaticPeerSelection(),
+			store.WithPaging(true, 100), // Use paging to handle potentially large result sets
 		)
 
 		if err != nil {
@@ -242,13 +248,13 @@ func (c *Chat) requestMissingMessage(messageID string) {
 		}
 
 		// Filter the response to find the specific message
-		for _, msg := range response.Messages {
-			decodedMsg, err := decodeMessage(c.options.ContentTopic, msg)
+		for _, msg := range response.Messages() {
+			decodedMsg, err := decodeMessage(c.options.ContentTopic, msg.Message)
 			if err != nil {
 				continue
 			}
 			if decodedMsg.MessageId == messageID {
-				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
+				c.C <- protocol.NewEnvelope(msg.Message, msg.Message.GetTimestamp(), relay.DefaultWakuTopic)
 				return
 			}
 		}
@@ -258,6 +264,8 @@ func (c *Chat) requestMissingMessage(messageID string) {
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	for _, depID := range msg.CausalHistory {
 		if !c.bloomFilter.Test([]byte(depID)) {
 			return false
@@ -267,10 +275,14 @@ func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
 }
 
 func (c *Chat) updateBloomFilter(messageID string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.bloomFilter.Add([]byte(messageID))
 }
 
 func (c *Chat) addToMessageHistory(msg *pb.Message) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.messageHistory = append(c.messageHistory, msg)
 	if len(c.messageHistory) > maxMessageHistory {
 		c.messageHistory = c.messageHistory[1:]
@@ -385,12 +397,9 @@ func (c *Chat) parseInput() {
 }
 
 func (c *Chat) SendMessage(line string) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.incLamportTimestamp()
 
-	c.lamportTimestamp++
-
-	bloomBytes, err := c.bloomFilter.MarshalBinary()
+	bloomBytes, err := c.bloomFilterBytes()
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
 		return
@@ -510,45 +519,40 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 		return
 	}
 
-	var storeOpt legacy_store.HistoryRequestOption
+	var storeOpt store.RequestOption
 	if c.options.Store.Node == nil {
 		c.ui.InfoMessage("No store node configured. Choosing one at random...")
-		storeOpt = legacy_store.WithAutomaticPeerSelection()
+		storeOpt = store.WithAutomaticPeerSelection()
 	} else {
-		peerID, err := (*c.options.Store.Node).ValueForProtocol(multiaddr.P_P2P)
+		pID, err := c.getStoreNodePID()
 		if err != nil {
 			c.ui.ErrorMessage(err)
 			return
 		}
-		pID, err := peer.Decode(peerID)
-		if err != nil {
-			c.ui.ErrorMessage(err)
-			return
-		}
-		storeOpt = legacy_store.WithPeer(pID)
-		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", peerID))
+		storeOpt = store.WithPeer(*pID)
+		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", pID.String()))
 	}
 
 	tCtx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 	defer cancel()
 
-	q := legacy_store.Query{
-		ContentTopics: []string{c.options.ContentTopic},
+	q := store.FilterCriteria{
+		ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, c.options.ContentTopic),
 	}
 
-	response, err := c.node.LegacyStore().Query(tCtx, q,
-		legacy_store.WithAutomaticRequestID(),
+	response, err := c.node.Store().Request(tCtx, q,
+		store.WithAutomaticRequestID(),
 		storeOpt,
-		legacy_store.WithPaging(false, 100))
+		store.WithPaging(false, 100))
 
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("could not query storenode: %w", err))
 	} else {
-		if len(response.Messages) == 0 {
+		if len(response.Messages()) == 0 {
 			c.ui.InfoMessage("0 historic messages available")
 		} else {
-			for _, msg := range response.Messages {
-				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
+			for _, msg := range response.Messages() {
+				c.C <- protocol.NewEnvelope(msg.Message, msg.Message.GetTimestamp(), relay.DefaultWakuTopic)
 			}
 		}
 	}
@@ -602,7 +606,6 @@ func (c *Chat) welcomeMessage() {
 	credential, err := c.node.RLNRelay().IdentityCredential()
 	if err != nil {
 		c.ui.Quit()
-		fmt.Println(err.Error())
 	}
 
 	idx := c.node.RLNRelay().MembershipIndex()
@@ -629,17 +632,19 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	<-c.uiReady // wait until UI is ready
 
 	var dnsDiscoveryUrl string
-	if c.options.Fleet != fleetNone {
-		if c.options.Fleet == fleetTest {
-			dnsDiscoveryUrl = "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
-		} else {
-			// Connect to prod by default
-			dnsDiscoveryUrl = "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im"
+	if c.options.DNSDiscovery.Enable {
+		if c.options.Fleet != fleetNone {
+			if c.options.Fleet == fleetTest {
+				dnsDiscoveryUrl = "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
+			} else {
+				// Connect to prod by default
+				dnsDiscoveryUrl = "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im"
+			}
 		}
-	}
 
-	if c.options.DNSDiscovery.Enable && c.options.DNSDiscovery.URL != "" {
-		dnsDiscoveryUrl = c.options.DNSDiscovery.URL
+		if c.options.DNSDiscovery.URL != "" {
+			dnsDiscoveryUrl = c.options.DNSDiscovery.URL
+		}
 	}
 
 	if dnsDiscoveryUrl != "" {
@@ -659,7 +664,7 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 				go func(ctx context.Context, info peer.AddrInfo) {
 					defer wg.Done()
 
-					ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(20)*time.Second)
 					defer cancel()
 					err = c.node.DialPeerWithInfo(ctx, info)
 					if err != nil {
@@ -703,10 +708,20 @@ func (c *Chat) periodicBufferSweep() {
 	}
 }
 
-func (c *Chat) sweepBuffers() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (c *Chat) getStoreNodePID() (*peer.ID, error) {
+	peerID, err := (*c.options.Store.Node).ValueForProtocol(multiaddr.P_P2P)
+	if err != nil {
+		return nil, err
+	}
+	pID, err := peer.Decode(peerID)
+	if err != nil {
+		return nil, err
+	}
 
+	return &pID, nil
+}
+
+func (c *Chat) sweepBuffers() {
 	// Process incoming buffer
 	newIncomingBuffer := make([]*pb.Message, 0)
 	for _, msg := range c.incomingBuffer {
@@ -716,7 +731,7 @@ func (c *Chat) sweepBuffers() {
 			newIncomingBuffer = append(newIncomingBuffer, msg)
 		}
 	}
-	c.incomingBuffer = newIncomingBuffer
+	c.setIncomingBuffer(newIncomingBuffer)
 
 	// Resend unacknowledged messages from outgoing buffer
 	for _, msg := range c.outgoingBuffer {
@@ -727,6 +742,8 @@ func (c *Chat) sweepBuffers() {
 }
 
 func (c *Chat) isMessageAcknowledged(msg *pb.Message) bool {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	ackCount := 0
 	totalPeers := len(c.receivedBloomFilters)
 
@@ -770,10 +787,7 @@ func (c *Chat) periodicSyncMessage() {
 }
 
 func (c *Chat) sendSyncMessage() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	bloomBytes, err := c.bloomFilter.MarshalBinary()
+	bloomBytes, err := c.bloomFilterBytes()
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
 		return
@@ -793,4 +807,47 @@ func (c *Chat) sendSyncMessage() {
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
 	}
+}
+
+func (c *Chat) addIncomingBuffer(msg *pb.Message) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	c.incomingBuffer = append(c.incomingBuffer, msg)
+}
+
+func (c *Chat) setIncomingBuffer(newBuffer []*pb.Message) {
+	c.incomingBuffer = newBuffer
+}
+
+func (c *Chat) bloomFilterBytes() ([]byte, error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.bloomFilter.MarshalBinary()
+}
+
+func (c *Chat) updateReceivedBloomFilter(senderId string, receivedFilter *bloom.BloomFilter) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.receivedBloomFilters[senderId] = receivedFilter
+}
+
+func (c *Chat) incLamportTimestamp() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.lamportTimestamp++
+}
+
+func (c *Chat) updateLamportTimestamp(msgTs int32) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if msgTs > c.lamportTimestamp {
+		c.lamportTimestamp = msgTs
+	}
+}
+
+func (c *Chat) getLamportTimestamp() int32 {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.lamportTimestamp
 }
