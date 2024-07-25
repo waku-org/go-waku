@@ -14,13 +14,13 @@ func main() {
 	app := &cli.App{
 		Flags: getFlags(),
 		Action: func(c *cli.Context) error {
-			utils.InitLogger("console", "file:chat2.log", "chat2")
 
 			lvl, err := logging.LevelFromString(options.LogLevel)
 			if err != nil {
 				return err
 			}
 			logging.SetAllLoggers(lvl)
+			utils.InitLogger("console", "file:chat2.log", "chat2", lvl)
 
 			execute(options)
 			return nil

@@ -19,7 +19,7 @@ func Logger(name ...string) *zap.Logger {
 	}
 
 	if log == nil {
-		InitLogger("console", "stdout", loggerName)
+		InitLogger("console", "stdout", loggerName, logging.LevelInfo)
 	}
 	return log
 }
@@ -39,8 +39,9 @@ func MessagesLogger(prefix string) *zap.Logger {
 }
 
 // InitLogger initializes a global logger using an specific encoding
-func InitLogger(encoding string, output string, name string) {
+func InitLogger(encoding string, output string, name string, level logging.LogLevel) {
 	cfg := logging.GetConfig()
+	cfg.Level = level
 
 	if encoding == "json" {
 		cfg.Format = logging.JSONOutput

@@ -18,6 +18,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/payload"
+	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -216,51 +217,56 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 
 func (c *Chat) requestMissingMessage(messageID string) {
 	// Implement logic to request a missing message from Store nodes or other participants
-	go func() {
-		ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
-		defer cancel()
+	//go func() {
+	ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+	defer cancel()
 
-		hash, err := base64.URLEncoding.DecodeString(messageID)
+	hash, err := base64.URLEncoding.DecodeString(messageID)
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to parse message hash: %w", err))
+		return
+	}
+
+	x := store.MessageHashCriteria{
+		MessageHashes: []wpb.MessageHash{wpb.ToMessageHash(hash)},
+	}
+
+	peers, err := c.node.PeerManager().SelectPeers(peermanager.PeerSelectionCriteria{
+		SelectionType: peermanager.Automatic,
+		Proto:         store.StoreQueryID_v300,
+		PubsubTopics:  []string{relay.DefaultWakuTopic},
+		Ctx:           ctx,
+	})
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to find a store node: %w", err))
+		return
+	}
+	response, err := c.node.Store().Request(ctx, x,
+		store.WithAutomaticRequestID(),
+		store.WithPeer(peers[0]),
+		//store.WithAutomaticPeerSelection(),
+		store.WithPaging(true, 100), // Use paging to handle potentially large result sets
+	)
+
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message: %w", err))
+		return
+	}
+
+	// Filter the response to find the specific message
+	for _, msg := range response.Messages() {
+		decodedMsg, err := decodeMessage(c.options.ContentTopic, msg.Message)
 		if err != nil {
-			c.ui.ErrorMessage(fmt.Errorf("failed to parse message hash: %w", err))
+			continue
+		}
+		if decodedMsg.MessageId == messageID {
+			c.C <- protocol.NewEnvelope(msg.Message, msg.Message.GetTimestamp(), relay.DefaultWakuTopic)
 			return
 		}
+	}
 
-		x := store.MessageHashCriteria{
-			MessageHashes: []wpb.MessageHash{wpb.ToMessageHash(hash)},
-		}
-
-		pID, err := c.getStoreNodePID()
-		if err != nil {
-			c.ui.ErrorMessage(fmt.Errorf("failed to parse store node peerID: %w", err))
-			return
-		}
-		response, err := c.node.Store().Request(ctx, x,
-			store.WithAutomaticRequestID(),
-			store.WithPeer(*pID),
-			//store.WithAutomaticPeerSelection(),
-			store.WithPaging(true, 100), // Use paging to handle potentially large result sets
-		)
-
-		if err != nil {
-			c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message: %w", err))
-			return
-		}
-
-		// Filter the response to find the specific message
-		for _, msg := range response.Messages() {
-			decodedMsg, err := decodeMessage(c.options.ContentTopic, msg.Message)
-			if err != nil {
-				continue
-			}
-			if decodedMsg.MessageId == messageID {
-				c.C <- protocol.NewEnvelope(msg.Message, msg.Message.GetTimestamp(), relay.DefaultWakuTopic)
-				return
-			}
-		}
-
-		c.ui.ErrorMessage(fmt.Errorf("missing message not found: %s", messageID))
-	}()
+	c.ui.ErrorMessage(fmt.Errorf("missing message not found: %s", messageID))
+	//}()
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
