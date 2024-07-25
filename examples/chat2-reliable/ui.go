@@ -214,7 +214,7 @@ func (m UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case ErrorMessageType:
 				line += m.breaklineIfNeeded(i, ErrorMessageType)
 				line += wordwrap.String(errorStyle("ERROR:")+" "+msg.err.Error(), m.width-10)
-				utils.Logger().Error(msg.content)
+				utils.Logger().Error(msg.err.Error())
 			case InfoMessageType:
 				line += m.breaklineIfNeeded(i, InfoMessageType)
 				line += wordwrap.String(infoStyle("INFO:")+" "+msg.content, m.width-10)
