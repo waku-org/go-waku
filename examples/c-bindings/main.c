@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
   printf("Discovered nodes: %s\n", discoveredNodes);
 
   // Connect to a node
-  waku_connect(ctx, "/dns4/node-01.do-ams3.waku.test.statusim.net/tcp/30303/"
+  waku_connect(ctx, "/dns4/node-01.do-ams3.waku.test.status.im/tcp/30303/"
                "p2p/16Uiu2HAkykgaECHswi3YKJ5dMLbq2kPVCo89fcyTd38UcQD6ej5W",
                0, on_response, NULL);
 
