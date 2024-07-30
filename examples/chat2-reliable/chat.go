@@ -171,26 +171,33 @@ func (c *Chat) receiveMessages() {
 			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
 			if err == nil {
 				c.processReceivedMessage(msg)
+			} else {
+				fmt.Printf("Error decoding message: %v\n", err)
 			}
 		}
 	}
 }
 
 func (c *Chat) processReceivedMessage(msg *pb.Message) {
+	// Check if the message is already in the bloom filter
+	if c.bloomFilter.Test([]byte(msg.MessageId)) {
+		// Review ACK status of messages in the unacknowledged outgoing buffer
+		c.reviewAckStatus(msg)
+		return
+	}
+
 	// Update Lamport timestamp
 	c.updateLamportTimestamp(msg.LamportTimestamp)
 
-	c.incLamportTimestamp()
+	// Update bloom filter
+	c.updateBloomFilter(msg.MessageId)
 
 	// Check causal dependencies
 	if c.checkCausalDependencies(msg) {
 		if msg.Content != "" {
 			// Process the message
-			c.ui.ChatMessage(int64(c.lamportTimestamp), msg.SenderId, msg.Content)
+			c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
 		}
-
-		// Update bloom filter
-		c.updateBloomFilter(msg.MessageId)
 
 		// Add to message history
 		c.addToMessageHistory(msg)
@@ -212,6 +219,39 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 		}
 		// Add to incoming buffer
 		c.addIncomingBuffer(msg)
+	}
+}
+
+func (c *Chat) reviewAckStatus(msg *pb.Message) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	// Review causal history
+	for _, msgID := range msg.CausalHistory {
+		for i, outMsg := range c.outgoingBuffer {
+			if outMsg.MessageId == msgID {
+				// Mark as acknowledged and remove from outgoing buffer
+				fmt.Printf("Message acknowledged: %s\n", msgID)
+				c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
+				break
+			}
+		}
+	}
+
+	// Review bloom filter
+	if msg.BloomFilter != nil {
+		receivedFilter := &bloom.BloomFilter{}
+		err := receivedFilter.UnmarshalBinary(msg.BloomFilter)
+		if err == nil {
+			for i, outMsg := range c.outgoingBuffer {
+				if receivedFilter.Test([]byte(outMsg.MessageId)) {
+					// Mark as possibly acknowledged
+					fmt.Printf("Message possibly acknowledged: %s\n", outMsg.MessageId)
+					// Remove it from the outgoing buffer
+					c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
+				}
+			}
+		}
 	}
 }
 
@@ -765,15 +805,15 @@ func (c *Chat) isMessageAcknowledged(msg *pb.Message) bool {
 
 func (c *Chat) resendMessage(msg *pb.Message) {
 	// Implement logic to resend the message
-	go func() {
-		ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
-		defer cancel()
+	//go func() {
+	ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
+	defer cancel()
 
-		err := c.publish(ctx, msg)
-		if err != nil {
-			c.ui.ErrorMessage(fmt.Errorf("failed to resend message: %w", err))
-		}
-	}()
+	err := c.publish(ctx, msg)
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to resend message: %w", err))
+	}
+	//}()
 }
 
 func (c *Chat) periodicSyncMessage() {
