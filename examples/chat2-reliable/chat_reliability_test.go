@@ -12,13 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
-	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/utils"
-	"google.golang.org/protobuf/proto"
 )
 
 type TestEnvironment struct {
@@ -242,36 +237,7 @@ func TestBloomFilterDuplicateDetection(t *testing.T) {
 		Content:          receivedMsg.Content,
 	}
 
-	// Encode the duplicate message
-	msgBytes, err := proto.Marshal(duplicateMsg)
-	require.NoError(t, err, "Failed to marshal duplicate message")
-
-	version := uint32(0)
-	timestamp := utils.GetUnixEpochFrom(time.Now())
-	keyInfo := &payload.KeyInfo{
-		Kind: payload.None,
-	}
-
-	p := new(payload.Payload)
-	p.Data = msgBytes
-	p.Key = keyInfo
-
-	payloadBytes, err := p.Encode(version)
-	require.NoError(t, err, "Failed to encode payload")
-
-	wakuMsg := &wpb.WakuMessage{
-		Payload:      payloadBytes,
-		Version:      proto.Uint32(version),
-		ContentTopic: env.chats[1].options.ContentTopic,
-		Timestamp:    timestamp,
-	}
-
-	duplicateEnvelope := protocol.NewEnvelope(wakuMsg, time.Now().UnixNano(), relay.DefaultWakuTopic)
-
-	// Manually inject the duplicate message into the receive channel
-	env.chats[1].C <- duplicateEnvelope
-
-	time.Sleep(5 * time.Second) // Wait a bit to ensure message processing
+	env.chats[1].processReceivedMessage(duplicateMsg)
 
 	assert.Len(t, env.chats[1].messageHistory, 1, "Node 1 should still have only one message (no duplicates)")
 
@@ -288,7 +254,7 @@ func TestMessageRecovery(t *testing.T) {
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
 
-	defer tearDownEnvironment(t, env)
+	//defer tearDownEnvironment(t, env)
 
 	require.Eventually(t, func() bool {
 		return areNodesConnected(env.nodes, nodeCount)

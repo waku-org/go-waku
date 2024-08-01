@@ -5,27 +5,140 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
 const (
-	bloomFilterSize     = 10000
-	bloomFilterFPRate   = 0.01
-	bufferSweepInterval = 5 * time.Second
-	syncMessageInterval = 30 * time.Second
-	messageAckTimeout   = 10 * time.Second
+	bloomFilterSize          = 10000
+	bloomFilterFPRate        = 0.01
+	bloomFilterWindow        = 1 * time.Hour
+	bloomFilterCleanInterval = 5 * time.Minute
+	bufferSweepInterval      = 5 * time.Second
+	syncMessageInterval      = 30 * time.Second
+	messageAckTimeout        = 10 * time.Second
+	maxRetries               = 3
+	retryBaseDelay           = 1 * time.Second
+	maxRetryDelay            = 10 * time.Second
+	ackTimeout               = 5 * time.Second
+	maxResendAttempts        = 5
+	resendBaseDelay          = 1 * time.Second
+	maxResendDelay           = 30 * time.Second
 )
+
+type TimestampedMessageID struct {
+	ID        string
+	Timestamp time.Time
+}
+
+type RollingBloomFilter struct {
+	filter   *bloom.BloomFilter
+	window   time.Duration
+	messages []TimestampedMessageID
+	mutex    sync.Mutex
+}
+
+type UnacknowledgedMessage struct {
+	Message        *pb.Message
+	SendTime       time.Time
+	ResendAttempts int
+}
+
+func (c *Chat) initReliabilityProtocol() {
+	c.wg.Add(4)
+	go c.startBloomFilterCleaner()
+	go c.periodicBufferSweep()
+	go c.periodicSyncMessage()
+	go c.startEagerPushMechanism()
+}
+
+func (c *Chat) startEagerPushMechanism() {
+	defer c.wg.Done()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			c.checkUnacknowledgedMessages()
+		}
+	}
+}
+
+func NewRollingBloomFilter() *RollingBloomFilter {
+	return &RollingBloomFilter{
+		filter:   bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate),
+		window:   bloomFilterWindow,
+		messages: make([]TimestampedMessageID, 0),
+	}
+}
+
+func (rbf *RollingBloomFilter) Add(messageID string) {
+	rbf.mutex.Lock()
+	defer rbf.mutex.Unlock()
+
+	rbf.filter.Add([]byte(messageID))
+	rbf.messages = append(rbf.messages, TimestampedMessageID{
+		ID:        messageID,
+		Timestamp: time.Now(),
+	})
+}
+
+func (rbf *RollingBloomFilter) Test(messageID string) bool {
+	rbf.mutex.Lock()
+	defer rbf.mutex.Unlock()
+
+	return rbf.filter.Test([]byte(messageID))
+}
+
+func (rbf *RollingBloomFilter) Clean() {
+	rbf.mutex.Lock()
+	defer rbf.mutex.Unlock()
+
+	cutoff := time.Now().Add(-rbf.window)
+	newMessages := make([]TimestampedMessageID, 0)
+	newFilter := bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate)
+
+	for _, msg := range rbf.messages {
+		if msg.Timestamp.After(cutoff) {
+			newMessages = append(newMessages, msg)
+			newFilter.Add([]byte(msg.ID))
+		}
+	}
+
+	rbf.messages = newMessages
+	rbf.filter = newFilter
+}
+
+func (c *Chat) startBloomFilterCleaner() {
+	defer c.wg.Done()
+
+	ticker := time.NewTicker(bloomFilterCleanInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			c.bloomFilter.Clean()
+		}
+	}
+}
 
 func (c *Chat) processReceivedMessage(msg *pb.Message) {
 	// Check if the message is already in the bloom filter
-	if c.bloomFilter.Test([]byte(msg.MessageId)) {
+	if c.bloomFilter.Test(msg.MessageId) {
 		// Review ACK status of messages in the unacknowledged outgoing buffer
 		c.reviewAckStatus(msg)
 		return
@@ -35,7 +148,7 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 	c.updateLamportTimestamp(msg.LamportTimestamp)
 
 	// Update bloom filter
-	c.updateBloomFilter(msg.MessageId)
+	c.bloomFilter.Add(msg.MessageId)
 
 	// Check causal dependencies
 	if c.checkCausalDependencies(msg) {
@@ -46,24 +159,15 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 
 		// Add to message history
 		c.addToMessageHistory(msg)
-
-		// Update received bloom filter for the sender
-		if msg.BloomFilter != nil {
-			receivedFilter := &bloom.BloomFilter{}
-			err := receivedFilter.UnmarshalBinary(msg.BloomFilter)
-			if err == nil {
-				c.updateReceivedBloomFilter(msg.SenderId, receivedFilter)
-			}
-		}
 	} else {
 		// Request missing dependencies
 		for _, depID := range msg.CausalHistory {
-			if !c.bloomFilter.Test([]byte(depID)) {
+			if !c.bloomFilter.Test(depID) {
 				c.requestMissingMessage(depID)
 			}
 		}
 		// Add to incoming buffer
-		c.addIncomingBuffer(msg)
+		c.addToIncomingBuffer(msg)
 	}
 }
 
@@ -74,7 +178,7 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 	// Review causal history
 	for _, msgID := range msg.CausalHistory {
 		for i, outMsg := range c.outgoingBuffer {
-			if outMsg.MessageId == msgID {
+			if outMsg.Message.MessageId == msgID {
 				// acknowledged and remove from outgoing buffer
 				c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
 				break
@@ -84,13 +188,14 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 
 	// Review bloom filter
 	if msg.BloomFilter != nil {
-		receivedFilter := &bloom.BloomFilter{}
+		receivedFilter := bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate)
 		err := receivedFilter.UnmarshalBinary(msg.BloomFilter)
 		if err == nil {
-			for i, outMsg := range c.outgoingBuffer {
-				if receivedFilter.Test([]byte(outMsg.MessageId)) {
+			for i := 0; i < len(c.outgoingBuffer); i++ {
+				if receivedFilter.Test([]byte(c.outgoingBuffer[i].Message.MessageId)) {
 					// possibly acknowledged and remove it from the outgoing buffer
 					c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
+					i--
 				}
 			}
 		}
@@ -98,15 +203,32 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 }
 
 func (c *Chat) requestMissingMessage(messageID string) {
-	// Implement logic to request a missing message from Store nodes or other participants
-	//go func() {
+	for retry := 0; retry < maxRetries; retry++ {
+		err := c.doRequestMissingMessage(messageID)
+		if err == nil {
+			return
+		}
+
+		c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message (attempt %d): %w", retry+1, err))
+
+		// Exponential backoff
+		delay := retryBaseDelay * time.Duration(1<<uint(retry))
+		if delay > maxRetryDelay {
+			delay = maxRetryDelay
+		}
+		time.Sleep(delay)
+	}
+
+	c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message after %d attempts: %s", maxRetries, messageID))
+}
+
+func (c *Chat) doRequestMissingMessage(messageID string) error {
 	ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 	defer cancel()
 
 	hash, err := base64.URLEncoding.DecodeString(messageID)
 	if err != nil {
-		c.ui.ErrorMessage(fmt.Errorf("failed to parse message hash: %w", err))
-		return
+		return fmt.Errorf("failed to parse message hash: %w", err)
 	}
 
 	x := store.MessageHashCriteria{
@@ -120,8 +242,7 @@ func (c *Chat) requestMissingMessage(messageID string) {
 		Ctx:           ctx,
 	})
 	if err != nil {
-		c.ui.ErrorMessage(fmt.Errorf("failed to find a store node: %w", err))
-		return
+		return fmt.Errorf("failed to find a store node: %w", err)
 	}
 	response, err := c.node.Store().Request(ctx, x,
 		store.WithAutomaticRequestID(),
@@ -131,50 +252,72 @@ func (c *Chat) requestMissingMessage(messageID string) {
 	)
 
 	if err != nil {
-		c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message: %w", err))
-		return
+		return fmt.Errorf("failed to retrieve missing message: %w", err)
 	}
 
-	// Filter the response to find the specific message
 	for _, msg := range response.Messages() {
 		decodedMsg, err := decodeMessage(c.options.ContentTopic, msg.Message)
 		if err != nil {
 			continue
 		}
 		if decodedMsg.MessageId == messageID {
-			c.C <- protocol.NewEnvelope(msg.Message, msg.Message.GetTimestamp(), relay.DefaultWakuTopic)
-			return
+			c.processReceivedMessage(decodedMsg)
+			return nil
 		}
 	}
 
-	c.ui.ErrorMessage(fmt.Errorf("missing message not found: %s", messageID))
-	//}()
+	return fmt.Errorf("missing message not found: %s", messageID)
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
 	for _, depID := range msg.CausalHistory {
-		if !c.bloomFilter.Test([]byte(depID)) {
+		if !c.bloomFilter.Test(depID) {
 			return false
 		}
 	}
 	return true
 }
 
-func (c *Chat) updateBloomFilter(messageID string) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.bloomFilter.Add([]byte(messageID))
-}
-
 func (c *Chat) addToMessageHistory(msg *pb.Message) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+
 	c.messageHistory = append(c.messageHistory, msg)
+	c.messageHistory = c.resolveConflicts(c.messageHistory)
+
 	if len(c.messageHistory) > maxMessageHistory {
-		c.messageHistory = c.messageHistory[1:]
+		c.messageHistory = c.messageHistory[len(c.messageHistory)-maxMessageHistory:]
 	}
+}
+
+func (c *Chat) resolveConflicts(messages []*pb.Message) []*pb.Message {
+	// Group messages by Lamport timestamp
+	groupedMessages := make(map[int32][]*pb.Message)
+	for _, msg := range messages {
+		groupedMessages[msg.LamportTimestamp] = append(groupedMessages[msg.LamportTimestamp], msg)
+	}
+
+	// Sort timestamps
+	var timestamps []int32
+	for ts := range groupedMessages {
+		timestamps = append(timestamps, ts)
+	}
+	sort.Slice(timestamps, func(i, j int) bool { return timestamps[i] < timestamps[j] })
+
+	// Resolve conflicts and create a new ordered list
+	var resolvedMessages []*pb.Message
+	for _, ts := range timestamps {
+		msgs := groupedMessages[ts]
+		if len(msgs) == 1 {
+			resolvedMessages = append(resolvedMessages, msgs[0])
+		} else {
+			// Sort conflicting messages by MessageId
+			sort.Slice(msgs, func(i, j int) bool { return msgs[i].MessageId < msgs[j].MessageId })
+			resolvedMessages = append(resolvedMessages, msgs...)
+		}
+	}
+
+	return resolvedMessages
 }
 
 func (c *Chat) periodicBufferSweep() {
@@ -195,6 +338,7 @@ func (c *Chat) periodicBufferSweep() {
 
 func (c *Chat) sweepBuffers() {
 	// Process incoming buffer
+	c.mutex.Lock()
 	newIncomingBuffer := make([]*pb.Message, 0)
 	for _, msg := range c.incomingBuffer {
 		if c.checkCausalDependencies(msg) {
@@ -203,43 +347,62 @@ func (c *Chat) sweepBuffers() {
 			newIncomingBuffer = append(newIncomingBuffer, msg)
 		}
 	}
-	c.setIncomingBuffer(newIncomingBuffer)
+	c.incomingBuffer = newIncomingBuffer
+	c.mutex.Unlock()
 
 	// Resend unacknowledged messages from outgoing buffer
-	for _, msg := range c.outgoingBuffer {
-		if !c.isMessageAcknowledged(msg) {
-			c.resendMessage(msg)
-		}
-	}
+	c.checkUnacknowledgedMessages()
 }
 
-func (c *Chat) isMessageAcknowledged(msg *pb.Message) bool {
+func (c *Chat) checkUnacknowledgedMessages() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	ackCount := 0
-	totalPeers := len(c.receivedBloomFilters)
 
-	for _, filter := range c.receivedBloomFilters {
-		if filter.Test([]byte(msg.MessageId)) {
-			ackCount++
+	now := time.Now()
+	for i := 0; i < len(c.outgoingBuffer); i++ {
+		unackMsg := c.outgoingBuffer[i]
+		if now.Sub(unackMsg.SendTime) > ackTimeout {
+			if unackMsg.ResendAttempts < maxResendAttempts {
+				c.resendMessage(unackMsg.Message)
+				c.outgoingBuffer[i].ResendAttempts++
+				c.outgoingBuffer[i].SendTime = now
+			} else {
+				// Remove the message from the buffer after max attempts
+				c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
+				i-- // Adjust index after removal
+				c.ui.ErrorMessage(fmt.Errorf("message %s failed to be acknowledged after %d attempts", unackMsg.Message.MessageId, maxResendAttempts))
+			}
 		}
 	}
-
-	// Consider a message acknowledged if at least 2/3 of peers have it in their bloom filter
-	return ackCount >= (2 * totalPeers / 3)
 }
 
 func (c *Chat) resendMessage(msg *pb.Message) {
-	// Implement logic to resend the message
-	//go func() {
-	ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
-	defer cancel()
+	go func() {
+		delay := resendBaseDelay * time.Duration(1<<uint(c.getResendAttempts(msg.MessageId)))
+		if delay > maxResendDelay {
+			delay = maxResendDelay
+		}
+		time.Sleep(delay)
 
-	err := c.publish(ctx, msg)
-	if err != nil {
-		c.ui.ErrorMessage(fmt.Errorf("failed to resend message: %w", err))
+		ctx, cancel := context.WithTimeout(c.ctx, ackTimeout)
+		defer cancel()
+
+		err := c.publish(ctx, msg)
+		if err != nil {
+			c.ui.ErrorMessage(fmt.Errorf("failed to resend message: %w", err))
+		}
+	}()
+}
+
+func (c *Chat) getResendAttempts(messageId string) int {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	for _, unackMsg := range c.outgoingBuffer {
+		if unackMsg.Message.MessageId == messageId {
+			return unackMsg.ResendAttempts
+		}
 	}
-	//}()
+	return 0
 }
 
 func (c *Chat) periodicSyncMessage() {
@@ -259,7 +422,7 @@ func (c *Chat) periodicSyncMessage() {
 }
 
 func (c *Chat) sendSyncMessage() {
-	bloomBytes, err := c.bloomFilterBytes()
+	bloomBytes, err := c.bloomFilter.MarshalBinary()
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
 		return
@@ -268,40 +431,27 @@ func (c *Chat) sendSyncMessage() {
 	syncMsg := &pb.Message{
 		SenderId:         c.node.Host().ID().String(),
 		MessageId:        generateUniqueID(),
-		LamportTimestamp: c.lamportTimestamp,
-		CausalHistory:    c.getRecentMessageIDs(2),
+		LamportTimestamp: c.getLamportTimestamp(),
+		CausalHistory:    c.getRecentMessageIDs(10),
 		ChannelId:        c.options.ContentTopic,
 		BloomFilter:      bloomBytes,
 		Content:          "", // Empty content for sync messages
 	}
 
-	err = c.publish(c.ctx, syncMsg)
+	ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
+	defer cancel()
+
+	err = c.publish(ctx, syncMsg)
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("failed to send sync message: %w", err))
 	}
 }
 
-func (c *Chat) addIncomingBuffer(msg *pb.Message) {
+func (c *Chat) addToIncomingBuffer(msg *pb.Message) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	c.incomingBuffer = append(c.incomingBuffer, msg)
-}
-
-func (c *Chat) setIncomingBuffer(newBuffer []*pb.Message) {
-	c.incomingBuffer = newBuffer
-}
-
-func (c *Chat) bloomFilterBytes() ([]byte, error) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	return c.bloomFilter.MarshalBinary()
-}
-
-func (c *Chat) updateReceivedBloomFilter(senderId string, receivedFilter *bloom.BloomFilter) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.receivedBloomFilters[senderId] = receivedFilter
 }
 
 func (c *Chat) incLamportTimestamp() {
@@ -314,7 +464,9 @@ func (c *Chat) updateLamportTimestamp(msgTs int32) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if msgTs > c.lamportTimestamp {
-		c.lamportTimestamp = msgTs
+		c.lamportTimestamp = msgTs + 1
+	} else {
+		c.lamportTimestamp++
 	}
 }
 
@@ -322,4 +474,18 @@ func (c *Chat) getLamportTimestamp() int32 {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.lamportTimestamp
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface for RollingBloomFilter
+func (rbf *RollingBloomFilter) MarshalBinary() ([]byte, error) {
+	rbf.mutex.Lock()
+	defer rbf.mutex.Unlock()
+	return rbf.filter.MarshalBinary()
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface for RollingBloomFilter
+func (rbf *RollingBloomFilter) UnmarshalBinary(data []byte) error {
+	rbf.mutex.Lock()
+	defer rbf.mutex.Unlock()
+	return rbf.filter.UnmarshalBinary(data)
 }
