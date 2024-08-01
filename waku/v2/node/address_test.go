@@ -10,18 +10,18 @@ import (
 )
 
 func TestExternalAddressSelection(t *testing.T) {
-	a1, _ := ma.NewMultiaddr("/ip4/192.168.0.106/tcp/60000/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                              // Valid
-	a2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/60000/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                                  // Valid but should not be prefered
-	a3, _ := ma.NewMultiaddr("/ip4/192.168.1.20/tcp/19710/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                               // Valid
-	a4, _ := ma.NewMultiaddr("/dns4/www.status.im/tcp/2012/ws/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                           // Invalid (it's useless)
-	a5, _ := ma.NewMultiaddr("/dns4/www.status.im/tcp/443/wss/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                           // Valid
-	a6, _ := ma.NewMultiaddr("/ip4/192.168.1.20/tcp/19710/wss/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                           // Invalid (local + wss)
-	a7, _ := ma.NewMultiaddr("/ip4/192.168.1.20/tcp/19710/ws/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                            // Invalid  (it's useless)
-	a8, _ := ma.NewMultiaddr("/dns4/node-02.gc-us-central1-a.status.prod.statusim.net/tcp/30303/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")   // VALID
-	a9, _ := ma.NewMultiaddr("/dns4/node-02.gc-us-central1-a.status.prod.statusim.net/tcp/443/wss/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f") // VALID
-	a10, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.waku.test.statusim.net/tcp/8000/wss/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f") // VALID
-	a11, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.waku.test.statusim.net/tcp/30303/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")    // VALID
-	a12, _ := ma.NewMultiaddr("/ip4/188.23.1.8/tcp/30303/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                                // VALID
+	a1, _ := ma.NewMultiaddr("/ip4/192.168.0.106/tcp/60000/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                            // Valid
+	a2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/60000/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                                // Valid but should not be prefered
+	a3, _ := ma.NewMultiaddr("/ip4/192.168.1.20/tcp/19710/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                             // Valid
+	a4, _ := ma.NewMultiaddr("/dns4/www.status.im/tcp/2012/ws/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                         // Invalid (it's useless)
+	a5, _ := ma.NewMultiaddr("/dns4/www.status.im/tcp/443/wss/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                         // Valid
+	a6, _ := ma.NewMultiaddr("/ip4/192.168.1.20/tcp/19710/wss/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                         // Invalid (local + wss)
+	a7, _ := ma.NewMultiaddr("/ip4/192.168.1.20/tcp/19710/ws/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                          // Invalid  (it's useless)
+	a8, _ := ma.NewMultiaddr("/dns4/store-01.gc-us-central1-a.status.prod.status.im/tcp/30303/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")   // VALID
+	a9, _ := ma.NewMultiaddr("/dns4/store-01.gc-us-central1-a.status.prod.status.im/tcp/443/wss/p2p/16Uiu2HAmDQugwDHM3YeUp86iGjrUvbdw3JPRgikC7YoGBsT2ymMg/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f") // VALID
+	a10, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.waku.test.status.im/tcp/8000/wss/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")  // VALID
+	a11, _ := ma.NewMultiaddr("/dns4/node-01.gc-us-central1-a.waku.test.status.im/tcp/30303/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG/p2p-circuit/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")     // VALID
+	a12, _ := ma.NewMultiaddr("/ip4/188.23.1.8/tcp/30303/p2p/16Uiu2HAmUVVrJo1KMw4QwUANYF7Ws4mfcRqf9xHaaGP87GbMuY2f")                                                                                                              // VALID
 
 	addrs := []ma.Multiaddr{a1, a2, a3, a4, a5, a6, a7}
 

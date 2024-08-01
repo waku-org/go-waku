@@ -38,7 +38,7 @@ One of these options must be specified when instantiating a node supporting the 
 ```go
 ...
 
-peerAddr, err := multiaddr.NewMultiaddr("/dns4/node-01.do-ams3.waku.test.statusim.net/tcp/30303/p2p/16Uiu2HAkykgaECHswi3YKJ5dMLbq2kPVCo89fcyTd38UcQD6ej5W")
+peerAddr, err := multiaddr.NewMultiaddr("/dns4/node-01.do-ams3.waku.test.status.im/tcp/30303/p2p/16Uiu2HAkykgaECHswi3YKJ5dMLbq2kPVCo89fcyTd38UcQD6ej5W")
 if err != nil {
     panic(err)
 }
