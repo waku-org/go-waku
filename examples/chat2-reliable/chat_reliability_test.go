@@ -29,14 +29,12 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 	}
 
 	for i := 0; i < nodeCount; i++ {
-		// t.Logf("Setting up node %d", i)
 		node, err := setupTestNode(ctx, t, i)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set up node %d: %w", i, err)
 		}
 		env.nodes[i] = node
 
-		// t.Logf("Creating chat instance for node %d", i)
 		chat, err := setupTestChat(ctx, t, node, fmt.Sprintf("Node%d", i))
 		if err != nil {
 			return nil, fmt.Errorf("failed to set up chat for node %d: %w", i, err)
@@ -47,7 +45,6 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 	t.Log("Connecting nodes in ring topology")
 	for i := 0; i < nodeCount; i++ {
 		nextIndex := (i + 1) % nodeCount
-		// t.Logf("Connecting node %d to node %d", i, nextIndex)
 		_, err := env.nodes[i].AddPeer(env.nodes[nextIndex].ListenAddresses()[0], peerstore.Static, env.chats[i].options.Relay.Topics.Value())
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect node %d to node %d: %w", i, nextIndex, err)
@@ -172,8 +169,6 @@ func TestCausalOrdering(t *testing.T) {
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
 
-	// defer tearDownEnvironment(t, env)
-
 	require.Eventually(t, func() bool {
 		return areNodesConnected(env.nodes, 2)
 	}, 30*time.Second, 1*time.Second, "Nodes failed to connect")
@@ -216,8 +211,6 @@ func TestBloomFilterDuplicateDetection(t *testing.T) {
 	nodeCount := 2
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
-
-	//defer tearDownEnvironment(t, env)
 
 	require.Eventually(t, func() bool {
 		return areNodesConnected(env.nodes, 1)
@@ -359,7 +352,6 @@ func TestConcurrentMessageSending(t *testing.T) {
 	nodeCount := 5
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
-	//defer tearDownEnvironment(t, env)
 
 	require.Eventually(t, func() bool {
 		return areNodesConnected(env.nodes, 2)
@@ -401,7 +393,7 @@ func TestConcurrentMessageSending(t *testing.T) {
 }
 
 func TestLargeGroupScaling(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
 	t.Log("Starting TestLargeGroupScaling")

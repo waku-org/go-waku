@@ -109,17 +109,6 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		}
 	}
 
-	// chat.wg.Add(7) // Added 4 more goroutines for reliability protocol
-	// go chat.parseInput()
-	// go chat.receiveMessages()
-	// go chat.welcomeMessage()
-	// go chat.connectionWatcher(connNotifier)
-
-	// connectionWg := &sync.WaitGroup{}
-	// connectionWg.Add(2)
-	// go chat.staticNodes(connectionWg)
-	// go chat.discoverNodes(connectionWg)
-	// go chat.retrieveHistory(connectionWg)
 	connWg := sync.WaitGroup{}
 	connWg.Add(3)
 
@@ -180,9 +169,7 @@ func (c *Chat) receiveMessages() {
 
 			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
 			if err == nil {
-				// fmt.Printf("Node %s: Received message: %s\n", c.node.Host().ID().String(), msg.Content)
 				c.processReceivedMessage(msg)
-				// fmt.Printf("Node %s: PROCESSED Received message: %s\n", c.node.Host().ID().String(), msg.Content)
 			} else {
 				fmt.Printf("Node %s: Error decoding message: %v\n", c.node.Host().ID().String(), err)
 			}
@@ -335,7 +322,6 @@ func (c *Chat) SendMessage(line string) {
 	} else {
 		c.addToMessageHistory(msg)
 		c.bloomFilter.Add(msg.MessageId)
-		fmt.Printf("Node %s: Sent message: %s\n", c.node.Host().ID().String(), line)
 	}
 }
 

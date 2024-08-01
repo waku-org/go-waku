@@ -3,22 +3,12 @@ package main
 import (
 	"chat2-reliable/pb"
 	"context"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
-	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -197,20 +187,16 @@ func (c *Chat) processBufferedMessages() {
 			c.mutex.Lock()
 
 			if err != nil {
-				// fmt.Printf("Error processing buffered message %s: %v\n", msg.MessageId, err)
 				remainingBuffer = append(remainingBuffer, msg)
 			} else {
 				processed[msg.MessageId] = true
-				// fmt.Printf("Successfully processed buffered message %s\n", msg.MessageId)
 			}
 		} else {
 			remainingBuffer = append(remainingBuffer, msg)
-			// fmt.Printf("Message %s still has missing dependencies: %v\n", msg.MessageId, missingDeps)
 		}
 	}
 
 	c.incomingBuffer = remainingBuffer
-	// fmt.Printf("Processed %d buffered messages, %d remaining in buffer\n", len(processed), len(remainingBuffer))
 }
 
 func (c *Chat) processMessageWithoutBuffering(msg *pb.Message) error {
@@ -255,7 +241,6 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 
 func (c *Chat) requestMissingMessage(messageID string) {
 	for retry := 0; retry < maxRetries; retry++ {
-		// fmt.Printf("Node %s requesting missing msg routine", c.node.Host().ID().String())
 		err := c.doRequestMissingMessageFromPeers(messageID)
 		if err == nil {
 			return
@@ -272,53 +257,6 @@ func (c *Chat) requestMissingMessage(messageID string) {
 	}
 
 	c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message after %d attempts: %s", maxRetries, messageID))
-}
-
-func (c *Chat) doRequestMissingMessageFromStore(messageID string) error {
-	ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
-	defer cancel()
-
-	hash, err := base64.URLEncoding.DecodeString(messageID)
-	if err != nil {
-		return fmt.Errorf("failed to parse message hash: %w", err)
-	}
-
-	x := store.MessageHashCriteria{
-		MessageHashes: []wpb.MessageHash{wpb.ToMessageHash(hash)},
-	}
-
-	peers, err := c.node.PeerManager().SelectPeers(peermanager.PeerSelectionCriteria{
-		SelectionType: peermanager.Automatic,
-		Proto:         store.StoreQueryID_v300,
-		PubsubTopics:  []string{relay.DefaultWakuTopic},
-		Ctx:           ctx,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to find a store node: %w", err)
-	}
-	response, err := c.node.Store().Request(ctx, x,
-		store.WithAutomaticRequestID(),
-		store.WithPeer(peers[0]),
-		//store.WithAutomaticPeerSelection(),
-		store.WithPaging(true, 100), // Use paging to handle potentially large result sets
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed to retrieve missing message: %w", err)
-	}
-
-	for _, msg := range response.Messages() {
-		decodedMsg, err := decodeMessage(c.options.ContentTopic, msg.Message)
-		if err != nil {
-			continue
-		}
-		if decodedMsg.MessageId == messageID {
-			c.processReceivedMessage(decodedMsg)
-			return nil
-		}
-	}
-
-	return fmt.Errorf("missing message not found: %s", messageID)
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) []string {
@@ -392,14 +330,6 @@ func (c *Chat) periodicBufferSweep() {
 		}
 	}
 }
-
-// func (c *Chat) sweepBuffers() {
-// 	// Process incoming buffer
-// 	c.processBufferedMessages()
-
-// 	// Resend unacknowledged messages from outgoing buffer
-// 	c.checkUnacknowledgedMessages()
-// }
 
 func (c *Chat) checkUnacknowledgedMessages() {
 	c.mutex.Lock()
@@ -548,178 +478,4 @@ func (c *Chat) IsDisconnected() bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.isDisconnected
-}
-
-// below functions are specifically for peer retrieval of missing msgs instead of store
-func (c *Chat) doRequestMissingMessageFromPeers(messageID string) error {
-	peers := c.node.Host().Network().Peers()
-	for _, peerID := range peers {
-		msg, err := c.requestMessageFromPeer(peerID, messageID)
-		if err == nil && msg != nil {
-			// fmt.Printf("Node %s attained missed message from peer and will process next", c.node.Host().ID().String())
-			c.processReceivedMessage(msg)
-			return nil
-		}
-	}
-	return fmt.Errorf("no peers could provide the missing message")
-}
-
-func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Message, error) {
-	// fmt.Printf("Requesting message %s from peer %s\n", messageID, peerID.String())
-
-	ctx, cancel := context.WithTimeout(c.ctx, 30*time.Second)
-	defer cancel()
-
-	stream, err := c.node.Host().NewStream(ctx, peerID, protocol.ID("/chat2-reliable/message-request/1.0.0"))
-	if err != nil {
-		fmt.Printf("Failed to open stream to peer %s: %v\n", peerID.String(), err)
-		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
-	}
-	defer stream.Close()
-
-	fmt.Printf("Stream opened to peer %s\n", peerID.String())
-
-	// Send message request
-	request := &pb.MessageRequest{MessageId: messageID}
-	err = writeProtobufMessage(stream, request)
-	if err != nil {
-		fmt.Printf("Failed to send message request to peer %s: %v\n", peerID.String(), err)
-		return nil, fmt.Errorf("failed to send message request: %w", err)
-	}
-
-	fmt.Printf("Message request sent to peer %s\n", peerID.String())
-
-	// Read response
-	response := &pb.MessageResponse{}
-	err = readProtobufMessage(stream, response)
-	if err != nil {
-		fmt.Printf("Failed to read message response from peer %s: %v\n", peerID.String(), err)
-		return nil, fmt.Errorf("failed to read message response: %w", err)
-	}
-
-	fmt.Printf("Received message response from peer %s\n", peerID.String())
-
-	if response.Message == nil {
-		fmt.Printf("Peer %s did not have the requested message %s\n", peerID.String(), messageID)
-		return nil, fmt.Errorf("peer did not have the requested message")
-	}
-
-	fmt.Printf("Successfully retrieved message %s from peer %s\n", messageID, peerID.String())
-	return response.Message, nil
-}
-
-// Helper functions for protobuf message reading/writing
-func writeProtobufMessage(stream network.Stream, msg proto.Message) error {
-	// fmt.Printf("Starting to write protobuf message\n")
-
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		// fmt.Printf("Error marshaling protobuf message: %v\n", err)
-		return err
-	}
-
-	// fmt.Printf("Marshaled message size: %d bytes\n", len(data))
-
-	n, err := stream.Write(data)
-	if err != nil {
-		// fmt.Printf("Error writing to stream: %v\n", err)
-		return err
-	}
-
-	fmt.Printf("Wrote %d bytes to stream\n", n)
-
-	// Add a delay before closing the stream
-	time.Sleep(1 * time.Second)
-
-	err = stream.Close()
-	if err != nil {
-		// fmt.Printf("Error closing stream: %v\n", err)
-		return err
-	}
-	// fmt.Printf("Successfully closed stream after writing\n")
-	return nil
-}
-
-func readProtobufMessage(stream network.Stream, msg proto.Message) error {
-	// fmt.Printf("Starting to read from stream\n")
-	err := stream.SetReadDeadline(time.Now().Add(30 * time.Second))
-	if err != nil {
-		return fmt.Errorf("failed to set read deadline: %w", err)
-	}
-
-	var data []byte
-	buffer := make([]byte, 1024)
-	for {
-		n, err := stream.Read(buffer)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			// fmt.Printf("Error reading from stream: %v\n", err)
-			return err
-		}
-		data = append(data, buffer[:n]...)
-		// fmt.Printf("Read %d bytes, total: %d bytes\n", n, len(data))
-	}
-
-	fmt.Printf("Finished reading, total bytes: %d\n", len(data))
-
-	err = proto.Unmarshal(data, msg)
-	if err != nil {
-		// fmt.Printf("Error unmarshaling protobuf message: %v\n", err)
-		return err
-	}
-
-	// fmt.Printf("Successfully unmarshaled protobuf message\n")
-	return nil
-}
-
-// func (c *Chat) checkPeerConnections() {
-// 	peers := c.node.Host().Network().Peers()
-// 	fmt.Printf("Node %s: Connected to %d peers\n", c.node.Host().ID().String(), len(peers))
-// 	for _, peer := range peers {
-// 		fmt.Printf("  - %s\n", peer.String())
-// 	}
-// }
-
-func (c *Chat) handleMessageRequest(stream network.Stream) {
-	fmt.Printf("Received message request from peer %s\n", stream.Conn().RemotePeer().String())
-	defer stream.Close()
-
-	request := &pb.MessageRequest{}
-	err := readProtobufMessage(stream, request)
-	if err != nil {
-		// fmt.Printf("Failed to read message request: %v\n", err)
-		c.ui.ErrorMessage(fmt.Errorf("failed to read message request: %w", err))
-		return
-	}
-	// fmt.Printf("Received request for message %s\n", request.MessageId)
-
-	c.mutex.Lock()
-	var foundMessage *pb.Message
-	for _, msg := range c.messageHistory {
-		if msg.MessageId == request.MessageId {
-			foundMessage = msg
-			break
-		}
-	}
-	c.mutex.Unlock()
-
-	response := &pb.MessageResponse{Message: foundMessage}
-	err = writeProtobufMessage(stream, response)
-	if err != nil {
-		// fmt.Printf("Failed to send message response: %v\n", err)
-		c.ui.ErrorMessage(fmt.Errorf("failed to send message response: %w", err))
-		return
-	}
-
-	// if foundMessage != nil {
-	// 	fmt.Printf("Sent requested message %s to peer\n", request.MessageId)
-	// } else {
-	// 	fmt.Printf("Requested message %s not found in history\n", request.MessageId)
-	// }
-}
-
-func (c *Chat) setupMessageRequestHandler() {
-	c.node.Host().SetStreamHandler(protocol.ID("/chat2-reliable/message-request/1.0.0"), c.handleMessageRequest)
 }

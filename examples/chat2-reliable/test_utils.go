@@ -47,7 +47,6 @@ func (nc *NetworkController) DisconnectNode(node *node.WakuNode) {
 			nc.disconnectPeers(node.Host(), other.Host())
 			nc.connected[nodeID][otherID] = false
 			nc.connected[otherID][nodeID] = false
-			fmt.Printf("Disconnected node %s from node %s\n", nodeID.String(), otherID.String())
 		}
 	}
 
@@ -55,7 +54,6 @@ func (nc *NetworkController) DisconnectNode(node *node.WakuNode) {
 	for _, chat := range nc.chats {
 		if chat.node == node {
 			chat.SetDisconnected(true)
-			fmt.Printf("Set node %s as disconnected in Chat\n", nodeID.String())
 			break
 		}
 	}
