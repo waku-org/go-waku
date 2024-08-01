@@ -17,9 +17,9 @@ type PublishRateLimiter struct {
 
 // NewPublishRateLimiter will create a new instance of PublishRateLimiter.
 // You can specify an rate.Inf value to in practice ignore the rate limiting
-func NewPublishRateLimiter(r rate.Limit) *PublishRateLimiter {
+func NewPublishRateLimiter(r rate.Limit, b int) *PublishRateLimiter {
 	return &PublishRateLimiter{
-		limiter: rate.NewLimiter(r, 1),
+		limiter: rate.NewLimiter(r, b),
 	}
 }
 
