@@ -46,6 +46,7 @@ type Chat struct {
 	outgoingBuffer   []UnacknowledgedMessage
 	incomingBuffer   []*pb.Message
 	messageHistory   []*pb.Message
+	isDisconnected   bool
 	mutex            sync.Mutex
 }
 
@@ -62,6 +63,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		outgoingBuffer:   make([]UnacknowledgedMessage, 0),
 		incomingBuffer:   make([]*pb.Message, 0),
 		messageHistory:   make([]*pb.Message, 0),
+		isDisconnected:   false,
 		mutex:            sync.Mutex{},
 	}
 
@@ -166,6 +168,11 @@ func (c *Chat) receiveMessages() {
 		case <-c.ctx.Done():
 			return
 		case value := <-c.C:
+			if c.isDisconnected {
+				fmt.Printf("Node %s: Skipping message processing due to disconnection\n", c.node.Host().ID().String())
+				continue
+			}
+
 			msgContentTopic := value.Message().ContentTopic
 			if msgContentTopic != c.options.ContentTopic {
 				continue // Discard messages from other topics
@@ -173,9 +180,11 @@ func (c *Chat) receiveMessages() {
 
 			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
 			if err == nil {
+				// fmt.Printf("Node %s: Received message: %s\n", c.node.Host().ID().String(), msg.Content)
 				c.processReceivedMessage(msg)
+				// fmt.Printf("Node %s: PROCESSED Received message: %s\n", c.node.Host().ID().String(), msg.Content)
 			} else {
-				fmt.Printf("Error decoding message: %v\n", err)
+				fmt.Printf("Node %s: Error decoding message: %v\n", c.node.Host().ID().String(), err)
 			}
 		}
 	}
@@ -326,6 +335,7 @@ func (c *Chat) SendMessage(line string) {
 	} else {
 		c.addToMessageHistory(msg)
 		c.bloomFilter.Add(msg.MessageId)
+		fmt.Printf("Node %s: Sent message: %s\n", c.node.Host().ID().String(), line)
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -11,13 +12,15 @@ import (
 
 type NetworkController struct {
 	nodes     []*node.WakuNode
+	chats     []*Chat
 	connected map[peer.ID]map[peer.ID]bool
 	mu        sync.Mutex
 }
 
-func NewNetworkController(nodes []*node.WakuNode) *NetworkController {
+func NewNetworkController(nodes []*node.WakuNode, chats []*Chat) *NetworkController {
 	nc := &NetworkController{
 		nodes:     nodes,
+		chats:     chats,
 		connected: make(map[peer.ID]map[peer.ID]bool),
 	}
 
@@ -44,6 +47,16 @@ func (nc *NetworkController) DisconnectNode(node *node.WakuNode) {
 			nc.disconnectPeers(node.Host(), other.Host())
 			nc.connected[nodeID][otherID] = false
 			nc.connected[otherID][nodeID] = false
+			fmt.Printf("Disconnected node %s from node %s\n", nodeID.String(), otherID.String())
+		}
+	}
+
+	// Set the node as disconnected in the Chat
+	for _, chat := range nc.chats {
+		if chat.node == node {
+			chat.SetDisconnected(true)
+			fmt.Printf("Set node %s as disconnected in Chat\n", nodeID.String())
+			break
 		}
 	}
 }
@@ -59,6 +72,16 @@ func (nc *NetworkController) ReconnectNode(node *node.WakuNode) {
 			nc.connectPeers(node.Host(), other.Host())
 			nc.connected[nodeID][otherID] = true
 			nc.connected[otherID][nodeID] = true
+			fmt.Printf("Reconnected node %s to node %s\n", nodeID.String(), otherID.String())
+		}
+	}
+
+	// Set the node as connected in the Chat
+	for _, chat := range nc.chats {
+		if chat.node == node {
+			chat.SetDisconnected(false)
+			fmt.Printf("Set node %s as connected in Chat\n", nodeID.String())
+			break
 		}
 	}
 }
@@ -78,3 +101,11 @@ func (nc *NetworkController) IsConnected(n1, n2 *node.WakuNode) bool {
 	defer nc.mu.Unlock()
 	return nc.connected[n1.Host().ID()][n2.Host().ID()]
 }
+
+// func (c *Chat) checkPeerConnections() {
+// 	peers := c.node.Host().Network().Peers()
+// 	fmt.Printf("Node %s: Connected to %d peers\n", c.node.Host().ID().String(), len(peers))
+// 	for _, peer := range peers {
+// 		fmt.Printf("  - %s\n", peer.String())
+// 	}
+// }
