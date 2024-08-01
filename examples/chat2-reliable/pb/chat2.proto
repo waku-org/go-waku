@@ -11,3 +11,12 @@ message Message {
   bytes bloom_filter = 6;
   string content = 7;
 }
+
+// only for peer retrieval instead of store
+message MessageRequest {
+  string message_id = 1;
+}
+
+message MessageResponse {
+  Message message = 1;
+}

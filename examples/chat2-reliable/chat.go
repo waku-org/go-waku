@@ -107,17 +107,31 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		}
 	}
 
-	chat.wg.Add(7) // Added 4 more goroutines for reliability protocol
+	// chat.wg.Add(7) // Added 4 more goroutines for reliability protocol
+	// go chat.parseInput()
+	// go chat.receiveMessages()
+	// go chat.welcomeMessage()
+	// go chat.connectionWatcher(connNotifier)
+
+	// connectionWg := &sync.WaitGroup{}
+	// connectionWg.Add(2)
+	// go chat.staticNodes(connectionWg)
+	// go chat.discoverNodes(connectionWg)
+	// go chat.retrieveHistory(connectionWg)
+	connWg := sync.WaitGroup{}
+	connWg.Add(3)
+
+	chat.wg.Add(10) // Added 2 more goroutines for periodic tasks
 	go chat.parseInput()
 	go chat.receiveMessages()
 	go chat.welcomeMessage()
 	go chat.connectionWatcher(connNotifier)
-
-	connectionWg := &sync.WaitGroup{}
-	connectionWg.Add(2)
-	go chat.staticNodes(connectionWg)
-	go chat.discoverNodes(connectionWg)
-	go chat.retrieveHistory(connectionWg)
+	go chat.staticNodes(&connWg)
+	go chat.discoverNodes(&connWg)
+	go chat.retrieveHistory(&connWg)
+	go chat.periodicBufferSweep()
+	go chat.periodicSyncMessage()
+	go chat.setupMessageRequestHandler()
 
 	chat.initReliabilityProtocol() // Initialize the reliability protocol
 

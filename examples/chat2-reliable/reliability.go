@@ -5,15 +5,20 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -151,7 +156,8 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 	c.bloomFilter.Add(msg.MessageId)
 
 	// Check causal dependencies
-	if c.checkCausalDependencies(msg) {
+	missingDeps := c.checkCausalDependencies(msg)
+	if len(missingDeps) == 0 {
 		if msg.Content != "" {
 			// Process the message
 			c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
@@ -159,15 +165,42 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 
 		// Add to message history
 		c.addToMessageHistory(msg)
+
+		// Process any messages in the buffer that now have their dependencies met
+		c.processBufferedMessages()
 	} else {
 		// Request missing dependencies
-		for _, depID := range msg.CausalHistory {
-			if !c.bloomFilter.Test(depID) {
-				c.requestMissingMessage(depID)
-			}
+		for _, depID := range missingDeps {
+			c.requestMissingMessage(depID)
 		}
 		// Add to incoming buffer
 		c.addToIncomingBuffer(msg)
+	}
+}
+
+func (c *Chat) processBufferedMessages() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	processed := make(map[string]bool)
+	for {
+		madeProgress := false
+		for i := 0; i < len(c.incomingBuffer); i++ {
+			msg := c.incomingBuffer[i]
+			if processed[msg.MessageId] {
+				continue
+			}
+			if c.checkCausalDependencies(msg) == nil {
+				c.processReceivedMessage(msg)
+				processed[msg.MessageId] = true
+				c.incomingBuffer = append(c.incomingBuffer[:i], c.incomingBuffer[i+1:]...)
+				i--
+				madeProgress = true
+			}
+		}
+		if !madeProgress {
+			break
+		}
 	}
 }
 
@@ -204,7 +237,7 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 
 func (c *Chat) requestMissingMessage(messageID string) {
 	for retry := 0; retry < maxRetries; retry++ {
-		err := c.doRequestMissingMessage(messageID)
+		err := c.doRequestMissingMessageFromPeers(messageID)
 		if err == nil {
 			return
 		}
@@ -250,6 +283,16 @@ func (c *Chat) doRequestMissingMessage(messageID string) error {
 		//store.WithAutomaticPeerSelection(),
 		store.WithPaging(true, 100), // Use paging to handle potentially large result sets
 	)
+	// alternate below
+	// criteria := store.MessageHashCriteria{
+	// 	MessageHashes: []wpb.MessageHash{wpb.ToMessageHash(hash)},
+	// }
+
+	// response, err := c.node.Store().Request(ctx, criteria,
+	// 	store.WithAutomaticRequestID(),
+	// 	store.WithAutomaticPeerSelection(),
+	// 	store.WithPaging(true, 100),
+	// )
 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve missing message: %w", err)
@@ -269,13 +312,14 @@ func (c *Chat) doRequestMissingMessage(messageID string) error {
 	return fmt.Errorf("missing message not found: %s", messageID)
 }
 
-func (c *Chat) checkCausalDependencies(msg *pb.Message) bool {
+func (c *Chat) checkCausalDependencies(msg *pb.Message) []string {
+	var missingDeps []string
 	for _, depID := range msg.CausalHistory {
 		if !c.bloomFilter.Test(depID) {
-			return false
+			missingDeps = append(missingDeps, depID)
 		}
 	}
-	return true
+	return missingDeps
 }
 
 func (c *Chat) addToMessageHistory(msg *pb.Message) {
@@ -341,7 +385,8 @@ func (c *Chat) sweepBuffers() {
 	c.mutex.Lock()
 	newIncomingBuffer := make([]*pb.Message, 0)
 	for _, msg := range c.incomingBuffer {
-		if c.checkCausalDependencies(msg) {
+		missingDeps := c.checkCausalDependencies(msg)
+		if len(missingDeps) == 0 {
 			c.processReceivedMessage(msg)
 		} else {
 			newIncomingBuffer = append(newIncomingBuffer, msg)
@@ -488,4 +533,97 @@ func (rbf *RollingBloomFilter) UnmarshalBinary(data []byte) error {
 	rbf.mutex.Lock()
 	defer rbf.mutex.Unlock()
 	return rbf.filter.UnmarshalBinary(data)
+}
+
+// below functions are specifically for peer retrieval of missing msgs instead of store
+func (c *Chat) doRequestMissingMessageFromPeers(messageID string) error {
+	peers := c.node.Host().Network().Peers()
+	for _, peerID := range peers {
+		msg, err := c.requestMessageFromPeer(peerID, messageID)
+		if err == nil && msg != nil {
+			c.processReceivedMessage(msg)
+			return nil
+		}
+	}
+	return fmt.Errorf("no peers could provide the missing message")
+}
+
+func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Message, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+	defer cancel()
+
+	stream, err := c.node.Host().NewStream(ctx, peerID, protocol.ID("/chat2-reliable/message-request/1.0.0"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
+	}
+	defer stream.Close()
+
+	// Send message request
+	request := &pb.MessageRequest{MessageId: messageID}
+	err = writeProtobufMessage(stream, request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send message request: %w", err)
+	}
+
+	// Read response
+	response := &pb.MessageResponse{}
+	err = readProtobufMessage(stream, response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message response: %w", err)
+	}
+
+	if response.Message == nil {
+		return nil, fmt.Errorf("peer did not have the requested message")
+	}
+
+	return response.Message, nil
+}
+
+// Helper functions for protobuf message reading/writing
+func writeProtobufMessage(stream network.Stream, msg proto.Message) error {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	_, err = stream.Write(data)
+	return err
+}
+
+func readProtobufMessage(stream network.Stream, msg proto.Message) error {
+	data, err := io.ReadAll(stream)
+	if err != nil {
+		return err
+	}
+	return proto.Unmarshal(data, msg)
+}
+
+func (c *Chat) handleMessageRequest(stream network.Stream) {
+	defer stream.Close()
+
+	request := &pb.MessageRequest{}
+	err := readProtobufMessage(stream, request)
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to read message request: %w", err))
+		return
+	}
+
+	c.mutex.Lock()
+	var foundMessage *pb.Message
+	for _, msg := range c.messageHistory {
+		if msg.MessageId == request.MessageId {
+			foundMessage = msg
+			break
+		}
+	}
+	c.mutex.Unlock()
+
+	response := &pb.MessageResponse{Message: foundMessage}
+	err = writeProtobufMessage(stream, response)
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to send message response: %w", err))
+	}
+}
+
+func (c *Chat) setupMessageRequestHandler() {
+	c.node.Host().SetStreamHandler(protocol.ID("/chat2-reliable/message-request/1.0.0"), c.handleMessageRequest)
 }
