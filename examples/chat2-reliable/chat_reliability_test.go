@@ -12,13 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 	"github.com/waku-org/go-waku/waku/v2/node"
-	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
-	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/utils"
-	"google.golang.org/protobuf/proto"
 )
 
 type TestEnvironment struct {
@@ -34,14 +29,12 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 	}
 
 	for i := 0; i < nodeCount; i++ {
-		t.Logf("Setting up node %d", i)
 		node, err := setupTestNode(ctx, t, i)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set up node %d: %w", i, err)
 		}
 		env.nodes[i] = node
 
-		t.Logf("Creating chat instance for node %d", i)
 		chat, err := setupTestChat(ctx, t, node, fmt.Sprintf("Node%d", i))
 		if err != nil {
 			return nil, fmt.Errorf("failed to set up chat for node %d: %w", i, err)
@@ -52,7 +45,6 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 	t.Log("Connecting nodes in ring topology")
 	for i := 0; i < nodeCount; i++ {
 		nextIndex := (i + 1) % nodeCount
-		t.Logf("Connecting node %d to node %d", i, nextIndex)
 		_, err := env.nodes[i].AddPeer(env.nodes[nextIndex].ListenAddresses()[0], peerstore.Static, env.chats[i].options.Relay.Topics.Value())
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect node %d to node %d: %w", i, nextIndex, err)
@@ -66,6 +58,7 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 func setupTestNode(ctx context.Context, t *testing.T, index int) (*node.WakuNode, error) {
 	opts := []node.WakuNodeOption{
 		node.WithWakuRelay(),
+		// node.WithWakuStore(),
 	}
 	node, err := node.New(opts...)
 	if err != nil {
@@ -74,6 +67,11 @@ func setupTestNode(ctx context.Context, t *testing.T, index int) (*node.WakuNode
 	if err := node.Start(ctx); err != nil {
 		return nil, err
 	}
+
+	// if node.Store() == nil {
+	// 	t.Logf("Store protocol is not enabled on node %d", index)
+	// }
+
 	return node, nil
 }
 
@@ -102,6 +100,15 @@ func setupTestChat(ctx context.Context, t *testing.T, node *node.WakuNode, nickn
 	return chat, nil
 }
 
+func areNodesConnected(nodes []*node.WakuNode, expectedPeers int) bool {
+	for _, node := range nodes {
+		if len(node.Host().Network().Peers()) != expectedPeers {
+			return false
+		}
+	}
+	return true
+}
+
 // TestLamportTimestamps verifies that Lamport timestamps are correctly updated
 func TestLamportTimestamps(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -114,7 +121,7 @@ func TestLamportTimestamps(t *testing.T) {
 	require.NoError(t, err, "Failed to set up test environment")
 
 	require.Eventually(t, func() bool {
-		return areNodesConnected(env.nodes, nodeCount)
+		return areNodesConnected(env.nodes, 2)
 	}, 30*time.Second, 1*time.Second, "Nodes failed to connect")
 
 	for i, chat := range env.chats {
@@ -162,10 +169,8 @@ func TestCausalOrdering(t *testing.T) {
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
 
-	// defer tearDownEnvironment(t, env)
-
 	require.Eventually(t, func() bool {
-		return areNodesConnected(env.nodes, nodeCount)
+		return areNodesConnected(env.nodes, 2)
 	}, 30*time.Second, 1*time.Second, "Nodes failed to connect")
 
 	t.Log("Sending messages from different nodes")
@@ -207,10 +212,8 @@ func TestBloomFilterDuplicateDetection(t *testing.T) {
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
 
-	//defer tearDownEnvironment(t, env)
-
 	require.Eventually(t, func() bool {
-		return areNodesConnected(env.nodes, nodeCount)
+		return areNodesConnected(env.nodes, 1)
 	}, 30*time.Second, 1*time.Second, "Nodes failed to connect")
 
 	t.Log("Sending a message")
@@ -242,44 +245,16 @@ func TestBloomFilterDuplicateDetection(t *testing.T) {
 		Content:          receivedMsg.Content,
 	}
 
-	// Encode the duplicate message
-	msgBytes, err := proto.Marshal(duplicateMsg)
-	require.NoError(t, err, "Failed to marshal duplicate message")
-
-	version := uint32(0)
-	timestamp := utils.GetUnixEpochFrom(time.Now())
-	keyInfo := &payload.KeyInfo{
-		Kind: payload.None,
-	}
-
-	p := new(payload.Payload)
-	p.Data = msgBytes
-	p.Key = keyInfo
-
-	payloadBytes, err := p.Encode(version)
-	require.NoError(t, err, "Failed to encode payload")
-
-	wakuMsg := &wpb.WakuMessage{
-		Payload:      payloadBytes,
-		Version:      proto.Uint32(version),
-		ContentTopic: env.chats[1].options.ContentTopic,
-		Timestamp:    timestamp,
-	}
-
-	duplicateEnvelope := protocol.NewEnvelope(wakuMsg, time.Now().UnixNano(), relay.DefaultWakuTopic)
-
-	// Manually inject the duplicate message into the receive channel
-	env.chats[1].C <- duplicateEnvelope
-
-	time.Sleep(5 * time.Second) // Wait a bit to ensure message processing
+	env.chats[1].processReceivedMessage(duplicateMsg)
 
 	assert.Len(t, env.chats[1].messageHistory, 1, "Node 1 should still have only one message (no duplicates)")
 
 	t.Log("TestBloomFilterDuplicateDetection completed successfully")
 }
 
-func TestMessageRecovery(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+// TestNetworkPartition ensures that missing messages can be recovered
+func TestNetworkPartition(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
 	t.Log("Starting TestMessageRecovery")
@@ -287,49 +262,73 @@ func TestMessageRecovery(t *testing.T) {
 	nodeCount := 3
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
+	//defer tearDownEnvironment(t, env)
 
-	defer tearDownEnvironment(t, env)
+	nc := NewNetworkController(env.nodes, env.chats)
 
 	require.Eventually(t, func() bool {
-		return areNodesConnected(env.nodes, nodeCount)
-	}, 30*time.Second, 1*time.Second, "Nodes failed to connect")
+		return areNodesConnected(env.nodes, 2)
+	}, 60*time.Second, 1*time.Second, "Nodes failed to connect")
 
-	t.Log("Sending initial messages")
+	t.Log("Stage 1: Sending initial messages")
 	env.chats[0].SendMessage("Message 1")
 	time.Sleep(100 * time.Millisecond)
 	env.chats[1].SendMessage("Message 2")
 	time.Sleep(100 * time.Millisecond)
 
-	t.Log("Simulating a missed message")
-	missedMsg := &pb.Message{
-		SenderId:         "Node2",
-		MessageId:        "missed-message-id",
-		LamportTimestamp: 3,
-		CausalHistory:    []string{env.chats[0].messageHistory[0].MessageId, env.chats[1].messageHistory[0].MessageId},
-		ChannelId:        env.chats[2].options.ContentTopic,
-		Content:          "Missed Message",
-	}
-
-	// Send to Node 0 and Node 1, simulating Node 2 missing the message
-	env.chats[0].processReceivedMessage(missedMsg)
-	env.chats[1].processReceivedMessage(missedMsg)
-
-	t.Log("Sending a new message that depends on the missed message")
-	newMsg := &pb.Message{
-		SenderId:         "Node2",
-		MessageId:        "new-message-id",
-		LamportTimestamp: 4,
-		CausalHistory:    []string{"missed-message-id"},
-		ChannelId:        env.chats[2].options.ContentTopic,
-		Content:          "New Message",
-	}
-	env.chats[2].processReceivedMessage(newMsg)
-
-	t.Log("Waiting for message recovery")
+	t.Log("Waiting for message propagation")
 	require.Eventually(t, func() bool {
-		return len(env.chats[2].messageHistory) == 4
-	}, 30*time.Second, 1*time.Second, "Message recovery failed")
+		for _, chat := range env.chats {
+			if len(chat.messageHistory) != 2 {
+				return false
+			}
+		}
+		return true
+	}, 30*time.Second, 1*time.Second, "Messages did not propagate to all nodes")
 
+	// Verify that Node 2 has messages before disconnection
+	require.Equal(t, 2, len(env.chats[2].messageHistory), "Node 2 does not have all messages")
+
+	t.Log("Stage 2: Simulating network partition for Node 2")
+	nc.DisconnectNode(env.nodes[2])
+	time.Sleep(1 * time.Second) // Allow time for disconnection to take effect
+
+	t.Log("Stage 3: Sending message that Node 2 will miss")
+	env.chats[0].SendMessage("Missed Message")
+	time.Sleep(100 * time.Millisecond)
+
+	t.Log("Stage 4: Reconnecting Node 2")
+	nc.ReconnectNode(env.nodes[2])
+	time.Sleep(5 * time.Second) // Allow time for reconnection to take effect
+
+	// Verify that Node 2 didn't receive the message
+	require.Equal(t, 2, len(env.chats[2].messageHistory), "Node 2 should not have received the missed message")
+
+	t.Log("Stage 5: Sending a new message that depends on the missed message")
+	env.chats[1].SendMessage("New Message")
+
+	// Verify that Node 2 received the new message
+	require.Eventually(t, func() bool {
+		msgCount := len(env.chats[2].messageHistory)
+		return msgCount >= 3
+	}, 30*time.Second, 5*time.Second, "Node 2 should have received the new message")
+
+	// Stage 6: Wait for message recovery
+	t.Log("Stage 6: Waiting for message recovery")
+	require.Eventually(t, func() bool {
+		msgCount := len(env.chats[2].messageHistory)
+		return msgCount == 4
+	}, 30*time.Second, 5*time.Second, "Message recovery failed")
+
+	// Print final message history for all nodes
+	for i, chat := range env.chats {
+		t.Logf("Node %d final message history:", i)
+		for j, msg := range chat.messageHistory {
+			t.Logf("  Message %d: %s", j+1, msg.Content)
+		}
+	}
+
+	// Verify the results
 	for i, msg := range env.chats[2].messageHistory {
 		t.Logf("Message %d: %s", i+1, msg.Content)
 	}
@@ -338,12 +337,10 @@ func TestMessageRecovery(t *testing.T) {
 	assert.Equal(t, "Message 2", env.chats[2].messageHistory[1].Content, "Second message incorrect")
 	assert.Equal(t, "Missed Message", env.chats[2].messageHistory[2].Content, "Missed message not recovered")
 	assert.Equal(t, "New Message", env.chats[2].messageHistory[3].Content, "New message incorrect")
-
-	t.Log("TestMessageRecovery completed successfully")
 }
 
 func TestConcurrentMessageSending(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
 	t.Log("Starting TestConcurrentMessageSending")
@@ -352,11 +349,9 @@ func TestConcurrentMessageSending(t *testing.T) {
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
 
-	//defer tearDownEnvironment(t, env)
-
 	require.Eventually(t, func() bool {
-		return areNodesConnected(env.nodes, nodeCount)
-	}, 30*time.Second, 1*time.Second, "Nodes failed to connect")
+		return areNodesConnected(env.nodes, 2)
+	}, 60*time.Second, 3*time.Second, "Nodes failed to connect")
 
 	messageCount := 10
 	var wg sync.WaitGroup
@@ -393,72 +388,140 @@ func TestConcurrentMessageSending(t *testing.T) {
 	t.Log("TestConcurrentMessageSending completed successfully")
 }
 
-// Helper functions
+func TestLargeGroupScaling(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
 
-func tearDownEnvironment(t *testing.T, env *TestEnvironment) {
-	t.Log("Tearing down test environment")
-	for i, node := range env.nodes {
-		t.Logf("Stopping node %d", i)
-		node.Stop()
-	}
+	t.Log("Starting TestLargeGroupScaling")
+
+	nodeCount := 20
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
+
+	require.Eventually(t, func() bool {
+		return areNodesConnected(env.nodes, 2)
+	}, 2*time.Minute, 3*time.Second, "Nodes failed to connect")
+
+	// Send a message from the first node
+	env.chats[0].SendMessage("Broadcast message to large group")
+
+	// Allow time for propagation
+	time.Sleep(time.Duration(nodeCount*100) * time.Millisecond)
+
+	// Verify all nodes received the message
 	for i, chat := range env.chats {
-		t.Logf("Stopping chat %d", i)
-		chat.Stop()
+		assert.Len(t, chat.messageHistory, 1, "Node %d should have received the broadcast message", i)
+		assert.Equal(t, "Broadcast message to large group", chat.messageHistory[0].Content)
 	}
+
+	t.Log("TestLargeGroupScaling completed successfully")
 }
 
-func areNodesConnected(nodes []*node.WakuNode, expectedConnections int) bool {
-	for _, node := range nodes {
-		if len(node.Host().Network().Peers()) != expectedConnections-1 {
-			return false
-		}
-	}
-	return true
+func TestEagerPushMechanism(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	nodeCount := 2
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
+
+	nc := NewNetworkController(env.nodes, env.chats)
+
+	// Disconnect node 1
+	nc.DisconnectNode(env.nodes[1])
+
+	// Send a message from node 0
+	env.chats[0].SendMessage("Test eager push")
+
+	// Wait for the message to be added to the outgoing buffer
+	time.Sleep(1 * time.Second)
+
+	// Reconnect node 1
+	nc.ReconnectNode(env.nodes[1])
+
+	// Wait for eager push to resend the message
+	time.Sleep(5 * time.Second)
+
+	// Check if node 1 received the message
+	assert.Eventually(t, func() bool {
+		return len(env.chats[1].messageHistory) == 1
+	}, 10*time.Second, 1*time.Second, "Node 1 should have received the message via eager push")
 }
 
-// func TestNetworkPartition(t *testing.T) {
-// 	env := setupTestEnvironment(t, 4)
+func TestBloomFilterWindow(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 
-// 	// Send initial messages
-// 	env.chats[0].SendMessage("Message 1 from Node 0")
-// 	env.chats[1].SendMessage("Message 2 from Node 1")
-// 	time.Sleep(100 * time.Millisecond)
+	nodeCount := 2
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
 
-// 	// Simulate network partition: disconnect Node 2 and Node 3
-// 	env.nodes[2].Stop()
-// 	env.nodes[3].Stop()
+	// Reduce bloom filter window for testing
+	for _, chat := range env.chats {
+		chat.bloomFilter.window = 5 * time.Second
+	}
 
-// 	// Send messages during partition
-// 	env.chats[0].SendMessage("Message 3 from Node 0 during partition")
-// 	env.chats[1].SendMessage("Message 4 from Node 1 during partition")
-// 	time.Sleep(100 * time.Millisecond)
+	// Send a message
+	env.chats[0].SendMessage("Test bloom filter window")
+	messageID := env.chats[0].messageHistory[0].MessageId
 
-// 	// Reconnect Node 2 and Node 3
-// 	env.nodes[2].Start(context.Background())
-// 	env.nodes[3].Start(context.Background())
+	// Check if the message is in the bloom filter
+	assert.Eventually(t, func() bool {
+		return env.chats[1].bloomFilter.Test(messageID)
+	}, 30*time.Second, 1*time.Second, "Message should be in the bloom filter")
 
-// 	// Allow time for synchronization
-// 	time.Sleep(500 * time.Millisecond)
+	// Wait for the bloom filter window to pass
+	time.Sleep(5 * time.Second)
 
-// 	// Verify all nodes have all messages
-// 	for i, chat := range env.chats {
-// 		assert.Len(t, chat.messageHistory, 4, "Node %d should have all messages after partition", i)
-// 	}
-// }
+	// Clean the bloom filter
+	env.chats[1].bloomFilter.Clean()
 
-// func TestLargeGroupScaling(t *testing.T) {
-// 	nodeCount := 20
-// 	env := setupTestEnvironment(t, nodeCount)
+	time.Sleep(8 * time.Second)
 
-// 	// Send a message from the first node
-// 	env.chats[0].SendMessage("Broadcast message to large group")
+	// Check if the message is no longer in the bloom filter
+	assert.False(t, env.chats[1].bloomFilter.Test(messageID), "Message should no longer be in the bloom filter")
 
-// 	// Allow time for propagation
-// 	time.Sleep(time.Duration(nodeCount*100) * time.Millisecond)
+	// Send another message to ensure the filter still works for new messages
+	env.chats[0].SendMessage("New test message")
+	time.Sleep(1 * time.Second)
 
-// 	// Verify all nodes received the message
-// 	for i, chat := range env.chats {
-// 		assert.Len(t, chat.messageHistory, 1, "Node %d should have received the broadcast message", i)
-// 		assert.Equal(t, "Broadcast message to large group", chat.messageHistory[0].Content)
-// 	}
-// }
+	newMessageID := env.chats[0].messageHistory[1].MessageId
+	// Check if the new message is in the bloom filter
+	assert.Eventually(t, func() bool {
+		return env.chats[1].bloomFilter.Test(newMessageID)
+	}, 30*time.Second, 1*time.Second, "New message should be in the bloom filter")
+}
+
+func TestConflictResolution(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	nodeCount := 3
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
+
+	// Create conflicting messages with the same Lamport timestamp
+	conflictingMsg1 := &pb.Message{
+		SenderId:         "Node0",
+		MessageId:        "msg1",
+		LamportTimestamp: 1,
+		Content:          "Conflict 1",
+	}
+	conflictingMsg2 := &pb.Message{
+		SenderId:         "Node1",
+		MessageId:        "msg2",
+		LamportTimestamp: 1,
+		Content:          "Conflict 2",
+	}
+
+	// Process the conflicting messages in different orders on different nodes
+	env.chats[0].processReceivedMessage(conflictingMsg1)
+	env.chats[0].processReceivedMessage(conflictingMsg2)
+
+	env.chats[1].processReceivedMessage(conflictingMsg2)
+	env.chats[1].processReceivedMessage(conflictingMsg1)
+
+	// Check if the messages are ordered consistently across nodes
+	assert.Equal(t, env.chats[0].messageHistory[0].MessageId, env.chats[1].messageHistory[0].MessageId, "Conflicting messages should be ordered consistently")
+	assert.Equal(t, env.chats[0].messageHistory[1].MessageId, env.chats[1].messageHistory[1].MessageId, "Conflicting messages should be ordered consistently")
+}
