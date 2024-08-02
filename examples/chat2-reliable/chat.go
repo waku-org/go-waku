@@ -63,6 +63,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		incomingBuffer:   make([]*pb.Message, 0),
 		messageHistory:   make([]*pb.Message, 0),
 		mutex:            sync.Mutex{},
+		//C:                make(chan *protocol.Envelope, 10),
 	}
 
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
@@ -108,7 +109,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 	}
 
 	connWg := sync.WaitGroup{}
-	connWg.Add(3)
+	connWg.Add(2)
 
 	chat.wg.Add(7) // Added 2 more goroutines for periodic tasks
 	go chat.parseInput()
@@ -158,11 +159,11 @@ func (c *Chat) receiveMessages() {
 			}
 
 			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
-			if err == nil {
-				c.processReceivedMessage(msg)
-			} else {
+			if err != nil {
 				fmt.Printf("Error decoding message: %v\n", err)
+				continue
 			}
+			c.processReceivedMessage(msg)
 		}
 	}
 }
@@ -396,7 +397,7 @@ func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Message, 
 func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 	defer c.wg.Done()
 
-	connectionWg.Wait() // Wait until node connection operations are done
+	connectionWg.Wait() // Wait until node connection operations are
 
 	if !c.options.Store.Enable {
 		return
@@ -427,7 +428,6 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 		store.WithAutomaticRequestID(),
 		storeOpt,
 		store.WithPaging(false, 100))
-
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("could not query storenode: %w", err))
 	} else {

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
@@ -29,10 +28,11 @@ const (
 )
 
 func (c *Chat) initReliabilityProtocol() {
-	c.wg.Add(5)
+	c.wg.Add(4)
+	c.setupMessageRequestHandler()
+
 	go c.periodicBufferSweep()
 	go c.periodicSyncMessage()
-	go c.setupMessageRequestHandler()
 	go c.startBloomFilterCleaner()
 	go c.startEagerPushMechanism()
 }
@@ -57,63 +57,6 @@ type UnacknowledgedMessage struct {
 	Message        *pb.Message
 	SendTime       time.Time
 	ResendAttempts int
-}
-
-type TimestampedMessageID struct {
-	ID        string
-	Timestamp time.Time
-}
-
-type RollingBloomFilter struct {
-	filter   *bloom.BloomFilter
-	window   time.Duration
-	messages []TimestampedMessageID
-	mutex    sync.Mutex
-}
-
-func NewRollingBloomFilter() *RollingBloomFilter {
-	return &RollingBloomFilter{
-		filter:   bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate),
-		window:   bloomFilterWindow,
-		messages: make([]TimestampedMessageID, 0),
-	}
-}
-
-func (rbf *RollingBloomFilter) Add(messageID string) {
-	rbf.mutex.Lock()
-	defer rbf.mutex.Unlock()
-
-	rbf.filter.Add([]byte(messageID))
-	rbf.messages = append(rbf.messages, TimestampedMessageID{
-		ID:        messageID,
-		Timestamp: time.Now(),
-	})
-}
-
-func (rbf *RollingBloomFilter) Test(messageID string) bool {
-	rbf.mutex.Lock()
-	defer rbf.mutex.Unlock()
-
-	return rbf.filter.Test([]byte(messageID))
-}
-
-func (rbf *RollingBloomFilter) Clean() {
-	rbf.mutex.Lock()
-	defer rbf.mutex.Unlock()
-
-	cutoff := time.Now().Add(-rbf.window)
-	newMessages := make([]TimestampedMessageID, 0)
-	newFilter := bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate)
-
-	for _, msg := range rbf.messages {
-		if msg.Timestamp.After(cutoff) {
-			newMessages = append(newMessages, msg)
-			newFilter.Add([]byte(msg.ID))
-		}
-	}
-
-	rbf.messages = newMessages
-	rbf.filter = newFilter
 }
 
 func (c *Chat) startBloomFilterCleaner() {
@@ -170,10 +113,10 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 
 func (c *Chat) processBufferedMessages() {
 	c.mutex.Lock()
-	defer c.mutex.Unlock()
 
 	processed := make(map[string]bool)
 	remainingBuffer := make([]*pb.Message, 0, len(c.incomingBuffer))
+	processedBuffer := make([]*pb.Message, 0)
 
 	for _, msg := range c.incomingBuffer {
 		if processed[msg.MessageId] {
@@ -183,19 +126,22 @@ func (c *Chat) processBufferedMessages() {
 		missingDeps := c.checkCausalDependencies(msg)
 		if len(missingDeps) == 0 {
 			// Release the lock while processing the message
-			c.mutex.Unlock()
 			if msg.Content != "" {
 				c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
 			}
 
-			c.addToMessageHistory(msg)
-			c.mutex.Lock()
+			processedBuffer = append(processedBuffer, msg)
 		} else {
 			remainingBuffer = append(remainingBuffer, msg)
 		}
 	}
 
 	c.incomingBuffer = remainingBuffer
+	c.mutex.Unlock()
+
+	for _, msg := range processedBuffer {
+		c.addToMessageHistory(msg)
+	}
 }
 
 func (c *Chat) reviewAckStatus(msg *pb.Message) {
@@ -330,7 +276,7 @@ func (c *Chat) checkUnacknowledgedMessages() {
 		unackMsg := c.outgoingBuffer[i]
 		if now.Sub(unackMsg.SendTime) > ackTimeout {
 			if unackMsg.ResendAttempts < maxResendAttempts {
-				c.resendMessage(unackMsg.Message)
+				c.resendMessage(unackMsg.Message, unackMsg.ResendAttempts)
 				c.outgoingBuffer[i].ResendAttempts++
 				c.outgoingBuffer[i].SendTime = now
 			} else {
@@ -343,9 +289,9 @@ func (c *Chat) checkUnacknowledgedMessages() {
 	}
 }
 
-func (c *Chat) resendMessage(msg *pb.Message) {
+func (c *Chat) resendMessage(msg *pb.Message, resendAttempts int) {
 	go func() {
-		delay := resendBaseDelay * time.Duration(1<<uint(c.getResendAttempts(msg.MessageId)))
+		delay := resendBaseDelay * time.Duration(1<<uint(resendAttempts))
 		if delay > maxResendDelay {
 			delay = maxResendDelay
 		}
@@ -359,17 +305,6 @@ func (c *Chat) resendMessage(msg *pb.Message) {
 			c.ui.ErrorMessage(fmt.Errorf("failed to resend message: %w", err))
 		}
 	}()
-}
-
-func (c *Chat) getResendAttempts(messageId string) int {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	for _, unackMsg := range c.outgoingBuffer {
-		if unackMsg.Message.MessageId == messageId {
-			return unackMsg.ResendAttempts
-		}
-	}
-	return 0
 }
 
 func (c *Chat) periodicSyncMessage() {
@@ -441,18 +376,4 @@ func (c *Chat) getLamportTimestamp() int32 {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.lamportTimestamp
-}
-
-// MarshalBinary implements the encoding.BinaryMarshaler interface for RollingBloomFilter
-func (rbf *RollingBloomFilter) MarshalBinary() ([]byte, error) {
-	rbf.mutex.Lock()
-	defer rbf.mutex.Unlock()
-	return rbf.filter.MarshalBinary()
-}
-
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface for RollingBloomFilter
-func (rbf *RollingBloomFilter) UnmarshalBinary(data []byte) error {
-	rbf.mutex.Lock()
-	defer rbf.mutex.Unlock()
-	return rbf.filter.UnmarshalBinary(data)
 }
