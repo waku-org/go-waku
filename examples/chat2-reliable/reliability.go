@@ -24,7 +24,7 @@ const (
 	maxRetryDelay            = 10 * time.Second
 	ackTimeout               = 5 * time.Second
 	maxResendAttempts        = 5
-	resendBaseDelay          = 5 * time.Second
+	resendBaseDelay          = 1 * time.Second
 	maxResendDelay           = 30 * time.Second
 )
 
