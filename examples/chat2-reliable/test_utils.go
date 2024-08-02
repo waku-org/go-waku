@@ -49,14 +49,6 @@ func (nc *NetworkController) DisconnectNode(node *node.WakuNode) {
 			nc.connected[otherID][nodeID] = false
 		}
 	}
-
-	// Set the node as disconnected in the Chat
-	for _, chat := range nc.chats {
-		if chat.node == node {
-			chat.SetDisconnected(true)
-			break
-		}
-	}
 }
 
 func (nc *NetworkController) ReconnectNode(node *node.WakuNode) {
@@ -71,15 +63,6 @@ func (nc *NetworkController) ReconnectNode(node *node.WakuNode) {
 			nc.connected[nodeID][otherID] = true
 			nc.connected[otherID][nodeID] = true
 			fmt.Printf("Reconnected node %s to node %s\n", nodeID.String(), otherID.String())
-		}
-	}
-
-	// Set the node as connected in the Chat
-	for _, chat := range nc.chats {
-		if chat.node == node {
-			chat.SetDisconnected(false)
-			fmt.Printf("Set node %s as connected in Chat\n", nodeID.String())
-			break
 		}
 	}
 }

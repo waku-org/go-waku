@@ -46,7 +46,6 @@ type Chat struct {
 	outgoingBuffer   []UnacknowledgedMessage
 	incomingBuffer   []*pb.Message
 	messageHistory   []*pb.Message
-	isDisconnected   bool
 	mutex            sync.Mutex
 }
 
@@ -63,7 +62,6 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		outgoingBuffer:   make([]UnacknowledgedMessage, 0),
 		incomingBuffer:   make([]*pb.Message, 0),
 		messageHistory:   make([]*pb.Message, 0),
-		isDisconnected:   false,
 		mutex:            sync.Mutex{},
 	}
 
@@ -112,7 +110,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 	connWg := sync.WaitGroup{}
 	connWg.Add(3)
 
-	chat.wg.Add(10) // Added 2 more goroutines for periodic tasks
+	chat.wg.Add(7) // Added 2 more goroutines for periodic tasks
 	go chat.parseInput()
 	go chat.receiveMessages()
 	go chat.welcomeMessage()
@@ -120,9 +118,6 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 	go chat.staticNodes(&connWg)
 	go chat.discoverNodes(&connWg)
 	go chat.retrieveHistory(&connWg)
-	go chat.periodicBufferSweep()
-	go chat.periodicSyncMessage()
-	go chat.setupMessageRequestHandler()
 
 	chat.initReliabilityProtocol() // Initialize the reliability protocol
 
@@ -157,11 +152,6 @@ func (c *Chat) receiveMessages() {
 		case <-c.ctx.Done():
 			return
 		case value := <-c.C:
-			if c.isDisconnected {
-				fmt.Printf("Node %s: Skipping message processing due to disconnection\n", c.node.Host().ID().String())
-				continue
-			}
-
 			msgContentTopic := value.Message().ContentTopic
 			if msgContentTopic != c.options.ContentTopic {
 				continue // Discard messages from other topics
@@ -171,7 +161,7 @@ func (c *Chat) receiveMessages() {
 			if err == nil {
 				c.processReceivedMessage(msg)
 			} else {
-				fmt.Printf("Node %s: Error decoding message: %v\n", c.node.Host().ID().String(), err)
+				fmt.Printf("Error decoding message: %v\n", err)
 			}
 		}
 	}

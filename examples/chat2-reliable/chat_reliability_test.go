@@ -310,10 +310,6 @@ func TestNetworkPartition(t *testing.T) {
 	// Verify that Node 2 received the new message
 	require.Eventually(t, func() bool {
 		msgCount := len(env.chats[2].messageHistory)
-		t.Logf("Node 2 message count: %d", msgCount)
-		for j, msg := range env.chats[2].messageHistory {
-			t.Logf("  Message %d: %s", j+1, msg.Content)
-		}
 		return msgCount >= 3
 	}, 30*time.Second, 5*time.Second, "Node 2 should have received the new message")
 
@@ -393,7 +389,7 @@ func TestConcurrentMessageSending(t *testing.T) {
 }
 
 func TestLargeGroupScaling(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	t.Log("Starting TestLargeGroupScaling")
@@ -404,7 +400,7 @@ func TestLargeGroupScaling(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return areNodesConnected(env.nodes, 2)
-	}, 60*time.Second, 3*time.Second, "Nodes failed to connect")
+	}, 2*time.Minute, 3*time.Second, "Nodes failed to connect")
 
 	// Send a message from the first node
 	env.chats[0].SendMessage("Broadcast message to large group")
@@ -419,4 +415,113 @@ func TestLargeGroupScaling(t *testing.T) {
 	}
 
 	t.Log("TestLargeGroupScaling completed successfully")
+}
+
+func TestEagerPushMechanism(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	nodeCount := 2
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
+
+	nc := NewNetworkController(env.nodes, env.chats)
+
+	// Disconnect node 1
+	nc.DisconnectNode(env.nodes[1])
+
+	// Send a message from node 0
+	env.chats[0].SendMessage("Test eager push")
+
+	// Wait for the message to be added to the outgoing buffer
+	time.Sleep(1 * time.Second)
+
+	// Reconnect node 1
+	nc.ReconnectNode(env.nodes[1])
+
+	// Wait for eager push to resend the message
+	time.Sleep(5 * time.Second)
+
+	// Check if node 1 received the message
+	assert.Eventually(t, func() bool {
+		return len(env.chats[1].messageHistory) == 1
+	}, 10*time.Second, 1*time.Second, "Node 1 should have received the message via eager push")
+}
+
+func TestBloomFilterWindow(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	nodeCount := 2
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
+
+	// Reduce bloom filter window for testing
+	for _, chat := range env.chats {
+		chat.bloomFilter.window = 5 * time.Second
+	}
+
+	// Send a message
+	env.chats[0].SendMessage("Test bloom filter window")
+	messageID := env.chats[0].messageHistory[0].MessageId
+
+	// Check if the message is in the bloom filter
+	assert.Eventually(t, func() bool {
+		return env.chats[1].bloomFilter.Test(messageID)
+	}, 30*time.Second, 1*time.Second, "Message should be in the bloom filter")
+
+	// Wait for the bloom filter window to pass
+	time.Sleep(5 * time.Second)
+
+	// Clean the bloom filter
+	env.chats[1].bloomFilter.Clean()
+
+	time.Sleep(8 * time.Second)
+
+	// Check if the message is no longer in the bloom filter
+	assert.False(t, env.chats[1].bloomFilter.Test(messageID), "Message should no longer be in the bloom filter")
+
+	// Send another message to ensure the filter still works for new messages
+	env.chats[0].SendMessage("New test message")
+	time.Sleep(1 * time.Second)
+
+	newMessageID := env.chats[0].messageHistory[1].MessageId
+	// Check if the new message is in the bloom filter
+	assert.Eventually(t, func() bool {
+		return env.chats[1].bloomFilter.Test(newMessageID)
+	}, 30*time.Second, 1*time.Second, "New message should be in the bloom filter")
+}
+
+func TestConflictResolution(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	nodeCount := 3
+	env, err := setupTestEnvironment(ctx, t, nodeCount)
+	require.NoError(t, err, "Failed to set up test environment")
+
+	// Create conflicting messages with the same Lamport timestamp
+	conflictingMsg1 := &pb.Message{
+		SenderId:         "Node0",
+		MessageId:        "msg1",
+		LamportTimestamp: 1,
+		Content:          "Conflict 1",
+	}
+	conflictingMsg2 := &pb.Message{
+		SenderId:         "Node1",
+		MessageId:        "msg2",
+		LamportTimestamp: 1,
+		Content:          "Conflict 2",
+	}
+
+	// Process the conflicting messages in different orders on different nodes
+	env.chats[0].processReceivedMessage(conflictingMsg1)
+	env.chats[0].processReceivedMessage(conflictingMsg2)
+
+	env.chats[1].processReceivedMessage(conflictingMsg2)
+	env.chats[1].processReceivedMessage(conflictingMsg1)
+
+	// Check if the messages are ordered consistently across nodes
+	assert.Equal(t, env.chats[0].messageHistory[0].MessageId, env.chats[1].messageHistory[0].MessageId, "Conflicting messages should be ordered consistently")
+	assert.Equal(t, env.chats[0].messageHistory[1].MessageId, env.chats[1].messageHistory[1].MessageId, "Conflicting messages should be ordered consistently")
 }

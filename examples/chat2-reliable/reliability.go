@@ -15,7 +15,7 @@ const (
 	bloomFilterSize          = 10000
 	bloomFilterFPRate        = 0.01
 	bloomFilterWindow        = 1 * time.Hour
-	bloomFilterCleanInterval = 5 * time.Minute
+	bloomFilterCleanInterval = 30 * time.Minute
 	bufferSweepInterval      = 5 * time.Second
 	syncMessageInterval      = 60 * time.Second
 	messageAckTimeout        = 10 * time.Second
@@ -24,33 +24,16 @@ const (
 	maxRetryDelay            = 10 * time.Second
 	ackTimeout               = 5 * time.Second
 	maxResendAttempts        = 5
-	resendBaseDelay          = 1 * time.Second
+	resendBaseDelay          = 5 * time.Second
 	maxResendDelay           = 30 * time.Second
 )
 
-type TimestampedMessageID struct {
-	ID        string
-	Timestamp time.Time
-}
-
-type RollingBloomFilter struct {
-	filter   *bloom.BloomFilter
-	window   time.Duration
-	messages []TimestampedMessageID
-	mutex    sync.Mutex
-}
-
-type UnacknowledgedMessage struct {
-	Message        *pb.Message
-	SendTime       time.Time
-	ResendAttempts int
-}
-
 func (c *Chat) initReliabilityProtocol() {
-	c.wg.Add(4)
-	go c.startBloomFilterCleaner()
+	c.wg.Add(5)
 	go c.periodicBufferSweep()
 	go c.periodicSyncMessage()
+	go c.setupMessageRequestHandler()
+	go c.startBloomFilterCleaner()
 	go c.startEagerPushMechanism()
 }
 
@@ -68,6 +51,24 @@ func (c *Chat) startEagerPushMechanism() {
 			c.checkUnacknowledgedMessages()
 		}
 	}
+}
+
+type UnacknowledgedMessage struct {
+	Message        *pb.Message
+	SendTime       time.Time
+	ResendAttempts int
+}
+
+type TimestampedMessageID struct {
+	ID        string
+	Timestamp time.Time
+}
+
+type RollingBloomFilter struct {
+	filter   *bloom.BloomFilter
+	window   time.Duration
+	messages []TimestampedMessageID
+	mutex    sync.Mutex
 }
 
 func NewRollingBloomFilter() *RollingBloomFilter {
@@ -183,29 +184,18 @@ func (c *Chat) processBufferedMessages() {
 		if len(missingDeps) == 0 {
 			// Release the lock while processing the message
 			c.mutex.Unlock()
-			err := c.processMessageWithoutBuffering(msg)
-			c.mutex.Lock()
-
-			if err != nil {
-				remainingBuffer = append(remainingBuffer, msg)
-			} else {
-				processed[msg.MessageId] = true
+			if msg.Content != "" {
+				c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
 			}
+
+			c.addToMessageHistory(msg)
+			c.mutex.Lock()
 		} else {
 			remainingBuffer = append(remainingBuffer, msg)
 		}
 	}
 
 	c.incomingBuffer = remainingBuffer
-}
-
-func (c *Chat) processMessageWithoutBuffering(msg *pb.Message) error {
-	if msg.Content != "" {
-		c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
-	}
-
-	c.addToMessageHistory(msg)
-	return nil
 }
 
 func (c *Chat) reviewAckStatus(msg *pb.Message) {
@@ -347,7 +337,7 @@ func (c *Chat) checkUnacknowledgedMessages() {
 				// Remove the message from the buffer after max attempts
 				c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
 				i-- // Adjust index after removal
-				c.ui.ErrorMessage(fmt.Errorf("message %s failed to be acknowledged after %d attempts", unackMsg.Message.MessageId, maxResendAttempts))
+				c.ui.ErrorMessage(fmt.Errorf("message %s dropped: failed to be acknowledged after %d attempts", unackMsg.Message.MessageId, maxResendAttempts))
 			}
 		}
 	}
@@ -465,17 +455,4 @@ func (rbf *RollingBloomFilter) UnmarshalBinary(data []byte) error {
 	rbf.mutex.Lock()
 	defer rbf.mutex.Unlock()
 	return rbf.filter.UnmarshalBinary(data)
-}
-
-// Methods to handle disconnections
-func (c *Chat) SetDisconnected(disconnected bool) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.isDisconnected = disconnected
-}
-
-func (c *Chat) IsDisconnected() bool {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	return c.isDisconnected
 }
