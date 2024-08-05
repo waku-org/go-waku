@@ -1,0 +1,198 @@
+package publish
+
+import (
+	"bytes"
+	"context"
+	"sync"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
+	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"go.uber.org/zap"
+)
+
+const maxHashQueryLength = 100
+const hashQueryInterval = 3 * time.Second
+const messageSentPeriod = 3    // in seconds
+const messageExpiredPerid = 10 // in seconds
+
+type MessageSentCheck struct {
+	messageIDs         map[string]map[common.Hash]uint32
+	messageIDsMu       sync.RWMutex
+	storePeerID        peer.ID
+	messageStoredChan  chan common.Hash
+	messageExpiredChan chan common.Hash
+	ctx                context.Context
+	store              *store.WakuStore
+	timesource         timesource.Timesource
+	logger             *zap.Logger
+}
+
+func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource timesource.Timesource, logger *zap.Logger) *MessageSentCheck {
+	return &MessageSentCheck{
+		messageIDs:         make(map[string]map[common.Hash]uint32),
+		messageIDsMu:       sync.RWMutex{},
+		messageStoredChan:  make(chan common.Hash, 1000),
+		messageExpiredChan: make(chan common.Hash, 1000),
+		ctx:                ctx,
+		store:              store,
+		timesource:         timesource,
+		logger:             logger,
+	}
+}
+
+func (m *MessageSentCheck) Add(topic string, messageID common.Hash, sentTime uint32) {
+	m.messageIDsMu.Lock()
+	defer m.messageIDsMu.Unlock()
+
+	if _, ok := m.messageIDs[topic]; !ok {
+		m.messageIDs[topic] = make(map[common.Hash]uint32)
+	}
+	m.messageIDs[topic][messageID] = sentTime
+}
+
+func (m *MessageSentCheck) DeleteByMessageIDs(messageIDs []common.Hash) {
+	m.messageIDsMu.Lock()
+	defer m.messageIDsMu.Unlock()
+
+	for pubsubTopic, subMsgs := range m.messageIDs {
+		for _, hash := range messageIDs {
+			delete(subMsgs, hash)
+			if len(subMsgs) == 0 {
+				delete(m.messageIDs, pubsubTopic)
+			} else {
+				m.messageIDs[pubsubTopic] = subMsgs
+			}
+		}
+	}
+}
+
+func (m *MessageSentCheck) SetStorePeerID(peerID peer.ID) {
+	m.storePeerID = peerID
+}
+
+func (m *MessageSentCheck) CheckIfMessagesStored() {
+	ticker := time.NewTicker(hashQueryInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			m.logger.Debug("stop the look for message stored check")
+			return
+		case <-ticker.C:
+			m.messageIDsMu.Lock()
+			m.logger.Debug("running loop for messages stored check", zap.Any("messageIds", m.messageIDs))
+			pubsubTopics := make([]string, 0, len(m.messageIDs))
+			pubsubMessageIds := make([][]common.Hash, 0, len(m.messageIDs))
+			pubsubMessageTime := make([][]uint32, 0, len(m.messageIDs))
+			for pubsubTopic, subMsgs := range m.messageIDs {
+				var queryMsgIds []common.Hash
+				var queryMsgTime []uint32
+				for msgID, sendTime := range subMsgs {
+					if len(queryMsgIds) >= maxHashQueryLength {
+						break
+					}
+					// message is sent 5 seconds ago, check if it's stored
+					if uint32(m.timesource.Now().Unix()) > sendTime+messageSentPeriod {
+						queryMsgIds = append(queryMsgIds, msgID)
+						queryMsgTime = append(queryMsgTime, sendTime)
+					}
+				}
+				m.logger.Debug("store query for message hashes", zap.Any("queryMsgIds", queryMsgIds), zap.String("pubsubTopic", pubsubTopic))
+				if len(queryMsgIds) > 0 {
+					pubsubTopics = append(pubsubTopics, pubsubTopic)
+					pubsubMessageIds = append(pubsubMessageIds, queryMsgIds)
+					pubsubMessageTime = append(pubsubMessageTime, queryMsgTime)
+				}
+			}
+			m.messageIDsMu.Unlock()
+
+			pubsubProcessedMessages := make([][]common.Hash, len(pubsubTopics))
+			for i, pubsubTopic := range pubsubTopics {
+				processedMessages := m.messageHashBasedQuery(m.ctx, pubsubMessageIds[i], pubsubMessageTime[i], pubsubTopic)
+				pubsubProcessedMessages[i] = processedMessages
+			}
+
+			m.messageIDsMu.Lock()
+			for i, pubsubTopic := range pubsubTopics {
+				subMsgs, ok := m.messageIDs[pubsubTopic]
+				if !ok {
+					continue
+				}
+				for _, hash := range pubsubProcessedMessages[i] {
+					delete(subMsgs, hash)
+					if len(subMsgs) == 0 {
+						delete(m.messageIDs, pubsubTopic)
+					} else {
+						m.messageIDs[pubsubTopic] = subMsgs
+					}
+				}
+			}
+			m.logger.Debug("messages for next store hash query", zap.Any("messageIds", m.messageIDs))
+			m.messageIDsMu.Unlock()
+
+		}
+	}
+}
+
+func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []common.Hash, relayTime []uint32, pubsubTopic string) []common.Hash {
+	selectedPeer := m.storePeerID
+	if selectedPeer == "" {
+		m.logger.Error("no store peer id available", zap.String("pubsubTopic", pubsubTopic))
+		return []common.Hash{}
+	}
+
+	var opts []store.RequestOption
+	requestID := protocol.GenerateRequestID()
+	opts = append(opts, store.WithRequestID(requestID))
+	opts = append(opts, store.WithPeer(selectedPeer))
+	opts = append(opts, store.WithPaging(false, maxHashQueryLength))
+	opts = append(opts, store.IncludeData(false))
+
+	messageHashes := make([]pb.MessageHash, len(hashes))
+	for i, hash := range hashes {
+		messageHashes[i] = pb.ToMessageHash(hash.Bytes())
+	}
+
+	m.logger.Debug("store.queryByHash request", zap.String("requestID", hexutil.Encode(requestID)), zap.Stringer("peerID", selectedPeer), zap.Any("messageHashes", messageHashes))
+
+	result, err := m.store.QueryByHash(ctx, messageHashes, opts...)
+	if err != nil {
+		m.logger.Error("store.queryByHash failed", zap.String("requestID", hexutil.Encode(requestID)), zap.Stringer("peerID", selectedPeer), zap.Error(err))
+		return []common.Hash{}
+	}
+
+	m.logger.Debug("store.queryByHash result", zap.String("requestID", hexutil.Encode(requestID)), zap.Int("messages", len(result.Messages())))
+
+	var ackHashes []common.Hash
+	var missedHashes []common.Hash
+	for i, hash := range hashes {
+		found := false
+		for _, msg := range result.Messages() {
+			if bytes.Equal(msg.GetMessageHash(), hash.Bytes()) {
+				found = true
+				break
+			}
+		}
+
+		if found {
+			ackHashes = append(ackHashes, hash)
+			m.messageStoredChan <- hash
+		}
+
+		if !found && uint32(m.timesource.Now().Unix()) > relayTime[i]+messageExpiredPerid {
+			missedHashes = append(missedHashes, hash)
+			m.messageExpiredChan <- hash
+		}
+	}
+
+	m.logger.Debug("ack message hashes", zap.Any("ackHashes", ackHashes))
+	m.logger.Debug("missed message hashes", zap.Any("missedHashes", missedHashes))
+
+	return append(ackHashes, missedHashes...)
+}
