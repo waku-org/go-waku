@@ -25,8 +25,8 @@ type MessageSentCheck struct {
 	messageIDs         map[string]map[common.Hash]uint32
 	messageIDsMu       sync.RWMutex
 	storePeerID        peer.ID
-	messageStoredChan  chan common.Hash
-	messageExpiredChan chan common.Hash
+	MessageStoredChan  chan common.Hash
+	MessageExpiredChan chan common.Hash
 	ctx                context.Context
 	store              *store.WakuStore
 	timesource         timesource.Timesource
@@ -37,8 +37,8 @@ func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource
 	return &MessageSentCheck{
 		messageIDs:         make(map[string]map[common.Hash]uint32),
 		messageIDsMu:       sync.RWMutex{},
-		messageStoredChan:  make(chan common.Hash, 1000),
-		messageExpiredChan: make(chan common.Hash, 1000),
+		MessageStoredChan:  make(chan common.Hash, 1000),
+		MessageExpiredChan: make(chan common.Hash, 1000),
 		ctx:                ctx,
 		store:              store,
 		timesource:         timesource,
@@ -182,12 +182,12 @@ func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []c
 
 		if found {
 			ackHashes = append(ackHashes, hash)
-			m.messageStoredChan <- hash
+			m.MessageStoredChan <- hash
 		}
 
 		if !found && uint32(m.timesource.Now().Unix()) > relayTime[i]+messageExpiredPerid {
 			missedHashes = append(missedHashes, hash)
-			m.messageExpiredChan <- hash
+			m.MessageExpiredChan <- hash
 		}
 	}
 
