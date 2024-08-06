@@ -110,7 +110,7 @@ func (m *MessageQueue) Start(ctx context.Context) {
 
 // Push an envelope into the message queue. The priority is optional, and will be ignored
 // if the message queue does not use a priority queue
-func (m *MessageQueue) Push(ctx context.Context, envelope *protocol.Envelope, priority ...MessagePriority) {
+func (m *MessageQueue) Push(ctx context.Context, envelope *protocol.Envelope, priority ...MessagePriority) error {
 	if m.usePriorityQueue {
 		msgPriority := NormalPriority
 		if len(priority) != 0 {
@@ -126,16 +126,18 @@ func (m *MessageQueue) Push(ctx context.Context, envelope *protocol.Envelope, pr
 		case m.throttledPrioritySendQueue <- pEnvelope:
 			// Do nothing
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	} else {
 		select {
 		case m.toSendChan <- envelope:
 			// Do nothing
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
+
+	return nil
 }
 
 // Pop will return a channel on which a message can be retrieved from the message queue
@@ -143,6 +145,8 @@ func (m *MessageQueue) Pop(ctx context.Context) <-chan *protocol.Envelope {
 	ch := make(chan *protocol.Envelope)
 
 	go func() {
+		defer close(ch)
+
 		select {
 		case _, ok := <-m.envelopeAvailableOnPriorityQueueSignal:
 			if ok {
@@ -155,10 +159,9 @@ func (m *MessageQueue) Pop(ctx context.Context) <-chan *protocol.Envelope {
 			}
 
 		case <-ctx.Done():
-
+			return
 		}
 
-		close(ch)
 	}()
 
 	return ch
