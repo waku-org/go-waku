@@ -16,33 +16,71 @@ import (
 	"go.uber.org/zap"
 )
 
-const maxHashQueryLength = 100
-const hashQueryInterval = 3 * time.Second
-const messageSentPeriod = 3    // in seconds
-const messageExpiredPerid = 10 // in seconds
+const DefaultMaxHashQueryLength = 100
+const DefaultHashQueryInterval = 3 * time.Second
+const DefaultMessageSentPeriod = 3    // in seconds
+const DefaultMessageExpiredPerid = 10 // in seconds
+
+type MessageSentCheckOption func(*MessageSentCheck) error
 
 type MessageSentCheck struct {
-	messageIDs         map[string]map[common.Hash]uint32
-	messageIDsMu       sync.RWMutex
-	storePeerID        peer.ID
-	MessageStoredChan  chan common.Hash
-	MessageExpiredChan chan common.Hash
-	ctx                context.Context
-	store              *store.WakuStore
-	timesource         timesource.Timesource
-	logger             *zap.Logger
+	messageIDs          map[string]map[common.Hash]uint32
+	messageIDsMu        sync.RWMutex
+	storePeerID         peer.ID
+	MessageStoredChan   chan common.Hash
+	MessageExpiredChan  chan common.Hash
+	ctx                 context.Context
+	store               *store.WakuStore
+	timesource          timesource.Timesource
+	logger              *zap.Logger
+	maxHashQueryLength  uint64
+	hashQueryInterval   time.Duration
+	messageSentPeriod   uint32
+	messageExpiredPerid uint32
 }
 
 func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource timesource.Timesource, logger *zap.Logger) *MessageSentCheck {
 	return &MessageSentCheck{
-		messageIDs:         make(map[string]map[common.Hash]uint32),
-		messageIDsMu:       sync.RWMutex{},
-		MessageStoredChan:  make(chan common.Hash, 1000),
-		MessageExpiredChan: make(chan common.Hash, 1000),
-		ctx:                ctx,
-		store:              store,
-		timesource:         timesource,
-		logger:             logger,
+		messageIDs:          make(map[string]map[common.Hash]uint32),
+		messageIDsMu:        sync.RWMutex{},
+		MessageStoredChan:   make(chan common.Hash, 1000),
+		MessageExpiredChan:  make(chan common.Hash, 1000),
+		ctx:                 ctx,
+		store:               store,
+		timesource:          timesource,
+		logger:              logger,
+		maxHashQueryLength:  DefaultMaxHashQueryLength,
+		hashQueryInterval:   DefaultHashQueryInterval,
+		messageSentPeriod:   DefaultMessageSentPeriod,
+		messageExpiredPerid: DefaultMessageExpiredPerid,
+	}
+}
+
+func WithMaxHashQueryLength(count uint64) MessageSentCheckOption {
+	return func(params *MessageSentCheck) error {
+		params.maxHashQueryLength = count
+		return nil
+	}
+}
+
+func WithHashQueryInterval(interval time.Duration) MessageSentCheckOption {
+	return func(params *MessageSentCheck) error {
+		params.hashQueryInterval = interval
+		return nil
+	}
+}
+
+func WithMessageSentPeriod(period uint32) MessageSentCheckOption {
+	return func(params *MessageSentCheck) error {
+		params.messageSentPeriod = period
+		return nil
+	}
+}
+
+func WithMessageExpiredPerid(period uint32) MessageSentCheckOption {
+	return func(params *MessageSentCheck) error {
+		params.messageExpiredPerid = period
+		return nil
 	}
 }
 
@@ -77,7 +115,7 @@ func (m *MessageSentCheck) SetStorePeerID(peerID peer.ID) {
 }
 
 func (m *MessageSentCheck) CheckIfMessagesStored() {
-	ticker := time.NewTicker(hashQueryInterval)
+	ticker := time.NewTicker(m.hashQueryInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -94,11 +132,11 @@ func (m *MessageSentCheck) CheckIfMessagesStored() {
 				var queryMsgIds []common.Hash
 				var queryMsgTime []uint32
 				for msgID, sendTime := range subMsgs {
-					if len(queryMsgIds) >= maxHashQueryLength {
+					if uint64(len(queryMsgIds)) >= m.maxHashQueryLength {
 						break
 					}
 					// message is sent 5 seconds ago, check if it's stored
-					if uint32(m.timesource.Now().Unix()) > sendTime+messageSentPeriod {
+					if uint32(m.timesource.Now().Unix()) > sendTime+m.messageSentPeriod {
 						queryMsgIds = append(queryMsgIds, msgID)
 						queryMsgTime = append(queryMsgTime, sendTime)
 					}
@@ -151,7 +189,7 @@ func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []c
 	requestID := protocol.GenerateRequestID()
 	opts = append(opts, store.WithRequestID(requestID))
 	opts = append(opts, store.WithPeer(selectedPeer))
-	opts = append(opts, store.WithPaging(false, maxHashQueryLength))
+	opts = append(opts, store.WithPaging(false, m.maxHashQueryLength))
 	opts = append(opts, store.IncludeData(false))
 
 	messageHashes := make([]pb.MessageHash, len(hashes))
@@ -185,7 +223,7 @@ func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []c
 			m.MessageStoredChan <- hash
 		}
 
-		if !found && uint32(m.timesource.Now().Unix()) > relayTime[i]+messageExpiredPerid {
+		if !found && uint32(m.timesource.Now().Unix()) > relayTime[i]+m.messageExpiredPerid {
 			missedHashes = append(missedHashes, hash)
 			m.MessageExpiredChan <- hash
 		}
