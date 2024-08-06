@@ -26,7 +26,7 @@ func (s *FilterTestSuite) TestUnSubscriptionPing() {
 	err := s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
 	s.Require().NoError(err)
 
-	_, err = s.LightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, s.ContentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	err = s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
