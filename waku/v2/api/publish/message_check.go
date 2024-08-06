@@ -23,6 +23,9 @@ const DefaultMessageExpiredPerid = 10 // in seconds
 
 type MessageSentCheckOption func(*MessageSentCheck) error
 
+// MessageSentCheck tracks the outgoing messages and check against store node
+// if the message sent time has passed the `messageSentPeriod`, the message id will be includes for the next query
+// if the message keeps missing after `messageExpiredPerid`, the message id will be expired
 type MessageSentCheck struct {
 	messageIDs          map[string]map[common.Hash]uint32
 	messageIDsMu        sync.RWMutex
@@ -39,6 +42,7 @@ type MessageSentCheck struct {
 	messageExpiredPerid uint32
 }
 
+// NewMessageSentCheck creates a new instance of MessageSentCheck with default parameters
 func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource timesource.Timesource, logger *zap.Logger) *MessageSentCheck {
 	return &MessageSentCheck{
 		messageIDs:          make(map[string]map[common.Hash]uint32),
@@ -56,6 +60,7 @@ func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource
 	}
 }
 
+// WithMaxHashQueryLength sets the maximum number of message hashes to query in one request
 func WithMaxHashQueryLength(count uint64) MessageSentCheckOption {
 	return func(params *MessageSentCheck) error {
 		params.maxHashQueryLength = count
@@ -63,6 +68,7 @@ func WithMaxHashQueryLength(count uint64) MessageSentCheckOption {
 	}
 }
 
+// WithHashQueryInterval sets the interval to query the store node
 func WithHashQueryInterval(interval time.Duration) MessageSentCheckOption {
 	return func(params *MessageSentCheck) error {
 		params.hashQueryInterval = interval
@@ -70,6 +76,7 @@ func WithHashQueryInterval(interval time.Duration) MessageSentCheckOption {
 	}
 }
 
+// WithMessageSentPeriod sets the delay period to query the store node after message is published
 func WithMessageSentPeriod(period uint32) MessageSentCheckOption {
 	return func(params *MessageSentCheck) error {
 		params.messageSentPeriod = period
@@ -77,6 +84,7 @@ func WithMessageSentPeriod(period uint32) MessageSentCheckOption {
 	}
 }
 
+// WithMessageExpiredPerid sets the period that a message is considered expired
 func WithMessageExpiredPerid(period uint32) MessageSentCheckOption {
 	return func(params *MessageSentCheck) error {
 		params.messageExpiredPerid = period
@@ -84,6 +92,7 @@ func WithMessageExpiredPerid(period uint32) MessageSentCheckOption {
 	}
 }
 
+// Add adds a message for message sent check
 func (m *MessageSentCheck) Add(topic string, messageID common.Hash, sentTime uint32) {
 	m.messageIDsMu.Lock()
 	defer m.messageIDsMu.Unlock()
@@ -94,6 +103,7 @@ func (m *MessageSentCheck) Add(topic string, messageID common.Hash, sentTime uin
 	m.messageIDs[topic][messageID] = sentTime
 }
 
+// DeleteByMessageIDs deletes the message ids from the message sent check, used by scenarios like message acked with MVDS
 func (m *MessageSentCheck) DeleteByMessageIDs(messageIDs []common.Hash) {
 	m.messageIDsMu.Lock()
 	defer m.messageIDsMu.Unlock()
@@ -110,10 +120,12 @@ func (m *MessageSentCheck) DeleteByMessageIDs(messageIDs []common.Hash) {
 	}
 }
 
+// SetStorePeerID sets the peer id of store node
 func (m *MessageSentCheck) SetStorePeerID(peerID peer.ID) {
 	m.storePeerID = peerID
 }
 
+// CheckIfMessagesStored checks if the tracked outgoing messages are stored periodically
 func (m *MessageSentCheck) CheckIfMessagesStored() {
 	ticker := time.NewTicker(m.hashQueryInterval)
 	defer ticker.Stop()
