@@ -35,6 +35,7 @@ require (
 
 require (
 	github.com/avast/retry-go/v4 v4.5.1
+	github.com/cenkalti/backoff/v3 v3.2.2
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-chi/chi/v5 v5.0.0
