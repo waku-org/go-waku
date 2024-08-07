@@ -30,6 +30,7 @@ examples/basic-relay/build/basic-relay
 examples/filter2/build/filter2
 examples/noise/build/
 examples/noise/noise
+examples/store-hash-query/build
 
 # Test binary, built with `go test -c`
 *.test
