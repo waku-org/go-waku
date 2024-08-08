@@ -47,6 +47,7 @@ type Chat struct {
 	incomingBuffer   []*pb.Message
 	messageHistory   []*pb.Message
 	mutex            sync.Mutex
+	lamportTSMutex   sync.Mutex
 }
 
 func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.PeerConnection, options Options) *Chat {
@@ -63,7 +64,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		incomingBuffer:   make([]*pb.Message, 0),
 		messageHistory:   make([]*pb.Message, 0),
 		mutex:            sync.Mutex{},
-		//C:                make(chan *protocol.Envelope, 10),
+		lamportTSMutex:   sync.Mutex{},
 	}
 
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
@@ -163,6 +164,7 @@ func (c *Chat) receiveMessages() {
 				fmt.Printf("Error decoding message: %v\n", err)
 				continue
 			}
+
 			c.processReceivedMessage(msg)
 		}
 	}

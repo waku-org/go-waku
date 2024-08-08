@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
+	"math"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-msgio/pbio"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -39,18 +40,20 @@ func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Mes
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
 	}
-	defer stream.Close()
+
+	writer := pbio.NewDelimitedWriter(stream)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 	// Send message request
 	request := &pb.MessageRequest{MessageId: messageID}
-	err = writeProtobufMessage(stream, request)
+	err = writeProtobufMessage(writer, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message request: %w", err)
 	}
 
 	// Read response
 	response := &pb.MessageResponse{}
-	err = readProtobufMessage(stream, response)
+	err = readProtobufMessage(reader, response)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read message response: %w", err)
 	}
@@ -60,63 +63,40 @@ func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Mes
 	if response.Message == nil {
 		return nil, fmt.Errorf("peer did not have the requested message")
 	}
+
 	return response.Message, nil
 }
 
 // Helper functions for protobuf message reading/writing
-func writeProtobufMessage(stream network.Stream, msg proto.Message) error {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	_, err = stream.Write(data)
+func writeProtobufMessage(stream pbio.WriteCloser, msg proto.Message) error {
+	err := stream.WriteMsg(msg)
 	if err != nil {
 		return err
 	}
 
 	// Add a delay before closing the stream
-	time.Sleep(1 * time.Second)
+	//time.Sleep(1 * time.Second)
 
-	err = stream.Close()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func readProtobufMessage(stream network.Stream, msg proto.Message) error {
-	err := stream.SetReadDeadline(time.Now().Add(30 * time.Second))
-	if err != nil {
-		return fmt.Errorf("failed to set read deadline: %w", err)
-	}
-
-	var data []byte
-	buffer := make([]byte, 1024)
-	for {
-		n, err := stream.Read(buffer)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
-		data = append(data, buffer[:n]...)
-	}
-
-	err = proto.Unmarshal(data, msg)
+func readProtobufMessage(stream pbio.ReadCloser, msg proto.Message) error {
+	err := stream.ReadMsg(msg)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (c *Chat) handleMessageRequest(stream network.Stream) {
-	defer stream.Close()
+	writer := pbio.NewDelimitedWriter(stream)
+	reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 
 	request := &pb.MessageRequest{}
-	err := readProtobufMessage(stream, request)
+	err := readProtobufMessage(reader, request)
 	if err != nil {
+		stream.Reset()
 		c.ui.ErrorMessage(fmt.Errorf("failed to read message request: %w", err))
 		return
 	}
@@ -132,11 +112,14 @@ func (c *Chat) handleMessageRequest(stream network.Stream) {
 	c.mutex.Unlock()
 
 	response := &pb.MessageResponse{Message: foundMessage}
-	err = writeProtobufMessage(stream, response)
+	err = writeProtobufMessage(writer, response)
 	if err != nil {
+		stream.Reset()
 		c.ui.ErrorMessage(fmt.Errorf("failed to send message response: %w", err))
 		return
 	}
+
+	stream.Close()
 }
 
 func (c *Chat) setupMessageRequestHandler() {

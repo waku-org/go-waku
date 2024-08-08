@@ -357,14 +357,14 @@ func (c *Chat) addToIncomingBuffer(msg *pb.Message) {
 }
 
 func (c *Chat) incLamportTimestamp() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.lamportTSMutex.Lock()
+	defer c.lamportTSMutex.Unlock()
 	c.lamportTimestamp++
 }
 
 func (c *Chat) updateLamportTimestamp(msgTs int32) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.lamportTSMutex.Lock()
+	defer c.lamportTSMutex.Unlock()
 	if msgTs > c.lamportTimestamp {
 		c.lamportTimestamp = msgTs + 1
 	} else {
@@ -373,7 +373,7 @@ func (c *Chat) updateLamportTimestamp(msgTs int32) {
 }
 
 func (c *Chat) getLamportTimestamp() int32 {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.lamportTSMutex.Lock()
+	defer c.lamportTSMutex.Unlock()
 	return c.lamportTimestamp
 }
