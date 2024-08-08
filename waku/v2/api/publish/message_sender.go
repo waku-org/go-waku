@@ -10,9 +10,12 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
-const peersToPublishForLightpush = 2
+const DefaultPeersToPublishForLightpush = 2
+const DefaultPublishingLimiterRate = rate.Limit(2)
+const DefaultPublishingLimitBurst = 4
 
 type PublishMethod int
 
@@ -48,6 +51,7 @@ func NewMessageSender(ctx context.Context, publishMethod PublishMethod, lightPus
 		publishMethod: publishMethod,
 		lightPush:     lightPush,
 		relay:         relay,
+		rateLimiter:   NewPublishRateLimiter(DefaultPublishingLimiterRate, DefaultPublishingLimitBurst),
 		logger:        logger,
 	}
 }
@@ -76,7 +80,7 @@ func (ms *MessageSender) Send(env *protocol.Envelope) error {
 			return errors.New("lightpush is not available")
 		}
 		logger.Info("publishing message via lightpush")
-		_, err := ms.lightPush.Publish(ms.ctx, env.Message(), lightpush.WithPubSubTopic(env.PubsubTopic()), lightpush.WithMaxPeers(peersToPublishForLightpush))
+		_, err := ms.lightPush.Publish(ms.ctx, env.Message(), lightpush.WithPubSubTopic(env.PubsubTopic()), lightpush.WithMaxPeers(DefaultPeersToPublishForLightpush))
 		return err
 	case Relay:
 		if ms.relay == nil {
