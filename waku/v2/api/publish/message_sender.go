@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -102,4 +103,16 @@ func (ms *MessageSender) Send(env *protocol.Envelope) error {
 
 func (ms *MessageSender) PublishMethod() PublishMethod {
 	return ms.publishMethod
+}
+
+func (ms *MessageSender) MessagesDelivered(messageIDs []common.Hash) {
+	if ms.messageSentCheck != nil {
+		ms.messageSentCheck.DeleteByMessageIDs(messageIDs)
+	}
+}
+
+func (ms *MessageSender) SetStorePeerID(peerID peer.ID) {
+	if ms.messageSentCheck != nil {
+		ms.messageSentCheck.SetStorePeerID(peerID)
+	}
 }
