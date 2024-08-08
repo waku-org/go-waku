@@ -128,13 +128,14 @@ func (w *WakuNode) startKeepAlive(ctx context.Context, randomPeersPingDuration t
 				}
 			}
 
-			// We also ping all filter nodes
-			filterPeersSet := make(map[peer.ID]struct{})
-			for _, s := range w.FilterLightnode().Subscriptions() {
-				filterPeersSet[s.PeerID] = struct{}{}
+			if w.opts.enableFilterLightNode {
+				// We also ping all filter nodes
+				filterPeersSet := make(map[peer.ID]struct{})
+				for _, s := range w.FilterLightnode().Subscriptions() {
+					filterPeersSet[s.PeerID] = struct{}{}
+				}
+				peersToPing = append(peersToPing, maps.Keys(filterPeersSet)...)
 			}
-			peersToPing = append(peersToPing, maps.Keys(filterPeersSet)...)
-
 		case <-ctx.Done():
 			w.log.Info("stopping ping protocol")
 			return
