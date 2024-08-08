@@ -88,7 +88,8 @@ func (ms *MessageSender) Send(env *protocol.Envelope) error {
 		return err
 	}
 
-	if ms.messageSentCheck != nil {
+	ephemeral := env.Message().Ephemeral
+	if ms.messageSentCheck != nil && (ephemeral == nil || !*ephemeral) {
 		ms.messageSentCheck.Add(env.PubsubTopic(), common.BytesToHash(env.Hash().Bytes()), uint32(env.Message().GetTimestamp()/int64(time.Second)))
 	}
 
