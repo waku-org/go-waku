@@ -35,3 +35,13 @@ func (p *PublishRateLimiter) ThrottlePublishFn(ctx context.Context, publishFn Pu
 		return publishFn(envelope, logger)
 	}
 }
+
+func (p *PublishRateLimiter) Check(ctx context.Context, logger *zap.Logger) error {
+	if err := p.limiter.Wait(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			logger.Error("could not send message (limiter)", zap.Error(err))
+		}
+		return err
+	}
+	return nil
+}
