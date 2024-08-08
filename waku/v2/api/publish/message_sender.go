@@ -101,6 +101,12 @@ func (ms *MessageSender) Send(env *protocol.Envelope) error {
 	return nil
 }
 
+func (ms *MessageSender) Start() {
+	if ms.messageSentCheck != nil {
+		go ms.messageSentCheck.Start()
+	}
+}
+
 func (ms *MessageSender) PublishMethod() PublishMethod {
 	return ms.publishMethod
 }

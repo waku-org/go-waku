@@ -30,8 +30,8 @@ type MessageSentCheck struct {
 	messageIDs          map[string]map[common.Hash]uint32
 	messageIDsMu        sync.RWMutex
 	storePeerID         peer.ID
-	MessageStoredChan   chan common.Hash
-	MessageExpiredChan  chan common.Hash
+	messageStoredChan   chan common.Hash
+	messageExpiredChan  chan common.Hash
 	ctx                 context.Context
 	store               *store.WakuStore
 	timesource          timesource.Timesource
@@ -43,12 +43,12 @@ type MessageSentCheck struct {
 }
 
 // NewMessageSentCheck creates a new instance of MessageSentCheck with default parameters
-func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource timesource.Timesource, logger *zap.Logger) *MessageSentCheck {
+func NewMessageSentCheck(ctx context.Context, store *store.WakuStore, timesource timesource.Timesource, msgStoredChan chan common.Hash, msgExpiredChan chan common.Hash, logger *zap.Logger) *MessageSentCheck {
 	return &MessageSentCheck{
 		messageIDs:          make(map[string]map[common.Hash]uint32),
 		messageIDsMu:        sync.RWMutex{},
-		MessageStoredChan:   make(chan common.Hash, 1000),
-		MessageExpiredChan:  make(chan common.Hash, 1000),
+		messageStoredChan:   msgStoredChan,
+		messageExpiredChan:  msgExpiredChan,
 		ctx:                 ctx,
 		store:               store,
 		timesource:          timesource,
@@ -232,12 +232,12 @@ func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []c
 
 		if found {
 			ackHashes = append(ackHashes, hash)
-			m.MessageStoredChan <- hash
+			m.messageStoredChan <- hash
 		}
 
 		if !found && uint32(m.timesource.Now().Unix()) > relayTime[i]+m.messageExpiredPerid {
 			missedHashes = append(missedHashes, hash)
-			m.MessageExpiredChan <- hash
+			m.messageExpiredChan <- hash
 		}
 	}
 
