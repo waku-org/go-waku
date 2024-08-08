@@ -10,7 +10,7 @@ import (
 
 func TestAddAndDelete(t *testing.T) {
 	ctx := context.TODO()
-	messageSentCheck := NewMessageSentCheck(ctx, nil, nil, nil)
+	messageSentCheck := NewMessageSentCheck(ctx, nil, nil, nil, nil, nil)
 
 	messageSentCheck.Add("topic", [32]byte{1}, 1)
 	messageSentCheck.Add("topic", [32]byte{2}, 2)
