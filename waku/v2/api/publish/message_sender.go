@@ -21,6 +21,17 @@ const (
 	Relay
 )
 
+func (pm PublishMethod) String() string {
+	switch pm {
+	case LightPush:
+		return "LightPush"
+	case Relay:
+		return "Relay"
+	default:
+		return "Unknown"
+	}
+}
+
 type MessageSender struct {
 	ctx              context.Context
 	publishMethod    PublishMethod
@@ -82,4 +93,8 @@ func (ms *MessageSender) Send(env *protocol.Envelope) error {
 	}
 
 	return nil
+}
+
+func (ms *MessageSender) PublishMethod() PublishMethod {
+	return ms.publishMethod
 }
