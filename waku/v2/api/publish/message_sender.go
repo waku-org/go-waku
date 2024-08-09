@@ -23,6 +23,7 @@ type PublishMethod int
 const (
 	LightPush PublishMethod = iota
 	Relay
+	DefaultMethod
 )
 
 func (pm PublishMethod) String() string {
@@ -37,7 +38,6 @@ func (pm PublishMethod) String() string {
 }
 
 type MessageSender struct {
-	ctx              context.Context
 	publishMethod    PublishMethod
 	lightPush        *lightpush.WakuLightPush
 	relay            *relay.WakuRelay
@@ -46,9 +46,27 @@ type MessageSender struct {
 	logger           *zap.Logger
 }
 
-func NewMessageSender(ctx context.Context, publishMethod PublishMethod, lightPush *lightpush.WakuLightPush, relay *relay.WakuRelay, logger *zap.Logger) *MessageSender {
-	return &MessageSender{
+type Request struct {
+	ctx           context.Context
+	envelope      *protocol.Envelope
+	publishMethod PublishMethod
+}
+
+func NewRequest(ctx context.Context, envelope *protocol.Envelope) *Request {
+	return &Request{
 		ctx:           ctx,
+		envelope:      envelope,
+		publishMethod: DefaultMethod,
+	}
+}
+
+func (r *Request) WithPublishMethod(publishMethod PublishMethod) *Request {
+	r.publishMethod = publishMethod
+	return r
+}
+
+func NewMessageSender(publishMethod PublishMethod, lightPush *lightpush.WakuLightPush, relay *relay.WakuRelay, logger *zap.Logger) *MessageSender {
+	return &MessageSender{
 		publishMethod: publishMethod,
 		lightPush:     lightPush,
 		relay:         relay,
@@ -67,34 +85,60 @@ func (ms *MessageSender) WithRateLimiting(rateLimiter *PublishRateLimiter) *Mess
 	return ms
 }
 
-func (ms *MessageSender) Send(env *protocol.Envelope) error {
-	logger := ms.logger.With(zap.Stringer("envelopeHash", env.Hash()), zap.String("pubsubTopic", env.PubsubTopic()), zap.String("contentTopic", env.Message().ContentTopic), zap.Int64("timestamp", env.Message().GetTimestamp()))
+func (ms *MessageSender) Send(req Request) error {
+	logger := ms.logger.With(
+		zap.Stringer("envelopeHash", req.envelope.Hash()),
+		zap.String("pubsubTopic", req.envelope.PubsubTopic()),
+		zap.String("contentTopic", req.envelope.Message().ContentTopic),
+		zap.Int64("timestamp", req.envelope.Message().GetTimestamp()),
+	)
+
 	if ms.rateLimiter != nil {
-		if err := ms.rateLimiter.Check(ms.ctx, logger); err != nil {
+		if err := ms.rateLimiter.Check(req.ctx, logger); err != nil {
 			return err
 		}
 	}
 
-	switch ms.publishMethod {
+	publishMethod := req.publishMethod
+	if publishMethod == DefaultMethod {
+		publishMethod = ms.publishMethod
+	}
+
+	switch publishMethod {
 	case LightPush:
 		if ms.lightPush == nil {
 			return errors.New("lightpush is not available")
 		}
 		logger.Info("publishing message via lightpush")
-		_, err := ms.lightPush.Publish(ms.ctx, env.Message(), lightpush.WithPubSubTopic(env.PubsubTopic()), lightpush.WithMaxPeers(DefaultPeersToPublishForLightpush))
-		return err
+		_, err := ms.lightPush.Publish(
+			req.ctx,
+			req.envelope.Message(),
+			lightpush.WithPubSubTopic(req.envelope.PubsubTopic()),
+			lightpush.WithMaxPeers(DefaultPeersToPublishForLightpush),
+		)
+		if err != nil {
+			return err
+		}
 	case Relay:
 		if ms.relay == nil {
 			return errors.New("relay is not available")
 		}
-		peerCnt := len(ms.relay.PubSub().ListPeers(env.PubsubTopic()))
+		peerCnt := len(ms.relay.PubSub().ListPeers(req.envelope.PubsubTopic()))
 		logger.Info("publishing message via relay", zap.Int("peerCnt", peerCnt))
-		_, err := ms.relay.Publish(ms.ctx, env.Message(), relay.WithPubSubTopic(env.PubsubTopic()))
-		return err
+		_, err := ms.relay.Publish(req.ctx, req.envelope.Message(), relay.WithPubSubTopic(req.envelope.PubsubTopic()))
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.New("unknown publish method")
 	}
 
-	if ms.messageSentCheck != nil && !env.Message().GetEphemeral() {
-		ms.messageSentCheck.Add(env.PubsubTopic(), common.BytesToHash(env.Hash().Bytes()), uint32(env.Message().GetTimestamp()/int64(time.Second)))
+	if ms.messageSentCheck != nil && !req.envelope.Message().GetEphemeral() {
+		ms.messageSentCheck.Add(
+			req.envelope.PubsubTopic(),
+			common.BytesToHash(req.envelope.Hash().Bytes()),
+			uint32(req.envelope.Message().GetTimestamp()/int64(time.Second)),
+		)
 	}
 
 	return nil
