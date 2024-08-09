@@ -8,7 +8,9 @@ replace github.com/waku-org/go-waku => ../..
 
 replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.15
 
-replace github.com/libp2p/go-libp2p-pubsub v0.11.0 => github.com/waku-org/go-libp2p-pubsub v0.0.0-20240703191659-2cbb09eac9b5
+replace (
+	github.com/libp2p/go-libp2p-pubsub => github.com/waku-org/go-libp2p-pubsub v0.0.0-20240807051051-fab982a94aed
+)
 
 require (
 	github.com/charmbracelet/bubbles v0.13.0
@@ -20,7 +22,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/multiformats/go-multiaddr v0.12.4
 	github.com/urfave/cli/v2 v2.27.2
-	github.com/waku-org/go-waku v0.2.3-0.20221109195301-b2a5a68d28ba
+	github.com/waku-org/go-waku v0.8.1-0.20240807123450-b17b0062130f
 	golang.org/x/term v0.20.0
 	google.golang.org/protobuf v1.34.1
 )
@@ -75,7 +77,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
-	github.com/libp2p/go-libp2p-pubsub v0.11.0 // indirect
+	github.com/libp2p/go-libp2p-pubsub v0.12.0 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
 	github.com/libp2p/go-nat v0.2.0 // indirect
 	github.com/libp2p/go-netroute v0.2.1 // indirect
