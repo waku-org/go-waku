@@ -30,6 +30,11 @@ examples/basic-relay/build/basic-relay
 examples/filter2/build/filter2
 examples/noise/build/
 examples/noise/noise
+examples/basic-light-client/basic2
+examples/basic-relay/basic2
+examples/filter2/filter2
+examples/rln/rln
+
 
 # Test binary, built with `go test -c`
 *.test
