@@ -86,7 +86,11 @@ func nonRecoverError(err error) error {
 func Execute(options NodeOptions) error {
 	// Set encoding for logs (console, json, ...)
 	// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
-	utils.InitLogger(options.LogEncoding, options.LogOutput, "gowaku")
+	lvl, err := zapcore.ParseLevel(options.LogLevel)
+	if err != nil {
+		return err
+	}
+	utils.InitLogger(options.LogEncoding, options.LogOutput, "gowaku", lvl)
 
 	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
 	if err != nil {
@@ -122,11 +126,6 @@ func Execute(options NodeOptions) error {
 	if options.Metrics.Enable {
 		metricsServer = metrics.NewMetricsServer(options.Metrics.Address, options.Metrics.Port, logger)
 		go metricsServer.Start()
-	}
-
-	lvl, err := zapcore.ParseLevel(options.LogLevel)
-	if err != nil {
-		return err
 	}
 
 	nodeOpts := []node.WakuNodeOption{

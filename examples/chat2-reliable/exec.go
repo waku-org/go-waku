@@ -7,14 +7,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 )
 
 func execute(options Options) {
@@ -65,6 +66,19 @@ func execute(options Options) {
 		}
 	}
 
+	if options.DiscV5.Enable {
+		nodes := []*enode.Node{}
+		for _, n := range options.DiscV5.Nodes.Value() {
+			parsedNode, err := enode.Parse(enode.ValidSchemes, n)
+			if err != nil {
+				fmt.Println("Failed to parse DiscV5 node ", err)
+				return
+			}
+			nodes = append(nodes, parsedNode)
+		}
+		opts = append(opts, node.WithDiscoveryV5(uint(options.DiscV5.Port), nodes, options.DiscV5.AutoUpdate))
+	}
+
 	if options.Filter.Enable {
 		opts = append(opts, node.WithWakuFilterLightNode())
 	}
@@ -77,7 +91,12 @@ func execute(options Options) {
 		return
 	}
 
-	err = addPeer(wakuNode, options.Store.Node, options.Relay.Topics.Value(), legacy_store.StoreID_v20beta4)
+	if err := wakuNode.Start(ctx); err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = addPeer(wakuNode, options.Store.Node, options.Relay.Topics.Value(), store.StoreQueryID_v300)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -92,11 +111,6 @@ func execute(options Options) {
 	err = addPeer(wakuNode, options.Filter.Node, options.Relay.Topics.Value(), filter.FilterSubscribeID_v20beta1)
 
 	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	if err := wakuNode.Start(ctx); err != nil {
 		fmt.Println(err.Error())
 		return
 	}

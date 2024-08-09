@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -17,40 +18,53 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
-	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	wrln "github.com/waku-org/go-waku/waku/v2/protocol/rln"
+	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"google.golang.org/protobuf/proto"
 )
 
-// Chat represents a subscription to a single PubSub topic. Messages
-// can be published to the topic with Chat.Publish, and received
-// messages are pushed to the Messages channel.
+const (
+	maxMessageHistory = 100
+)
+
 type Chat struct {
-	ctx       context.Context
-	wg        sync.WaitGroup
-	node      *node.WakuNode
-	ui        UI
-	uiReady   chan struct{}
-	inputChan chan string
-	options   Options
-
-	C chan *protocol.Envelope
-
-	nick string
+	ctx              context.Context
+	wg               sync.WaitGroup
+	node             *node.WakuNode
+	ui               UI
+	uiReady          chan struct{}
+	inputChan        chan string
+	options          Options
+	C                chan *protocol.Envelope
+	nick             string
+	lamportTimestamp int32
+	bloomFilter      *RollingBloomFilter
+	outgoingBuffer   []UnacknowledgedMessage
+	incomingBuffer   []*pb.Message
+	messageHistory   []*pb.Message
+	mutex            sync.Mutex
+	lamportTSMutex   sync.Mutex
 }
 
 func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.PeerConnection, options Options) *Chat {
 	chat := &Chat{
-		ctx:       ctx,
-		node:      node,
-		options:   options,
-		nick:      options.Nickname,
-		uiReady:   make(chan struct{}, 1),
-		inputChan: make(chan string, 100),
+		ctx:              ctx,
+		node:             node,
+		options:          options,
+		nick:             options.Nickname,
+		uiReady:          make(chan struct{}, 1),
+		inputChan:        make(chan string, 100),
+		lamportTimestamp: 0,
+		bloomFilter:      NewRollingBloomFilter(),
+		outgoingBuffer:   make([]UnacknowledgedMessage, 0),
+		incomingBuffer:   make([]*pb.Message, 0),
+		messageHistory:   make([]*pb.Message, 0),
+		mutex:            sync.Mutex{},
+		lamportTSMutex:   sync.Mutex{},
 	}
 
 	chat.ui = NewUIModel(chat.uiReady, chat.inputChan)
@@ -77,10 +91,9 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		if err != nil {
 			chat.ui.ErrorMessage(err)
 		} else {
-			chat.C = theFilters[0].C //Picking first subscription since there is only 1 contentTopic specified.
+			chat.C = theFilters[0].C // Picking first subscription since there is only 1 contentTopic specified.
 		}
 	} else {
-
 		for _, topic := range topics {
 			sub, err := node.Relay().Subscribe(ctx, protocol.NewContentFilter(topic))
 			if err != nil {
@@ -96,19 +109,19 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 		}
 	}
 
-	chat.wg.Add(7)
+	connWg := sync.WaitGroup{}
+	connWg.Add(2)
+
+	chat.wg.Add(7) // Added 2 more goroutines for periodic tasks
 	go chat.parseInput()
 	go chat.receiveMessages()
-
-	connectionWg := sync.WaitGroup{}
-	connectionWg.Add(2)
-
 	go chat.welcomeMessage()
+	go chat.connectionWatcher(connNotifier)
+	go chat.staticNodes(&connWg)
+	go chat.discoverNodes(&connWg)
+	go chat.retrieveHistory(&connWg)
 
-	go chat.connectionWatcher(&connectionWg, connNotifier)
-	go chat.staticNodes(&connectionWg)
-	go chat.discoverNodes(&connectionWg)
-	go chat.retrieveHistory(&connectionWg)
+	chat.initReliabilityProtocol() // Initialize the reliability protocol
 
 	return chat
 }
@@ -118,14 +131,18 @@ func (c *Chat) Stop() {
 	close(c.inputChan)
 }
 
-func (c *Chat) connectionWatcher(connectionWg *sync.WaitGroup, connNotifier <-chan node.PeerConnection) {
+func (c *Chat) connectionWatcher(connNotifier <-chan node.PeerConnection) {
 	defer c.wg.Done()
-
-	for conn := range connNotifier {
-		if conn.Connected {
-			c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID.String()))
-		} else {
-			c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID.String()))
+	for {
+		select {
+		case conn := <-connNotifier:
+			if conn.Connected {
+				c.ui.InfoMessage(fmt.Sprintf("Peer %s connected", conn.PeerID.String()))
+			} else {
+				c.ui.InfoMessage(fmt.Sprintf("Peer %s disconnected", conn.PeerID.String()))
+			}
+		case <-c.ctx.Done():
+			return
 		}
 	}
 }
@@ -137,20 +154,22 @@ func (c *Chat) receiveMessages() {
 		case <-c.ctx.Done():
 			return
 		case value := <-c.C:
-
 			msgContentTopic := value.Message().ContentTopic
 			if msgContentTopic != c.options.ContentTopic {
 				continue // Discard messages from other topics
 			}
 
 			msg, err := decodeMessage(c.options.ContentTopic, value.Message())
-			if err == nil {
-				// send valid messages to the UI
-				c.ui.ChatMessage(int64(msg.Timestamp), msg.Nick, string(msg.Payload))
+			if err != nil {
+				fmt.Printf("Error decoding message: %v\n", err)
+				continue
 			}
+
+			c.processReceivedMessage(msg)
 		}
 	}
 }
+
 func (c *Chat) parseInput() {
 	defer c.wg.Done()
 	for {
@@ -258,29 +277,8 @@ func (c *Chat) parseInput() {
 	}
 }
 
-func (c *Chat) SendMessage(line string) {
-	tCtx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
-	defer func() {
-		cancel()
-	}()
-
-	err := c.publish(tCtx, line)
-	if err != nil {
-		if err.Error() == "validation failed" {
-			err = errors.New("message rate violation")
-		}
-		c.ui.ErrorMessage(err)
-	}
-}
-
-func (c *Chat) publish(ctx context.Context, message string) error {
-	msg := &pb.Chat2Message{
-		Timestamp: uint64(c.node.Timesource().Now().Unix()),
-		Nick:      c.nick,
-		Payload:   []byte(message),
-	}
-
-	msgBytes, err := proto.Marshal(msg)
+func (c *Chat) publish(ctx context.Context, message *pb.Message) error {
+	msgBytes, err := proto.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -303,13 +301,11 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	wakuMsg := &wpb.WakuMessage{
 		Payload:      payload,
 		Version:      proto.Uint32(version),
-		ContentTopic: options.ContentTopic,
+		ContentTopic: c.options.ContentTopic,
 		Timestamp:    timestamp,
 	}
 
 	if c.options.RLNRelay.Enable {
-		// for future version when we support more than one rln protected content topic,
-		// we should check the message content topic as well
 		err = c.node.RLNRelay().AppendRLNProof(wakuMsg, c.node.Timesource().Now())
 		if err != nil {
 			return err
@@ -326,14 +322,14 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	if c.options.LightPush.Enable {
 		lightOpt := []lightpush.RequestOption{lightpush.WithDefaultPubsubTopic()}
 		var peerID peer.ID
-		peerID, err = options.LightPush.NodePeerID()
+		peerID, err = c.options.LightPush.NodePeerID()
 		if err != nil {
 			lightOpt = append(lightOpt, lightpush.WithAutomaticPeerSelection())
 		} else {
 			lightOpt = append(lightOpt, lightpush.WithPeer(peerID))
 		}
 
-		_, err = c.node.Lightpush().Publish(c.ctx, wakuMsg, lightOpt...)
+		_, err = c.node.Lightpush().Publish(ctx, wakuMsg, lightOpt...)
 	} else {
 		_, err = c.node.Relay().Publish(ctx, wakuMsg, relay.WithDefaultPubsubTopic())
 	}
@@ -341,7 +337,7 @@ func (c *Chat) publish(ctx context.Context, message string) error {
 	return err
 }
 
-func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Message, error) {
+func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Message, error) {
 	keyInfo := &payload.KeyInfo{
 		Kind: payload.None,
 	}
@@ -351,7 +347,7 @@ func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Mess
 		return nil, err
 	}
 
-	msg := &pb.Chat2Message{}
+	msg := &pb.Message{}
 	if err := proto.Unmarshal(payload.Data, msg); err != nil {
 		return nil, err
 	}
@@ -362,52 +358,45 @@ func decodeMessage(contentTopic string, wakumsg *wpb.WakuMessage) (*pb.Chat2Mess
 func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 	defer c.wg.Done()
 
-	connectionWg.Wait() // Wait until node connection operations are done
+	connectionWg.Wait() // Wait until node connection operations are
 
 	if !c.options.Store.Enable {
 		return
 	}
 
-	var storeOpt legacy_store.HistoryRequestOption
+	var storeOpt store.RequestOption
 	if c.options.Store.Node == nil {
 		c.ui.InfoMessage("No store node configured. Choosing one at random...")
-		storeOpt = legacy_store.WithAutomaticPeerSelection()
+		storeOpt = store.WithAutomaticPeerSelection()
 	} else {
-		peerID, err := (*c.options.Store.Node).ValueForProtocol(multiaddr.P_P2P)
+		pID, err := c.getStoreNodePID()
 		if err != nil {
 			c.ui.ErrorMessage(err)
 			return
 		}
-		pID, err := peer.Decode(peerID)
-		if err != nil {
-			c.ui.ErrorMessage(err)
-			return
-		}
-		storeOpt = legacy_store.WithPeer(pID)
-		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", peerID))
-
+		storeOpt = store.WithPeer(*pID)
+		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", pID.String()))
 	}
 
 	tCtx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 	defer cancel()
 
-	q := legacy_store.Query{
-		ContentTopics: []string{options.ContentTopic},
+	q := store.FilterCriteria{
+		ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, c.options.ContentTopic),
 	}
 
-	response, err := c.node.LegacyStore().Query(tCtx, q,
-		legacy_store.WithAutomaticRequestID(),
+	response, err := c.node.Store().Request(tCtx, q,
+		store.WithAutomaticRequestID(),
 		storeOpt,
-		legacy_store.WithPaging(false, 100))
-
+		store.WithPaging(false, 100))
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("could not query storenode: %w", err))
 	} else {
-		if len(response.Messages) == 0 {
+		if len(response.Messages()) == 0 {
 			c.ui.InfoMessage("0 historic messages available")
 		} else {
-			for _, msg := range response.Messages {
-				c.C <- protocol.NewEnvelope(msg, msg.GetTimestamp(), relay.DefaultWakuTopic)
+			for _, msg := range response.Messages() {
+				c.C <- protocol.NewEnvelope(msg.Message, msg.Message.GetTimestamp(), relay.DefaultWakuTopic)
 			}
 		}
 	}
@@ -421,8 +410,8 @@ func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
 
 	wg := sync.WaitGroup{}
 
-	wg.Add(len(options.StaticNodes))
-	for _, n := range options.StaticNodes {
+	wg.Add(len(c.options.StaticNodes))
+	for _, n := range c.options.StaticNodes {
 		go func(addr multiaddr.Multiaddr) {
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(c.ctx, time.Duration(10)*time.Second)
@@ -438,7 +427,6 @@ func (c *Chat) staticNodes(connectionWg *sync.WaitGroup) {
 	}
 
 	wg.Wait()
-
 }
 
 func (c *Chat) welcomeMessage() {
@@ -462,7 +450,6 @@ func (c *Chat) welcomeMessage() {
 	credential, err := c.node.RLNRelay().IdentityCredential()
 	if err != nil {
 		c.ui.Quit()
-		fmt.Println(err.Error())
 	}
 
 	idx := c.node.RLNRelay().MembershipIndex()
@@ -489,22 +476,24 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	<-c.uiReady // wait until UI is ready
 
 	var dnsDiscoveryUrl string
-	if options.Fleet != fleetNone {
-		if options.Fleet == fleetTest {
-			dnsDiscoveryUrl = "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
-		} else {
-			// Connect to prod by default
-			dnsDiscoveryUrl = "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im"
+	if c.options.DNSDiscovery.Enable {
+		if c.options.Fleet != fleetNone {
+			if c.options.Fleet == fleetTest {
+				dnsDiscoveryUrl = "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
+			} else {
+				// Connect to prod by default
+				dnsDiscoveryUrl = "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im"
+			}
 		}
-	}
 
-	if options.DNSDiscovery.Enable && options.DNSDiscovery.URL != "" {
-		dnsDiscoveryUrl = options.DNSDiscovery.URL
+		if c.options.DNSDiscovery.URL != "" {
+			dnsDiscoveryUrl = c.options.DNSDiscovery.URL
+		}
 	}
 
 	if dnsDiscoveryUrl != "" {
 		c.ui.InfoMessage(fmt.Sprintf("attempting DNS discovery with %s", dnsDiscoveryUrl))
-		nodes, err := dnsdisc.RetrieveNodes(c.ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(options.DNSDiscovery.Nameserver))
+		nodes, err := dnsdisc.RetrieveNodes(c.ctx, dnsDiscoveryUrl, dnsdisc.WithNameserver(c.options.DNSDiscovery.Nameserver))
 		if err != nil {
 			c.ui.ErrorMessage(errors.New(err.Error()))
 		} else {
@@ -519,17 +508,38 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 				go func(ctx context.Context, info peer.AddrInfo) {
 					defer wg.Done()
 
-					ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
+					ctx, cancel := context.WithTimeout(ctx, time.Duration(20)*time.Second)
 					defer cancel()
 					err = c.node.DialPeerWithInfo(ctx, info)
 					if err != nil {
-
-						c.ui.ErrorMessage(fmt.Errorf("co!!uld not connect to %s: %w", info.ID.String(), err))
+						c.ui.ErrorMessage(fmt.Errorf("could not connect to %s: %w", info.ID.String(), err))
 					}
 				}(c.ctx, n)
-
 			}
 			wg.Wait()
 		}
 	}
+}
+
+func generateUniqueID() string {
+	return uuid.New().String()
+}
+
+func (c *Chat) getRecentMessageIDs(n int) []string {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	result := make([]string, 0, n)
+	for i := len(c.messageHistory) - 1; i >= 0 && len(result) < n; i-- {
+		result = append(result, c.messageHistory[i].MessageId)
+	}
+	return result
+}
+
+func (c *Chat) getStoreNodePID() (*peer.ID, error) {
+	pID, err := utils.GetPeerID(*c.options.Store.Node)
+	if err != nil {
+		return nil, err
+	}
+	return &pID, nil
 }
