@@ -4,6 +4,7 @@ import (
 	"chat2-reliable/pb"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -19,6 +20,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const messageRequestProtocolID = protocol.ID("/chat2-reliable/message-request/1.0.0")
+
 // below functions are specifically for peer retrieval of missing msgs instead of store
 func (c *Chat) doRequestMissingMessageFromPeers(messageID string) error {
 	peers := c.node.Host().Network().Peers()
@@ -29,14 +32,14 @@ func (c *Chat) doRequestMissingMessageFromPeers(messageID string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("no peers could provide the missing message")
+	return errors.New("no peers could provide the missing message")
 }
 
 func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Message, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, 30*time.Second)
 	defer cancel()
 
-	stream, err := c.node.Host().NewStream(ctx, peerID, protocol.ID("/chat2-reliable/message-request/1.0.0"))
+	stream, err := c.node.Host().NewStream(ctx, peerID, messageRequestProtocolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stream to peer: %w", err)
 	}
@@ -73,9 +76,6 @@ func writeProtobufMessage(stream pbio.WriteCloser, msg proto.Message) error {
 	if err != nil {
 		return err
 	}
-
-	// Add a delay before closing the stream
-	//time.Sleep(1 * time.Second)
 
 	return nil
 }
@@ -123,7 +123,7 @@ func (c *Chat) handleMessageRequest(stream network.Stream) {
 }
 
 func (c *Chat) setupMessageRequestHandler() {
-	c.node.Host().SetStreamHandler(protocol.ID("/chat2-reliable/message-request/1.0.0"), c.handleMessageRequest)
+	c.node.Host().SetStreamHandler(messageRequestProtocolID, c.handleMessageRequest)
 }
 
 func (c *Chat) _doRequestMissingMessageFromStore(messageID string) error {

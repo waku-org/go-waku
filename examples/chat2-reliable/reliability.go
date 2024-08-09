@@ -3,8 +3,8 @@ package main
 import (
 	"chat2-reliable/pb"
 	"context"
+	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
@@ -75,11 +75,53 @@ func (c *Chat) startBloomFilterCleaner() {
 	}
 }
 
+func (c *Chat) SendMessage(line string) {
+	c.incLamportTimestamp()
+
+	bloomBytes, err := c.bloomFilter.MarshalBinary()
+	if err != nil {
+		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
+		return
+	}
+
+	msg := &pb.Message{
+		SenderId:         c.node.Host().ID().String(),
+		MessageId:        generateUniqueID(),
+		LamportTimestamp: c.getLamportTimestamp(),
+		CausalHistory:    c.getRecentMessageIDs(2),
+		ChannelId:        c.options.ContentTopic,
+		BloomFilter:      bloomBytes,
+		Content:          line,
+	}
+
+	unackMsg := UnacknowledgedMessage{
+		Message:        msg,
+		SendTime:       time.Now(),
+		ResendAttempts: 0,
+	}
+	c.outgoingBuffer = append(c.outgoingBuffer, unackMsg)
+
+	ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
+	defer cancel()
+
+	err = c.publish(ctx, msg)
+	if err != nil {
+		if err.Error() == "validation failed" {
+			err = errors.New("message rate violation")
+		}
+		c.ui.ErrorMessage(err)
+	} else {
+		c.addToMessageHistory(msg)
+		c.bloomFilter.Add(msg.MessageId)
+	}
+}
+
 func (c *Chat) processReceivedMessage(msg *pb.Message) {
+	// Review ACK status of messages in the unacknowledged outgoing buffer
+	c.reviewAckStatus(msg)
+
 	// Check if the message is already in the bloom filter
 	if c.bloomFilter.Test(msg.MessageId) {
-		// Review ACK status of messages in the unacknowledged outgoing buffer
-		c.reviewAckStatus(msg)
 		return
 	}
 
@@ -163,7 +205,9 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 	if msg.BloomFilter != nil {
 		receivedFilter := bloom.NewWithEstimates(bloomFilterSize, bloomFilterFPRate)
 		err := receivedFilter.UnmarshalBinary(msg.BloomFilter)
-		if err == nil {
+		if err != nil {
+			c.ui.ErrorMessage(fmt.Errorf("failed to unmarshal bloom filter: %w", err))
+		} else {
 			for i := 0; i < len(c.outgoingBuffer); i++ {
 				if receivedFilter.Test([]byte(c.outgoingBuffer[i].Message.MessageId)) {
 					// possibly acknowledged and remove it from the outgoing buffer
@@ -197,8 +241,14 @@ func (c *Chat) requestMissingMessage(messageID string) {
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) []string {
 	var missingDeps []string
+	seenMessages := make(map[string]bool)
+
+	for _, historicalMsg := range c.messageHistory {
+		seenMessages[historicalMsg.MessageId] = true
+	}
+
 	for _, depID := range msg.CausalHistory {
-		if !c.bloomFilter.Test(depID) {
+		if !seenMessages[depID] {
 			missingDeps = append(missingDeps, depID)
 		}
 	}
@@ -209,42 +259,33 @@ func (c *Chat) addToMessageHistory(msg *pb.Message) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	c.messageHistory = append(c.messageHistory, msg)
-	c.messageHistory = c.resolveConflicts(c.messageHistory)
-
-	if len(c.messageHistory) > maxMessageHistory {
-		c.messageHistory = c.messageHistory[len(c.messageHistory)-maxMessageHistory:]
-	}
-}
-
-func (c *Chat) resolveConflicts(messages []*pb.Message) []*pb.Message {
-	// Group messages by Lamport timestamp
-	groupedMessages := make(map[int32][]*pb.Message)
-	for _, msg := range messages {
-		groupedMessages[msg.LamportTimestamp] = append(groupedMessages[msg.LamportTimestamp], msg)
-	}
-
-	// Sort timestamps
-	var timestamps []int32
-	for ts := range groupedMessages {
-		timestamps = append(timestamps, ts)
-	}
-	sort.Slice(timestamps, func(i, j int) bool { return timestamps[i] < timestamps[j] })
-
-	// Resolve conflicts and create a new ordered list
-	var resolvedMessages []*pb.Message
-	for _, ts := range timestamps {
-		msgs := groupedMessages[ts]
-		if len(msgs) == 1 {
-			resolvedMessages = append(resolvedMessages, msgs[0])
-		} else {
-			// Sort conflicting messages by MessageId
-			sort.Slice(msgs, func(i, j int) bool { return msgs[i].MessageId < msgs[j].MessageId })
-			resolvedMessages = append(resolvedMessages, msgs...)
+	// Find the correct position to insert the new message
+	insertIndex := len(c.messageHistory)
+	for i, existingMsg := range c.messageHistory {
+		if existingMsg.LamportTimestamp > msg.LamportTimestamp {
+			insertIndex = i
+			break
+		} else if existingMsg.LamportTimestamp == msg.LamportTimestamp {
+			// If timestamps are equal, use MessageId for deterministic ordering
+			if existingMsg.MessageId > msg.MessageId {
+				insertIndex = i
+				break
+			}
 		}
 	}
 
-	return resolvedMessages
+	// Insert the new message at the correct position
+	if insertIndex == len(c.messageHistory) {
+		c.messageHistory = append(c.messageHistory, msg)
+	} else {
+		c.messageHistory = append(c.messageHistory[:insertIndex+1], c.messageHistory[insertIndex:]...)
+		c.messageHistory[insertIndex] = msg
+	}
+
+	// Trim the history if it exceeds the maximum size
+	if len(c.messageHistory) > maxMessageHistory {
+		c.messageHistory = c.messageHistory[len(c.messageHistory)-maxMessageHistory:]
+	}
 }
 
 func (c *Chat) periodicBufferSweep() {
@@ -295,7 +336,12 @@ func (c *Chat) resendMessage(msg *pb.Message, resendAttempts int) {
 		if delay > maxResendDelay {
 			delay = maxResendDelay
 		}
-		time.Sleep(delay)
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-time.After(delay):
+			// do nothing
+		}
 
 		ctx, cancel := context.WithTimeout(c.ctx, ackTimeout)
 		defer cancel()

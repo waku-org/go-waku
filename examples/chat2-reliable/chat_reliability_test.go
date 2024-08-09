@@ -29,13 +29,13 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 	}
 
 	for i := 0; i < nodeCount; i++ {
-		node, err := setupTestNode(ctx, t, i)
+		node, err := setupTestNode(ctx, t)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set up node %d: %w", i, err)
 		}
 		env.nodes[i] = node
 
-		chat, err := setupTestChat(ctx, t, node, fmt.Sprintf("Node%d", i))
+		chat, err := setupTestChat(ctx, node, fmt.Sprintf("Node%d", i))
 		if err != nil {
 			return nil, fmt.Errorf("failed to set up chat for node %d: %w", i, err)
 		}
@@ -55,7 +55,7 @@ func setupTestEnvironment(ctx context.Context, t *testing.T, nodeCount int) (*Te
 	return env, nil
 }
 
-func setupTestNode(ctx context.Context, t *testing.T, index int) (*node.WakuNode, error) {
+func setupTestNode(ctx context.Context, t *testing.T) (*node.WakuNode, error) {
 	opts := []node.WakuNodeOption{
 		node.WithWakuRelay(),
 		// node.WithWakuStore(),
@@ -77,7 +77,7 @@ func setupTestNode(ctx context.Context, t *testing.T, index int) (*node.WakuNode
 
 type PeerConnection = node.PeerConnection
 
-func setupTestChat(ctx context.Context, t *testing.T, node *node.WakuNode, nickname string) (*Chat, error) {
+func setupTestChat(ctx context.Context, node *node.WakuNode, nickname string) (*Chat, error) {
 	topics := cli.StringSlice{}
 	topics.Set(relay.DefaultWakuTopic)
 
@@ -262,9 +262,8 @@ func TestNetworkPartition(t *testing.T) {
 	nodeCount := 3
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
-	//defer tearDownEnvironment(t, env)
 
-	nc := NewNetworkController(env.nodes, env.chats)
+	nc := NewNetworkController(ctx, env.nodes, env.chats)
 
 	require.Eventually(t, func() bool {
 		return areNodesConnected(env.nodes, 2)
@@ -425,7 +424,7 @@ func TestEagerPushMechanism(t *testing.T) {
 	env, err := setupTestEnvironment(ctx, t, nodeCount)
 	require.NoError(t, err, "Failed to set up test environment")
 
-	nc := NewNetworkController(env.nodes, env.chats)
+	nc := NewNetworkController(ctx, env.nodes, env.chats)
 
 	// Disconnect node 1
 	nc.DisconnectNode(env.nodes[1])
@@ -458,7 +457,7 @@ func TestBloomFilterWindow(t *testing.T) {
 
 	// Reduce bloom filter window for testing
 	for _, chat := range env.chats {
-		chat.bloomFilter.window = 5 * time.Second
+		chat.bloomFilter.window = 2 * time.Second
 	}
 
 	// Send a message
@@ -471,12 +470,12 @@ func TestBloomFilterWindow(t *testing.T) {
 	}, 30*time.Second, 1*time.Second, "Message should be in the bloom filter")
 
 	// Wait for the bloom filter window to pass
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Clean the bloom filter
 	env.chats[1].bloomFilter.Clean()
 
-	time.Sleep(8 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Check if the message is no longer in the bloom filter
 	assert.False(t, env.chats[1].bloomFilter.Test(messageID), "Message should no longer be in the bloom filter")

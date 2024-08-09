@@ -6,87 +6,66 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/waku/v2/node"
 )
 
-type NetworkController struct {
-	nodes     []*node.WakuNode
-	chats     []*Chat
-	connected map[peer.ID]map[peer.ID]bool
-	mu        sync.Mutex
+type TestNetworkController struct {
+	nodes []*node.WakuNode
+	chats []*Chat
+	mu    sync.Mutex
+	ctx   context.Context
 }
 
-func NewNetworkController(nodes []*node.WakuNode, chats []*Chat) *NetworkController {
-	nc := &NetworkController{
-		nodes:     nodes,
-		chats:     chats,
-		connected: make(map[peer.ID]map[peer.ID]bool),
+func NewNetworkController(ctx context.Context, nodes []*node.WakuNode, chats []*Chat) *TestNetworkController {
+	return &TestNetworkController{
+		nodes: nodes,
+		chats: chats,
+		ctx:   ctx,
 	}
-
-	for _, n := range nodes {
-		nc.connected[n.Host().ID()] = make(map[peer.ID]bool)
-		for _, other := range nodes {
-			if n != other {
-				nc.connected[n.Host().ID()][other.Host().ID()] = true
-			}
-		}
-	}
-
-	return nc
 }
 
-func (nc *NetworkController) DisconnectNode(node *node.WakuNode) {
+func (nc *TestNetworkController) DisconnectNode(node *node.WakuNode) {
 	nc.mu.Lock()
 	defer nc.mu.Unlock()
 
-	nodeID := node.Host().ID()
 	for _, other := range nc.nodes {
-		otherID := other.Host().ID()
-		if nodeID != otherID {
+		if node != other {
 			nc.disconnectPeers(node.Host(), other.Host())
-			nc.connected[nodeID][otherID] = false
-			nc.connected[otherID][nodeID] = false
 		}
 	}
 }
 
-func (nc *NetworkController) ReconnectNode(node *node.WakuNode) {
+func (nc *TestNetworkController) ReconnectNode(node *node.WakuNode) {
 	nc.mu.Lock()
 	defer nc.mu.Unlock()
 
-	nodeID := node.Host().ID()
 	for _, other := range nc.nodes {
-		otherID := other.Host().ID()
-		if nodeID != otherID && !nc.connected[nodeID][otherID] {
+		if node != other && !nc.IsConnected(node, other) {
 			nc.connectPeers(node.Host(), other.Host())
-			nc.connected[nodeID][otherID] = true
-			nc.connected[otherID][nodeID] = true
-			fmt.Printf("Reconnected node %s to node %s\n", nodeID.String(), otherID.String())
+			fmt.Printf("Reconnected node %s to node %s\n", node.Host().ID().String(), other.Host().ID().String())
 		}
 	}
 }
 
-func (nc *NetworkController) disconnectPeers(h1, h2 host.Host) {
+func (nc *TestNetworkController) disconnectPeers(h1, h2 host.Host) {
 	h1.Network().ClosePeer(h2.ID())
 	h2.Network().ClosePeer(h1.ID())
 }
 
-func (nc *NetworkController) connectPeers(h1, h2 host.Host) {
-	ctx := context.Background()
-	h1.Connect(ctx, peer.AddrInfo{ID: h2.ID(), Addrs: h2.Addrs()})
+func (nc *TestNetworkController) connectPeers(h1, h2 host.Host) {
+	_, err := h1.Network().DialPeer(nc.ctx, h2.ID())
+	if err != nil {
+		fmt.Printf("Error connecting peers: %v\n", err)
+	}
 }
 
-func (nc *NetworkController) IsConnected(n1, n2 *node.WakuNode) bool {
-	nc.mu.Lock()
-	defer nc.mu.Unlock()
-	return nc.connected[n1.Host().ID()][n2.Host().ID()]
+func (nc *TestNetworkController) IsConnected(n1, n2 *node.WakuNode) bool {
+	peerID, err := peer.Decode(n2.ID())
+	if err != nil {
+		fmt.Printf("Error decoding peer ID: %v\n", err)
+		return false
+	}
+	return n1.Host().Network().Connectedness(peerID) == network.Connected
 }
-
-// func (c *Chat) checkPeerConnections() {
-// 	peers := c.node.Host().Network().Peers()
-// 	fmt.Printf("Node %s: Connected to %d peers\n", c.node.Host().ID().String(), len(peers))
-// 	for _, peer := range peers {
-// 		fmt.Printf("  - %s\n", peer.String())
-// 	}
-// }

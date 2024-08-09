@@ -277,47 +277,6 @@ func (c *Chat) parseInput() {
 	}
 }
 
-func (c *Chat) SendMessage(line string) {
-	c.incLamportTimestamp()
-
-	bloomBytes, err := c.bloomFilter.MarshalBinary()
-	if err != nil {
-		c.ui.ErrorMessage(fmt.Errorf("failed to marshal bloom filter: %w", err))
-		return
-	}
-
-	msg := &pb.Message{
-		SenderId:         c.node.Host().ID().String(),
-		MessageId:        generateUniqueID(),
-		LamportTimestamp: c.getLamportTimestamp(),
-		CausalHistory:    c.getRecentMessageIDs(2),
-		ChannelId:        c.options.ContentTopic,
-		BloomFilter:      bloomBytes,
-		Content:          line,
-	}
-
-	unackMsg := UnacknowledgedMessage{
-		Message:        msg,
-		SendTime:       time.Now(),
-		ResendAttempts: 0,
-	}
-	c.outgoingBuffer = append(c.outgoingBuffer, unackMsg)
-
-	ctx, cancel := context.WithTimeout(c.ctx, messageAckTimeout)
-	defer cancel()
-
-	err = c.publish(ctx, msg)
-	if err != nil {
-		if err.Error() == "validation failed" {
-			err = errors.New("message rate violation")
-		}
-		c.ui.ErrorMessage(err)
-	} else {
-		c.addToMessageHistory(msg)
-		c.bloomFilter.Add(msg.MessageId)
-	}
-}
-
 func (c *Chat) publish(ctx context.Context, message *pb.Message) error {
 	msgBytes, err := proto.Marshal(message)
 	if err != nil {
@@ -578,14 +537,9 @@ func (c *Chat) getRecentMessageIDs(n int) []string {
 }
 
 func (c *Chat) getStoreNodePID() (*peer.ID, error) {
-	peerID, err := (*c.options.Store.Node).ValueForProtocol(multiaddr.P_P2P)
+	pID, err := utils.GetPeerID(*c.options.Store.Node)
 	if err != nil {
 		return nil, err
 	}
-	pID, err := peer.Decode(peerID)
-	if err != nil {
-		return nil, err
-	}
-
 	return &pID, nil
 }
