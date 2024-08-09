@@ -23,6 +23,13 @@ const DefaultMessageExpiredPerid = 10 // in seconds
 
 type MessageSentCheckOption func(*MessageSentCheck) error
 
+type ISentCheck interface {
+	Start()
+	Add(topic string, messageID common.Hash, sentTime uint32)
+	DeleteByMessageIDs(messageIDs []common.Hash)
+	SetStorePeerID(peerID peer.ID)
+}
+
 // MessageSentCheck tracks the outgoing messages and check against store node
 // if the message sent time has passed the `messageSentPeriod`, the message id will be includes for the next query
 // if the message keeps missing after `messageExpiredPerid`, the message id will be expired

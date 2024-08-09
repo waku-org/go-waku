@@ -23,7 +23,7 @@ type PublishMethod int
 const (
 	LightPush PublishMethod = iota
 	Relay
-	DefaultMethod
+	UnknownMethod
 )
 
 func (pm PublishMethod) String() string {
@@ -41,7 +41,7 @@ type MessageSender struct {
 	publishMethod    PublishMethod
 	lightPush        *lightpush.WakuLightPush
 	relay            *relay.WakuRelay
-	messageSentCheck *MessageSentCheck
+	messageSentCheck ISentCheck
 	rateLimiter      *PublishRateLimiter
 	logger           *zap.Logger
 }
@@ -56,7 +56,7 @@ func NewRequest(ctx context.Context, envelope *protocol.Envelope) *Request {
 	return &Request{
 		ctx:           ctx,
 		envelope:      envelope,
-		publishMethod: DefaultMethod,
+		publishMethod: UnknownMethod,
 	}
 }
 
@@ -65,17 +65,20 @@ func (r *Request) WithPublishMethod(publishMethod PublishMethod) *Request {
 	return r
 }
 
-func NewMessageSender(publishMethod PublishMethod, lightPush *lightpush.WakuLightPush, relay *relay.WakuRelay, logger *zap.Logger) *MessageSender {
+func NewMessageSender(publishMethod PublishMethod, lightPush *lightpush.WakuLightPush, relay *relay.WakuRelay, logger *zap.Logger) (*MessageSender, error) {
+	if publishMethod == UnknownMethod {
+		return nil, errors.New("publish method is required")
+	}
 	return &MessageSender{
 		publishMethod: publishMethod,
 		lightPush:     lightPush,
 		relay:         relay,
 		rateLimiter:   NewPublishRateLimiter(DefaultPublishingLimiterRate, DefaultPublishingLimitBurst),
 		logger:        logger,
-	}
+	}, nil
 }
 
-func (ms *MessageSender) WithMessageSentCheck(messageSentCheck *MessageSentCheck) *MessageSender {
+func (ms *MessageSender) WithMessageSentCheck(messageSentCheck ISentCheck) *MessageSender {
 	ms.messageSentCheck = messageSentCheck
 	return ms
 }
@@ -85,7 +88,7 @@ func (ms *MessageSender) WithRateLimiting(rateLimiter *PublishRateLimiter) *Mess
 	return ms
 }
 
-func (ms *MessageSender) Send(req Request) error {
+func (ms *MessageSender) Send(req *Request) error {
 	logger := ms.logger.With(
 		zap.Stringer("envelopeHash", req.envelope.Hash()),
 		zap.String("pubsubTopic", req.envelope.PubsubTopic()),
@@ -100,7 +103,7 @@ func (ms *MessageSender) Send(req Request) error {
 	}
 
 	publishMethod := req.publishMethod
-	if publishMethod == DefaultMethod {
+	if publishMethod == UnknownMethod {
 		publishMethod = ms.publishMethod
 	}
 
