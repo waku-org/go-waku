@@ -47,7 +47,8 @@ func TestNewSenderWithUnknownMethod(t *testing.T) {
 
 func TestNewSenderWithRelay(t *testing.T) {
 	_, relayNode := createRelayNode(t)
-	relayNode.Start(context.Background())
+	err := relayNode.Start(context.Background())
+	require.Nil(t, err)
 	defer relayNode.Stop()
 	sender, err := NewMessageSender(Relay, nil, relayNode, utils.Logger())
 	require.Nil(t, err)
@@ -68,7 +69,8 @@ func TestNewSenderWithRelay(t *testing.T) {
 
 func TestNewSenderWithRelayAndMessageSentCheck(t *testing.T) {
 	_, relayNode := createRelayNode(t)
-	relayNode.Start(context.Background())
+	err := relayNode.Start(context.Background())
+	require.Nil(t, err)
 	defer relayNode.Stop()
 	sender, err := NewMessageSender(Relay, nil, relayNode, utils.Logger())
 
