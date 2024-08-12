@@ -113,7 +113,7 @@ func (c *Chat) SendMessage(line string) {
 	} else {
 		c.bloomFilter.Add(msg.MessageId)
 		c.addToMessageHistory(msg)
-		c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.MessageId, msg.Content)
+		c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
 	}
 }
 
@@ -165,9 +165,8 @@ func (c *Chat) processBufferedMessages() {
 		if len(missingDeps) == 0 {
 			if msg.Content != "" {
 				c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
+				processedBuffer = append(processedBuffer, msg)
 			}
-
-			processedBuffer = append(processedBuffer, msg)
 		} else {
 			remainingBuffer = append(remainingBuffer, msg)
 		}
