@@ -1,10 +1,15 @@
-package api
+//go:build !race
+
+package filter
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -19,6 +24,7 @@ func TestFilterApiSuite(t *testing.T) {
 
 type FilterApiTestSuite struct {
 	filter.FilterTestSuite
+	msgRcvd chan bool
 }
 
 func (s *FilterApiTestSuite) SetupTest() {
@@ -95,4 +101,93 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	}
 	s.Log.Info("DataCh is closed")
 
+}
+
+func (s *FilterApiTestSuite) OnNewEnvelope(env *protocol.Envelope) error {
+	if env.Message().ContentTopic == s.ContentFilter.ContentTopicsList()[0] {
+		s.Log.Info("received message via filter")
+		s.msgRcvd <- true
+	} else {
+		s.Log.Info("received message via filter but doesn't match contentTopic")
+	}
+	return nil
+}
+
+func (s *FilterApiTestSuite) TestFilterManager() {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	testPubsubTopic := s.TestTopic
+	contentTopicBytes := make([]byte, 4)
+	_, err := rand.Read(contentTopicBytes)
+
+	s.Require().NoError(err)
+
+	s.ContentFilter = protocol.ContentFilter{
+		PubsubTopic:   testPubsubTopic,
+		ContentTopics: protocol.NewContentTopicSet("/test/filtermgr" + hex.EncodeToString(contentTopicBytes) + "/topic/proto"),
+	}
+
+	s.msgRcvd = make(chan bool, 1)
+
+	s.Log.Info("creating filterManager")
+	fm := NewFilterManager(ctx, s.Log, 2, s, s.LightNode)
+	fm.filterSubBatchDuration = 1 * time.Second
+	fm.onlineChecker.SetOnline(true)
+	fID := uuid.NewString()
+	fm.SubscribeFilter(fID, s.ContentFilter)
+	time.Sleep(2 * time.Second)
+
+	// Ensure there is at least 1 active filter subscription
+	subscriptions := s.LightNode.Subscriptions()
+	s.Require().Greater(len(subscriptions), 0)
+
+	s.Log.Info("publishing msg")
+
+	s.PublishMsg(&filter.WakuMsg{
+		Payload:      "filtermgr testMsg",
+		ContentTopic: s.ContentFilter.ContentTopicsList()[0],
+		PubSubTopic:  testPubsubTopic,
+	})
+	t := time.NewTicker(2 * time.Second)
+	select {
+	case received := <-s.msgRcvd:
+		s.Require().True(received)
+		s.Log.Info("unsubscribe 1")
+	case <-t.C:
+		s.Log.Error("timed out waiting for message")
+		s.Fail("timed out waiting for message")
+	}
+	// Mock peers going down
+	s.LightNodeHost.Peerstore().RemovePeer(s.FullNodeHost.ID())
+
+	fm.OnConnectionStatusChange("", false)
+	time.Sleep(2 * time.Second)
+	fm.OnConnectionStatusChange("", true)
+	s.ConnectToFullNode(s.LightNode, s.FullNode)
+	time.Sleep(3 * time.Second)
+
+	// Ensure there is at least 1 active filter subscription
+	subscriptions = s.LightNode.Subscriptions()
+	s.Require().Greater(len(subscriptions), 0)
+	s.Log.Info("publish message 2")
+
+	// Ensure that messages are retrieved with a fresh sub
+	s.PublishMsg(&filter.WakuMsg{
+		Payload:      "filtermgr testMsg2",
+		ContentTopic: s.ContentFilter.ContentTopicsList()[0],
+		PubSubTopic:  testPubsubTopic,
+	})
+	t = time.NewTicker(2 * time.Second)
+
+	select {
+	case received := <-s.msgRcvd:
+		s.Require().True(received)
+		s.Log.Info("received message 2")
+	case <-t.C:
+		s.Log.Error("timed out waiting for message 2")
+		s.Fail("timed out waiting for message 2")
+	}
+
+	fm.UnsubscribeFilter(fID)
+	cancel()
 }

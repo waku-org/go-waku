@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
@@ -40,17 +39,17 @@ func TestKeepAlive(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	w := &WakuNode{
-		host:           host1,
-		wg:             wg,
-		log:            utils.Logger(),
-		keepAliveMutex: sync.Mutex{},
-		keepAliveFails: make(map[peer.ID]int),
+		host: host1,
+		wg:   wg,
+		log:  utils.Logger(),
 	}
 
 	w.wg.Add(1)
-	w.pingPeer(ctx2, w.wg, peerID2, false)
 
+	peerFailureSignalChan := make(chan bool, 1)
+	w.pingPeer(ctx2, w.wg, peerID2, peerFailureSignalChan)
 	require.NoError(t, ctx.Err())
+	close(peerFailureSignalChan)
 }
 
 func TestPeriodicKeepAlive(t *testing.T) {
@@ -70,7 +69,7 @@ func TestPeriodicKeepAlive(t *testing.T) {
 		WithPrivateKey(prvKey),
 		WithHostAddress(hostAddr),
 		WithWakuRelay(),
-		WithKeepAlive(time.Second),
+		WithKeepAlive(time.Minute, time.Second),
 	)
 
 	require.NoError(t, err)

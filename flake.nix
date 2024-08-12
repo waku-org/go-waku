@@ -11,11 +11,11 @@
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
 
-      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+      pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
 
       buildPackage = system: subPackages:
         let
-          pkgs = nixpkgsFor.${system};
+          pkgs = pkgsFor.${system};
           commit = builtins.substring 0 7 (self.rev or "dirty");
           version = builtins.readFile ./VERSION;
         in pkgs.buildGo121Module {
@@ -29,22 +29,42 @@
           ];
           doCheck = false;
           # FIXME: This needs to be manually changed when updating modules.
-          vendorHash = "sha256-9AnVgIcsQyB8xfxJqj17TrdWqQYeAHrUaUDQe10gAzE=";
+          vendorHash = "sha256-cOh9LNmcaBnBeMFM1HS2pdH5TTraHfo8PXL37t/A3gQ=";
           # Fix for 'nix run' trying to execute 'go-waku'.
           meta = { mainProgram = "waku"; };
         };
     in rec {
-      packages = forAllSystems (system: {
-        node    = buildPackage system ["cmd/waku"];
-        library = buildPackage system ["library/c"];
+      packages = forAllSystems (system: let
+        pkgs = pkgsFor.${system};
+        os = pkgs.stdenv.hostPlatform.uname.system;
+        sttLibExtMap = { Windows = "lib"; Darwin = "a";     Linux = "a";  };
+        dynLibExtMap = { Windows = "dll"; Darwin = "dylib"; Linux = "so"; };
+        buildPackage = pkgs.callPackage ./default.nix;
+      in rec {
+        default = node;
+        node = buildPackage {
+          inherit self;
+          subPkgs = ["cmd/waku"];
+        };
+        static-library = buildPackage {
+          inherit self;
+          subPkgs = ["library/c"];
+          ldflags = ["-buildmode=c-archive"];
+          output = "libgowaku.${sttLibExtMap.${os}}";
+        };
+        # FIXME: Compilation fails with:
+        #   relocation R_X86_64_TPOFF32 against runtime.tlsg can not be
+        #   used when making a shared object; recompile with -fPIC
+        dynamic-library = buildPackage {
+          inherit self;
+          subPkgs = ["library/c"];
+          ldflags = ["-buildmode=c-shared"];
+          output = "libgowaku.${dynLibExtMap.${os}}";
+        };
       });
 
-      defaultPackage = forAllSystems (system:
-        buildPackage system ["cmd/waku"]
-      );
-
       devShells = forAllSystems (system: let
-        pkgs = nixpkgsFor.${system};
+        pkgs = pkgsFor.${system};
         inherit (pkgs) lib stdenv mkShell;
       in {
         default = mkShell {

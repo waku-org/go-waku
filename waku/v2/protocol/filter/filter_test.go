@@ -117,7 +117,7 @@ func (s *FilterTestSuite) TestAutoShard() {
 	// Wrong content topic
 	s.waitForTimeout(&WakuMsg{s.TestTopic, "TopicB", "second"})
 
-	_, err = s.LightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, s.ContentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)

@@ -220,8 +220,8 @@ func (s *FilterTestSuite) TestIncorrectSubscribeIdentifier() {
 	s.LightNodeHost.Peerstore().AddAddr(s.FullNodeHost.ID(), tests.GetHostAddress(s.FullNodeHost), peerstore.PermanentAddrTTL)
 
 	// Subscribe with incorrect SubscribeID
-	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
-	_, err := s.LightNode.IncorrectSubscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
+	s.ContentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
+	_, err := s.LightNode.IncorrectSubscribe(s.ctx, s.ContentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().Error(err)
 
 	_, err = s.LightNode.UnsubscribeAll(s.ctx)
@@ -266,8 +266,8 @@ func (s *FilterTestSuite) TestIncorrectPushIdentifier() {
 	s.Require().NoError(err)
 
 	// Subscribe
-	s.contentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
-	s.subDetails, err = s.LightNode.Subscribe(s.ctx, s.contentFilter, WithPeer(s.FullNodeHost.ID()))
+	s.ContentFilter = protocol.ContentFilter{PubsubTopic: s.TestTopic, ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic)}
+	s.subDetails, err = s.LightNode.Subscribe(s.ctx, s.ContentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)

@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,6 +19,8 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	"github.com/waku-org/go-waku/waku/v2/protocol/metadata"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
@@ -33,6 +37,21 @@ func TestStoreClient(t *testing.T) {
 
 	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
+
+	db, err := enode.OpenDB("")
+	require.NoError(t, err)
+	priv, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	localnode := enode.NewLocalNode(db, priv)
+
+	pubsubTopic := "/waku/2/rs/99/1"
+	clusterID := uint16(99)
+	rs, _ := protocol.NewRelayShards(clusterID, 1)
+	enr.Update(utils.Logger(), localnode, enr.WithWakuRelaySharding(rs))
+
+	metadata := metadata.NewWakuMetadata(clusterID, localnode, utils.Logger())
+	metadata.SetHost(host)
+	metadata.Start(context.Background())
 
 	// Creating a relay instance for pushing messages to the store node
 	b := relay.NewBroadcaster(10)
@@ -53,7 +72,7 @@ func TestStoreClient(t *testing.T) {
 	wakuStore := NewWakuStore(pm, timesource.NewDefaultClock(), utils.Logger())
 	wakuStore.SetHost(host)
 
-	_, err = wakuRelay.Subscribe(context.Background(), protocol.NewContentFilter(protocol.DefaultPubsubTopic{}.String()), relay.WithoutConsumer())
+	_, err = wakuRelay.Subscribe(context.Background(), protocol.NewContentFilter(pubsubTopic), relay.WithoutConsumer())
 	require.NoError(t, err)
 
 	// Obtain multiaddr from env
@@ -83,7 +102,7 @@ func TestStoreClient(t *testing.T) {
 			Version:      proto.Uint32(0),
 			Timestamp:    utils.GetUnixEpoch(timesource.NewDefaultClock()),
 		}
-		_, err := wakuRelay.Publish(ctx, msg, relay.WithDefaultPubsubTopic())
+		_, err := wakuRelay.Publish(ctx, msg, relay.WithPubSubTopic(pubsubTopic))
 		require.NoError(t, err)
 
 		messages = append(messages, msg)
@@ -94,7 +113,7 @@ func TestStoreClient(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Check for message existence
-	exists, err := wakuStore.Exists(ctx, messages[0].Hash(relay.DefaultWakuTopic), WithPeer(storenode.ID))
+	exists, err := wakuStore.Exists(ctx, messages[0].Hash(pubsubTopic), WithPeer(storenode.ID))
 	require.NoError(t, err)
 	require.True(t, exists)
 
@@ -104,7 +123,7 @@ func TestStoreClient(t *testing.T) {
 	require.False(t, exists)
 
 	// Query messages with forward pagination
-	response, err := wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 2))
+	response, err := wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 2))
 	require.NoError(t, err)
 
 	// -- First page:
@@ -141,7 +160,7 @@ func TestStoreClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Query messages with backward pagination
-	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(false, 2))
+	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(false, 2))
 	require.NoError(t, err)
 
 	// -- First page:
@@ -176,46 +195,46 @@ func TestStoreClient(t *testing.T) {
 	require.True(t, response.IsComplete())
 
 	// No cursor should be returned if there are no messages that match the criteria
-	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "no-messages"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 2))
+	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "no-messages"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 2))
 	require.NoError(t, err)
 	require.Len(t, response.messages, 0)
 	require.Empty(t, response.Cursor())
 
 	// If the page size is larger than the number of existing messages, it should not return a cursor
-	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 100))
+	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 100))
 	require.NoError(t, err)
 	require.Len(t, response.messages, 5)
 	require.Empty(t, response.Cursor())
 
 	// Invalid cursors should fail
 	// TODO: nwaku does not support this feature yet
-	//_, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor([]byte{1, 2, 3, 4, 5, 6}))
+	//_, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor([]byte{1, 2, 3, 4, 5, 6}))
 	//require.Error(t, err)
 
 	// Inexistent cursors should return an empty response
 	// TODO: nwaku does not support this feature yet
-	//response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor(make([]byte, 32))) // Requesting cursor 0x00...00
+	//response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithCursor(make([]byte, 32))) // Requesting cursor 0x00...00
 	//require.NoError(t, err)
 	//require.Len(t, response.messages, 0)
 	//require.Empty(t, response.Cursor())
 
 	// Handle temporal history query with an invalid time window
-	_, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: endTime, TimeEnd: startTime})
+	_, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: endTime, TimeEnd: startTime})
 	require.NotNil(t, err)
 
 	// Handle temporal history query with a zero-size time window
-	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test"), TimeStart: startTime, TimeEnd: startTime})
+	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: startTime})
 	require.NoError(t, err)
 	require.Len(t, response.messages, 0)
 	require.Empty(t, response.Cursor())
 
 	// Should not include data
-	response, err = wakuStore.Request(ctx, MessageHashCriteria{MessageHashes: []pb.MessageHash{messages[0].Hash(relay.DefaultWakuTopic)}}, IncludeData(false), WithPeer(storenode.ID))
+	response, err = wakuStore.Request(ctx, MessageHashCriteria{MessageHashes: []pb.MessageHash{messages[0].Hash(pubsubTopic)}}, IncludeData(false), WithPeer(storenode.ID))
 	require.NoError(t, err)
 	require.Len(t, response.messages, 1)
 	require.Nil(t, response.messages[0].Message)
 
-	response, err = wakuStore.Request(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(relay.DefaultWakuTopic, "test")}, IncludeData(false))
+	response, err = wakuStore.Request(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test")}, IncludeData(false))
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(response.messages), 1)
 	require.Nil(t, response.messages[0].Message)

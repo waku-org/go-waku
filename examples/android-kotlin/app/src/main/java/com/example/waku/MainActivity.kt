@@ -59,7 +59,7 @@ class MainActivity : AppCompatActivity() {
         lbl.text = (lbl.text.toString() + ">>> Default pubsub topic: " + defaultPubsubTopic() + "\n");
 
         try {
-            node.connect("/dns4/node-01.gc-us-central1-a.waku.test.statusim.net/tcp/30303/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG")
+            node.connect("/dns4/node-01.gc-us-central1-a.waku.test.status.im/tcp/30303/p2p/16Uiu2HAmDCp8XJ9z1ev18zuv8NHekAsjNyezAvmMfFEJkiharitG")
             lbl.text = (lbl.text.toString() + ">>> Connected to Peer" + "\n")
 
             node.peers().forEach {

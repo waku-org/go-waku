@@ -163,7 +163,7 @@ jobs:
       - name: "Run storev3 tests"
         run: |
           docker compose -f .github/docker-compose/nwaku.yml up -d
-          NWAKU_HOST=$(docker-compose -f .github/docker-compose/nwaku.yml port nwaku 60000)
+          NWAKU_HOST=$(docker compose -f .github/docker-compose/nwaku.yml port nwaku 60000)
           NWAKU_PORT=$(echo $NWAKU_HOST | cut -d ":" -f 2)
           sleep 5
           make test-storev3 TEST_STOREV3_NODE="/ip4/127.0.0.1/tcp/${NWAKU_PORT}/p2p/16Uiu2HAmMGhfSTUzKbsjMWxc6T1X4wiTWSF1bEWSLjAukCm7KiHV"
