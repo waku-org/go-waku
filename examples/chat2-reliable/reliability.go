@@ -16,8 +16,8 @@ const (
 	bloomFilterWindow        = 1 * time.Hour
 	bloomFilterCleanInterval = 30 * time.Minute
 	bufferSweepInterval      = 5 * time.Second
-	syncMessageInterval      = 60 * time.Second
-	messageAckTimeout        = 10 * time.Second
+	syncMessageInterval      = 30 * time.Second
+	messageAckTimeout        = 60 * time.Second
 	maxRetries               = 3
 	retryBaseDelay           = 1 * time.Second
 	maxRetryDelay            = 10 * time.Second
@@ -88,7 +88,7 @@ func (c *Chat) SendMessage(line string) {
 		SenderId:         c.node.Host().ID().String(),
 		MessageId:        generateUniqueID(),
 		LamportTimestamp: c.getLamportTimestamp(),
-		CausalHistory:    c.getRecentMessageIDs(2),
+		CausalHistory:    c.getRecentMessageIDs(10),
 		ChannelId:        c.options.ContentTopic,
 		BloomFilter:      bloomBytes,
 		Content:          line,
@@ -111,25 +111,26 @@ func (c *Chat) SendMessage(line string) {
 		}
 		c.ui.ErrorMessage(err)
 	} else {
-		c.addToMessageHistory(msg)
 		c.bloomFilter.Add(msg.MessageId)
+		c.addToMessageHistory(msg)
+		c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.MessageId, msg.Content)
 	}
 }
 
 func (c *Chat) processReceivedMessage(msg *pb.Message) {
-	// Review ACK status of messages in the unacknowledged outgoing buffer
-	c.reviewAckStatus(msg)
-
 	// Check if the message is already in the bloom filter
 	if c.bloomFilter.Test(msg.MessageId) {
 		return
 	}
 
+	// Update bloom filter
+	c.bloomFilter.Add(msg.MessageId)
+
 	// Update Lamport timestamp
 	c.updateLamportTimestamp(msg.LamportTimestamp)
 
-	// Update bloom filter
-	c.bloomFilter.Add(msg.MessageId)
+	// Review ACK status of messages in the unacknowledged outgoing buffer
+	c.reviewAckStatus(msg)
 
 	// Check causal dependencies
 	missingDeps := c.checkCausalDependencies(msg)
@@ -156,18 +157,12 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 func (c *Chat) processBufferedMessages() {
 	c.mutex.Lock()
 
-	processed := make(map[string]bool)
 	remainingBuffer := make([]*pb.Message, 0, len(c.incomingBuffer))
 	processedBuffer := make([]*pb.Message, 0)
 
 	for _, msg := range c.incomingBuffer {
-		if processed[msg.MessageId] {
-			continue
-		}
-
 		missingDeps := c.checkCausalDependencies(msg)
 		if len(missingDeps) == 0 {
-			// Release the lock while processing the message
 			if msg.Content != "" {
 				c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
 			}
@@ -221,12 +216,11 @@ func (c *Chat) reviewAckStatus(msg *pb.Message) {
 
 func (c *Chat) requestMissingMessage(messageID string) {
 	for retry := 0; retry < maxRetries; retry++ {
-		err := c.doRequestMissingMessageFromPeers(messageID)
+		missedMsg, err := c.doRequestMissingMessageFromPeers(messageID)
 		if err == nil {
+			c.processReceivedMessage(missedMsg)
 			return
 		}
-
-		c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message (attempt %d): %w", retry+1, err))
 
 		// Exponential backoff
 		delay := retryBaseDelay * time.Duration(1<<uint(retry))
@@ -236,7 +230,7 @@ func (c *Chat) requestMissingMessage(messageID string) {
 		time.Sleep(delay)
 	}
 
-	c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message after %d attempts: %s", maxRetries, messageID))
+	c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message %s after %d attempts", messageID, maxRetries))
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) []string {
@@ -324,7 +318,7 @@ func (c *Chat) checkUnacknowledgedMessages() {
 				// Remove the message from the buffer after max attempts
 				c.outgoingBuffer = append(c.outgoingBuffer[:i], c.outgoingBuffer[i+1:]...)
 				i-- // Adjust index after removal
-				c.ui.ErrorMessage(fmt.Errorf("message %s dropped: failed to be acknowledged after %d attempts", unackMsg.Message.MessageId, maxResendAttempts))
+				c.ui.ErrorMessage(fmt.Errorf("message %s dropped: failed to be acknowledged after %d attempts", unackMsg.Message.Content, maxResendAttempts))
 			}
 		}
 	}
@@ -412,9 +406,7 @@ func (c *Chat) updateLamportTimestamp(msgTs int32) {
 	c.lamportTSMutex.Lock()
 	defer c.lamportTSMutex.Unlock()
 	if msgTs > c.lamportTimestamp {
-		c.lamportTimestamp = msgTs + 1
-	} else {
-		c.lamportTimestamp++
+		c.lamportTimestamp = msgTs
 	}
 }
 

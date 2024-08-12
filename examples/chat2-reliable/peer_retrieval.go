@@ -23,16 +23,15 @@ import (
 const messageRequestProtocolID = protocol.ID("/chat2-reliable/message-request/1.0.0")
 
 // below functions are specifically for peer retrieval of missing msgs instead of store
-func (c *Chat) doRequestMissingMessageFromPeers(messageID string) error {
+func (c *Chat) doRequestMissingMessageFromPeers(messageID string) (*pb.Message, error) {
 	peers := c.node.Host().Network().Peers()
 	for _, peerID := range peers {
 		msg, err := c.requestMessageFromPeer(peerID, messageID)
 		if err == nil && msg != nil {
-			c.processReceivedMessage(msg)
-			return nil
+			return msg, nil
 		}
 	}
-	return errors.New("no peers could provide the missing message")
+	return nil, errors.New("no peers could provide the missing message")
 }
 
 func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Message, error) {
@@ -60,8 +59,6 @@ func (c *Chat) requestMessageFromPeer(peerID peer.ID, messageID string) (*pb.Mes
 	if err != nil {
 		return nil, fmt.Errorf("failed to read message response: %w", err)
 	}
-
-	fmt.Printf("Received message response from peer %s\n", peerID.String())
 
 	if response.Message == nil {
 		return nil, fmt.Errorf("peer did not have the requested message")

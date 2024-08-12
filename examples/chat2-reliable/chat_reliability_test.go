@@ -524,3 +524,108 @@ func TestConflictResolution(t *testing.T) {
 	assert.Equal(t, env.chats[0].messageHistory[0].MessageId, env.chats[1].messageHistory[0].MessageId, "Conflicting messages should be ordered consistently")
 	assert.Equal(t, env.chats[0].messageHistory[1].MessageId, env.chats[1].messageHistory[1].MessageId, "Conflicting messages should be ordered consistently")
 }
+
+func TestNewNodeSyncAndMessagePropagation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	t.Log("Starting TestNewNodeSyncAndMessagePropagation")
+
+	// Set up initial network with 2 nodes
+	initialNodeCount := 2
+	env, err := setupTestEnvironment(ctx, t, initialNodeCount)
+	require.NoError(t, err, "Failed to set up initial test environment")
+
+	// Ensure initial nodes are connected
+	require.Eventually(t, func() bool {
+		return areNodesConnected(env.nodes, 1)
+	}, 60*time.Second, 1*time.Second, "Initial nodes failed to connect")
+
+	// Send some initial messages
+	t.Log("Sending initial messages")
+	env.chats[0].SendMessage("Initial message 1")
+	env.chats[1].SendMessage("Initial message 2")
+
+	// Wait for message propagation
+	time.Sleep(5 * time.Second)
+
+	// Verify initial messages are received by both nodes
+	for i, chat := range env.chats {
+		assert.Len(t, chat.messageHistory, 2, "Node %d should have 2 initial messages", i)
+	}
+
+	// Add a new node to the network
+	t.Log("Adding new node to the network")
+	newNode, err := setupTestNode(ctx, t)
+	require.NoError(t, err, "Failed to set up new node")
+	newChat, err := setupTestChat(ctx, newNode, "NewNode")
+	require.NoError(t, err, "Failed to set up new chat")
+
+	env.nodes = append(env.nodes, newNode)
+	env.chats = append(env.chats, newChat)
+
+	// Connect new node to the network
+	_, err = env.nodes[2].AddPeer(env.nodes[0].ListenAddresses()[0], peerstore.Static, env.chats[2].options.Relay.Topics.Value())
+	require.NoError(t, err, "Failed to connect new node to the network")
+
+	// Wait for the new node to sync
+	t.Log("Waiting for new node to sync")
+	// start := time.Now()
+	// syncTimeout := 2 * time.Minute
+	// require.Eventually(t, func() bool {
+	// 	msgCount := len(env.chats[2].messageHistory)
+	// 	t.Logf("New node message count: %d, Time elapsed: %v", msgCount, time.Since(start))
+	// 	return msgCount == 2
+	// }, syncTimeout, 5*time.Second, "New node failed to sync message history")
+	time.Sleep(60 * time.Second)
+
+	// Log the state of all nodes after sync
+	for i, chat := range env.chats {
+		t.Logf("Node %d message count: %d", i, len(chat.messageHistory))
+		for j, msg := range chat.messageHistory {
+			t.Logf("Node %d Message %d: %s", i, j, msg.Content)
+		}
+	}
+
+	// Send a message from an old node
+	t.Log("Sending message from old node")
+	env.chats[0].SendMessage("Message from old node")
+
+	// Wait for message propagation
+	time.Sleep(10 * time.Second)
+
+	// Verify the message is received by all nodes
+	for i, chat := range env.chats {
+		assert.Len(t, chat.messageHistory, 3, "Node %d should have 3 messages", i)
+	}
+
+	// Send a message from the new node
+	t.Log("Sending message from new node")
+	env.chats[2].SendMessage("Message from new node")
+
+	// Wait for message propagation
+	time.Sleep(10 * time.Second)
+
+	// Verify the message from the new node
+	assert.Len(t, env.chats[2].messageHistory, 4, "New node should have 4 messages (including its own)")
+
+	// Check if old nodes received the message from the new node
+	for i := 0; i < 2; i++ {
+		assert.Len(t, env.chats[i].messageHistory, 4, "Old node %d should have received the message from the new node", i)
+	}
+
+	for i := 0; i < 2; i++ {
+		lastMsg := env.chats[i].messageHistory[len(env.chats[i].messageHistory)-1]
+		assert.Equal(t, "Message from new node", lastMsg.Content, "Old node %d should have received the message from the new node", i)
+	}
+
+	// Log final state of all nodes
+	for i, chat := range env.chats {
+		t.Logf("Final state - Node %d message count: %d", i, len(chat.messageHistory))
+		for j, msg := range chat.messageHistory {
+			t.Logf("Node %d Message %d: %s", i, j, msg.Content)
+		}
+	}
+
+	t.Log("TestNewNodeSyncAndMessagePropagation completed")
+}
