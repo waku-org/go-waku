@@ -6,7 +6,7 @@ toolchain go1.21.10
 
 replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.15
 
-replace github.com/libp2p/go-libp2p-pubsub => github.com/waku-org/go-libp2p-pubsub v0.0.0-20240807051051-fab982a94aed
+replace github.com/libp2p/go-libp2p-pubsub v0.12.0 => github.com/waku-org/go-libp2p-pubsub v0.12.0-gowaku
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
