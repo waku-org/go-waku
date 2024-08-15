@@ -416,9 +416,9 @@ func (w *WakuNode) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		w.peermanager.Start(ctx)
 		w.registerAndMonitorReachability(ctx)
 	}
+	w.peermanager.Start(ctx)
 
 	w.legacyStore = w.storeFactory(w)
 	w.legacyStore.SetHost(host)

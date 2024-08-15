@@ -23,6 +23,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/metadata"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
+	"golang.org/x/exp/maps"
 
 	"go.uber.org/zap"
 )
@@ -236,13 +237,14 @@ func (pm *PeerManager) SetPeerConnector(pc *PeerConnectionStrategy) {
 
 // Start starts the processing to be done by peer manager.
 func (pm *PeerManager) Start(ctx context.Context) {
-	pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
-
 	pm.ctx = ctx
-	if pm.sub != nil && pm.RelayEnabled {
-		go pm.peerEventLoop(ctx)
+	if pm.RelayEnabled {
+		pm.RegisterWakuProtocol(relay.WakuRelayID_v200, relay.WakuRelayENRField)
+		if pm.sub != nil {
+			go pm.peerEventLoop(ctx)
+		}
+		go pm.connectivityLoop(ctx)
 	}
-	go pm.connectivityLoop(ctx)
 	go pm.peerStoreLoop(ctx)
 }
 
@@ -263,6 +265,7 @@ func (pm *PeerManager) prunePeerStore() {
 	peers := pm.host.Peerstore().Peers()
 	numPeers := len(peers)
 	if numPeers < pm.maxPeers {
+		pm.logger.Debug("peerstore size within capacity, not pruning", zap.Int("capacity", pm.maxPeers), zap.Int("numPeers", numPeers))
 		return
 	}
 	peerCntBeforePruning := numPeers
@@ -288,49 +291,54 @@ func (pm *PeerManager) prunePeerStore() {
 	notConnectedPeers := pm.getPeersBasedOnconnectionStatus("", network.NotConnected)
 	peersByTopic := make(map[string]peer.IDSlice)
 
-	if pm.RelayEnabled {
-		//prune not connected peers without shard
-		for _, peerID := range notConnectedPeers {
-			topics, err := pm.host.Peerstore().(wps.WakuPeerstore).PubSubTopics(peerID)
-			//Prune peers without pubsubtopics.
-			if err != nil || len(topics) == 0 {
-				pm.host.Peerstore().RemovePeer(peerID)
-				numPeers--
-			} else {
-				for topic := range topics {
-					peersByTopic[topic] = append(peersByTopic[topic], peerID)
-				}
+	//prune not connected peers without shard
+	for _, peerID := range notConnectedPeers {
+		topics, err := pm.host.Peerstore().(wps.WakuPeerstore).PubSubTopics(peerID)
+		//Prune peers without pubsubtopics.
+		if err != nil || len(topics) == 0 {
+			if err != nil {
+				pm.logger.Error("pruning:failed to fetch pubsub topics", zap.Error(err), zap.Stringer("peer", peerID))
 			}
+			pm.logger.Debug("pruning:pubsubTopics empty", zap.Stringer("peer", peerID))
+			pm.host.Peerstore().RemovePeer(peerID)
+			numPeers--
+		} else {
+			pm.logger.Debug("pruning: pubsubTopics present", zap.Stringer("peer", peerID), zap.Strings("topics", maps.Keys(topics)))
+			for topic := range topics {
+				peersByTopic[topic] = append(peersByTopic[topic], peerID)
+			}
+		}
+		if numPeers < pm.maxPeers {
+			pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers))
+			return
+		}
+	}
+
+	// calculate the avg peers per shard
+	total, maxPeerCnt := 0, 0
+	for _, peersInTopic := range peersByTopic {
+		peerLen := len(peersInTopic)
+		total += peerLen
+		if peerLen > maxPeerCnt {
+			maxPeerCnt = peerLen
+		}
+	}
+	avgPerTopic := min(1, total/maxPeerCnt)
+	// prune peers from shard with higher than avg count
+
+	for topic, peers := range peersByTopic {
+		count := max(len(peers)-avgPerTopic, 0)
+		for i, pID := range peers {
+			if i > count {
+				break
+			}
+			pm.logger.Debug("pruning peer as higher than average", zap.Stringer("peer", pID), zap.String("topic", topic))
+
+			pm.host.Peerstore().RemovePeer(pID)
+			numPeers--
 			if numPeers < pm.maxPeers {
 				pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers))
 				return
-			}
-		}
-
-		// calculate the avg peers per shard
-		total, maxPeerCnt := 0, 0
-		for _, peersInTopic := range peersByTopic {
-			peerLen := len(peersInTopic)
-			total += peerLen
-			if peerLen > maxPeerCnt {
-				maxPeerCnt = peerLen
-			}
-		}
-		avgPerTopic := min(1, total/maxPeerCnt)
-		// prune peers from shard with higher than avg count
-
-		for _, peers := range peersByTopic {
-			count := max(len(peers)-avgPerTopic, 0)
-			for i, pID := range peers {
-				if i > count {
-					break
-				}
-				pm.host.Peerstore().RemovePeer(pID)
-				numPeers--
-				if numPeers < pm.maxPeers {
-					pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers))
-					return
-				}
 			}
 		}
 	}
