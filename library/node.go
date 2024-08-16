@@ -16,7 +16,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -164,7 +163,7 @@ func NewNode(instance *WakuInstance, configJSON string) error {
 	opts := []node.WakuNodeOption{
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
-		node.WithKeepAlive(time.Duration(*config.KeepAliveInterval) * time.Second),
+		node.WithKeepAlive(10*time.Second, time.Duration(*config.KeepAliveInterval)*time.Second),
 	}
 
 	if *config.EnableRelay {
@@ -444,7 +443,7 @@ type subscriptionMsg struct {
 
 func toSubscriptionMessage(msg *protocol.Envelope) *subscriptionMsg {
 	return &subscriptionMsg{
-		MessageID:   hexutil.Encode(msg.Hash()),
+		MessageID:   msg.Hash().String(),
 		PubsubTopic: msg.PubsubTopic(),
 		Message:     msg.Message(),
 	}

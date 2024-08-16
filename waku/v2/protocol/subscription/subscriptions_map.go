@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -75,6 +76,7 @@ func (sub *SubscriptionsMap) NewSubscription(peerID peer.ID, cf protocol.Content
 		PeerID:        peerID,
 		C:             make(chan *protocol.Envelope, 1024),
 		ContentFilter: protocol.ContentFilter{PubsubTopic: cf.PubsubTopic, ContentTopics: maps.Clone(cf.ContentTopics)},
+		Closing:       make(chan bool),
 	}
 
 	// Increase the number of subscriptions for this (pubsubTopic, contentTopic) pair
@@ -129,9 +131,9 @@ func (sub *SubscriptionsMap) Has(peerID peer.ID, cf protocol.ContentFilter) bool
 
 	return true
 }
-func (sub *SubscriptionsMap) Delete(subscription *SubscriptionDetails) error {
-	sub.Lock()
-	defer sub.Unlock()
+
+// Caller has to acquire lock before invoking this method.This is done to avoid possible deadlock
+func (sub *SubscriptionsMap) DeleteNoLock(subscription *SubscriptionDetails) error {
 
 	peerSubscription, ok := sub.items[subscription.PeerID]
 	if !ok {
@@ -141,9 +143,19 @@ func (sub *SubscriptionsMap) Delete(subscription *SubscriptionDetails) error {
 	contentFilter := subscription.ContentFilter
 	delete(peerSubscription.SubsPerPubsubTopic[contentFilter.PubsubTopic], subscription.ID)
 
+	if len(peerSubscription.SubsPerPubsubTopic[contentFilter.PubsubTopic]) == 0 {
+		sub.logger.Debug("no more subs for pubsubTopic for this peer", zap.Stringer("id", subscription.PeerID), zap.String("pubsubtopic", contentFilter.PubsubTopic))
+		delete(peerSubscription.SubsPerPubsubTopic, contentFilter.PubsubTopic)
+	}
+
 	// Decrease the number of subscriptions for this (pubsubTopic, contentTopic) pair
 	for contentTopic := range contentFilter.ContentTopics {
 		sub.decreaseSubFor(contentFilter.PubsubTopic, contentTopic)
+	}
+
+	if len(peerSubscription.SubsPerPubsubTopic) == 0 {
+		sub.logger.Debug("no more subs for peer", zap.Stringer("id", subscription.PeerID))
+		delete(sub.items, subscription.PeerID)
 	}
 
 	return nil
@@ -167,17 +179,17 @@ func (sub *SubscriptionsMap) Clear() {
 	sub.clear()
 }
 
-func (sub *SubscriptionsMap) Notify(peerID peer.ID, envelope *protocol.Envelope) {
+func (sub *SubscriptionsMap) Notify(ctx context.Context, peerID peer.ID, envelope *protocol.Envelope) {
 	sub.RLock()
 	defer sub.RUnlock()
 
 	subscriptions, ok := sub.items[peerID].SubsPerPubsubTopic[envelope.PubsubTopic()]
 	if ok {
-		iterateSubscriptionSet(sub.logger, subscriptions, envelope)
+		iterateSubscriptionSet(ctx, sub.logger, subscriptions, envelope)
 	}
 }
 
-func iterateSubscriptionSet(logger *zap.Logger, subscriptions SubscriptionSet, envelope *protocol.Envelope) {
+func iterateSubscriptionSet(ctx context.Context, logger *zap.Logger, subscriptions SubscriptionSet, envelope *protocol.Envelope) {
 	for _, subscription := range subscriptions {
 		func(subscription *SubscriptionDetails) {
 			subscription.RLock()
@@ -190,6 +202,8 @@ func iterateSubscriptionSet(logger *zap.Logger, subscriptions SubscriptionSet, e
 
 			if !subscription.Closed {
 				select {
+				case <-ctx.Done():
+					return
 				case subscription.C <- envelope:
 				default:
 					logger.Warn("can't deliver message to subscription. subscriber too slow")
@@ -216,6 +230,30 @@ func (m *SubscriptionsMap) GetSubscriptionsForPeer(peerID peer.ID, contentFilter
 		}
 	}
 	return output
+}
+
+func (m *SubscriptionsMap) GetAllSubscriptionsForPeer(peerID peer.ID) []*SubscriptionDetails {
+	m.RLock()
+	defer m.RUnlock()
+
+	var output []*SubscriptionDetails
+	for _, peerSubs := range m.items {
+		if peerSubs.PeerID == peerID {
+			for _, subs := range peerSubs.SubsPerPubsubTopic {
+				for _, subscriptionDetail := range subs {
+					output = append(output, subscriptionDetail)
+				}
+			}
+			break
+		}
+	}
+	return output
+}
+
+func (m *SubscriptionsMap) GetSubscribedPeers() peer.IDSlice {
+	m.RLock()
+	defer m.RUnlock()
+	return maps.Keys(m.items)
 }
 
 func (m *SubscriptionsMap) GetAllSubscriptions() []*SubscriptionDetails {

@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
@@ -17,9 +18,11 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	wenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange/pb"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 // PeerExchangeID_v20alpha1 is the current Waku Peer Exchange protocol identifier
@@ -47,21 +50,28 @@ type WakuPeerExchange struct {
 
 	peerConnector PeerConnector
 	enrCache      *enrCache
+	limiter       *rate.Limiter
 }
 
 // NewWakuPeerExchange returns a new instance of WakuPeerExchange struct
 // Takes an optional peermanager if WakuPeerExchange is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil
-func NewWakuPeerExchange(disc *discv5.DiscoveryV5, peerConnector PeerConnector, pm *peermanager.PeerManager, reg prometheus.Registerer, log *zap.Logger) (*WakuPeerExchange, error) {
+func NewWakuPeerExchange(disc *discv5.DiscoveryV5, clusterID uint16, peerConnector PeerConnector, pm *peermanager.PeerManager, reg prometheus.Registerer, log *zap.Logger, opts ...Option) (*WakuPeerExchange, error) {
 	wakuPX := new(WakuPeerExchange)
 	wakuPX.disc = disc
 	wakuPX.metrics = newMetrics(reg)
 	wakuPX.log = log.Named("wakupx")
-	wakuPX.enrCache = newEnrCache(MaxCacheSize)
+	wakuPX.enrCache = newEnrCache(MaxCacheSize, clusterID)
 	wakuPX.peerConnector = peerConnector
 	wakuPX.pm = pm
 	wakuPX.CommonService = service.NewCommonService()
 
+	params := &PeerExchangeParameters{}
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	wakuPX.limiter = params.limiter
 	return wakuPX, nil
 }
 
@@ -87,6 +97,17 @@ func (wakuPX *WakuPeerExchange) start() error {
 func (wakuPX *WakuPeerExchange) onRequest() func(network.Stream) {
 	return func(stream network.Stream) {
 		logger := wakuPX.log.With(logging.HostID("peer", stream.Conn().RemotePeer()))
+
+		if wakuPX.limiter != nil && !wakuPX.limiter.Allow() {
+			wakuPX.metrics.RecordError(rateLimitFailure)
+			wakuPX.log.Info("exceeds the rate limit")
+			// TODO: peer exchange protocol should contain an err field
+			if err := stream.Reset(); err != nil {
+				wakuPX.log.Error("resetting connection", zap.Error(err))
+			}
+			return
+		}
+
 		requestRPC := &pb.PeerExchangeRPC{}
 		reader := pbio.NewDelimitedReader(stream, math.MaxInt32)
 		err := reader.ReadMsg(requestRPC)
@@ -136,8 +157,38 @@ func (wakuPX *WakuPeerExchange) Stop() {
 	})
 }
 
+func (wakuPX *WakuPeerExchange) DefaultPredicate() discv5.Predicate {
+	return discv5.FilterPredicate(func(n *enode.Node) bool {
+		localRS, err := wenr.RelaySharding(wakuPX.disc.Node().Record())
+		if err != nil {
+			return false
+		}
+
+		if localRS == nil { // No shard registered, so no need to check for shards
+			return true
+		}
+
+		nodeRS, err := wenr.RelaySharding(n.Record())
+		if err != nil {
+			wakuPX.log.Debug("failed to get relay shards from node record", logging.ENode("node", n), zap.Error(err))
+			return false
+		}
+
+		if nodeRS == nil {
+			// Node has no shards registered.
+			return false
+		}
+
+		if nodeRS.ClusterID != localRS.ClusterID {
+			return false
+		}
+
+		return true
+	})
+}
+
 func (wakuPX *WakuPeerExchange) iterate(ctx context.Context) error {
-	iterator, err := wakuPX.disc.PeerIterator()
+	iterator, err := wakuPX.disc.PeerIterator(wakuPX.DefaultPredicate())
 	if err != nil {
 		return fmt.Errorf("obtaining iterator: %w", err)
 	}

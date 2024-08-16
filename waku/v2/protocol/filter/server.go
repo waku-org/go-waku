@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -128,7 +129,7 @@ func (wf *WakuFilterFullNode) onRequest(ctx context.Context) func(network.Stream
 
 		wf.metrics.RecordRequest(subscribeRequest.FilterSubscribeType.String(), time.Since(start))
 
-		logger.Info("received request", zap.String("requestType", subscribeRequest.FilterSubscribeType.String()))
+		logger.Info("received request", zap.Stringer("serverID", wf.h.ID()), zap.Stringer("requestType", subscribeRequest.FilterSubscribeType))
 	}
 }
 
@@ -222,7 +223,7 @@ func (wf *WakuFilterFullNode) filterListener(ctx context.Context) {
 	handle := func(envelope *protocol.Envelope) error {
 		msg := envelope.Message()
 		pubsubTopic := envelope.PubsubTopic()
-		logger := utils.MessagesLogger("filter").With(logging.HexBytes("hash", envelope.Hash()),
+		logger := utils.MessagesLogger("filter").With(logging.Hash(envelope.Hash()),
 			zap.String("pubsubTopic", envelope.PubsubTopic()),
 			zap.String("contentTopic", envelope.Message().ContentTopic),
 		)
@@ -273,6 +274,9 @@ func (wf *WakuFilterFullNode) pushMessage(ctx context.Context, logger *zap.Logge
 			wf.metrics.RecordError(pushTimeoutFailure)
 		} else {
 			wf.metrics.RecordError(dialFailure)
+			if ps, ok := wf.h.Peerstore().(peerstore.WakuPeerstore); ok {
+				ps.AddConnFailure(peer.AddrInfo{ID: peerID})
+			}
 		}
 		logger.Error("opening peer stream", zap.Error(err))
 		return err

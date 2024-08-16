@@ -49,9 +49,6 @@ func TestSubscriptionMapAppend(t *testing.T) {
 	err := sub.Close()
 	require.NoError(t, err)
 	require.True(t, sub.Closed)
-
-	err = sub.Close()
-	require.NoError(t, err)
 }
 
 func TestSubscriptionClear(t *testing.T) {
@@ -156,8 +153,8 @@ func TestSubscriptionsNotify(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmap.Notify(p1, envTopic1Ct1)
-		fmap.Notify(p2, envTopic1Ct1)
+		fmap.Notify(ctx, p1, envTopic1Ct1)
+		fmap.Notify(ctx, p2, envTopic1Ct1)
 	}()
 
 	<-successChan
@@ -180,8 +177,8 @@ func TestSubscriptionsNotify(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmap.Notify(p1, envTopic1Ct2)
-		fmap.Notify(p2, envTopic1Ct2)
+		fmap.Notify(ctx, p1, envTopic1Ct2)
+		fmap.Notify(ctx, p2, envTopic1Ct2)
 	}()
 
 	<-successChan
@@ -210,8 +207,8 @@ func TestSubscriptionsNotify(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmap.Notify(p1, envTopic1Ct1_2)
-		fmap.Notify(p2, envTopic1Ct1_2)
+		fmap.Notify(ctx, p1, envTopic1Ct1_2)
+		fmap.Notify(ctx, p2, envTopic1Ct1_2)
 	}()
 
 	<-successChan // One of these successes is for closing the subscription

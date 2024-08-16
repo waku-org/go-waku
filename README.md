@@ -41,7 +41,7 @@ nix develop
 docker run -i -t -p 60000:60000 -p 9000:9000/udp \
   wakuorg/go-waku:latest \ 
     --dns-discovery \
-    --dns-discovery-url enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im \
+    --dns-discovery-url enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im \
     --discv5-discovery
 ```
 or use the [image:tag](https://hub.docker.com/r/wakuorg/go-waku/tags) of your choice.

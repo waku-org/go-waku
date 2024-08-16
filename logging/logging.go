@@ -8,6 +8,7 @@ package logging
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net"
 	"time"
 
@@ -15,7 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
+	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -70,6 +72,10 @@ func Time(key string, time int64) zapcore.Field {
 
 func (t timestamp) String() string {
 	return time.Unix(0, int64(t)).Format(time.RFC3339)
+}
+
+func Epoch(key string, time time.Time) zap.Field {
+	return zap.String(key, fmt.Sprintf("%d", time.UnixNano()))
 }
 
 // History Query Filters
@@ -128,6 +134,10 @@ func (bytes hexBytes) String() string {
 	return hexutil.Encode(bytes)
 }
 
+func Hash(hash wpb.MessageHash) zap.Field {
+	return zap.Stringer("hash", hash)
+}
+
 // ENode creates a field for ENR node.
 func ENode(key string, node *enode.Node) zap.Field {
 	return zap.Stringer(key, node)
@@ -141,4 +151,13 @@ func TCPAddr(key string, ip net.IP, port int) zap.Field {
 // UDPAddr creates a field for UDP v4/v6 address and port
 func UDPAddr(key string, ip net.IP, port int) zap.Field {
 	return zap.Stringer(key, &net.UDPAddr{IP: ip, Port: port})
+}
+
+func Uint64(key string, value uint64) zap.Field {
+	valueStr := fmt.Sprintf("%v", value)
+	return zap.String(key, valueStr)
+}
+
+func UTCTime(key string, t time.Time) zap.Field {
+	return zap.Time(key, t.UTC())
 }

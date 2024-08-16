@@ -17,10 +17,23 @@ func EncapsulatePeerID(peerID peer.ID, addrs ...multiaddr.Multiaddr) []multiaddr
 	return result
 }
 
-func MultiAddrSet(addr ...multiaddr.Multiaddr) map[multiaddr.Multiaddr]struct{} {
-	r := make(map[multiaddr.Multiaddr]struct{})
+func MultiAddrSetEquals(m1 map[string]multiaddr.Multiaddr, m2 map[string]multiaddr.Multiaddr) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+	for k1, v1 := range m1 {
+		v2, ok := m2[k1]
+		if !ok || !v1.Equal(v2) {
+			return false
+		}
+	}
+	return true
+}
+
+func MultiAddrSet(addr ...multiaddr.Multiaddr) map[string]multiaddr.Multiaddr {
+	r := make(map[string]multiaddr.Multiaddr)
 	for _, a := range addr {
-		r[a] = struct{}{}
+		r[a.String()] = a
 	}
 	return r
 }

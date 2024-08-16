@@ -17,11 +17,11 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	wrln "github.com/waku-org/go-waku/waku/v2/protocol/rln"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -368,10 +368,10 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 		return
 	}
 
-	var storeOpt store.HistoryRequestOption
+	var storeOpt legacy_store.HistoryRequestOption
 	if c.options.Store.Node == nil {
 		c.ui.InfoMessage("No store node configured. Choosing one at random...")
-		storeOpt = store.WithAutomaticPeerSelection()
+		storeOpt = legacy_store.WithAutomaticPeerSelection()
 	} else {
 		peerID, err := (*c.options.Store.Node).ValueForProtocol(multiaddr.P_P2P)
 		if err != nil {
@@ -383,7 +383,7 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 			c.ui.ErrorMessage(err)
 			return
 		}
-		storeOpt = store.WithPeer(pID)
+		storeOpt = legacy_store.WithPeer(pID)
 		c.ui.InfoMessage(fmt.Sprintf("Querying historic messages from %s", peerID))
 
 	}
@@ -391,14 +391,14 @@ func (c *Chat) retrieveHistory(connectionWg *sync.WaitGroup) {
 	tCtx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
 	defer cancel()
 
-	q := store.Query{
+	q := legacy_store.Query{
 		ContentTopics: []string{options.ContentTopic},
 	}
 
-	response, err := c.node.Store().Query(tCtx, q,
-		store.WithAutomaticRequestID(),
+	response, err := c.node.LegacyStore().Query(tCtx, q,
+		legacy_store.WithAutomaticRequestID(),
 		storeOpt,
-		store.WithPaging(false, 100))
+		legacy_store.WithPaging(false, 100))
 
 	if err != nil {
 		c.ui.ErrorMessage(fmt.Errorf("could not query storenode: %w", err))
@@ -491,10 +491,10 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 	var dnsDiscoveryUrl string
 	if options.Fleet != fleetNone {
 		if options.Fleet == fleetTest {
-			dnsDiscoveryUrl = "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AOGYWMBYOUIMOENHXCHILPKY3ZRFEULMFI4DOM442QSZ73TT2A7VI@test.waku.nodes.status.im"
 		} else {
 			// Connect to prod by default
-			dnsDiscoveryUrl = "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im"
+			dnsDiscoveryUrl = "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im"
 		}
 	}
 

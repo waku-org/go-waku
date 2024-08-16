@@ -1,4 +1,4 @@
-package store
+package legacy_store
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
 
 type Query struct {
@@ -207,6 +207,9 @@ func (store *WakuStore) queryFrom(ctx context.Context, historyRequest *pb.Histor
 	if err != nil {
 		logger.Error("creating stream to peer", zap.Error(err))
 		store.metrics.RecordError(dialFailure)
+		if ps, ok := store.h.Peerstore().(peerstore.WakuPeerstore); ok {
+			ps.AddConnFailure(peer.AddrInfo{ID: selectedPeer})
+		}
 		return nil, err
 	}
 
@@ -275,6 +278,10 @@ func (store *WakuStore) localQuery(historyQuery *pb.HistoryRPC) (*pb.HistoryResp
 	return historyResponseRPC.Response, nil
 }
 
+func (store *WakuStore) isLocalQuery(p *HistoryRequestParameters) bool {
+	return p.localQuery && store.started
+}
+
 func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryRequestOption) (*Result, error) {
 	params := new(HistoryRequestParameters)
 	params.s = store
@@ -288,7 +295,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		}
 	}
 
-	if !params.localQuery {
+	if !store.isLocalQuery(params) {
 		pubsubTopics := []string{}
 		if query.PubsubTopic == "" {
 			for _, cTopic := range query.ContentTopics {
@@ -343,7 +350,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 		historyRequest.Query.ContentFilters = append(historyRequest.Query.ContentFilters, &pb.ContentFilter{ContentTopic: cf})
 	}
 
-	if !params.localQuery && params.selectedPeer == "" {
+	if !store.isLocalQuery(params) && params.selectedPeer == "" {
 		store.metrics.RecordError(peerNotFoundFailure)
 		return nil, ErrNoPeersAvailable
 	}
@@ -373,7 +380,7 @@ func (store *WakuStore) Query(ctx context.Context, query Query, opts ...HistoryR
 
 	var response *pb.HistoryResponse
 
-	if params.localQuery {
+	if store.isLocalQuery(params) {
 		response, err = store.localQuery(historyRequest)
 	} else {
 		response, err = store.queryFrom(ctx, historyRequest, params.selectedPeer)

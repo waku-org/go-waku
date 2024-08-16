@@ -6,29 +6,29 @@ import (
 )
 
 func (s *FilterTestSuite) TestSubscriptionPing() {
-	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	err := s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
 	s.Require().Error(err)
 	filterErr, ok := err.(*FilterError)
 	s.Require().True(ok)
 	s.Require().Equal(filterErr.Code, http.StatusNotFound)
 
 	contentTopic := "abc"
-	s.subDetails = s.subscribe(s.testTopic, contentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, contentTopic, s.FullNodeHost.ID())
 
-	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	err = s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
 	s.Require().NoError(err)
 }
 
 func (s *FilterTestSuite) TestUnSubscriptionPing() {
 
-	s.subDetails = s.subscribe(s.testTopic, s.testContentTopic, s.fullNodeHost.ID())
+	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
-	err := s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	err := s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
 	s.Require().NoError(err)
 
-	_, err = s.lightNode.Unsubscribe(s.ctx, s.contentFilter, WithPeer(s.fullNodeHost.ID()))
+	_, err = s.LightNode.Unsubscribe(s.ctx, s.ContentFilter, WithPeer(s.FullNodeHost.ID()))
 	s.Require().NoError(err)
 
-	err = s.lightNode.Ping(context.Background(), s.fullNodeHost.ID())
+	err = s.LightNode.Ping(context.Background(), s.FullNodeHost.ID())
 	s.Require().Error(err)
 }

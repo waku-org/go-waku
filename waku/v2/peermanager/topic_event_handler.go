@@ -2,6 +2,7 @@ package peermanager
 
 import (
 	"context"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -12,6 +13,7 @@ import (
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 func (pm *PeerManager) SubscribeToRelayEvtBus(bus event.Bus) error {
@@ -46,7 +48,9 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 
 	pm.checkAndUpdateTopicHealth(pm.subRelayTopics[pubsubTopic])
 
-	if connectedPeers >= waku_proto.GossipSubDMin { //TODO: Use a config rather than hard-coding.
+	//Leaving this logic based on gossipSubDMin as this is a good start for a subscribed topic.
+	// subsequent connectivity loop iteration would initiate more connections which should take it towards a healthy mesh.
+	if connectedPeers >= waku_proto.GossipSubDMin {
 		// Should we use optimal number or define some sort of a config for the node to choose from?
 		// A desktop node may choose this to be 4-6, whereas a service node may choose this to be 8-12 based on resources it has
 		// or bandwidth it can support.
@@ -68,7 +72,7 @@ func (pm *PeerManager) handleNewRelayTopicSubscription(pubsubTopic string, topic
 		}
 		//For now all peers are being given same priority,
 		// Later we may want to choose peers that have more shards in common over others.
-		pm.connectToPeers(notConnectedPeers[0:numPeersToConnect])
+		pm.connectToSpecifiedPeers(notConnectedPeers[0:numPeersToConnect])
 	} else {
 		triggerDiscovery = true
 	}
@@ -102,7 +106,7 @@ func (pm *PeerManager) handleNewRelayTopicUnSubscription(pubsubTopic string) {
 					logging.HostID("peerID", peer))
 				continue
 			}
-			if len(peerTopics) == 1 && peerTopics[0] == pubsubTopic {
+			if len(peerTopics) == 1 && maps.Keys(peerTopics)[0] == pubsubTopic {
 				err := pm.host.Network().ClosePeer(peer)
 				if err != nil {
 					pm.logger.Warn("Failed to disconnect connection towards peer",
@@ -120,11 +124,25 @@ func (pm *PeerManager) handlerPeerTopicEvent(peerEvt relay.EvtPeerTopic) {
 	wps := pm.host.Peerstore().(*wps.WakuPeerstoreImpl)
 	peerID := peerEvt.PeerID
 	if peerEvt.State == relay.PEER_JOINED {
+		if pm.metadata != nil {
+			rs, err := pm.metadata.RelayShard()
+			if err != nil {
+				pm.logger.Error("could not obtain the cluster and shards of wakunode", zap.Error(err))
+			} else if rs != nil && rs.ClusterID != 0 {
+				ctx, cancel := context.WithTimeout(pm.ctx, 7*time.Second)
+				defer cancel()
+				if err := pm.metadata.DisconnectPeerOnShardMismatch(ctx, peerEvt.PeerID); err != nil {
+					return
+				}
+			}
+		}
+
 		err := wps.AddPubSubTopic(peerID, peerEvt.PubsubTopic)
 		if err != nil {
 			pm.logger.Error("failed to add pubSubTopic for peer",
 				logging.HostID("peerID", peerID), zap.String("topic", peerEvt.PubsubTopic), zap.Error(err))
 		}
+
 		pm.topicMutex.RLock()
 		defer pm.topicMutex.RUnlock()
 		pm.checkAndUpdateTopicHealth(pm.subRelayTopics[peerEvt.PubsubTopic])

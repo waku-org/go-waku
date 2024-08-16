@@ -19,8 +19,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts ...PeerExchangeOption) error {
-	params := new(PeerExchangeParameters)
+func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts ...RequestOption) error {
+	params := new(PeerExchangeRequestParameters)
 	params.host = wakuPX.h
 	params.log = wakuPX.log
 	params.pm = wakuPX.pm
@@ -76,6 +76,9 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 
 	stream, err := wakuPX.h.NewStream(ctx, params.selectedPeer, PeerExchangeID_v20alpha1)
 	if err != nil {
+		if ps, ok := wakuPX.h.Peerstore().(peerstore.WakuPeerstore); ok {
+			ps.AddConnFailure(peer.AddrInfo{ID: params.selectedPeer})
+		}
 		return err
 	}
 
@@ -103,7 +106,7 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	return wakuPX.handleResponse(ctx, responseRPC.Response, params)
 }
 
-func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb.PeerExchangeResponse, params *PeerExchangeParameters) error {
+func (wakuPX *WakuPeerExchange) handleResponse(ctx context.Context, response *pb.PeerExchangeResponse, params *PeerExchangeRequestParameters) error {
 	var discoveredPeers []struct {
 		addrInfo peer.AddrInfo
 		enr      *enode.Node

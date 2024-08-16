@@ -235,7 +235,7 @@ func (rlnRelay *WakuRLNRelay) Validator(
 		hash := msg.Hash(topic)
 
 		log := rlnRelay.log.With(
-			logging.HexBytes("hash", hash),
+			logging.HexBytes("hash", hash[:]),
 			zap.String("pubsubTopic", topic),
 			zap.String("contentTopic", msg.ContentTopic),
 		)

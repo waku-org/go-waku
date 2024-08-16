@@ -46,10 +46,10 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/peer_exchange"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 
 	humanize "github.com/dustin/go-humanize"
@@ -86,7 +86,7 @@ func nonRecoverError(err error) error {
 func Execute(options NodeOptions) error {
 	// Set encoding for logs (console, json, ...)
 	// Note that libp2p reads the encoding from GOLOG_LOG_FMT env var.
-	utils.InitLogger(options.LogEncoding, options.LogOutput)
+	utils.InitLogger(options.LogEncoding, options.LogOutput, "gowaku")
 
 	hostAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", options.Address, options.Port))
 	if err != nil {
@@ -134,7 +134,7 @@ func Execute(options NodeOptions) error {
 		node.WithLogLevel(lvl),
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
-		node.WithKeepAlive(options.KeepAlive),
+		node.WithKeepAlive(10*time.Second, options.KeepAlive),
 		node.WithMaxPeerConnections(options.MaxPeerConnections),
 		node.WithPrometheusRegisterer(prometheus.DefaultRegisterer),
 		node.WithPeerStoreCapacity(options.PeerStoreCapacity),
@@ -331,12 +331,12 @@ func Execute(options NodeOptions) error {
 	}
 
 	for _, d := range discoveredNodes {
-		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery, nil, true)
+		wakuNode.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, wakupeerstore.DNSDiscovery, nil, d.ENR, true)
 	}
 
 	//For now assuming that static peers added support/listen on all topics specified via commandLine.
 	staticPeers := map[protocol.ID][]multiaddr.Multiaddr{
-		store.StoreID_v20beta4:            options.Store.Nodes,
+		legacy_store.StoreID_v20beta4:     options.Store.Nodes,
 		lightpush.LightPushID_v20beta1:    options.LightPush.Nodes,
 		rendezvous.RendezvousID:           options.Rendezvous.Nodes,
 		filter.FilterSubscribeID_v20beta1: options.Filter.Nodes,

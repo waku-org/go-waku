@@ -38,14 +38,21 @@ func NewWakuRest(node *node.WakuNode, config RestConfig, log *zap.Logger) *WakuR
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.NoCache)
-
+	mux.Use(func(h http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			h.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(fn)
+	})
 	if config.EnablePProf {
 		mux.Mount("/debug", middleware.Profiler())
 	}
 
 	_ = NewDebugService(node, mux)
 	_ = NewHealthService(node, mux)
-	_ = NewStoreService(node, mux)
+	_ = NewStoreQueryService(node, mux)
+	_ = NewLegacyStoreService(node, mux)
 	_ = NewLightpushService(node, mux, log)
 
 	listenAddr := fmt.Sprintf("%s:%d", config.Address, config.Port)

@@ -3,19 +3,17 @@ package metadata
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"testing"
 	"time"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/multiformats/go-multistream"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/enr"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
@@ -45,11 +43,6 @@ func createWakuMetadata(t *testing.T, rs *protocol.RelayShards) *WakuMetadata {
 	return m1
 }
 
-func isProtocolNotSupported(err error) bool {
-	notSupportedErr := multistream.ErrNotSupported[libp2pProtocol.ID]{}
-	return errors.Is(err, notSupportedErr)
-}
-
 func TestWakuMetadataRequest(t *testing.T) {
 	testShard16 := uint16(16)
 
@@ -62,19 +55,29 @@ func TestWakuMetadataRequest(t *testing.T) {
 	m16_2 := createWakuMetadata(t, &rs16_2)
 	m_noRS := createWakuMetadata(t, nil)
 
-	// Removing notifee to test metadata protocol functionality without having the peers being disconnected by the notify process
-	m16_1.h.Network().StopNotify(m16_1)
-	m16_2.h.Network().StopNotify(m16_2)
-	m_noRS.h.Network().StopNotify(m_noRS)
-
 	m16_1.h.Peerstore().AddAddrs(m16_2.h.ID(), m16_2.h.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
+	err = m16_1.h.Peerstore().AddProtocols(m16_2.h.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
+	err = m16_2.h.Peerstore().AddProtocols(m16_1.h.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
 	m16_1.h.Peerstore().AddAddrs(m_noRS.h.ID(), m_noRS.h.Network().ListenAddresses(), peerstore.PermanentAddrTTL)
 
 	// Query a peer that is subscribed to a shard
 	result, err := m16_1.Request(context.Background(), m16_2.h.ID())
 	require.NoError(t, err)
-	require.Equal(t, testShard16, result.ClusterID)
-	require.Equal(t, rs16_2.ShardIDs, result.ShardIDs)
+
+	var rShardIDs []uint16
+	if len(result.Shards) != 0 {
+		for _, i := range result.Shards {
+			rShardIDs = append(rShardIDs, uint16(i))
+		}
+	}
+	rs, err := protocol.NewRelayShards(uint16(*result.ClusterId), rShardIDs...)
+	require.NoError(t, err)
+	require.Equal(t, testShard16, rs.ClusterID)
+	require.Equal(t, rs16_2.ShardIDs, rs.ShardIDs)
 
 	// Updating the peer shards
 	rs16_2.ShardIDs = append(rs16_2.ShardIDs, 3, 4)
@@ -84,12 +87,16 @@ func TestWakuMetadataRequest(t *testing.T) {
 	// Query same peer, after that peer subscribes to more shards
 	result, err = m16_1.Request(context.Background(), m16_2.h.ID())
 	require.NoError(t, err)
-	require.Equal(t, testShard16, result.ClusterID)
-	require.ElementsMatch(t, rs16_2.ShardIDs, result.ShardIDs)
-
-	// Query a peer not subscribed to any shard
-	_, err = m16_1.Request(context.Background(), m_noRS.h.ID())
-	require.True(t, isProtocolNotSupported(err))
+	rShardIDs = make([]uint16, 0)
+	if len(result.Shards) != 0 {
+		for _, i := range result.Shards {
+			rShardIDs = append(rShardIDs, uint16(i))
+		}
+	}
+	rs, err = protocol.NewRelayShards(uint16(*result.ClusterId), rShardIDs...)
+	require.NoError(t, err)
+	require.Equal(t, testShard16, rs.ClusterID)
+	require.ElementsMatch(t, rs16_2.ShardIDs, rs.ShardIDs)
 }
 
 func TestNoNetwork(t *testing.T) {
@@ -159,5 +166,4 @@ func TestDropConnectionOnDiffNetworks(t *testing.T) {
 	require.Len(t, m3.h.Network().Peers(), 1)
 	require.Equal(t, []peer.ID{m3.h.ID()}, m2.h.Network().Peers())
 	require.Equal(t, []peer.ID{m2.h.ID()}, m3.h.Network().Peers())
-
 }

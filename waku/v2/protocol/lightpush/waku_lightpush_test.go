@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
-	"go.uber.org/zap"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -42,33 +41,21 @@ func makeWakuRelay(t *testing.T, pusubTopic string) (*relay.WakuRelay, *relay.Su
 	return relay, sub[0], host
 }
 
-func waitForMsg(t *testing.T, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
-	wg.Add(1)
-	log := utils.Logger()
-	go func() {
-		defer wg.Done()
-		select {
-		case env := <-ch:
-			msg := env.Message()
-			log.Info("Received ", zap.String("msg", msg.String()))
-		case <-time.After(2 * time.Second):
-			require.Fail(t, "Message timeout")
-		}
-	}()
-	wg.Wait()
-}
-
 // Node1: Relay
 // Node2: Relay+Lightpush
+// Node3: Relay+Lightpush
+
 // Client that will lightpush a message
 //
 // Node1 and Node 2 are peers
+// Node1 and Node 3 are peers
 // Client and Node 2 are peers
-// Client will use lightpush request, sending the message to Node2
+// Client and Node 3 are peers
+// Client will use lightpush request, sending the message to Node2 and Node3
 //
 // Client send a successful message using lightpush
-// Node2 receive the message and broadcast it
-// Node1 receive the message
+// Node2, Node3 receive the message and broadcast it
+// Node1 receive the messages
 func TestWakuLightPush(t *testing.T) {
 	testTopic := "/waku/2/go/lightpush/test"
 	node1, sub1, host1 := makeWakuRelay(t, testTopic)
@@ -86,6 +73,16 @@ func TestWakuLightPush(t *testing.T) {
 	require.NoError(t, err)
 	defer lightPushNode2.Stop()
 
+	node3, sub3, host3 := makeWakuRelay(t, testTopic)
+	defer node3.Stop()
+	defer sub3.Unsubscribe()
+
+	lightPushNode3 := NewWakuLightPush(node3, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode3.SetHost(host3)
+	err = lightPushNode3.Start(ctx)
+	require.NoError(t, err)
+	defer lightPushNode3.Stop()
+
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)
 
@@ -101,8 +98,19 @@ func TestWakuLightPush(t *testing.T) {
 	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host1.ID()))
 	require.NoError(t, err)
 
+	host3.Peerstore().AddAddr(host1.ID(), tests.GetHostAddress(host1), peerstore.PermanentAddrTTL)
+	err = host3.Peerstore().AddProtocols(host1.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
+	err = host3.Connect(ctx, host3.Peerstore().PeerInfo(host1.ID()))
+	require.NoError(t, err)
+
 	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
 	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
+	require.NoError(t, err)
+
+	clientHost.Peerstore().AddAddr(host3.ID(), tests.GetHostAddress(host3), peerstore.PermanentAddrTTL)
+	err = clientHost.Peerstore().AddProtocols(host3.ID(), LightPushID_v20beta1)
 	require.NoError(t, err)
 
 	msg2 := tests.CreateWakuMessage("test2", utils.GetUnixEpoch())
@@ -126,6 +134,7 @@ func TestWakuLightPush(t *testing.T) {
 	var lpOptions []RequestOption
 	lpOptions = append(lpOptions, WithPubSubTopic(testTopic))
 	lpOptions = append(lpOptions, WithPeer(host2.ID()))
+	lpOptions = append(lpOptions, WithMaxPeers(2))
 
 	// Checking that msg hash is correct
 	hash, err := client.Publish(ctx, msg2, lpOptions...)
@@ -254,7 +263,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	testContentTopic := "/test/10/my-lp-app/proto"
 
 	// Prepare peer manager instance to include in test
-	pm := peermanager.NewPeerManager(10, 10, utils.Logger())
+	pm := peermanager.NewPeerManager(10, 10, nil, nil, true, utils.Logger())
 
 	node1, sub1, host1 := makeWakuRelay(t, testTopic)
 	defer node1.Stop()
@@ -305,7 +314,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for the nominal case message at node1
-	waitForMsg(t, &wg, sub1.Ch)
+	tests.WaitForMsg(t, 2*time.Second, &wg, sub1.Ch)
 
 	// Test error case with nil message
 	_, err = client.Publish(ctx, nil, lpOptions...)
@@ -331,4 +340,71 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 
 	// Test situation when cancel func is nil
 	lightPushNode2.cancel = nil
+}
+
+func TestWakuLightPushWithStaticSharding(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Prepare pubsub topic for static sharding
+	pubSubTopic := protocol.NewStaticShardingPubsubTopic(uint16(25), uint16(0)).String()
+	testContentTopic := "/test/10/my-lp-app/proto"
+
+	// Node topology: clientNode (lightpush client) <-> node2(relay+lightpush server) <-> node3(relay)
+	// ClientNode
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
+	client.SetHost(clientHost)
+
+	// Node2
+	node2, sub2, host2 := makeWakuRelay(t, pubSubTopic)
+	defer node2.Stop()
+	defer sub2.Unsubscribe()
+
+	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2.SetHost(host2)
+	err = lightPushNode2.Start(ctx)
+	require.NoError(t, err)
+	defer lightPushNode2.Stop()
+
+	// Node3
+	node3, sub3, host3 := makeWakuRelay(t, pubSubTopic)
+	defer node3.Stop()
+	defer sub3.Unsubscribe()
+
+	// Add path clientNode (lightpush client) -> node2(relay+lightpush server)
+	clientHost.Peerstore().AddAddr(host2.ID(), tests.GetHostAddress(host2), peerstore.PermanentAddrTTL)
+	err = clientHost.Peerstore().AddProtocols(host2.ID(), LightPushID_v20beta1)
+	require.NoError(t, err)
+
+	// Add path node2(relay+lightpush server) -> node3(relay)
+	host2.Peerstore().AddAddr(host3.ID(), tests.GetHostAddress(host3), peerstore.PermanentAddrTTL)
+	err = host2.Peerstore().AddProtocols(host3.ID(), relay.WakuRelayID_v200)
+	require.NoError(t, err)
+
+	err = host2.Connect(ctx, host2.Peerstore().PeerInfo(host3.ID()))
+	require.NoError(t, err)
+
+	// Create messages
+	msg := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch())
+	msg2 := tests.CreateWakuMessage(testContentTopic, utils.GetUnixEpoch())
+
+	// Wait for the mesh connection to happen between nodes
+	time.Sleep(2 * time.Second)
+
+	var wg sync.WaitGroup
+
+	// Check that msg publish has led to message deliver for existing topic
+	_, err = client.Publish(ctx, msg, WithPubSubTopic(pubSubTopic), WithPeer(host2.ID()))
+	require.NoError(t, err)
+	tests.WaitForMsg(t, 2*time.Second, &wg, sub3.Ch)
+
+	// Check that msg2 publish finished without message delivery for unconfigured topic
+	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
+	require.NoError(t, err)
+	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, sub3.Ch)
 }

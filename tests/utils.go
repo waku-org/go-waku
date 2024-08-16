@@ -16,8 +16,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 	"unicode/utf8"
+
+	"github.com/cenkalti/backoff/v3"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 
 	gcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -43,6 +48,21 @@ type StringGenerator func(maxLength int) (string, error)
 // GetHostAddress returns the first listen address used by a host
 func GetHostAddress(ha host.Host) multiaddr.Multiaddr {
 	return ha.Addrs()[0]
+}
+
+// Returns a full multiaddr of host appended by peerID
+func GetAddr(h host.Host) multiaddr.Multiaddr {
+	id, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", h.ID().String()))
+	var selectedAddr multiaddr.Multiaddr
+	//For now skipping circuit relay addresses as libp2p seems to be returning empty p2p-circuit addresses.
+	for _, addr := range h.Network().ListenAddresses() {
+		if strings.Contains(addr.String(), "p2p-circuit") {
+			continue
+		}
+		selectedAddr = addr
+		break
+	}
+	return selectedAddr.Encapsulate(id)
 }
 
 // FindFreePort returns an available port number
@@ -384,4 +404,55 @@ func GenerateRandomSQLInsert(maxLength int) (string, error) {
 		strings.Join(values, ", "))
 
 	return query, nil
+}
+
+func WaitForMsg(t *testing.T, timeout time.Duration, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	log := utils.Logger()
+	go func() {
+		defer wg.Done()
+		select {
+		case env := <-ch:
+			msg := env.Message()
+			log.Info("Received ", zap.String("msg", msg.String()))
+		case <-time.After(timeout):
+			require.Fail(t, "Message timeout")
+		}
+	}()
+	wg.Wait()
+}
+
+func WaitForTimeout(t *testing.T, ctx context.Context, timeout time.Duration, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case _, ok := <-ch:
+			require.False(t, ok, "should not retrieve message")
+		case <-time.After(timeout):
+			// All good
+		case <-ctx.Done():
+			require.Fail(t, "test exceeded allocated time")
+		}
+	}()
+
+	wg.Wait()
+}
+
+type BackOffOption func(*backoff.ExponentialBackOff)
+
+func RetryWithBackOff(o func() error, options ...BackOffOption) error {
+	b := backoff.ExponentialBackOff{
+		InitialInterval:     time.Millisecond * 100,
+		RandomizationFactor: 0.1,
+		Multiplier:          1,
+		MaxInterval:         time.Second,
+		MaxElapsedTime:      time.Second * 10,
+		Clock:               backoff.SystemClock,
+	}
+	for _, option := range options {
+		option(&b)
+	}
+	b.Reset()
+	return backoff.Retry(o, &b)
 }

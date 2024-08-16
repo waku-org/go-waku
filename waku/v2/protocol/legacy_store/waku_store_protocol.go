@@ -1,4 +1,4 @@
-package store
+package legacy_store
 
 import (
 	"context"
@@ -17,9 +17,9 @@ import (
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/waku/persistence"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/legacy_store/pb"
 	wpb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 )
 
@@ -117,6 +117,10 @@ func (store *WakuStore) Start(ctx context.Context, sub *relay.Subscription) erro
 	if err != nil {
 		store.log.Error("Error starting message provider", zap.Error(err))
 		return err
+	}
+
+	if store.pm != nil {
+		store.pm.RegisterWakuProtocol(StoreID_v20beta4, StoreENRField)
 	}
 
 	store.started = true

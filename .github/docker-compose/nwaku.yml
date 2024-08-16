@@ -1,0 +1,6 @@
+services:
+  nwaku:
+    image: "harbor.status.im/wakuorg/nwaku:latest"
+    command: ["--relay", "--store", "--nodekey=1122334455667788990011223344556677889900112233445566778899001122", "--cluster-id=99", "--pubsub-topic=/waku/2/rs/99/1"]
+    ports:
+      - "60000"
