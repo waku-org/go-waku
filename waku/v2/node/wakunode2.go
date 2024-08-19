@@ -46,6 +46,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-zerokit-rln/rln"
 
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -64,17 +65,10 @@ type storeFactory func(w *WakuNode) legacy_store.Store
 
 type byte32 = [32]byte
 
-type IdentityCredential = struct {
-	IDTrapdoor   byte32 `json:"idTrapdoor"`
-	IDNullifier  byte32 `json:"idNullifier"`
-	IDSecretHash byte32 `json:"idSecretHash"`
-	IDCommitment byte32 `json:"idCommitment"`
-}
-
 type SpamHandler = func(message *pb.WakuMessage, topic string) error
 
 type RLNRelay interface {
-	IdentityCredential() (IdentityCredential, error)
+	IdentityCredential() (rln.IdentityCredential, error)
 	MembershipIndex() uint
 	AppendRLNProof(msg *pb.WakuMessage, senderEpochTime time.Time) error
 	Validator(spamHandler SpamHandler) func(ctx context.Context, message *pb.WakuMessage, topic string) bool
