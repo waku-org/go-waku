@@ -15,6 +15,7 @@ func main() {
 	app := &cli.App{
 		Flags: getFlags(),
 		Action: func(c *cli.Context) error {
+
 			lvl, err := zapcore.ParseLevel(options.LogLevel)
 			if err != nil {
 				return err
