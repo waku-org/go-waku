@@ -4,6 +4,7 @@ rlnKeystore.json
 test_onchain.json
 *.bkp
 *.log
+.vscode
 
 # sqlite db
 *.db
