@@ -10,29 +10,7 @@
         "x86_64-darwin" "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
-
       pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
-
-      buildPackage = system: subPackages:
-        let
-          pkgs = pkgsFor.${system};
-          commit = builtins.substring 0 7 (self.rev or "dirty");
-          version = builtins.readFile ./VERSION;
-        in pkgs.buildGo121Module {
-          name = "go-waku";
-          src = self;
-          inherit subPackages;
-          tags = [ ];
-          ldflags = [
-            "-X github.com/waku-org/go-waku/waku/v2/node.GitCommit=${commit}"
-            "-X github.com/waku-org/go-waku/waku/v2/node.Version=${version}"
-          ];
-          doCheck = false;
-          # FIXME: This needs to be manually changed when updating modules.
-          vendorHash = "sha256-cOh9LNmcaBnBeMFM1HS2pdH5TTraHfo8PXL37t/A3gQ=";
-          # Fix for 'nix run' trying to execute 'go-waku'.
-          meta = { mainProgram = "waku"; };
-        };
     in rec {
       packages = forAllSystems (system: let
         pkgs = pkgsFor.${system};

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package pb;
+
+message Message {
+  string sender_id = 1;
+  string message_id = 2;
+  int32 lamport_timestamp = 3;
+  repeated string causal_history = 4;
+  string channel_id = 5;
+  bytes bloom_filter = 6;
+  string content = 7;
+}
+
+// only for peer retrieval instead of store
+message MessageRequest {
+  string message_id = 1;
+}
+
+message MessageResponse {
+  Message message = 1;
+}
