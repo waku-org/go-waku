@@ -23,7 +23,6 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/metadata"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
-	"golang.org/x/exp/maps"
 
 	"go.uber.org/zap"
 )
@@ -290,6 +289,7 @@ func (pm *PeerManager) prunePeerStore() {
 
 	notConnectedPeers := pm.getPeersBasedOnconnectionStatus("", network.NotConnected)
 	peersByTopic := make(map[string]peer.IDSlice)
+	var prunedPeers peer.IDSlice
 
 	//prune not connected peers without shard
 	for _, peerID := range notConnectedPeers {
@@ -299,20 +299,21 @@ func (pm *PeerManager) prunePeerStore() {
 			if err != nil {
 				pm.logger.Error("pruning:failed to fetch pubsub topics", zap.Error(err), zap.Stringer("peer", peerID))
 			}
-			pm.logger.Debug("pruning:pubsubTopics empty", zap.Stringer("peer", peerID))
+			prunedPeers = append(prunedPeers, peerID)
 			pm.host.Peerstore().RemovePeer(peerID)
 			numPeers--
 		} else {
-			pm.logger.Debug("pruning: pubsubTopics present", zap.Stringer("peer", peerID), zap.Strings("topics", maps.Keys(topics)))
+			prunedPeers = append(prunedPeers, peerID)
 			for topic := range topics {
 				peersByTopic[topic] = append(peersByTopic[topic], peerID)
 			}
 		}
 		if numPeers < pm.maxPeers {
-			pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers))
+			pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers), zap.Stringers("prunedPeers", prunedPeers))
 			return
 		}
 	}
+	pm.logger.Debug("pruned notconnected peers", zap.Stringers("prunedPeers", prunedPeers))
 
 	// calculate the avg peers per shard
 	total, maxPeerCnt := 0, 0
@@ -328,19 +329,20 @@ func (pm *PeerManager) prunePeerStore() {
 
 	for topic, peers := range peersByTopic {
 		count := max(len(peers)-avgPerTopic, 0)
+		var prunedPeers peer.IDSlice
 		for i, pID := range peers {
 			if i > count {
 				break
 			}
-			pm.logger.Debug("pruning peer as higher than average", zap.Stringer("peer", pID), zap.String("topic", topic))
-
+			prunedPeers = append(prunedPeers, pID)
 			pm.host.Peerstore().RemovePeer(pID)
 			numPeers--
 			if numPeers < pm.maxPeers {
-				pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers))
+				pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers), zap.Stringers("prunedPeers", prunedPeers))
 				return
 			}
 		}
+		pm.logger.Debug("pruned peers higher than average", zap.Stringers("prunedPeers", prunedPeers), zap.String("topic", topic))
 	}
 	pm.logger.Debug("finished pruning peer store", zap.Int("capacity", pm.maxPeers), zap.Int("beforeNumPeers", peerCntBeforePruning), zap.Int("afterNumPeers", numPeers))
 }
