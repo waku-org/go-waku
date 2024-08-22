@@ -261,7 +261,9 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 			defer wg.Wait()
 
 			result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (*store.Result, error) {
-				return m.store.QueryByHash(ctx, messageHashes, store.WithPeer(interest.peerID), store.WithPaging(false, maxMsgHashesPerRequest))
+				queryCtx, cancel := context.WithTimeout(ctx, m.params.storeQueryTimeout)
+				defer cancel()
+				return m.store.QueryByHash(queryCtx, messageHashes, store.WithPeer(interest.peerID), store.WithPaging(false, maxMsgHashesPerRequest))
 			}, logger, "retrieving missing messages")
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
