@@ -11,6 +11,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/api/common"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -261,7 +262,9 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 			defer wg.Wait()
 
 			result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (*store.Result, error) {
-				return m.store.QueryByHash(ctx, messageHashes, store.WithPeer(interest.peerID), store.WithPaging(false, maxMsgHashesPerRequest))
+				queryCtx, cancel := context.WithTimeout(ctx, common.DefaultStoreQueryTimeout)
+				defer cancel()
+				return m.store.QueryByHash(queryCtx, messageHashes, store.WithPeer(interest.peerID), store.WithPaging(false, maxMsgHashesPerRequest))
 			}, logger, "retrieving missing messages")
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {

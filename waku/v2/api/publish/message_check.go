@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/libp2p/go-libp2p/core/peer"
+	apicommon "github.com/waku-org/go-waku/waku/v2/api/common"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -218,7 +219,9 @@ func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []c
 
 	m.logger.Debug("store.queryByHash request", zap.String("requestID", hexutil.Encode(requestID)), zap.Stringer("peerID", selectedPeer), zap.Stringers("messageHashes", messageHashes))
 
-	result, err := m.store.QueryByHash(ctx, messageHashes, opts...)
+	queryCtx, cancel := context.WithTimeout(ctx, apicommon.DefaultStoreQueryTimeout)
+	defer cancel()
+	result, err := m.store.QueryByHash(queryCtx, messageHashes, opts...)
 	if err != nil {
 		m.logger.Error("store.queryByHash failed", zap.String("requestID", hexutil.Encode(requestID)), zap.Stringer("peerID", selectedPeer), zap.Error(err))
 		return []common.Hash{}
