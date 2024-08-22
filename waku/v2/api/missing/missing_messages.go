@@ -37,7 +37,7 @@ type MissingMessageVerifier struct {
 	messageTracker MessageTracker
 
 	criteriaInterest   map[string]criteriaInterest // Track message verification requests and when was the last time a pubsub topic was verified for missing messages
-	criteriaInterestMu sync.Mutex
+	criteriaInterestMu sync.RWMutex
 
 	C <-chan *protocol.Envelope
 
@@ -110,8 +110,10 @@ func (m *MissingMessageVerifier) Start(ctx context.Context) {
 			select {
 			case <-t.C:
 				m.logger.Debug("checking for missing messages...")
-				m.criteriaInterestMu.Lock()
-				for _, interest := range m.criteriaInterest {
+				m.criteriaInterestMu.RLock()
+				critIntList := m.criteriaInterest
+				m.criteriaInterestMu.RUnlock()
+				for _, interest := range critIntList {
 					select {
 					case <-ctx.Done():
 						return
@@ -123,7 +125,6 @@ func (m *MissingMessageVerifier) Start(ctx context.Context) {
 						}(interest)
 					}
 				}
-				m.criteriaInterestMu.Unlock()
 
 			case <-ctx.Done():
 				return
@@ -155,8 +156,8 @@ func (m *MissingMessageVerifier) fetchHistory(c chan<- *protocol.Envelope, inter
 		}
 
 		m.criteriaInterestMu.Lock()
-		c := m.criteriaInterest[interest.contentFilter.PubsubTopic]
-		if c.equals(interest) {
+		c, ok := m.criteriaInterest[interest.contentFilter.PubsubTopic]
+		if ok && c.equals(interest) {
 			c.lastChecked = now
 			m.criteriaInterest[interest.contentFilter.PubsubTopic] = c
 		}
