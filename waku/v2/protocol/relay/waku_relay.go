@@ -493,6 +493,9 @@ func (w *WakuRelay) Unsubscribe(ctx context.Context, contentFilter waku_proto.Co
 // unsubscribeFromPubsubTopic unsubscribes subscription from underlying pubsub.
 // Note: caller has to acquire topicsMutex in order to avoid race conditions
 func (w *WakuRelay) unsubscribeFromPubsubTopic(topicData *pubsubTopicSubscriptionDetails) error {
+	if topicData.subscription == nil {
+		return nil
+	}
 
 	pubSubTopic := topicData.subscription.Topic()
 	w.log.Info("unsubscribing from pubsubTopic", zap.String("topic", pubSubTopic))
