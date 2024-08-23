@@ -111,7 +111,10 @@ func (m *MissingMessageVerifier) Start(ctx context.Context) {
 			case <-t.C:
 				m.logger.Debug("checking for missing messages...")
 				m.criteriaInterestMu.RLock()
-				critIntList := m.criteriaInterest
+				critIntList := make([]criteriaInterest, 0, len(m.criteriaInterest))
+				for _, value := range m.criteriaInterest {
+					critIntList = append(critIntList, value)
+				}
 				m.criteriaInterestMu.RUnlock()
 				for _, interest := range critIntList {
 					select {
