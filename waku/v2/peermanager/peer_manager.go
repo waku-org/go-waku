@@ -125,6 +125,10 @@ func inAndOutRelayPeers(relayPeers int) (int, int) {
 // checkAndUpdateTopicHealth finds health of specified topic and updates and notifies of the same.
 // Also returns the healthyPeerCount
 func (pm *PeerManager) checkAndUpdateTopicHealth(topic *NodeTopicDetails) int {
+	if topic == nil {
+		return 0
+	}
+
 	healthyPeerCount := 0
 
 	for _, p := range pm.relay.PubSub().MeshPeers(topic.topic.String()) {
