@@ -51,7 +51,8 @@ func TestNewSenderWithRelay(t *testing.T) {
 	require.Nil(t, err)
 	defer relayNode.Stop()
 
-	relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
+	_, err = relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
+	require.Nil(t, err)
 	sender, err := NewMessageSender(Relay, nil, relayNode, utils.Logger())
 	require.Nil(t, err)
 	require.NotNil(t, sender)
@@ -75,7 +76,8 @@ func TestNewSenderWithRelayAndMessageSentCheck(t *testing.T) {
 	require.Nil(t, err)
 	defer relayNode.Stop()
 
-	relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
+	_, err = relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
+	require.Nil(t, err)
 	sender, err := NewMessageSender(Relay, nil, relayNode, utils.Logger())
 
 	check := &MockMessageSentCheck{Messages: make(map[string]map[common.Hash]uint32)}

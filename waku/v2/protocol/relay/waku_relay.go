@@ -280,7 +280,10 @@ func (w *WakuRelay) Publish(ctx context.Context, message *pb.WakuMessage, opts .
 		if err != nil {
 			return pb.MessageHash{}, err
 		}
-		w.subscribeToPubsubTopic(params.pubsubTopic)
+		_, err = w.subscribeToPubsubTopic(params.pubsubTopic)
+		if err != nil {
+			return pb.MessageHash{}, err
+		}
 	}
 
 	if !w.EnoughPeersToPublishToTopic(params.pubsubTopic) {
