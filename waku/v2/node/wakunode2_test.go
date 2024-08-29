@@ -164,7 +164,7 @@ func Test500(t *testing.T) {
 
 	sub1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
-	sub2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
+	sub2, err := wakuNode2.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
 
 	wg := sync.WaitGroup{}
@@ -172,7 +172,7 @@ func Test500(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTimer(60 * time.Second)
+		ticker := time.NewTimer(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -193,7 +193,7 @@ func Test500(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTimer(60 * time.Second)
+		ticker := time.NewTimer(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
