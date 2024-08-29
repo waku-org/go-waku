@@ -336,7 +336,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 
 	// Test corner case with default pubSub topic
 	_, err = client.Publish(ctx, msg2, WithDefaultPubsubTopic(), WithPeer(host2.ID()))
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	// Test situation when cancel func is nil
 	lightPushNode2.cancel = nil
@@ -405,6 +405,6 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 
 	// Check that msg2 publish finished without message delivery for unconfigured topic
 	_, err = client.Publish(ctx, msg2, WithPubSubTopic("/waku/2/rsv/25/0"), WithPeer(host2.ID()))
-	require.NoError(t, err)
+	require.Error(t, err)
 	tests.WaitForTimeout(t, ctx, 1*time.Second, &wg, sub3.Ch)
 }

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wakupeerstore "github.com/waku-org/go-waku/waku/v2/peerstore"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 )
@@ -21,6 +23,9 @@ import (
 func twoLightPushConnectedNodes(t *testing.T, pubSubTopic string) (*node.WakuNode, *node.WakuNode) {
 	node1 := createNode(t, node.WithLightPush(), node.WithWakuRelay())
 	node2 := createNode(t, node.WithLightPush(), node.WithWakuRelay())
+
+	node1.Relay().Subscribe(context.Background(), protocol.NewContentFilter(pubSubTopic))
+	node2.Relay().Subscribe(context.Background(), protocol.NewContentFilter(pubSubTopic))
 
 	node2.Host().Peerstore().AddAddr(node1.Host().ID(), tests.GetHostAddress(node1.Host()), peerstore.PermanentAddrTTL)
 	err := node2.Host().Peerstore().AddProtocols(node1.Host().ID(), lightpush.LightPushID_v20beta1)

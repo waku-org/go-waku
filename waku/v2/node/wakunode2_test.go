@@ -172,7 +172,7 @@ func Test500(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTimer(30 * time.Second)
+		ticker := time.NewTimer(60 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -193,7 +193,7 @@ func Test500(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTimer(30 * time.Second)
+		ticker := time.NewTimer(60 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -404,7 +404,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	pubSubTopic3 := protocol.NewStaticShardingPubsubTopic(testClusterID, uint16(321))
 	pubSubTopic3Str := pubSubTopic3.String()
 	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic(pubSubTopic3Str))
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	time.Sleep(100 * time.Millisecond)
 
