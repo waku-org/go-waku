@@ -164,7 +164,7 @@ func Test500(t *testing.T) {
 
 	sub1, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
-	sub2, err := wakuNode1.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
+	sub2, err := wakuNode2.Relay().Subscribe(ctx, protocol.NewContentFilter(relay.DefaultWakuTopic))
 	require.NoError(t, err)
 
 	wg := sync.WaitGroup{}
@@ -404,7 +404,7 @@ func TestStaticShardingMultipleTopics(t *testing.T) {
 	pubSubTopic3 := protocol.NewStaticShardingPubsubTopic(testClusterID, uint16(321))
 	pubSubTopic3Str := pubSubTopic3.String()
 	_, err = r.Publish(ctx, msg2, relay.WithPubSubTopic(pubSubTopic3Str))
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	time.Sleep(100 * time.Millisecond)
 

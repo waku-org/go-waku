@@ -73,6 +73,60 @@ func TestWakuRelay(t *testing.T) {
 	<-ctx.Done()
 }
 
+func TestWakuRelayUnsubscribedTopic(t *testing.T) {
+	testTopic := defaultTestPubSubTopic
+	anotherTopic := "/waku/2/go/relay/another-topic"
+
+	port, err := tests.FindFreePort(t, "", 5)
+	require.NoError(t, err)
+
+	host, err := tests.MakeHost(context.Background(), port, rand.Reader)
+	require.NoError(t, err)
+	bcaster := NewBroadcaster(10)
+	relay := NewWakuRelay(bcaster, 0, timesource.NewDefaultClock(), prometheus.DefaultRegisterer, utils.Logger())
+	relay.SetHost(host)
+	err = relay.Start(context.Background())
+	require.NoError(t, err)
+
+	err = bcaster.Start(context.Background())
+	require.NoError(t, err)
+	defer relay.Stop()
+
+	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+
+	require.NoError(t, err)
+
+	require.Equal(t, relay.IsSubscribed(testTopic), true)
+	require.Equal(t, relay.IsSubscribed(anotherTopic), false)
+
+	topics := relay.Topics()
+	require.Equal(t, 1, len(topics))
+	require.Equal(t, testTopic, topics[0])
+
+	ctx, cancel := context.WithCancel(context.Background())
+	bytesToSend := []byte{1}
+	go func() {
+		defer cancel()
+		env := <-subs[0].Ch
+		if env != nil {
+			t.Log("received msg", logging.Hash(env.Hash()))
+		}
+	}()
+
+	msg := &pb.WakuMessage{
+		Payload:      bytesToSend,
+		ContentTopic: "test",
+	}
+	_, err = relay.Publish(context.Background(), msg, WithPubSubTopic(anotherTopic))
+	require.Error(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(testTopic))
+	require.NoError(t, err)
+	<-ctx.Done()
+}
+
 func createRelayNode(t *testing.T) (host.Host, *WakuRelay) {
 	port, err := tests.FindFreePort(t, "", 5)
 	require.NoError(t, err)

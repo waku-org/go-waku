@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
@@ -34,8 +35,9 @@ func makeRelayService(t *testing.T, mux *chi.Mux) *RelayService {
 
 func TestPostV1Message(t *testing.T) {
 	router := chi.NewRouter()
+	testTopic := "test"
 
-	_ = makeRelayService(t, router)
+	r := makeRelayService(t, router)
 	msg := &RestWakuMessage{
 		Payload:      []byte{1, 2, 3},
 		ContentTopic: "abc",
@@ -44,8 +46,11 @@ func TestPostV1Message(t *testing.T) {
 	msgJSONBytes, err := json.Marshal(msg)
 	require.NoError(t, err)
 
+	_, err = r.node.Relay().Subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+	require.NoError(t, err)
+
 	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/messages/test", bytes.NewReader(msgJSONBytes))
+	req, _ := http.NewRequest(http.MethodPost, "/relay/v1/messages/"+testTopic, bytes.NewReader(msgJSONBytes))
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "true", rr.Body.String())

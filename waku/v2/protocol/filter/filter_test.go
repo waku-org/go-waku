@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/service"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -213,13 +215,17 @@ func (s *FilterTestSuite) TestStaticSharding() {
 	// Test positive case for static shard pubsub topic - message gets received
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, ""})
 
-	// Test two negative cases for static shard pubsub topic - message times out
-	s.waitForTimeout(&WakuMsg{testTopics[0], s.TestContentTopic, ""})
+	// Test two negative cases for static shard pubsub topic
+	msg := &WakuMsg{testTopics[0], s.TestContentTopic, ""}
+	_, err := s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(msg.ContentTopic, utils.GetUnixEpoch(), msg.Payload), relay.WithPubSubTopic(msg.PubSubTopic))
+	s.Require().Error(err)
 
-	s.waitForTimeout(&WakuMsg{testTopics[1], s.TestContentTopic, ""})
+	msg = &WakuMsg{testTopics[1], s.TestContentTopic, ""}
+	_, err = s.relayNode.Publish(s.ctx, tests.CreateWakuMessage(msg.ContentTopic, utils.GetUnixEpoch(), msg.Payload), relay.WithPubSubTopic(msg.PubSubTopic))
+	s.Require().Error(err)
 
 	// Cleanup
-	_, err := s.LightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
+	_, err = s.LightNode.Unsubscribe(s.ctx, protocol.ContentFilter{
 		PubsubTopic:   s.TestTopic,
 		ContentTopics: protocol.NewContentTopicSet(s.TestContentTopic),
 	})
