@@ -172,6 +172,9 @@ func (c *Chat) receiveMessages() {
 
 func (c *Chat) parseInput() {
 	defer c.wg.Done()
+
+	var disconnectedPeers []peer.ID
+
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -267,10 +270,32 @@ func (c *Chat) parseInput() {
   /connect multiaddress - dials a node adding it to the list of connected peers
   /peers - list of peers connected to this node
   /nick newNick - change the user's nickname
+  /disconnect - disconnect from all currently connected peers
+  /reconnect - attempt to reconnect to previously disconnected peers
   /exit - closes the app`)
 					return
 				}
 
+				// Disconnect from peers
+				if line == "/disconnect" {
+					disconnectedPeers = c.disconnectFromPeers()
+					c.ui.InfoMessage("Disconnected from all peers. Use /reconnect to reconnect.")
+					return
+				}
+
+				// Reconnect to peers
+				if line == "/reconnect" {
+					if len(disconnectedPeers) == 0 {
+						c.ui.InfoMessage("No disconnection active. Use /disconnect first.")
+					} else {
+						c.reconnectToPeers(disconnectedPeers)
+						disconnectedPeers = nil
+						c.ui.InfoMessage("Reconnection initiated.")
+					}
+					return
+				}
+
+				// If no command matched, send as a regular message
 				c.SendMessage(line)
 			}()
 		}
@@ -518,6 +543,29 @@ func (c *Chat) discoverNodes(connectionWg *sync.WaitGroup) {
 			}
 			wg.Wait()
 		}
+	}
+}
+
+func (c *Chat) disconnectFromPeers() []peer.ID {
+	disconnectedPeers := c.node.Host().Network().Peers()
+	for _, peerID := range disconnectedPeers {
+		c.node.Host().Network().ClosePeer(peerID)
+	}
+	return disconnectedPeers
+}
+
+func (c *Chat) reconnectToPeers(peers []peer.ID) {
+	for _, peerID := range peers {
+		// We're using a goroutine here to avoid blocking if a peer is unreachable
+		go func(p peer.ID) {
+			ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+			defer cancel()
+			if _, err := c.node.Host().Network().DialPeer(ctx, p); err != nil {
+				c.ui.ErrorMessage(fmt.Errorf("failed to reconnect to peer %s: %w", p, err))
+			} else {
+				c.ui.InfoMessage(fmt.Sprintf("Successfully reconnected to peer %s", p))
+			}
+		}(peerID)
 	}
 }
 

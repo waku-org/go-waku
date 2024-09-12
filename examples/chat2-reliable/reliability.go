@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
@@ -18,14 +21,16 @@ const (
 	bufferSweepInterval      = 5 * time.Second
 	syncMessageInterval      = 30 * time.Second
 	messageAckTimeout        = 60 * time.Second
-	maxRetries               = 3
-	retryBaseDelay           = 1 * time.Second
-	maxRetryDelay            = 10 * time.Second
+	maxRetries               = 5
+	retryBaseDelay           = 3 * time.Second
+	maxRetryDelay            = 30 * time.Second
 	ackTimeout               = 5 * time.Second
 	maxResendAttempts        = 5
 	resendBaseDelay          = 1 * time.Second
 	maxResendDelay           = 30 * time.Second
 )
+
+var reliabilityLogger *log.Logger
 
 func (c *Chat) initReliabilityProtocol() {
 	c.wg.Add(4)
@@ -35,6 +40,18 @@ func (c *Chat) initReliabilityProtocol() {
 	go c.periodicSyncMessage()
 	go c.startBloomFilterCleaner()
 	go c.startEagerPushMechanism()
+}
+
+func init() {
+	file, err := os.OpenFile("reliability.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	reliabilityLogger = log.New(file, "", log.LstdFlags)
+}
+
+func (c *Chat) logReliabilityEvent(message string) {
+	reliabilityLogger.Println(message)
 }
 
 func (c *Chat) startEagerPushMechanism() {
@@ -140,6 +157,7 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 			c.ui.ChatMessage(int64(c.getLamportTimestamp()), msg.SenderId, msg.Content)
 			// Add to message history
 			c.addToMessageHistory(msg)
+			c.logReliabilityEvent(fmt.Sprintf("Processed message %s with Lamport timestamp %d", msg.MessageId, msg.LamportTimestamp))
 		}
 
 		// Process any messages in the buffer that now have their dependencies met
@@ -151,6 +169,7 @@ func (c *Chat) processReceivedMessage(msg *pb.Message) {
 		}
 		// Add to incoming buffer
 		c.addToIncomingBuffer(msg)
+		c.logReliabilityEvent(fmt.Sprintf("Message %s buffered due to missing dependencies: %v", msg.MessageId, missingDeps))
 	}
 }
 
@@ -218,6 +237,7 @@ func (c *Chat) requestMissingMessage(messageID string) {
 		missedMsg, err := c.doRequestMissingMessageFromPeers(messageID)
 		if err == nil {
 			c.processReceivedMessage(missedMsg)
+			c.logReliabilityEvent(fmt.Sprintf("Successfully retrieved missing message %s", messageID))
 			return
 		}
 
@@ -229,7 +249,7 @@ func (c *Chat) requestMissingMessage(messageID string) {
 		time.Sleep(delay)
 	}
 
-	c.ui.ErrorMessage(fmt.Errorf("failed to retrieve missing message %s after %d attempts", messageID, maxRetries))
+	c.logReliabilityEvent(fmt.Sprintf("Failed to retrieve missing message %s after %d attempts", messageID, maxRetries))
 }
 
 func (c *Chat) checkCausalDependencies(msg *pb.Message) []string {
@@ -279,6 +299,21 @@ func (c *Chat) addToMessageHistory(msg *pb.Message) {
 	if len(c.messageHistory) > maxMessageHistory {
 		c.messageHistory = c.messageHistory[len(c.messageHistory)-maxMessageHistory:]
 	}
+
+	c.logReliabilityEvent(fmt.Sprintf("Added message %s to history at position %d with Lamport timestamp %d", msg.MessageId, insertIndex, msg.LamportTimestamp))
+
+	// Log the entire message history
+	c.logMessageHistory()
+}
+
+func (c *Chat) logMessageHistory() {
+	var historyLog strings.Builder
+	historyLog.WriteString("Current Message History:\n")
+	for i, msg := range c.messageHistory {
+		historyLog.WriteString(fmt.Sprintf("%d. MessageID: %s, Sender: %s, Lamport: %d, Content: %s\n",
+			i+1, msg.MessageId, msg.SenderId, msg.LamportTimestamp, msg.Content))
+	}
+	c.logReliabilityEvent(historyLog.String())
 }
 
 func (c *Chat) periodicBufferSweep() {
@@ -395,22 +430,29 @@ func (c *Chat) addToIncomingBuffer(msg *pb.Message) {
 	c.incomingBuffer = append(c.incomingBuffer, msg)
 }
 
-func (c *Chat) incLamportTimestamp() {
+func (c *Chat) incLamportTimestamp() int32 {
 	c.lamportTSMutex.Lock()
 	defer c.lamportTSMutex.Unlock()
-	c.lamportTimestamp++
+	now := int32(time.Now().Unix())
+	c.lamportTimestamp = max32(now, c.lamportTimestamp+1)
+	return c.lamportTimestamp
 }
 
 func (c *Chat) updateLamportTimestamp(msgTs int32) {
 	c.lamportTSMutex.Lock()
 	defer c.lamportTSMutex.Unlock()
-	if msgTs > c.lamportTimestamp {
-		c.lamportTimestamp = msgTs
-	}
+	c.lamportTimestamp = max32(msgTs, c.lamportTimestamp)
 }
 
 func (c *Chat) getLamportTimestamp() int32 {
 	c.lamportTSMutex.Lock()
 	defer c.lamportTSMutex.Unlock()
 	return c.lamportTimestamp
+}
+
+func max32(a, b int32) int32 {
+	if a > b {
+		return a
+	}
+	return b
 }
