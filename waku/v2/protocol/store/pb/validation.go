@@ -2,6 +2,7 @@ package pb
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -59,7 +60,8 @@ func (x *StoreQueryRequest) Validate() error {
 
 func (x *StoreQueryResponse) Validate(requestID string) error {
 	if x.RequestId != "" && x.RequestId != requestID {
-		return fmt.Errorf("requestID %s in response does not match requestID in request %s", hex.EncodeToString([]byte(x.RequestId)), hex.EncodeToString([]byte(requestID)))
+		a, _ := json.Marshal(x)
+		return fmt.Errorf("requestID %s in response does not match requestID in request %s %s", hex.EncodeToString([]byte(x.RequestId)), hex.EncodeToString([]byte(requestID)), string(a))
 	}
 
 	if x.StatusCode == nil {
