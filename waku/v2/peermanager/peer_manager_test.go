@@ -223,6 +223,7 @@ func TestConnectToRelayPeers(t *testing.T) {
 	ctx, pm, deferFn := initTest(t)
 	pc, err := NewPeerConnectionStrategy(pm, onlinechecker.NewDefaultOnlineChecker(true), 120*time.Second, pm.logger)
 	require.NoError(t, err)
+	pc.SetHost(pm.host)
 	err = pc.Start(ctx)
 	require.NoError(t, err)
 	pm.Start(ctx)

@@ -19,7 +19,9 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/onlinechecker"
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/service"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 
+	"github.com/libp2p/go-libp2p/core/event"
 	"go.uber.org/zap"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -39,8 +41,9 @@ type PeerConnectionStrategy struct {
 	*service.CommonDiscoveryService
 	subscriptions []subscription
 
-	backoff backoff.BackoffFactory
-	logger  *zap.Logger
+	backoff      backoff.BackoffFactory
+	logger       *zap.Logger
+	evtDialError event.Emitter
 }
 
 type subscription struct {
@@ -156,6 +159,11 @@ func (c *PeerConnectionStrategy) SetHost(h host.Host) {
 // Start attempts to connect to the peers passed in by peerCh.
 // Will not connect to peers if they are within the backoff period.
 func (c *PeerConnectionStrategy) Start(ctx context.Context) error {
+	var err error
+	c.evtDialError, err = c.host.EventBus().Emitter(new(utils.DialError))
+	if err != nil {
+		return err
+	}
 	return c.CommonDiscoveryService.Start(ctx, c.start)
 
 }
@@ -171,7 +179,9 @@ func (c *PeerConnectionStrategy) start() error {
 
 // Stop terminates the peer-connector
 func (c *PeerConnectionStrategy) Stop() {
-	c.CommonDiscoveryService.Stop(func() {})
+	c.CommonDiscoveryService.Stop(func() {
+		c.evtDialError.Close()
+	})
 }
 
 func (c *PeerConnectionStrategy) isPaused() bool {
@@ -277,11 +287,19 @@ func (c *PeerConnectionStrategy) dialPeer(pi peer.AddrInfo, sem chan struct{}) {
 	ctx, cancel := context.WithTimeout(c.Context(), c.dialTimeout)
 	defer cancel()
 	err := c.host.Connect(ctx, pi)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		c.addConnectionBackoff(pi.ID)
-		c.host.Peerstore().(wps.WakuPeerstore).AddConnFailure(pi.ID)
-		c.logger.Warn("connecting to peer", logging.HostID("peerID", pi.ID), zap.Error(err))
-	}
+	c.HandleDialError(err, pi.ID)
 	c.host.Peerstore().(wps.WakuPeerstore).ResetConnFailures(pi.ID)
 	<-sem
+}
+
+func (c *PeerConnectionStrategy) HandleDialError(err error, peerID peer.ID) {
+	if err != nil && !errors.Is(err, context.Canceled) {
+		c.addConnectionBackoff(peerID)
+		c.host.Peerstore().(wps.WakuPeerstore).AddConnFailure(peerID)
+		c.logger.Warn("connecting to peer", logging.HostID("peerID", peerID), zap.Error(err))
+		emitterErr := c.evtDialError.Emit(utils.DialError{Err: err, PeerID: peerID})
+		if emitterErr != nil {
+			c.logger.Error("failed to emit DialError", zap.Error(emitterErr))
+		}
+	}
 }
