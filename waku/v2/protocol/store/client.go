@@ -33,8 +33,6 @@ const MaxPageSize = 100
 // DefaultPageSize is the default number of waku messages per page
 const DefaultPageSize = 20
 
-const maxQueriesPerSecond = 8
-
 const ok = uint32(200)
 
 var (
@@ -68,19 +66,22 @@ func (e *StoreError) Error() string {
 
 // WakuStore represents an instance of a store client
 type WakuStore struct {
-	h            host.Host
-	timesource   timesource.Timesource
-	log          *zap.Logger
-	pm           *peermanager.PeerManager
-	rateLimiters map[peer.ID]*rate.Limiter
+	h          host.Host
+	timesource timesource.Timesource
+	log        *zap.Logger
+	pm         *peermanager.PeerManager
+
+	defaultRatelimit rate.Limit
+	rateLimiters     map[peer.ID]*rate.Limiter
 }
 
 // NewWakuStore is used to instantiate a StoreV3 client
-func NewWakuStore(pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger) *WakuStore {
+func NewWakuStore(pm *peermanager.PeerManager, timesource timesource.Timesource, log *zap.Logger, defaultRatelimit rate.Limit) *WakuStore {
 	s := new(WakuStore)
 	s.log = log.Named("store-client")
 	s.timesource = timesource
 	s.pm = pm
+	s.defaultRatelimit = defaultRatelimit
 	s.rateLimiters = make(map[peer.ID]*rate.Limiter)
 
 	if pm != nil {
@@ -269,7 +270,7 @@ func (s *WakuStore) queryFrom(ctx context.Context, storeRequest *pb.StoreQueryRe
 	if !params.skipRatelimit {
 		rateLimiter, ok := s.rateLimiters[params.selectedPeer]
 		if !ok {
-			rateLimiter = rate.NewLimiter(maxQueriesPerSecond, 1)
+			rateLimiter = rate.NewLimiter(s.defaultRatelimit, 1)
 			s.rateLimiters[params.selectedPeer] = rateLimiter
 		}
 		err := rateLimiter.Wait(ctx)

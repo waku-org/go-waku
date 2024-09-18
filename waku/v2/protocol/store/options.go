@@ -116,6 +116,7 @@ func IncludeData(v bool) RequestOption {
 	}
 }
 
+// Skips the rate limiting for the current request (might cause the store request to fail with TOO_MANY_REQUESTS (429))
 func SkipRateLimit() RequestOption {
 	return func(params *Parameters) error {
 		params.skipRatelimit = true

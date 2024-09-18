@@ -69,7 +69,7 @@ func TestStoreClient(t *testing.T) {
 	pm.Start(ctx)
 
 	// Creating a storeV3 instance for all queries
-	wakuStore := NewWakuStore(pm, timesource.NewDefaultClock(), utils.Logger())
+	wakuStore := NewWakuStore(pm, timesource.NewDefaultClock(), utils.Logger(), 8)
 	wakuStore.SetHost(host)
 
 	_, err = wakuRelay.Subscribe(context.Background(), protocol.NewContentFilter(pubsubTopic), relay.WithoutConsumer())
