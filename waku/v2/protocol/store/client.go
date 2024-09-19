@@ -50,8 +50,8 @@ type StoreError struct {
 }
 
 // NewStoreError creates a new instance of StoreError
-func NewStoreError(code int, message string) StoreError {
-	return StoreError{
+func NewStoreError(code int, message string) *StoreError {
+	return &StoreError{
 		Code:    code,
 		Message: message,
 	}
@@ -317,7 +317,7 @@ func (s *WakuStore) queryFrom(ctx context.Context, storeRequest *pb.StoreQueryRe
 
 	if storeResponse.GetStatusCode() != ok {
 		err := NewStoreError(int(storeResponse.GetStatusCode()), storeResponse.GetStatusDesc())
-		return nil, &err
+		return nil, err
 	}
 	return storeResponse, nil
 }
