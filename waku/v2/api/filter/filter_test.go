@@ -54,7 +54,8 @@ func (s *FilterApiTestSuite) TestSubscribe() {
 	s.Require().Equal(contentFilter.PubsubTopic, s.TestTopic)
 	ctx, cancel := context.WithCancel(context.Background())
 	s.Log.Info("About to perform API Subscribe()")
-	apiSub, err := Subscribe(ctx, s.LightNode, contentFilter, apiConfig, s.Log)
+	params := subscribeParameters{300 * time.Second, 1024}
+	apiSub, err := Subscribe(ctx, s.LightNode, contentFilter, apiConfig, s.Log, &params)
 	s.Require().NoError(err)
 	s.Require().Equal(apiSub.ContentFilter, contentFilter)
 	s.Log.Info("Subscribed")
