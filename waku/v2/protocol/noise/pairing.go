@@ -11,6 +11,7 @@ import (
 
 	n "github.com/waku-org/go-noise"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -210,6 +211,7 @@ func (p *Pairing) initiatorHandshake(ctx context.Context, msgCh <-chan *pb.WakuM
 	doneCh = make(chan error, 1)
 
 	go func() {
+		defer utils.LogOnPanic()
 		defer close(doneCh)
 		// The handshake initiator writes a Waku2 payload v2 containing the handshake message
 		// and the (encrypted) transport message

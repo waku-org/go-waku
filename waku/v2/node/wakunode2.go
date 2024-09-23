@@ -214,6 +214,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 		func(ctx context.Context, numPeers int) <-chan peer.AddrInfo {
 			r := make(chan peer.AddrInfo)
 			go func() {
+				defer utils.LogOnPanic()
 				defer close(r)
 				for ; numPeers != 0; numPeers-- {
 					select {
@@ -308,6 +309,7 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 }
 
 func (w *WakuNode) watchMultiaddressChanges(ctx context.Context) {
+	defer utils.LogOnPanic()
 	defer w.wg.Done()
 
 	addrsSet := utils.MultiAddrSet(w.ListenAddresses()...)
@@ -550,6 +552,7 @@ func (w *WakuNode) ID() string {
 }
 
 func (w *WakuNode) watchENRChanges(ctx context.Context) {
+	defer utils.LogOnPanic()
 	defer w.wg.Done()
 
 	var prevNodeVal string
@@ -887,6 +890,7 @@ func (w *WakuNode) PeersByContentTopic(contentTopic string) peer.IDSlice {
 }
 
 func (w *WakuNode) findRelayNodes(ctx context.Context) {
+	defer utils.LogOnPanic()
 	defer w.wg.Done()
 
 	// Feed peers more often right after the bootstrap, then backoff

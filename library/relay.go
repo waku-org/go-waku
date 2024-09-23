@@ -7,6 +7,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 // RelayEnoughPeers determines if there are enough peers to publish a message on a topic
@@ -66,6 +67,7 @@ func relaySubscribe(instance *WakuInstance, filterJSON string) error {
 
 	for _, sub := range subscriptions {
 		go func(subscription *relay.Subscription) {
+			defer utils.LogOnPanic()
 			for envelope := range subscription.Ch {
 				send(instance, "message", toSubscriptionMessage(envelope))
 			}

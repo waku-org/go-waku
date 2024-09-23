@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 )
 
@@ -98,6 +99,7 @@ func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilte
 }
 
 func (apiSub *Sub) Unsubscribe(contentFilter protocol.ContentFilter) {
+	defer utils.LogOnPanic()
 	_, err := apiSub.wf.Unsubscribe(apiSub.ctx, contentFilter)
 	//Not reading result unless we want to do specific error handling?
 	if err != nil {
@@ -106,6 +108,7 @@ func (apiSub *Sub) Unsubscribe(contentFilter protocol.ContentFilter) {
 }
 
 func (apiSub *Sub) subscriptionLoop(batchInterval time.Duration) {
+	defer utils.LogOnPanic()
 	ticker := time.NewTicker(batchInterval)
 	defer ticker.Stop()
 	for {
@@ -213,12 +216,14 @@ func (apiSub *Sub) multiplex(subs []*subscription.SubscriptionDetails) {
 	for _, subDetails := range subs {
 		apiSub.subs[subDetails.ID] = subDetails
 		go func(subDetails *subscription.SubscriptionDetails) {
+			defer utils.LogOnPanic()
 			apiSub.log.Debug("new multiplex", zap.String("sub-id", subDetails.ID))
 			for env := range subDetails.C {
 				apiSub.DataCh <- env
 			}
 		}(subDetails)
 		go func(subDetails *subscription.SubscriptionDetails) {
+			defer utils.LogOnPanic()
 			select {
 			case <-apiSub.ctx.Done():
 				return

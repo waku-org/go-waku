@@ -262,6 +262,7 @@ func (pm *PeerManager) Start(ctx context.Context) {
 }
 
 func (pm *PeerManager) peerStoreLoop(ctx context.Context) {
+	defer utils.LogOnPanic()
 	t := time.NewTicker(prunePeerStoreInterval)
 	defer t.Stop()
 	for {
@@ -363,6 +364,7 @@ func (pm *PeerManager) prunePeerStore() {
 
 // This is a connectivity loop, which currently checks and prunes inbound connections.
 func (pm *PeerManager) connectivityLoop(ctx context.Context) {
+	defer utils.LogOnPanic()
 	pm.connectToPeers()
 	t := time.NewTicker(peerConnectivityLoopSecs * time.Second)
 	defer t.Stop()
