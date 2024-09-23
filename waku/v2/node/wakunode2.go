@@ -752,7 +752,9 @@ func (w *WakuNode) DialPeerWithInfo(ctx context.Context, peerInfo peer.AddrInfo)
 func (w *WakuNode) connect(ctx context.Context, info peer.AddrInfo) error {
 	err := w.host.Connect(ctx, info)
 	if err != nil {
-		w.host.Peerstore().(wps.WakuPeerstore).AddConnFailure(info.ID)
+		if w.peermanager != nil {
+			w.peermanager.HandleDialError(err, info.ID)
+		}
 		return err
 	}
 
