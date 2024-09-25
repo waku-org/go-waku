@@ -373,6 +373,7 @@ func (w *WakuNode) Start(ctx context.Context) error {
 				return
 			case <-ticker.C:
 				totals := w.bandwidthCounter.GetBandwidthTotals()
+				w.bandwidthCounter.Reset()
 				w.metrics.RecordBandwidth(totals)
 			}
 		}
