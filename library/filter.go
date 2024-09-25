@@ -10,6 +10,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type filterArgument struct {
@@ -74,6 +75,7 @@ func FilterSubscribe(instance *WakuInstance, filterJSON string, peerID string, m
 
 	for _, subscriptionDetails := range subscriptions {
 		go func(subscriptionDetails *subscription.SubscriptionDetails) {
+			defer utils.LogOnPanic()
 			for envelope := range subscriptionDetails.C {
 				send(instance, "message", toSubscriptionMessage(envelope))
 			}

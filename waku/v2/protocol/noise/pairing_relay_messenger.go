@@ -8,6 +8,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -67,6 +68,7 @@ func NewWakuRelayMessenger(ctx context.Context, r *relay.WakuRelay, pubsubTopic 
 	}
 
 	go func() {
+		defer utils.LogOnPanic()
 		for {
 			select {
 			case <-ctx.Done():
@@ -97,6 +99,7 @@ func (r *NoiseWakuRelay) Subscribe(ctx context.Context, contentTopic string) <-c
 	r.subscriptionChPerContentTopic[contentTopic] = subscriptionCh
 
 	go func() {
+		defer utils.LogOnPanic()
 		for {
 			select {
 			case <-ctx.Done():
