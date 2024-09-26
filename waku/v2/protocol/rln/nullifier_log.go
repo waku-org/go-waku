@@ -36,11 +36,11 @@ func NewNullifierLog(ctx context.Context, log *zap.Logger) *NullifierLog {
 var errAlreadyExists = errors.New("proof already exists")
 
 // Insert stores a proof in the nullifier log only if it doesnt exist already
-func (n *NullifierLog) Insert(proofMD rln.ProofMetadata) error {
+func (n *NullifierLog) Insert(epoch rln.Epoch, proofMD rln.ProofMetadata) error {
 	n.Lock()
 	defer n.Unlock()
 
-	proofs, ok := n.nullifierLog[proofMD.ExternalNullifier]
+	proofs, ok := n.nullifierLog[epoch]
 	if ok {
 		// check if an identical record exists
 		for _, p := range proofs {
@@ -51,7 +51,7 @@ func (n *NullifierLog) Insert(proofMD rln.ProofMetadata) error {
 		}
 	}
 
-	n.nullifierLog[proofMD.ExternalNullifier] = append(proofs, proofMD)
+	n.nullifierLog[epoch] = append(proofs, proofMD)
 	n.nullifierQueue = append(n.nullifierQueue, proofMD.ExternalNullifier)
 	return nil
 }
@@ -59,11 +59,11 @@ func (n *NullifierLog) Insert(proofMD rln.ProofMetadata) error {
 // HasDuplicate returns true if there is another message in the  `nullifierLog` with the same
 // epoch and nullifier as `msg`'s epoch and nullifier but different Shamir secret shares
 // otherwise, returns false
-func (n *NullifierLog) HasDuplicate(proofMD rln.ProofMetadata) (bool, error) {
+func (n *NullifierLog) HasDuplicate(epoch rln.Epoch, proofMD rln.ProofMetadata) (bool, error) {
 	n.RLock()
 	defer n.RUnlock()
 
-	proofs, ok := n.nullifierLog[proofMD.ExternalNullifier]
+	proofs, ok := n.nullifierLog[epoch]
 	if !ok {
 		// epoch does not exist
 		return false, nil

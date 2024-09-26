@@ -100,11 +100,14 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 	// it corresponds to the validation of rln external nullifier
 	var epoch rln.Epoch
 	if optionalTime != nil {
-		epoch = rln.CalcEpoch(*optionalTime)
+		// TODO: Hardcoded epoch size
+		epoch = rln.CalcEpoch(*optionalTime, uint64(1))
 	} else {
 		// get current rln epoch
-		epoch = rln.CalcEpoch(rlnRelay.timesource.Now())
+		// TODO: Hardcoded epoch size
+		epoch = rln.CalcEpoch(rlnRelay.timesource.Now(), uint64(1))
 	}
+	_ = epoch
 
 	msgProof, err := BytesToRateLimitProof(msg.RateLimitProof)
 	if err != nil {
@@ -120,15 +123,16 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		return invalidMessage, nil
 	}
 
-	proofMD, err := rlnRelay.RLN.ExtractMetadata(*msgProof)
-	if err != nil {
-		rlnRelay.log.Debug("could not extract metadata", zap.Error(err))
-		rlnRelay.metrics.RecordError(proofMetadataExtractionErr)
-		return invalidMessage, nil
-	}
+	//proofMD, err := rlnRelay.RLN.ExtractMetadata(*msgProof)
+	//if err != nil {
+	//	rlnRelay.log.Debug("could not extract metadata", zap.Error(err))
+	//	rlnRelay.metrics.RecordError(proofMetadataExtractionErr)
+	//	return invalidMessage, nil
+	//}
 
 	// calculate the gaps and validate the epoch
-	gap := rln.Diff(epoch, msgProof.Epoch)
+	//gap := rln.Diff(epoch, msgProof.Epoch)
+	gap := int64(0)
 	if int64(math.Abs(float64(gap))) > maxEpochGap {
 		// message's epoch is too old or too ahead
 		// accept messages whose epoch is within +-MAX_EPOCH_GAP from the current epoch
@@ -160,8 +164,15 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		return invalidMessage, nil
 	}
 
+	proofMD := rln.ProofMetadata{
+		Nullifier:         msgProof.Nullifier,
+		ShareX:            msgProof.ShareX,
+		ShareY:            msgProof.ShareY,
+		ExternalNullifier: msgProof.ExternalNullifier,
+	}
+
 	// check if double messaging has happened
-	hasDup, err := rlnRelay.nullifierLog.HasDuplicate(proofMD)
+	hasDup, err := rlnRelay.nullifierLog.HasDuplicate(epoch, proofMD)
 	if err != nil {
 		rlnRelay.log.Debug("validation error", zap.Error(err))
 		rlnRelay.metrics.RecordError(duplicateCheckErr)
@@ -173,7 +184,7 @@ func (rlnRelay *WakuRLNRelay) ValidateMessage(msg *pb.WakuMessage, optionalTime 
 		return spamMessage, nil
 	}
 
-	err = rlnRelay.nullifierLog.Insert(proofMD)
+	err = rlnRelay.nullifierLog.Insert(epoch, proofMD)
 	if err != nil {
 		rlnRelay.log.Debug("could not insert proof into log")
 		rlnRelay.metrics.RecordError(logInsertionErr)
@@ -206,7 +217,8 @@ func (rlnRelay *WakuRLNRelay) AppendRLNProof(msg *pb.WakuMessage, senderEpochTim
 	input := toRLNSignal(msg)
 
 	start := time.Now()
-	proof, err := rlnRelay.generateProof(input, rln.CalcEpoch(senderEpochTime))
+	// TODO: Hardcoded epoch size
+	proof, err := rlnRelay.generateProof(input, rln.CalcEpoch(senderEpochTime, uint64(1)))
 	if err != nil {
 		return err
 	}
@@ -285,7 +297,10 @@ func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*rln
 
 	membershipIndex := rlnRelay.GroupManager.MembershipIndex()
 
-	proof, err := rlnRelay.RLN.GenerateProof(input, identityCredentials, membershipIndex, epoch)
+	// TODO: Hardcoded, has te be incremental
+	messageId := uint32(0)
+
+	proof, err := rlnRelay.RLN.GenerateProof(input, identityCredentials, membershipIndex, epoch, messageId)
 	if err != nil {
 		return nil, err
 	}
@@ -293,11 +308,11 @@ func (rlnRelay *WakuRLNRelay) generateProof(input []byte, epoch rln.Epoch) (*rln
 	return &rlnpb.RateLimitProof{
 		Proof:         proof.Proof[:],
 		MerkleRoot:    proof.MerkleRoot[:],
-		Epoch:         proof.Epoch[:],
+		Epoch:         epoch[:],
 		ShareX:        proof.ShareX[:],
 		ShareY:        proof.ShareY[:],
 		Nullifier:     proof.Nullifier[:],
-		RlnIdentifier: proof.RLNIdentifier[:],
+		RlnIdentifier: rln.RLN_IDENTIFIER[:],
 	}, nil
 }
 

@@ -20,8 +20,11 @@ const (
 // the maximum clock difference between peers in seconds
 const maxClockGapSeconds = 20
 
+// TODO: Make this configurable
+const rlnEpochSizeSec = 600
+
 // maximum allowed gap between the epochs of messages' RateLimitProofs
-const maxEpochGap = int64(maxClockGapSeconds / rln.EPOCH_UNIT_SECONDS)
+const maxEpochGap = max(int64(maxClockGapSeconds/uint64(rlnEpochSizeSec)), 1)
 
 // acceptable roots for merkle root validation of incoming messages
 const acceptableRootWindowSize = 5
@@ -52,13 +55,12 @@ func BytesToRateLimitProof(data []byte) (*rln.RateLimitProof, error) {
 	}
 
 	result := &rln.RateLimitProof{
-		Proof:         rln.ZKSNARK(rln.Bytes128(rateLimitProof.Proof)),
-		MerkleRoot:    rln.MerkleNode(rln.Bytes32(rateLimitProof.MerkleRoot)),
-		Epoch:         rln.Epoch(rln.Bytes32(rateLimitProof.Epoch)),
-		ShareX:        rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareX)),
-		ShareY:        rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareY)),
-		Nullifier:     rln.Nullifier(rln.Bytes32(rateLimitProof.Nullifier)),
-		RLNIdentifier: rln.RLNIdentifier(rln.Bytes32(rateLimitProof.RlnIdentifier)),
+		Proof:      rln.ZKSNARK(rln.Bytes128(rateLimitProof.Proof)),
+		MerkleRoot: rln.MerkleNode(rln.Bytes32(rateLimitProof.MerkleRoot)),
+		// TODO: ExternalNullifier is missing here
+		ShareX:    rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareX)),
+		ShareY:    rln.MerkleNode(rln.Bytes32(rateLimitProof.ShareY)),
+		Nullifier: rln.Nullifier(rln.Bytes32(rateLimitProof.Nullifier)),
 	}
 
 	return result, nil
