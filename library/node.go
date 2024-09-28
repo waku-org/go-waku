@@ -164,6 +164,8 @@ func NewNode(instance *WakuInstance, configJSON string) error {
 		node.WithPrivateKey(prvKey),
 		node.WithHostAddress(hostAddr),
 		node.WithKeepAlive(10*time.Second, time.Duration(*config.KeepAliveInterval)*time.Second),
+		node.WithClusterID(uint16(config.ClusterID)),
+		node.WithShards(config.Shards),
 	}
 
 	if *config.EnableRelay {
