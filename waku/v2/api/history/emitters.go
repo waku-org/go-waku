@@ -23,8 +23,8 @@ func (s *Emitter[T]) Emit(value T) {
 	s.Lock()
 	defer s.Unlock()
 
-	for _, subs := range s.subscriptions {
-		subs <- value
+	for _, sub := range s.subscriptions {
+		sub <- value
 	}
 }
 

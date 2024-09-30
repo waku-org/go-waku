@@ -23,6 +23,7 @@ import (
 
 const defaultBackoff = 10 * time.Second
 const graylistBackoff = 3 * time.Minute
+const storenodeVerificationInterval = time.Second
 const storenodeMaxFailedRequests uint = 2
 const isAndroidEmulator = runtime.GOOS == "android" && runtime.GOARCH == "amd64"
 const findNearestMailServer = !isAndroidEmulator
@@ -267,7 +268,7 @@ func (m *StorenodeCycle) findNewStorenode(ctx context.Context) error {
 	}
 
 	if pinnedStorenode != "" {
-		return m.connect(pinnedStorenode)
+		return m.setActiveStorenode(pinnedStorenode)
 	}
 
 	m.logger.Info("Finding a new storenode..")
@@ -299,7 +300,7 @@ func (m *StorenodeCycle) findNewStorenode(ctx context.Context) error {
 	}
 
 	ms := allStorenodes[r.Int64()]
-	return m.connect(ms)
+	return m.setActiveStorenode(ms)
 }
 
 func (m *StorenodeCycle) storenodeStatus(peerID peer.ID) connStatus {
@@ -313,9 +314,7 @@ func (m *StorenodeCycle) storenodeStatus(peerID peer.ID) connStatus {
 	return peer.status
 }
 
-func (m *StorenodeCycle) connect(peerID peer.ID) error {
-	m.logger.Info("connecting to storenode", zap.Stringer("peerID", peerID))
-
+func (m *StorenodeCycle) setActiveStorenode(peerID peer.ID) error {
 	m.activeStorenode = peerID
 
 	m.StorenodeChangedEmitter.Emit(m.activeStorenode)
@@ -363,7 +362,7 @@ func (m *StorenodeCycle) penalizeStorenode(id peer.ID) {
 }
 
 func (m *StorenodeCycle) verifyStorenodeStatus(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(storenodeVerificationInterval)
 	defer ticker.Stop()
 
 	for {
