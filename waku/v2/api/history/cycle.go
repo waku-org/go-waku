@@ -182,7 +182,6 @@ func poolSize(fleetSize int) int {
 }
 
 func (m *StorenodeCycle) getAvailableStorenodesSortedByRTT(ctx context.Context, allStorenodes []peer.ID) []peer.ID {
-	// TODO: this can be replaced by peer selector once code is moved to go-waku api
 	availableStorenodes := make(map[peer.ID]time.Duration)
 	availableStorenodesMutex := sync.Mutex{}
 	availableStorenodesWg := sync.WaitGroup{}

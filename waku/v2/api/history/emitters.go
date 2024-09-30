@@ -26,7 +26,6 @@ func (s *Emitter[T]) Emit(value T) {
 	for _, subs := range s.subscriptions {
 		subs <- value
 	}
-	s.subscriptions = nil
 }
 
 type OneShotEmitter[T any] struct {

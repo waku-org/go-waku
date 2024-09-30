@@ -25,7 +25,7 @@ type work struct {
 }
 
 type HistoryRetriever struct {
-	store            *store.WakuStore
+	store            Store
 	logger           *zap.Logger
 	historyProcessor HistoryProcessor
 }
@@ -35,7 +35,11 @@ type HistoryProcessor interface {
 	OnRequestFailed(requestID []byte, peerID peer.ID, err error)
 }
 
-func NewHistoryRetriever(store *store.WakuStore, historyProcessor HistoryProcessor, logger *zap.Logger) *HistoryRetriever {
+type Store interface {
+	Query(ctx context.Context, criteria store.FilterCriteria, opts ...store.RequestOption) (store.Result, error)
+}
+
+func NewHistoryRetriever(store Store, historyProcessor HistoryProcessor, logger *zap.Logger) *HistoryRetriever {
 	return &HistoryRetriever{
 		store:            store,
 		logger:           logger.Named("history-retriever"),
