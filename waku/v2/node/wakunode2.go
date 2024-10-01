@@ -18,7 +18,6 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/metrics"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -85,12 +84,11 @@ type RLNRelay interface {
 }
 
 type WakuNode struct {
-	host             host.Host
-	opts             *WakuNodeParameters
-	log              *zap.Logger
-	timesource       timesource.Timesource
-	metrics          Metrics
-	bandwidthCounter *metrics.BandwidthCounter
+	host       host.Host
+	opts       *WakuNodeParameters
+	log        *zap.Logger
+	timesource timesource.Timesource
+	metrics    Metrics
 
 	peerstore     peerstore.Peerstore
 	peerConnector *peermanager.PeerConnectionStrategy
@@ -196,9 +194,6 @@ func New(opts ...WakuNodeOption) (*WakuNode, error) {
 	w.circuitRelayNodes = make(chan peer.AddrInfo)
 	w.metrics = newMetrics(params.prometheusReg)
 	w.metrics.RecordVersion(Version, GitCommit)
-
-	w.bandwidthCounter = metrics.NewBandwidthCounter()
-	params.libP2POpts = append(params.libP2POpts, libp2p.BandwidthReporter(w.bandwidthCounter))
 
 	// Setup peerstore wrapper
 	if params.peerstore != nil {
@@ -363,23 +358,6 @@ func (w *WakuNode) Start(ctx context.Context) error {
 	})
 
 	w.host = host
-
-	// Bandwidth reporter created for comparing IDONTWANT performance
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				totals := w.bandwidthCounter.GetBandwidthTotals()
-				w.bandwidthCounter.Reset()
-				w.metrics.RecordBandwidth(totals)
-			}
-		}
-	}()
 
 	if w.addressChangesSub, err = host.EventBus().Subscribe(new(event.EvtLocalAddressesUpdated)); err != nil {
 		return err
