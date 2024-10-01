@@ -285,6 +285,8 @@ interface JsonConfig {
     storeRetentionTimeSeconds?: number;
     websocket?: Websocket;
     dns4DomainName?: string;
+    clusterID: int;
+    shards: Array<uint16>;
 }
 ```
 
