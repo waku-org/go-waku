@@ -31,6 +31,8 @@ type WakuConfig struct {
 	RetentionTimeSeconds   *int             `json:"storeRetentionTimeSeconds,omitempty"`
 	DNS4DomainName         string           `json:"dns4DomainName,omitempty"`
 	Websockets             *WebsocketConfig `json:"websockets,omitempty"`
+	ClusterID              int              `json:"clusterID"`
+	Shards                 []uint16         `json:"shards"`
 }
 
 // WebsocketConfig contains all the settings required to setup websocket support in waku
