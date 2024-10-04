@@ -34,13 +34,13 @@ func TestRTT(t *testing.T) {
 	h3.Close()
 
 	_, err = rtt.FastestPeer(ctx, peer.IDSlice{h3.ID()})
-	require.ErrorIs(t, err, ErrNoPeersAvailable)
+	require.ErrorIs(t, err, utils.ErrNoPeersAvailable)
 
 	// H3 should never return
 	for i := 0; i < 100; i++ {
 		p, err := rtt.FastestPeer(ctx, peer.IDSlice{h2.ID(), h3.ID()})
 		if err != nil {
-			require.ErrorIs(t, err, ErrNoPeersAvailable)
+			require.ErrorIs(t, err, utils.ErrNoPeersAvailable)
 		} else {
 			require.NotEqual(t, h3.ID(), p)
 		}
