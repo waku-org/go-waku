@@ -93,7 +93,7 @@ func TestServiceSlots(t *testing.T) {
 	defer h4.Close()
 
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol1})
-	require.Error(t, err, ErrNoPeersAvailable)
+	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	// add h4 peer for protocol1
 	_, err = pm.AddPeer(tests.GetAddr(h4), wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
@@ -138,7 +138,7 @@ func TestPeerSelection(t *testing.T) {
 	require.Equal(t, h2.ID(), peerIDs[0])
 
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/3"}})
-	require.Error(t, ErrNoPeersAvailable, err)
+	require.Error(t, utils.ErrNoPeersAvailable, err)
 
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}})
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestDefaultProtocol(t *testing.T) {
 	///////////////
 	//Test empty peer selection for relay protocol
 	_, err := pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: relay.WakuRelayID_v200})
-	require.Error(t, err, ErrNoPeersAvailable)
+	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	///////////////
 	// getting peer for default protocol
@@ -215,7 +215,7 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 
 	pm.RemovePeer(peers[0])
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol2})
-	require.Error(t, err, ErrNoPeersAvailable)
+	require.Error(t, err, utils.ErrNoPeersAvailable)
 }
 
 func TestConnectToRelayPeers(t *testing.T) {
