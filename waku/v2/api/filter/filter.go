@@ -49,34 +49,41 @@ type Sub struct {
 	errcnt                int
 }
 
-type subscribeParameters struct {
+type FilterParameters struct {
 	batchInterval          time.Duration
 	multiplexChannelBuffer int
+	checker                *onlinechecker.DefaultOnlineChecker
 }
 
-type SubscribeOptions func(*subscribeParameters)
+type FilterOptions func(*FilterParameters)
 
-func WithBatchInterval(t time.Duration) SubscribeOptions {
-	return func(params *subscribeParameters) {
+func WithBatchInterval(t time.Duration) FilterOptions {
+	return func(params *FilterParameters) {
 		params.batchInterval = t
 	}
 }
 
-func WithMultiplexChannelBuffer(value int) SubscribeOptions {
-	return func(params *subscribeParameters) {
+func WithMultiplexChannelBuffer(value int) FilterOptions {
+	return func(params *FilterParameters) {
 		params.multiplexChannelBuffer = value
 	}
 }
 
-func defaultOptions() []SubscribeOptions {
-	return []SubscribeOptions{
+func WithOnlineChecker(checker *onlinechecker.DefaultOnlineChecker) FilterOptions {
+	return func(params *FilterParameters) {
+		params.checker = checker
+	}
+}
+
+func defaultOptions() []FilterOptions {
+	return []FilterOptions{
 		WithBatchInterval(5 * time.Second),
 		WithMultiplexChannelBuffer(100),
 	}
 }
 
 // Subscribe
-func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilter protocol.ContentFilter, config FilterConfig, log *zap.Logger, params *subscribeParameters) (*Sub, error) {
+func Subscribe(ctx context.Context, wf *filter.WakuFilterLightNode, contentFilter protocol.ContentFilter, config FilterConfig, log *zap.Logger, params *FilterParameters) (*Sub, error) {
 	sub := new(Sub)
 	sub.id = uuid.NewString()
 	sub.wf = wf

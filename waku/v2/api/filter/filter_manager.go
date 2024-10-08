@@ -32,7 +32,7 @@ type appFilterMap map[string]filterConfig
 type FilterManager struct {
 	sync.Mutex
 	ctx                    context.Context
-	params                 *subscribeParameters
+	params                 *FilterParameters
 	minPeersPerFilter      int
 	onlineChecker          *onlinechecker.DefaultOnlineChecker
 	filterSubscriptions    map[string]SubDetails // map of aggregated filters to apiSub details
@@ -61,7 +61,7 @@ type EnevelopeProcessor interface {
 	OnNewEnvelope(env *protocol.Envelope) error
 }
 
-func NewFilterManager(ctx context.Context, logger *zap.Logger, minPeersPerFilter int, envProcessor EnevelopeProcessor, node *filter.WakuFilterLightNode, opts ...SubscribeOptions) *FilterManager {
+func NewFilterManager(ctx context.Context, logger *zap.Logger, minPeersPerFilter int, envProcessor EnevelopeProcessor, node *filter.WakuFilterLightNode, opts ...FilterOptions) *FilterManager {
 	// This fn is being mocked in test
 	mgr := new(FilterManager)
 	mgr.ctx = ctx
@@ -70,18 +70,21 @@ func NewFilterManager(ctx context.Context, logger *zap.Logger, minPeersPerFilter
 	mgr.envProcessor = envProcessor
 	mgr.filterSubscriptions = make(map[string]SubDetails)
 	mgr.node = node
-	mgr.onlineChecker = onlinechecker.NewDefaultOnlineChecker(false).(*onlinechecker.DefaultOnlineChecker)
-	mgr.node.SetOnlineChecker(mgr.onlineChecker)
 	mgr.incompleteFilterBatch = make(map[string]filterConfig)
 	mgr.filterConfigs = make(appFilterMap)
 	mgr.waitingToSubQueue = make(chan filterConfig, 100)
 
 	//parsing the subscribe params only to read the batchInterval passed.
-	mgr.params = new(subscribeParameters)
+	mgr.params = new(FilterParameters)
 	opts = append(defaultOptions(), opts...)
 	for _, opt := range opts {
 		opt(mgr.params)
 	}
+	if mgr.params.checker == nil {
+		mgr.params.checker = onlinechecker.NewDefaultOnlineChecker(false).(*onlinechecker.DefaultOnlineChecker)
+	}
+	mgr.node.SetOnlineChecker(mgr.params.checker)
+
 	mgr.filterSubBatchDuration = mgr.params.batchInterval
 	go mgr.startFilterSubLoop()
 	return mgr
