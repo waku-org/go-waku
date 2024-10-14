@@ -25,6 +25,7 @@ const defaultBackoff = 10 * time.Second
 const graylistBackoff = 3 * time.Minute
 const storenodeVerificationInterval = time.Second
 const storenodeMaxFailedRequests uint = 2
+const minStorenodesToChooseFrom = 3
 const isAndroidEmulator = runtime.GOOS == "android" && runtime.GOARCH == "amd64"
 const findNearestMailServer = !isAndroidEmulator
 const overrideDNS = runtime.GOOS == "android" || runtime.GOOS == "ios"
@@ -151,7 +152,7 @@ func (m *StorenodeCycle) disconnectActiveStorenode(backoffDuration time.Duration
 
 func (m *StorenodeCycle) Cycle(ctx context.Context) {
 	if m.storenodeConfigProvider == nil {
-		m.logger.Info("storenodeConfigProvider not yet setup")
+		m.logger.Debug("storenodeConfigProvider not yet setup")
 		return
 	}
 
@@ -285,8 +286,10 @@ func (m *StorenodeCycle) findNewStorenode(ctx context.Context) error {
 
 	// Picks a random storenode amongs the ones with the lowest latency
 	// The pool size is 1/4 of the storenodes were pinged successfully
+	// If the pool size is less than `minStorenodesToChooseFrom`, it will
+	// pick a storenode fromm all the available storenodes
 	pSize := poolSize(len(allStorenodes) - 1)
-	if pSize <= 0 {
+	if pSize <= minStorenodesToChooseFrom {
 		pSize = len(allStorenodes)
 		if pSize <= 0 {
 			m.logger.Warn("No storenodes available") // Do nothing..

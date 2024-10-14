@@ -141,6 +141,13 @@ loop:
 				continue
 			}
 
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				// continue...
+			}
+
 			logger.Debug("processBatch - received work")
 
 			semaphore <- struct{}{}

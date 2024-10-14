@@ -225,7 +225,7 @@ func TestStoreClient(t *testing.T) {
 	// Handle temporal history query with a zero-size time window
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: startTime})
 	require.NoError(t, err)
-	require.Len(t, response.messages, 0)
+	require.Len(t, response.Messages(), 0)
 	require.Empty(t, response.Cursor())
 
 	// Should not include data
