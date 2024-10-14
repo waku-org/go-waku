@@ -128,33 +128,33 @@ func TestStoreClient(t *testing.T) {
 
 	// -- First page:
 	require.False(t, response.IsComplete())
-	require.Len(t, response.messages, 2)
-	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[0].GetTimestamp())
-	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[1].GetTimestamp())
+	require.Len(t, response.Messages(), 2)
+	require.Equal(t, response.Messages()[0].Message.GetTimestamp(), messages[0].GetTimestamp())
+	require.Equal(t, response.Messages()[1].Message.GetTimestamp(), messages[1].GetTimestamp())
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
 
 	// -- Second page:
 	require.False(t, response.IsComplete())
-	require.Len(t, response.messages, 2)
-	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[2].GetTimestamp())
-	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[3].GetTimestamp())
+	require.Len(t, response.Messages(), 2)
+	require.Equal(t, response.Messages()[0].Message.GetTimestamp(), messages[2].GetTimestamp())
+	require.Equal(t, response.Messages()[1].Message.GetTimestamp(), messages[3].GetTimestamp())
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
 
 	// -- Third page:
 	require.False(t, response.IsComplete())
-	require.Len(t, response.messages, 1)
-	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[4].GetTimestamp())
+	require.Len(t, response.Messages(), 1)
+	require.Equal(t, response.Messages()[0].Message.GetTimestamp(), messages[4].GetTimestamp())
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
 
 	// -- Trying to continue a completed cursor
 	require.True(t, response.IsComplete())
-	require.Len(t, response.messages, 0)
+	require.Len(t, response.Messages(), 0)
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
@@ -165,26 +165,26 @@ func TestStoreClient(t *testing.T) {
 
 	// -- First page:
 	require.False(t, response.IsComplete())
-	require.Len(t, response.messages, 2)
-	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[3].GetTimestamp())
-	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[4].GetTimestamp())
+	require.Len(t, response.Messages(), 2)
+	require.Equal(t, response.Messages()[0].Message.GetTimestamp(), messages[3].GetTimestamp())
+	require.Equal(t, response.Messages()[1].Message.GetTimestamp(), messages[4].GetTimestamp())
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
 
 	// -- Second page:
 	require.False(t, response.IsComplete())
-	require.Len(t, response.messages, 2)
-	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[1].GetTimestamp())
-	require.Equal(t, response.messages[1].Message.GetTimestamp(), messages[2].GetTimestamp())
+	require.Len(t, response.Messages(), 2)
+	require.Equal(t, response.Messages()[0].Message.GetTimestamp(), messages[1].GetTimestamp())
+	require.Equal(t, response.Messages()[1].Message.GetTimestamp(), messages[2].GetTimestamp())
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
 
 	// -- Third page:
 	require.False(t, response.IsComplete())
-	require.Len(t, response.messages, 1)
-	require.Equal(t, response.messages[0].Message.GetTimestamp(), messages[0].GetTimestamp())
+	require.Len(t, response.Messages(), 1)
+	require.Equal(t, response.Messages()[0].Message.GetTimestamp(), messages[0].GetTimestamp())
 
 	err = response.Next(ctx)
 	require.NoError(t, err)
@@ -197,13 +197,13 @@ func TestStoreClient(t *testing.T) {
 	// No cursor should be returned if there are no messages that match the criteria
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "no-messages"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 2))
 	require.NoError(t, err)
-	require.Len(t, response.messages, 0)
+	require.Len(t, response.Messages(), 0)
 	require.Empty(t, response.Cursor())
 
 	// If the page size is larger than the number of existing messages, it should not return a cursor
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: endTime}, WithPaging(true, 100))
 	require.NoError(t, err)
-	require.Len(t, response.messages, 5)
+	require.Len(t, response.Messages(), 5)
 	require.Empty(t, response.Cursor())
 
 	// Invalid cursors should fail
@@ -225,17 +225,17 @@ func TestStoreClient(t *testing.T) {
 	// Handle temporal history query with a zero-size time window
 	response, err = wakuStore.Query(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test"), TimeStart: startTime, TimeEnd: startTime})
 	require.NoError(t, err)
-	require.Len(t, response.messages, 0)
+	require.Len(t, response.Messages(), 0)
 	require.Empty(t, response.Cursor())
 
 	// Should not include data
 	response, err = wakuStore.Request(ctx, MessageHashCriteria{MessageHashes: []pb.MessageHash{messages[0].Hash(pubsubTopic)}}, IncludeData(false), WithPeer(storenode.ID))
 	require.NoError(t, err)
-	require.Len(t, response.messages, 1)
-	require.Nil(t, response.messages[0].Message)
+	require.Len(t, response.Messages(), 1)
+	require.Nil(t, response.Messages()[0].Message)
 
 	response, err = wakuStore.Request(ctx, FilterCriteria{ContentFilter: protocol.NewContentFilter(pubsubTopic, "test")}, IncludeData(false))
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(response.messages), 1)
-	require.Nil(t, response.messages[0].Message)
+	require.GreaterOrEqual(t, len(response.Messages()), 1)
+	require.Nil(t, response.Messages()[0].Message)
 }
