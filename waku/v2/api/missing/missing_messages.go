@@ -11,9 +11,9 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/waku-org/go-waku/logging"
+	"github.com/waku-org/go-waku/waku/v2/api/common"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
-	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"github.com/waku-org/go-waku/waku/v2/timesource"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
@@ -30,25 +30,30 @@ type MessageTracker interface {
 	MessageExists(pb.MessageHash) (bool, error)
 }
 
+type StorenodeRequestor interface {
+	GetMessagesByHash(ctx context.Context, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) (common.Result, error)
+	QueryWithCriteria(ctx context.Context, peerID peer.ID, pageSize uint64, pubsubTopic string, contentTopics []string, from *int64, to *int64) (common.Result, error)
+}
+
 // MissingMessageVerifier is used to periodically retrieve missing messages from store nodes that have some specific criteria
 type MissingMessageVerifier struct {
 	ctx    context.Context
 	params missingMessageVerifierParams
 
-	messageTracker MessageTracker
+	storenodeRequestor StorenodeRequestor
+	messageTracker     MessageTracker
 
 	criteriaInterest   map[string]criteriaInterest // Track message verification requests and when was the last time a pubsub topic was verified for missing messages
 	criteriaInterestMu sync.RWMutex
 
 	C <-chan *protocol.Envelope
 
-	store      *store.WakuStore
 	timesource timesource.Timesource
 	logger     *zap.Logger
 }
 
 // NewMissingMessageVerifier creates an instance of a MissingMessageVerifier
-func NewMissingMessageVerifier(store *store.WakuStore, messageTracker MessageTracker, timesource timesource.Timesource, logger *zap.Logger, options ...MissingMessageVerifierOption) *MissingMessageVerifier {
+func NewMissingMessageVerifier(storenodeRequester StorenodeRequestor, messageTracker MessageTracker, timesource timesource.Timesource, logger *zap.Logger, options ...MissingMessageVerifierOption) *MissingMessageVerifier {
 	options = append(defaultMissingMessagesVerifierOptions, options...)
 	params := missingMessageVerifierParams{}
 	for _, opt := range options {
@@ -56,11 +61,11 @@ func NewMissingMessageVerifier(store *store.WakuStore, messageTracker MessageTra
 	}
 
 	return &MissingMessageVerifier{
-		store:          store,
-		timesource:     timesource,
-		messageTracker: messageTracker,
-		logger:         logger.Named("missing-msg-verifier"),
-		params:         params,
+		storenodeRequestor: storenodeRequester,
+		timesource:         timesource,
+		messageTracker:     messageTracker,
+		logger:             logger.Named("missing-msg-verifier"),
+		params:             params,
 	}
 }
 
@@ -178,7 +183,7 @@ func (m *MissingMessageVerifier) fetchHistory(c chan<- *protocol.Envelope, inter
 	}
 }
 
-func (m *MissingMessageVerifier) storeQueryWithRetry(ctx context.Context, queryFunc func(ctx context.Context) (store.Result, error), logger *zap.Logger, logMsg string) (store.Result, error) {
+func (m *MissingMessageVerifier) storeQueryWithRetry(ctx context.Context, queryFunc func(ctx context.Context) (common.Result, error), logger *zap.Logger, logMsg string) (common.Result, error) {
 	retry := true
 	count := 1
 	for retry && count <= m.params.maxAttemptsToRetrieveHistory {
@@ -212,12 +217,16 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 		logging.Epoch("to", now),
 	)
 
-	result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (store.Result, error) {
-		return m.store.Query(ctx, store.FilterCriteria{
-			ContentFilter: protocol.NewContentFilter(interest.contentFilter.PubsubTopic, contentTopics[batchFrom:batchTo]...),
-			TimeStart:     proto.Int64(interest.lastChecked.Add(-m.params.delay).UnixNano()),
-			TimeEnd:       proto.Int64(now.Add(-m.params.delay).UnixNano()),
-		}, store.WithPeer(interest.peerID), store.WithPaging(false, 100), store.IncludeData(false))
+	result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
+		return m.storenodeRequestor.QueryWithCriteria(
+			ctx,
+			interest.peerID,
+			100,
+			interest.contentFilter.PubsubTopic,
+			contentTopics[batchFrom:batchTo],
+			proto.Int64(interest.lastChecked.Add(-m.params.delay).UnixNano()),
+			proto.Int64(now.Add(-m.params.delay).UnixNano()),
+		)
 	}, logger, "retrieving history to check for missing messages")
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
@@ -243,7 +252,7 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 			missingHashes = append(missingHashes, hash)
 		}
 
-		result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (store.Result, error) {
+		result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
 			if err = result.Next(ctx); err != nil {
 				return nil, err
 			}
@@ -282,10 +291,10 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 			defer utils.LogOnPanic()
 			defer wg.Wait()
 
-			result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (store.Result, error) {
+			result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
 				queryCtx, cancel := context.WithTimeout(ctx, m.params.storeQueryTimeout)
 				defer cancel()
-				return m.store.QueryByHash(queryCtx, messageHashes, store.WithPeer(interest.peerID), store.WithPaging(false, maxMsgHashesPerRequest))
+				return m.storenodeRequestor.GetMessagesByHash(queryCtx, interest.peerID, maxMsgHashesPerRequest, messageHashes)
 			}, logger, "retrieving missing messages")
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
@@ -303,7 +312,7 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 					}
 				}
 
-				result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (store.Result, error) {
+				result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
 					if err = result.Next(ctx); err != nil {
 						return nil, err
 					}
