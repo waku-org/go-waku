@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/p2p/enr"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -98,10 +97,6 @@ const (
 	Automatic PeerSelection = iota
 	LowestRTT
 )
-
-// ErrNoPeersAvailable is emitted when no suitable peers are found for
-// some protocol
-var ErrNoPeersAvailable = errors.New("no suitable peers found")
 
 const maxFailedAttempts = 5
 const prunePeerStoreInterval = 10 * time.Minute
@@ -547,8 +542,8 @@ func (pm *PeerManager) processPeerENR(p *service.PeerData) []protocol.ID {
 	}
 	supportedProtos := []protocol.ID{}
 	//Identify and specify protocols supported by the peer based on the discovered peer's ENR
-	var enrField wenr.WakuEnrBitfield
-	if err := p.ENR.Record().Load(enr.WithEntry(wenr.WakuENRField, &enrField)); err == nil {
+	enrField, err := wenr.GetWakuEnrBitField(p.ENR)
+	if err == nil {
 		for proto, protoENR := range pm.wakuprotoToENRFieldMap {
 			protoENRField := protoENR.waku2ENRBitField
 			if protoENRField&enrField != 0 {
