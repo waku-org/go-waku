@@ -22,6 +22,7 @@ import (
 
 const maxContentTopicsPerRequest = 10
 const maxMsgHashesPerRequest = 50
+const messageFetchPageSize = 100
 
 // MessageTracker should keep track of messages it has seen before and
 // provide a way to determine whether a message exists or not. This
@@ -31,8 +32,8 @@ type MessageTracker interface {
 }
 
 type StorenodeRequestor interface {
-	GetMessagesByHash(ctx context.Context, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) (common.Result, error)
-	QueryWithCriteria(ctx context.Context, peerID peer.ID, pageSize uint64, pubsubTopic string, contentTopics []string, from *int64, to *int64) (common.Result, error)
+	GetMessagesByHash(ctx context.Context, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) (common.StoreRequestResult, error)
+	QueryWithCriteria(ctx context.Context, peerID peer.ID, pageSize uint64, pubsubTopic string, contentTopics []string, from *int64, to *int64) (common.StoreRequestResult, error)
 }
 
 // MissingMessageVerifier is used to periodically retrieve missing messages from store nodes that have some specific criteria
@@ -183,7 +184,7 @@ func (m *MissingMessageVerifier) fetchHistory(c chan<- *protocol.Envelope, inter
 	}
 }
 
-func (m *MissingMessageVerifier) storeQueryWithRetry(ctx context.Context, queryFunc func(ctx context.Context) (common.Result, error), logger *zap.Logger, logMsg string) (common.Result, error) {
+func (m *MissingMessageVerifier) storeQueryWithRetry(ctx context.Context, queryFunc func(ctx context.Context) (common.StoreRequestResult, error), logger *zap.Logger, logMsg string) (common.StoreRequestResult, error) {
 	retry := true
 	count := 1
 	for retry && count <= m.params.maxAttemptsToRetrieveHistory {
@@ -217,11 +218,11 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 		logging.Epoch("to", now),
 	)
 
-	result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
+	result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.StoreRequestResult, error) {
 		return m.storenodeRequestor.QueryWithCriteria(
 			ctx,
 			interest.peerID,
-			100,
+			messageFetchPageSize,
 			interest.contentFilter.PubsubTopic,
 			contentTopics[batchFrom:batchTo],
 			proto.Int64(interest.lastChecked.Add(-m.params.delay).UnixNano()),
@@ -252,7 +253,7 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 			missingHashes = append(missingHashes, hash)
 		}
 
-		result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
+		result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.StoreRequestResult, error) {
 			if err = result.Next(ctx); err != nil {
 				return nil, err
 			}
@@ -291,7 +292,7 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 			defer utils.LogOnPanic()
 			defer wg.Wait()
 
-			result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
+			result, err := m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.StoreRequestResult, error) {
 				queryCtx, cancel := context.WithTimeout(ctx, m.params.storeQueryTimeout)
 				defer cancel()
 				return m.storenodeRequestor.GetMessagesByHash(queryCtx, interest.peerID, maxMsgHashesPerRequest, messageHashes)
@@ -312,7 +313,7 @@ func (m *MissingMessageVerifier) fetchMessagesBatch(c chan<- *protocol.Envelope,
 					}
 				}
 
-				result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.Result, error) {
+				result, err = m.storeQueryWithRetry(interest.ctx, func(ctx context.Context) (common.StoreRequestResult, error) {
 					if err = result.Next(ctx); err != nil {
 						return nil, err
 					}

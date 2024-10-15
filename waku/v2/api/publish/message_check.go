@@ -33,7 +33,7 @@ type ISentCheck interface {
 
 type StorenodeMessageVerifier interface {
 	// MessagesExist returns a list of the messages it found from a list of message hashes
-	MessagesExist(ctx context.Context, requestID []byte, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) ([]pb.MessageHash, error)
+	MessageHashesExist(ctx context.Context, requestID []byte, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) ([]pb.MessageHash, error)
 }
 
 // MessageSentCheck tracks the outgoing messages and check against store node
@@ -228,7 +228,7 @@ func (m *MessageSentCheck) messageHashBasedQuery(ctx context.Context, hashes []c
 
 	queryCtx, cancel := context.WithTimeout(ctx, m.storeQueryTimeout)
 	defer cancel()
-	result, err := m.messageVerifier.MessagesExist(queryCtx, requestID, selectedPeer, m.maxHashQueryLength, messageHashes)
+	result, err := m.messageVerifier.MessageHashesExist(queryCtx, requestID, selectedPeer, m.maxHashQueryLength, messageHashes)
 	if err != nil {
 		m.logger.Error("store.queryByHash failed", zap.String("requestID", hexutil.Encode(requestID)), zap.Stringer("peerID", selectedPeer), zap.Error(err))
 		return []common.Hash{}

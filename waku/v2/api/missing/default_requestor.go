@@ -20,14 +20,14 @@ type defaultStorenodeRequestor struct {
 	store *store.WakuStore
 }
 
-func (d *defaultStorenodeRequestor) GetMessagesByHash(ctx context.Context, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) (common.Result, error) {
+func (d *defaultStorenodeRequestor) GetMessagesByHash(ctx context.Context, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) (common.StoreRequestResult, error) {
 	return d.store.QueryByHash(ctx, messageHashes, store.WithPeer(peerID), store.WithPaging(false, pageSize))
 }
 
-func (d *defaultStorenodeRequestor) QueryWithCriteria(ctx context.Context, peerID peer.ID, pageSize uint64, pubsubTopic string, contentTopics []string, from *int64, to *int64) (common.Result, error) {
+func (d *defaultStorenodeRequestor) QueryWithCriteria(ctx context.Context, peerID peer.ID, pageSize uint64, pubsubTopic string, contentTopics []string, from *int64, to *int64) (common.StoreRequestResult, error) {
 	return d.store.Query(ctx, store.FilterCriteria{
 		ContentFilter: protocol.NewContentFilter(pubsubTopic, contentTopics...),
 		TimeStart:     from,
 		TimeEnd:       to,
-	}, store.WithPeer(peerID), store.WithPaging(false, 100), store.IncludeData(false))
+	}, store.WithPeer(peerID), store.WithPaging(false, pageSize), store.IncludeData(false))
 }

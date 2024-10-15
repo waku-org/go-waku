@@ -38,7 +38,7 @@ func (pm PublishMethod) String() string {
 
 type Publisher interface {
 	// RelayListPeers returns the list of peers for a pubsub topic
-	RelayListPeers(pubsubTopic string) []peer.ID
+	RelayListPeers(pubsubTopic string) ([]peer.ID, error)
 
 	// RelayPublish publishes a message via WakuRelay
 	RelayPublish(ctx context.Context, message *pb.WakuMessage, pubsubTopic string) (pb.MessageHash, error)
@@ -128,9 +128,12 @@ func (ms *MessageSender) Send(req *Request) error {
 			return err
 		}
 	case Relay:
-		peerCnt := len(ms.publisher.RelayListPeers(req.envelope.PubsubTopic()))
-		logger.Info("publishing message via relay", zap.Int("peerCnt", peerCnt))
-		_, err := ms.publisher.RelayPublish(req.ctx, req.envelope.Message(), req.envelope.PubsubTopic())
+		peers, err := ms.publisher.RelayListPeers(req.envelope.PubsubTopic())
+		if err != nil {
+			return err
+		}
+		logger.Info("publishing message via relay", zap.Int("peerCnt", len(peers)))
+		_, err = ms.publisher.RelayPublish(req.ctx, req.envelope.Message(), req.envelope.PubsubTopic())
 		if err != nil {
 			return err
 		}

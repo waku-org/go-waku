@@ -8,7 +8,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/store/pb"
 )
 
-type Result interface {
+type StoreRequestResult interface {
 	Cursor() []byte
 	IsComplete() bool
 	PeerID() peer.ID

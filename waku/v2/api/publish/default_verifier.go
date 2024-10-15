@@ -18,7 +18,7 @@ type defaultStorenodeMessageVerifier struct {
 	store *store.WakuStore
 }
 
-func (d *defaultStorenodeMessageVerifier) MessagesExist(ctx context.Context, requestID []byte, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) ([]pb.MessageHash, error) {
+func (d *defaultStorenodeMessageVerifier) MessageHashesExist(ctx context.Context, requestID []byte, peerID peer.ID, pageSize uint64, messageHashes []pb.MessageHash) ([]pb.MessageHash, error) {
 	var opts []store.RequestOption
 	opts = append(opts, store.WithRequestID(requestID))
 	opts = append(opts, store.WithPeer(peerID))
