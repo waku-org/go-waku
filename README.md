@@ -1,4 +1,5 @@
 # go-waku
+#### Waku is a family of robust, censorship-resistant, peer-to-peer communication protocols that enable privacy-focused messaging for Web3 applications, allowing you to integrate decentralised communication features into your dApp without compromising security or privacy
 A Go implementation of the [Waku v2 protocol](https://rfc.vac.dev/spec/10).
 
 
