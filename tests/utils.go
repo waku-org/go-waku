@@ -410,6 +410,7 @@ func WaitForMsg(t *testing.T, timeout time.Duration, wg *sync.WaitGroup, ch chan
 	wg.Add(1)
 	log := utils.Logger()
 	go func() {
+		defer utils.LogOnPanic()
 		defer wg.Done()
 		select {
 		case env := <-ch:
@@ -425,6 +426,7 @@ func WaitForMsg(t *testing.T, timeout time.Duration, wg *sync.WaitGroup, ch chan
 func WaitForTimeout(t *testing.T, ctx context.Context, timeout time.Duration, wg *sync.WaitGroup, ch chan *protocol.Envelope) {
 	wg.Add(1)
 	go func() {
+		defer utils.LogOnPanic()
 		defer wg.Done()
 		select {
 		case _, ok := <-ch:

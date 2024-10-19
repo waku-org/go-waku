@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	"go.uber.org/zap"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 type WakuRest struct {
@@ -93,6 +94,7 @@ func (r *WakuRest) Start(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	go func() {
+		defer utils.LogOnPanic()
 		_ = r.server.ListenAndServe()
 	}()
 	r.log.Info("server started", zap.String("addr", r.server.Addr))

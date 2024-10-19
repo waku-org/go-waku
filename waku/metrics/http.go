@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opencensus.io/plugin/ochttp"
 	"go.uber.org/zap"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 // Server runs and controls a HTTP pprof interface.
@@ -43,6 +44,7 @@ func NewMetricsServer(address string, port int, log *zap.Logger) *Server {
 
 // Start executes the HTTP server in the background.
 func (p *Server) Start() {
+	defer utils.LogOnPanic()
 	p.log.Info("server started ", zap.Error(p.server.ListenAndServe()))
 }
 

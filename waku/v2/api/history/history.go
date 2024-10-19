@@ -13,6 +13,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"go.uber.org/zap"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 const maxTopicsPerRequest int = 10
@@ -81,6 +82,7 @@ func (hr *HistoryRetriever) Query(
 	// Producer
 	wg.Add(1)
 	go func() {
+		defer utils.LogOnPanic()
 		defer func() {
 			logger.Debug("mailserver batch producer complete")
 			wg.Done()
@@ -117,6 +119,7 @@ func (hr *HistoryRetriever) Query(
 		}
 
 		go func() {
+			defer utils.LogOnPanic()
 			workWg.Wait()
 			workCompleteCh <- struct{}{}
 		}()
@@ -152,6 +155,7 @@ loop:
 
 			semaphore <- struct{}{}
 			go func(w work) { // Consumer
+				defer utils.LogOnPanic()
 				defer func() {
 					workWg.Done()
 					<-semaphore
@@ -227,6 +231,7 @@ func (hr *HistoryRetriever) createMessagesRequest(
 		})
 
 		go func() {
+			defer utils.LogOnPanic()
 			storeCursor, envelopesCount, err = hr.requestStoreMessages(ctx, peerID, criteria, cursor, limit, processEnvelopes)
 			resultCh <- struct {
 				storeCursor    []byte
@@ -243,6 +248,7 @@ func (hr *HistoryRetriever) createMessagesRequest(
 		}
 	} else {
 		go func() {
+			defer utils.LogOnPanic()
 			_, _, err = hr.requestStoreMessages(ctx, peerID, criteria, cursor, limit, false)
 			if err != nil {
 				logger.Error("failed to request store messages", zap.Error(err))

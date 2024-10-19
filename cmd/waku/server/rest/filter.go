@@ -14,6 +14,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"go.uber.org/zap"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 const filterV2Subscriptions = "/filter/v2/subscriptions"
@@ -32,6 +33,7 @@ type FilterService struct {
 
 // Start starts the RelayService
 func (s *FilterService) Start(ctx context.Context) {
+	defer utils.LogOnPanic()
 
 	for _, sub := range s.node.FilterLightnode().Subscriptions() {
 		s.cache.subscribe(sub.ContentFilter)

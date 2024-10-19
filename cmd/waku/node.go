@@ -356,6 +356,7 @@ func Execute(options NodeOptions) error {
 
 	for _, n := range options.StaticNodes {
 		go func(ctx context.Context, node multiaddr.Multiaddr) {
+			defer utils.LogOnPanic()
 			ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 			defer cancel()
 			err = wakuNode.DialPeerWithMultiAddress(ctx, node)

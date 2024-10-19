@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
 	"go.uber.org/zap"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 const defaultBackoff = 10 * time.Second
@@ -190,6 +191,7 @@ func (m *StorenodeCycle) getAvailableStorenodesSortedByRTT(ctx context.Context, 
 	for _, storenode := range allStorenodes {
 		availableStorenodesWg.Add(1)
 		go func(peerID peer.ID) {
+			defer utils.LogOnPanic()
 			defer availableStorenodesWg.Done()
 			ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 			defer cancel()
@@ -365,6 +367,8 @@ func (m *StorenodeCycle) penalizeStorenode(id peer.ID) {
 }
 
 func (m *StorenodeCycle) verifyStorenodeStatus(ctx context.Context) {
+	defer utils.LogOnPanic()
+
 	ticker := time.NewTicker(storenodeVerificationInterval)
 	defer ticker.Stop()
 
@@ -421,6 +425,7 @@ func (m *StorenodeCycle) WaitForAvailableStoreNode(ctx context.Context, timeout 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
+		defer utils.LogOnPanic()
 		defer wg.Done()
 		for !m.IsStorenodeAvailable(m.activeStorenode) {
 			select {
@@ -442,6 +447,7 @@ func (m *StorenodeCycle) WaitForAvailableStoreNode(ctx context.Context, timeout 
 func waitForWaitGroup(wg *sync.WaitGroup) <-chan struct{} {
 	ch := make(chan struct{})
 	go func() {
+		defer utils.LogOnPanic()
 		wg.Wait()
 		close(ch)
 	}()

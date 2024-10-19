@@ -189,6 +189,7 @@ func (s *FilterTestSuite) waitForMsgFromChan(msg *WakuMsg, ch chan *protocol.Env
 	s.wg.Add(1)
 	var msgFound = false
 	go func() {
+		defer utils.LogOnPanic()
 		defer s.wg.Done()
 		select {
 		case env := <-ch:
@@ -233,6 +234,7 @@ func (s *FilterTestSuite) waitForMessages(msgs []WakuMsg) {
 	s.Log.Info("Existing subscriptions ", zap.String("count", strconv.Itoa(len(subs))))
 
 	go func() {
+		defer utils.LogOnPanic()
 		defer s.wg.Done()
 		for _, sub := range subs {
 			s.Log.Info("Looking at ", zap.String("pubSubTopic", sub.ContentFilter.PubsubTopic))
@@ -275,6 +277,7 @@ func (s *FilterTestSuite) waitForTimeout(msg *WakuMsg) {
 func (s *FilterTestSuite) waitForTimeoutFromChan(msg *WakuMsg, ch chan *protocol.Envelope) {
 	s.wg.Add(1)
 	go func() {
+		defer utils.LogOnPanic()
 		defer s.wg.Done()
 		select {
 		case env, ok := <-ch:

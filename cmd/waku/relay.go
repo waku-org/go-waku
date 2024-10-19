@@ -9,6 +9,7 @@ import (
 	wprotocol "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/rendezvous"
+	"github.com/waku-org/go-waku/waku/v2/utils"
 )
 
 func handleRelayTopics(ctx context.Context, wg *sync.WaitGroup, wakuNode *node.WakuNode, pubSubTopicMap map[string][]string) error {
@@ -25,6 +26,7 @@ func handleRelayTopics(ctx context.Context, wg *sync.WaitGroup, wakuNode *node.W
 
 			wg.Add(1)
 			go func(nodeTopic string) {
+				defer utils.LogOnPanic()
 				t := time.NewTicker(rendezvous.RegisterDefaultTTL)
 				defer t.Stop()
 				defer wg.Done()
@@ -42,6 +44,7 @@ func handleRelayTopics(ctx context.Context, wg *sync.WaitGroup, wakuNode *node.W
 
 			wg.Add(1)
 			go func(nodeTopic string) {
+				defer utils.LogOnPanic()
 				defer wg.Done()
 				desiredOutDegree := wakuNode.Relay().Params().D
 				t := time.NewTicker(7 * time.Second)
