@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
+	"github.com/waku-org/go-waku/waku/v2/api/common"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	proto_pb "github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/store"
@@ -91,14 +92,10 @@ func getInitialResponseKey(contentTopics []string) string {
 	return hex.EncodeToString(append([]byte("start"), []byte(contentTopics[0])...))
 }
 
-func (t *mockStore) Query(ctx context.Context, criteria store.FilterCriteria, opts ...store.RequestOption) (store.Result, error) {
-	params := store.Parameters{}
-	for _, opt := range opts {
-		_ = opt(&params)
-	}
+func (t *mockStore) Query(ctx context.Context, peerID peer.ID, storeQueryRequest *pb.StoreQueryRequest) (common.StoreRequestResult, error) {
 	result := &mockResult{}
-	if params.Cursor() == nil {
-		initialResponse := getInitialResponseKey(criteria.ContentTopicsList())
+	if len(storeQueryRequest.GetPaginationCursor()) == 0 {
+		initialResponse := getInitialResponseKey(storeQueryRequest.GetContentTopics())
 		response := t.queryResponses[initialResponse]
 		if response.err != nil {
 			return nil, response.err
@@ -106,7 +103,7 @@ func (t *mockStore) Query(ctx context.Context, criteria store.FilterCriteria, op
 		result.cursor = response.cursor
 		result.messages = response.messages
 	} else {
-		response := t.queryResponses[hex.EncodeToString(params.Cursor())]
+		response := t.queryResponses[hex.EncodeToString(storeQueryRequest.GetPaginationCursor())]
 		if response.err != nil {
 			return nil, response.err
 		}
