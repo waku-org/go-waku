@@ -15,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/net/swarm"
 	"github.com/libp2p/go-msgio/pbio"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/waku-org/go-waku/logging"
@@ -249,6 +250,10 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, requestID []byte,
 		wf.metrics.RecordError(dialFailure)
 		if wf.pm != nil {
 			wf.pm.HandleDialError(err, peerID)
+			if errors.Is(err, swarm.ErrAllDialsFailed) ||
+				errors.Is(err, swarm.ErrDialBackoff) || errors.Is(err, swarm.ErrNoAddresses) {
+				wf.pm.CheckAndRemoveBadPeer(peerID)
+			}
 		}
 		return err
 	}

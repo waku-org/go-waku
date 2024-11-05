@@ -197,6 +197,7 @@ func (mgr *FilterManager) OnConnectionStatusChange(pubsubTopic string, newStatus
 	mgr.logger.Debug("inside on connection status change", zap.Bool("new-status", newStatus),
 		zap.Int("agg filters count", len(mgr.filterSubscriptions)), zap.Int("filter subs count", len(subs)))
 	if newStatus && !mgr.onlineChecker.IsOnline() { // switched from offline to Online
+		mgr.onlineChecker.SetOnline(newStatus)
 		mgr.NetworkChange()
 		mgr.logger.Debug("switching from offline to online")
 		mgr.Lock()
