@@ -159,7 +159,26 @@ loop:
 				}()
 
 				queryCtx, queryCancel := context.WithTimeout(ctx, mailserverRequestTimeout)
-				cursor, envelopesCount, err := hr.createMessagesRequest(queryCtx, storenodeID, w.criteria, w.cursor, w.limit, true, processEnvelopes, logger)
+
+				// If time range is greater than 24 hours, limit the range: to - (to-24h)
+				// TODO: handle cases in which TimeStart/TimeEnd could be nil
+				//       (this type of query does not happen in status-go, though, and
+				//       nwaku might limit query duration to 24h anyway, so perhaps
+				//       it's not worth adding such logic)
+				timeStart := w.criteria.TimeStart
+				timeEnd := w.criteria.TimeEnd
+				exceeds24h := false
+				if timeStart != nil && timeEnd != nil && *timeEnd-*timeStart > (24*time.Hour).Nanoseconds() {
+					newTimeStart := *timeEnd - (24 * time.Hour).Nanoseconds()
+					timeStart = &newTimeStart
+					exceeds24h = true
+				}
+
+				newCriteria := w.criteria
+				newCriteria.TimeStart = timeStart
+				newCriteria.TimeEnd = timeEnd
+
+				cursor, envelopesCount, err := hr.createMessagesRequest(queryCtx, storenodeID, newCriteria, w.cursor, w.limit, true, processEnvelopes, logger)
 				queryCancel()
 
 				if err != nil {
@@ -180,18 +199,28 @@ loop:
 
 				// Check the cursor after calling `shouldProcessNextPage`.
 				// The app might use process the fetched envelopes in the callback for own needs.
-				if cursor == nil {
+				// If from/to does not exceed 24h and no cursor was returned, we have already
+				// requested the entire time range
+				if cursor == nil && !exceeds24h {
 					return
 				}
 
 				logger.Debug("processBatch producer - creating work (cursor)")
 
-				workWg.Add(1)
-				workCh <- work{
+				newWork := work{
 					criteria: w.criteria,
 					cursor:   cursor,
 					limit:    nextPageLimit,
 				}
+
+				// If from/to has exceeded the 24h, but there are no more records within the current
+				// 24h range, then we update the `to` for the new work to not include it.
+				if cursor == nil && exceeds24h {
+					newWork.criteria.TimeEnd = timeStart
+				}
+
+				workWg.Add(1)
+				workCh <- newWork
 			}(w)
 		case err := <-errCh:
 			logger.Debug("processBatch - received error", zap.Error(err))
