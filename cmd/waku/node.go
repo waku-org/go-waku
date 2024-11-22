@@ -309,11 +309,6 @@ func Execute(options NodeOptions) error {
 		nodeOpts = append(nodeOpts, discv5Opts)
 	}
 
-	wakuNode, err := node.New(nodeOpts...)
-	if err != nil {
-		return fmt.Errorf("could not instantiate waku: %w", err)
-	}
-
 	//Process pubSub and contentTopics specified and arrive at all corresponding pubSubTopics
 	pubSubTopicMap, err := processTopics(options)
 	if err != nil {
@@ -323,6 +318,22 @@ func Execute(options NodeOptions) error {
 	pubSubTopicMapKeys := make([]string, 0, len(pubSubTopicMap))
 	for k := range pubSubTopicMap {
 		pubSubTopicMapKeys = append(pubSubTopicMapKeys, k)
+	}
+
+	rs, err := wprotocol.TopicsToRelayShards(pubSubTopicMapKeys...)
+	if err == nil {
+		if len(rs) == 1 {
+			nodeOpts = append(nodeOpts, node.WithShards(rs[0].ShardIDs))
+		} else {
+			logger.Warn("could not set ENR shard info", zap.String("error", "invalid number of clusters found"), zap.Int("numClusters", len(rs)))
+		}
+	} else {
+		logger.Warn("could not obtain list of shards", zap.Error(err))
+	}
+
+	wakuNode, err := node.New(nodeOpts...)
+	if err != nil {
+		return fmt.Errorf("could not instantiate waku: %w", err)
 	}
 
 	if err = wakuNode.Start(ctx); err != nil {
