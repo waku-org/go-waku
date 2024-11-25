@@ -85,7 +85,7 @@ type WakuNodeParameters struct {
 	enableRelay           bool
 	enableFilterLightNode bool
 	enableFilterFullNode  bool
-	filterOpts            []filter.Option
+	filterOpts            []filter.FullNodeOption
 	pubsubOpts            []pubsub.Option
 	lightpushOpts         []lightpush.Option
 
@@ -471,7 +471,7 @@ func WithWakuFilterLightNode() WakuNodeOption {
 
 // WithWakuFilterFullNode enables the Waku Filter V2 protocol full node functionality.
 // This WakuNodeOption accepts a list of WakuFilter options to setup the protocol
-func WithWakuFilterFullNode(filterOpts ...filter.Option) WakuNodeOption {
+func WithWakuFilterFullNode(filterOpts ...filter.FullNodeOption) WakuNodeOption {
 	return func(params *WakuNodeParameters) error {
 		params.enableFilterFullNode = true
 		params.filterOpts = filterOpts

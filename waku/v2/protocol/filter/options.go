@@ -11,6 +11,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 func (old *FilterSubscribeParameters) Copy() *FilterSubscribeParameters {
@@ -53,19 +54,41 @@ type (
 		wg             *sync.WaitGroup
 	}
 
-	FilterParameters struct {
+	FilterFullNodeParameters struct {
 		Timeout        time.Duration
 		MaxSubscribers int
 		pm             *peermanager.PeerManager
+		limitR         rate.Limit
+		limitB         int
 	}
 
-	Option func(*FilterParameters)
+	FullNodeOption func(*FilterFullNodeParameters)
+
+	FilterLightNodeParameters struct {
+		limitR rate.Limit
+		limitB int
+	}
+
+	LightNodeOption func(*FilterLightNodeParameters)
 
 	FilterSubscribeOption func(*FilterSubscribeParameters) error
 )
 
-func WithTimeout(timeout time.Duration) Option {
-	return func(params *FilterParameters) {
+func WithLightNodeRateLimiter(r rate.Limit, b int) LightNodeOption {
+	return func(params *FilterLightNodeParameters) {
+		params.limitR = r
+		params.limitB = b
+	}
+}
+
+func DefaultLightNodeOptions() []LightNodeOption {
+	return []LightNodeOption{
+		WithLightNodeRateLimiter(rate.Inf, 0),
+	}
+}
+
+func WithTimeout(timeout time.Duration) FullNodeOption {
+	return func(params *FilterFullNodeParameters) {
 		params.Timeout = timeout
 	}
 }
@@ -190,21 +213,29 @@ func DefaultUnsubscribeOptions() []FilterSubscribeOption {
 	}
 }
 
-func WithMaxSubscribers(maxSubscribers int) Option {
-	return func(params *FilterParameters) {
+func WithMaxSubscribers(maxSubscribers int) FullNodeOption {
+	return func(params *FilterFullNodeParameters) {
 		params.MaxSubscribers = maxSubscribers
 	}
 }
 
-func WithPeerManager(pm *peermanager.PeerManager) Option {
-	return func(params *FilterParameters) {
+func WithPeerManager(pm *peermanager.PeerManager) FullNodeOption {
+	return func(params *FilterFullNodeParameters) {
 		params.pm = pm
 	}
 }
 
-func DefaultOptions() []Option {
-	return []Option{
+func WithFullNodeRateLimiter(r rate.Limit, b int) FullNodeOption {
+	return func(params *FilterFullNodeParameters) {
+		params.limitR = r
+		params.limitB = b
+	}
+}
+
+func DefaultFullNodeOptions() []FullNodeOption {
+	return []FullNodeOption{
 		WithTimeout(DefaultIdleSubscriptionTimeout),
 		WithMaxSubscribers(DefaultMaxSubscribers),
+		WithFullNodeRateLimiter(rate.Inf, 0),
 	}
 }

@@ -12,7 +12,8 @@ import (
 )
 
 type PeerExchangeParameters struct {
-	limiter *rate.Limiter
+	limiterR rate.Limit
+	limiterB int
 }
 
 type Option func(*PeerExchangeParameters)
@@ -20,7 +21,14 @@ type Option func(*PeerExchangeParameters)
 // WithRateLimiter is an option used to specify a rate limiter for requests received in lightpush protocol
 func WithRateLimiter(r rate.Limit, b int) Option {
 	return func(params *PeerExchangeParameters) {
-		params.limiter = rate.NewLimiter(r, b)
+		params.limiterR = r
+		params.limiterB = b
+	}
+}
+
+func DefaultOptions() []Option {
+	return []Option{
+		WithRateLimiter(rate.Inf, 0),
 	}
 }
 
@@ -87,8 +95,8 @@ func WithFastestPeerSelection(fromThesePeers ...peer.ID) RequestOption {
 	}
 }
 
-// DefaultOptions are the default options to be used when using the lightpush protocol
-func DefaultOptions(host host.Host) []RequestOption {
+// DefaultRequestOptions are the default options to be used when using the lightpush protocol
+func DefaultRequestOptions(host host.Host) []RequestOption {
 	return []RequestOption{
 		WithAutomaticPeerSelection(),
 	}
