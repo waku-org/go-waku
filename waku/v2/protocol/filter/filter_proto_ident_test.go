@@ -58,7 +58,7 @@ func (s *FilterTestSuite) TestMultipleMessages() {
 	s.waitForMsg(&WakuMsg{s.TestTopic, s.TestContentTopic, "second"})
 }
 
-func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, params *FilterSubscribeParameters,
+func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, params *SubscribeParameters,
 	reqType pb.FilterSubscribeRequest_FilterSubscribeType, contentFilter protocol.ContentFilter) error {
 
 	const FilterSubscribeID_Incorrect1 = libp2pProtocol.ID("/vac/waku/filter-subscribe/abcd")
@@ -111,7 +111,7 @@ func (wf *WakuFilterLightNode) incorrectSubscribeRequest(ctx context.Context, pa
 	return nil
 }
 
-func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFilter protocol.ContentFilter, opts ...FilterSubscribeOption) ([]*subscription.SubscriptionDetails, error) {
+func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFilter protocol.ContentFilter, opts ...SubscribeOption) ([]*subscription.SubscriptionDetails, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
@@ -129,7 +129,7 @@ func (wf *WakuFilterLightNode) IncorrectSubscribe(ctx context.Context, contentFi
 		return nil, fmt.Errorf("exceeds maximum content topics: %d", MaxContentTopicsPerRequest)
 	}
 
-	params := new(FilterSubscribeParameters)
+	params := new(SubscribeParameters)
 	params.log = wf.log
 	params.host = wf.h
 	params.pm = wf.pm

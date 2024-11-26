@@ -19,13 +19,13 @@ func TestFilterOption(t *testing.T) {
 	require.NoError(t, err)
 
 	// subscribe options
-	options := []FilterSubscribeOption{
+	options := []SubscribeOption{
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 		WithAutomaticPeerSelection(),
 		WithFastestPeerSelection(),
 	}
 
-	params := new(FilterSubscribeParameters)
+	params := new(SubscribeParameters)
 	params.host = host
 	params.log = utils.Logger()
 
@@ -38,13 +38,13 @@ func TestFilterOption(t *testing.T) {
 	require.NotEqual(t, 0, params.selectedPeers)
 
 	// Unsubscribe options
-	options2 := []FilterSubscribeOption{
+	options2 := []SubscribeOption{
 		WithAutomaticRequestID(),
 		UnsubscribeAll(),
 		WithPeer("QmWLxGxG65CZ7vRj5oNXCJvbY9WkF9d9FxuJg8cg8Y7q3"),
 	}
 
-	params2 := new(FilterSubscribeParameters)
+	params2 := new(SubscribeParameters)
 
 	for _, opt := range options2 {
 		err := opt(params2)
@@ -57,12 +57,12 @@ func TestFilterOption(t *testing.T) {
 	// Mutually Exclusive options
 	maddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/12345/p2p/16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy")
 	require.NoError(t, err)
-	options3 := []FilterSubscribeOption{
+	options3 := []SubscribeOption{
 		WithPeer("16Uiu2HAm8KUwGRruseAaEGD6xGg6XKrDo8Py5dwDoL9wUpCxawGy"),
 		WithPeerAddr(maddr),
 	}
 
-	params3 := new(FilterSubscribeParameters)
+	params3 := new(SubscribeParameters)
 
 	for idx, opt := range options3 {
 		err := opt(params3)

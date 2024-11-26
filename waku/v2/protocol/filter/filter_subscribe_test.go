@@ -392,7 +392,7 @@ func (s *FilterTestSuite) TestHandleFilterSubscribeOptions() {
 	s.subscribe(s.TestTopic, s.TestContentTopic, s.FullNodeHost.ID())
 
 	// With valid peer
-	opts := []FilterSubscribeOption{WithPeer(s.FullNodeHost.ID())}
+	opts := []SubscribeOption{WithPeer(s.FullNodeHost.ID())}
 
 	// Positive case
 	_, _, err := s.LightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)
@@ -401,7 +401,7 @@ func (s *FilterTestSuite) TestHandleFilterSubscribeOptions() {
 	addr := s.FullNodeHost.Addrs()[0]
 
 	// Combine mutually exclusive options
-	opts = []FilterSubscribeOption{WithPeer(s.FullNodeHost.ID()), WithPeerAddr(addr)}
+	opts = []SubscribeOption{WithPeer(s.FullNodeHost.ID()), WithPeerAddr(addr)}
 
 	// Should fail on wrong option combination
 	_, _, err = s.LightNode.handleFilterSubscribeOptions(s.ctx, contentFilter, opts)

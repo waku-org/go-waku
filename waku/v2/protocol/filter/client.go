@@ -102,7 +102,7 @@ func NewWakuFilterLightNode(
 	wf.metrics = newMetrics(reg)
 	wf.peerPingInterval = 1 * time.Minute
 
-	params := &FilterLightNodeParameters{}
+	params := &LightNodeParameters{}
 	opts = append(DefaultLightNodeOptions(), opts...)
 	for _, opt := range opts {
 		opt(params)
@@ -318,8 +318,8 @@ func (wf *WakuFilterLightNode) request(ctx context.Context, requestID []byte,
 	return nil
 }
 
-func (wf *WakuFilterLightNode) handleFilterSubscribeOptions(ctx context.Context, contentFilter protocol.ContentFilter, opts []FilterSubscribeOption) (*FilterSubscribeParameters, map[string][]string, error) {
-	params := new(FilterSubscribeParameters)
+func (wf *WakuFilterLightNode) handleFilterSubscribeOptions(ctx context.Context, contentFilter protocol.ContentFilter, opts []SubscribeOption) (*SubscribeParameters, map[string][]string, error) {
+	params := new(SubscribeParameters)
 	params.log = wf.log
 	params.host = wf.h
 	params.pm = wf.pm
@@ -377,7 +377,7 @@ func (wf *WakuFilterLightNode) handleFilterSubscribeOptions(ctx context.Context,
 // If contentTopics passed result in different pubSub topics (due to Auto/Static sharding), then multiple subscription requests are sent to the peer.
 // This may change if Filterv2 protocol is updated to handle such a scenario in a single request.
 // Note: In case of partial failure, results are returned for successful subscriptions along with error indicating failed contentTopics.
-func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter protocol.ContentFilter, opts ...FilterSubscribeOption) ([]*subscription.SubscriptionDetails, error) {
+func (wf *WakuFilterLightNode) Subscribe(ctx context.Context, contentFilter protocol.ContentFilter, opts ...SubscribeOption) ([]*subscription.SubscriptionDetails, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
@@ -479,8 +479,8 @@ func (wf *WakuFilterLightNode) FilterSubscription(peerID peer.ID, contentFilter 
 	return wf.subscriptions.NewSubscription(peerID, contentFilter), nil
 }
 
-func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterSubscribeOption) (*FilterSubscribeParameters, error) {
-	params := new(FilterSubscribeParameters)
+func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...SubscribeOption) (*SubscribeParameters, error) {
+	params := new(SubscribeParameters)
 	params.log = wf.log
 	opts = append(DefaultUnsubscribeOptions(), opts...)
 	for _, opt := range opts {
@@ -492,14 +492,14 @@ func (wf *WakuFilterLightNode) getUnsubscribeParameters(opts ...FilterSubscribeO
 	return params, nil
 }
 
-func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ...FilterPingOption) error {
+func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ...PingOption) error {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
 		return err
 	}
 
-	params := &FilterPingParameters{}
+	params := &PingParameters{}
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -516,7 +516,7 @@ func (wf *WakuFilterLightNode) Ping(ctx context.Context, peerID peer.ID, opts ..
 }
 
 // Unsubscribe is used to stop receiving messages from specified peers for the content filter
-func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter protocol.ContentFilter, opts ...FilterSubscribeOption) (*WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) Unsubscribe(ctx context.Context, contentFilter protocol.ContentFilter, opts ...SubscribeOption) (*WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
@@ -621,7 +621,7 @@ func (wf *WakuFilterLightNode) IsListening(pubsubTopic, contentTopic string) boo
 // If there are no more subscriptions matching the passed [peer, contentFilter] pair,
 // server unsubscribe is also performed
 func (wf *WakuFilterLightNode) UnsubscribeWithSubscription(ctx context.Context, sub *subscription.SubscriptionDetails,
-	opts ...FilterSubscribeOption) (*WakuFilterPushResult, error) {
+	opts ...SubscribeOption) (*WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {
@@ -668,7 +668,7 @@ func (wf *WakuFilterLightNode) unsubscribeFromServer(ctx context.Context, reques
 
 // close all subscribe for selectedPeer or if selectedPeer == "", then all peers
 // send the unsubscribeAll request to the peers
-func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...FilterSubscribeOption) (*WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...SubscribeOption) (*WakuFilterPushResult, error) {
 	params, err := wf.getUnsubscribeParameters(opts...)
 	if err != nil {
 		return nil, err
@@ -739,7 +739,7 @@ func (wf *WakuFilterLightNode) unsubscribeAll(ctx context.Context, opts ...Filte
 }
 
 // UnsubscribeAll is used to stop receiving messages from peer(s). It does not close subscriptions
-func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...FilterSubscribeOption) (*WakuFilterPushResult, error) {
+func (wf *WakuFilterLightNode) UnsubscribeAll(ctx context.Context, opts ...SubscribeOption) (*WakuFilterPushResult, error) {
 	wf.RLock()
 	defer wf.RUnlock()
 	if err := wf.ErrOnNotRunning(); err != nil {

@@ -79,7 +79,7 @@ func NewChat(ctx context.Context, node *node.WakuNode, connNotifier <-chan node.
 			PubsubTopic:   relay.DefaultWakuTopic,
 			ContentTopics: protocol.NewContentTopicSet(options.ContentTopic),
 		}
-		var filterOpt filter.FilterSubscribeOption
+		var filterOpt filter.SubscribeOption
 		peerID, err := options.Filter.NodePeerID()
 		if err != nil {
 			filterOpt = filter.WithAutomaticPeerSelection()

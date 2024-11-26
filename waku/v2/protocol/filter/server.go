@@ -49,7 +49,7 @@ func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Regi
 	wf := new(WakuFilterFullNode)
 	wf.log = log.Named("filterv2-fullnode")
 
-	params := new(FilterFullNodeParameters)
+	params := new(FullNodeParameters)
 	optList := DefaultFullNodeOptions()
 	optList = append(optList, opts...)
 	for _, opt := range optList {
