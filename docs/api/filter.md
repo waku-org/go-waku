@@ -32,7 +32,7 @@ if err := wakuNode.Start(context.Background()); err != nil {
 ### Options
 One of these options must be specified when instantiating a node supporting the waku relay protocol
 
-- `WitWakuFilter(isFullNode, opts ...pubsub.Option)` - enables the waku filter protocol and receives an optional list of options to configure the protocol
+- `WithWakuFilter(isFullNode, opts ...pubsub.Option)` - enables the waku filter protocol and receives an optional list of options to configure the protocol
 
 ## Adding a peer and receiving messages
 ```go
