@@ -4,17 +4,17 @@ DNS Discovery enables anyone to register an ENR tree in the TXT field of a domai
 
 ENR is the format used to store node connection details (ip, port, multiaddr, etc).
 
-This enables a separation of software development and operations as dApp developers can include one or several domain names to use for DNS discovery, while operators can handle the update of the dns record.
+This enables a separation of software development and operations as dApp developers can include one or several domain names to use for DNS discovery, while operators can handle the update of the DNS record.
 
 It also enables more decentralized bootstrapping as anyone can register a domain name and publish it for others to use.
 
 **Pros**:
 - Low latency, low resource requirements,
 - Bootstrap list can be updated by editing a domain name: no code change is needed,
-- Can reference to a greater list of nodes by pointing to other domain names in the code or in the ENR tree.
+- Can reference a greater list of nodes by pointing to other domain names in the code or in the ENR tree.
 
 **Cons**:
-- Prone to censorship: domain names can be blocked,
+- Prone to censorship: domain names can be censored,
 - Limited: Static number of nodes, operators must provide their ENR to the domain owner to get their node listed.
 
 
