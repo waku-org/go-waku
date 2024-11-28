@@ -65,8 +65,5 @@ func (r *RateLimiter) Allow(peerID peer.ID) bool {
 }
 
 func (r *RateLimiter) Wait(ctx context.Context, peerID peer.ID) error {
-	r.Lock()
-	defer r.Unlock()
-
 	return r.getOrCreate(peerID).Wait(ctx)
 }

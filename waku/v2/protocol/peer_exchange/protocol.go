@@ -67,7 +67,7 @@ func NewWakuPeerExchange(disc *discv5.DiscoveryV5, clusterID uint16, peerConnect
 	wakuPX.CommonService = service.NewCommonService()
 
 	params := &PeerExchangeParameters{}
-	opts = append(DefaultOptions(), opts...)
+	opts = append(DefaultPeerExchangeOptions(), opts...)
 	for _, opt := range opts {
 		opt(params)
 	}

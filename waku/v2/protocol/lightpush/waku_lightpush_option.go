@@ -28,9 +28,9 @@ func WithRateLimiter(r rate.Limit, b int) Option {
 	}
 }
 
-func DefaultOptions() []Option {
+func DefaultLightpushOptions() []Option {
 	return []Option{
-		WithRateLimiter(rate.Inf, 0),
+		WithRateLimiter(1, 1),
 	}
 }
 
@@ -138,8 +138,8 @@ func WithAutomaticRequestID() RequestOption {
 	}
 }
 
-// DefaultRequestOptions are the default options to be used when using the lightpush protocol
-func DefaultRequestOptions(host host.Host) []RequestOption {
+// DefaultOptions are the default options to be used when using the lightpush protocol
+func DefaultOptions(host host.Host) []RequestOption {
 	return []RequestOption{
 		WithAutomaticPeerSelection(),
 		WithMaxPeers(1), //keeping default as 2 for status use-case

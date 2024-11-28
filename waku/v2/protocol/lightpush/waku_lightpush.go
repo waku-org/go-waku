@@ -58,7 +58,7 @@ func NewWakuLightPush(relay *relay.WakuRelay, pm *peermanager.PeerManager, reg p
 	wakuLP.metrics = newMetrics(reg)
 
 	params := &LightpushParameters{}
-	opts = append(DefaultOptions(), opts...)
+	opts = append(DefaultLightpushOptions(), opts...)
 	for _, opt := range opts {
 		opt(params)
 	}
@@ -257,7 +257,7 @@ func (wakuLP *WakuLightPush) handleOpts(ctx context.Context, message *wpb.WakuMe
 	params.pm = wakuLP.pm
 	var err error
 
-	optList := append(DefaultRequestOptions(wakuLP.h), opts...)
+	optList := append(DefaultOptions(wakuLP.h), opts...)
 	for _, opt := range optList {
 		err := opt(params)
 		if err != nil {

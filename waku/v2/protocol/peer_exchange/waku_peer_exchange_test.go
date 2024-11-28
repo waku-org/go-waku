@@ -248,7 +248,7 @@ func TestPeerExchangeOptions(t *testing.T) {
 	params.log = px1.log
 	params.pm = px1.pm
 
-	optList := DefaultRequestOptions(px1.h)
+	optList := DefaultOptions(px1.h)
 	optList = append(optList, WithPeerAddr(host1.Addrs()[0]))
 	for _, opt := range optList {
 		err := opt(params)
@@ -258,7 +258,7 @@ func TestPeerExchangeOptions(t *testing.T) {
 	require.Equal(t, host1.Addrs()[0], params.peerAddr)
 
 	// Test WithFastestPeerSelection()
-	optList = DefaultRequestOptions(px1.h)
+	optList = DefaultOptions(px1.h)
 	optList = append(optList, WithFastestPeerSelection(host1.ID()))
 	for _, opt := range optList {
 		err := opt(params)

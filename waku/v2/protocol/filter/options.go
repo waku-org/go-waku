@@ -14,28 +14,28 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func (old *SubscribeParameters) Copy() *SubscribeParameters {
-	return &SubscribeParameters{
+func (old *FilterSubscribeParameters) Copy() *FilterSubscribeParameters {
+	return &FilterSubscribeParameters{
 		selectedPeers: old.selectedPeers,
 		requestID:     old.requestID,
 	}
 }
 
 type (
-	PingParameters struct {
+	FilterPingParameters struct {
 		requestID []byte
 	}
-	PingOption func(*PingParameters)
+	FilterPingOption func(*FilterPingParameters)
 )
 
-func WithPingRequestId(requestId []byte) PingOption {
-	return func(params *PingParameters) {
+func WithPingRequestId(requestId []byte) FilterPingOption {
+	return func(params *FilterPingParameters) {
 		params.requestID = requestId
 	}
 }
 
 type (
-	SubscribeParameters struct {
+	FilterSubscribeParameters struct {
 		selectedPeers     peer.IDSlice
 		peerAddr          multiaddr.Multiaddr
 		peerSelectionType peermanager.PeerSelection
@@ -54,7 +54,7 @@ type (
 		wg             *sync.WaitGroup
 	}
 
-	FullNodeParameters struct {
+	FilterParameters struct {
 		Timeout        time.Duration
 		MaxSubscribers int
 		pm             *peermanager.PeerManager
@@ -62,7 +62,7 @@ type (
 		limitB         int
 	}
 
-	FullNodeOption func(*FullNodeParameters)
+	Option func(*FilterParameters)
 
 	LightNodeParameters struct {
 		limitR rate.Limit
@@ -71,7 +71,7 @@ type (
 
 	LightNodeOption func(*LightNodeParameters)
 
-	SubscribeOption func(*SubscribeParameters) error
+	FilterSubscribeOption func(*FilterSubscribeParameters) error
 )
 
 func WithLightNodeRateLimiter(r rate.Limit, b int) LightNodeOption {
@@ -83,20 +83,20 @@ func WithLightNodeRateLimiter(r rate.Limit, b int) LightNodeOption {
 
 func DefaultLightNodeOptions() []LightNodeOption {
 	return []LightNodeOption{
-		WithLightNodeRateLimiter(rate.Inf, 0),
+		WithLightNodeRateLimiter(1, 1),
 	}
 }
 
-func WithTimeout(timeout time.Duration) FullNodeOption {
-	return func(params *FullNodeParameters) {
+func WithTimeout(timeout time.Duration) Option {
+	return func(params *FilterParameters) {
 		params.Timeout = timeout
 	}
 }
 
 // WithPeer is an option used to specify the peerID to request the message history.
 // Note that this option is mutually exclusive to WithPeerAddr, only one of them can be used.
-func WithPeer(p peer.ID) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithPeer(p peer.ID) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.selectedPeers = append(params.selectedPeers, p)
 		if params.peerAddr != nil {
 			return errors.New("peerAddr and peerId options are mutually exclusive")
@@ -108,8 +108,8 @@ func WithPeer(p peer.ID) SubscribeOption {
 // WithPeerAddr is an option used to specify a peerAddress.
 // This new peer will be added to peerStore.
 // Note that this option is mutually exclusive to WithPeerAddr, only one of them can be used.
-func WithPeerAddr(pAddr multiaddr.Multiaddr) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithPeerAddr(pAddr multiaddr.Multiaddr) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.peerAddr = pAddr
 		if len(params.selectedPeers) != 0 {
 			return errors.New("peerAddr and peerId options are mutually exclusive")
@@ -118,16 +118,16 @@ func WithPeerAddr(pAddr multiaddr.Multiaddr) SubscribeOption {
 	}
 }
 
-func WithMaxPeersPerContentFilter(numPeers int) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithMaxPeersPerContentFilter(numPeers int) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.maxPeers = numPeers
 		return nil
 	}
 }
 
 // WithPeersToExclude option excludes the peers that are specified from selection
-func WithPeersToExclude(peers ...peer.ID) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithPeersToExclude(peers ...peer.ID) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.peersToExclude = peermanager.PeerSliceToMap(peers)
 		return nil
 	}
@@ -136,8 +136,8 @@ func WithPeersToExclude(peers ...peer.ID) SubscribeOption {
 // WithAutomaticPeerSelection is an option used to randomly select a peer from the peer store.
 // If a list of specific peers is passed, the peer will be chosen from that list assuming it
 // supports the chosen protocol, otherwise it will chose a peer from the node peerstore
-func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.peerSelectionType = peermanager.Automatic
 		params.preferredPeers = fromThesePeers
 		return nil
@@ -148,8 +148,8 @@ func WithAutomaticPeerSelection(fromThesePeers ...peer.ID) SubscribeOption {
 // with the lowest ping If a list of specific peers is passed, the peer will be chosen
 // from that list assuming it supports the chosen protocol, otherwise it will chose a
 // peer from the node peerstore
-func WithFastestPeerSelection(fromThesePeers ...peer.ID) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithFastestPeerSelection(fromThesePeers ...peer.ID) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.peerSelectionType = peermanager.LowestRTT
 		return nil
 	}
@@ -157,8 +157,8 @@ func WithFastestPeerSelection(fromThesePeers ...peer.ID) SubscribeOption {
 
 // WithRequestID is an option to set a specific request ID to be used when
 // creating/removing a filter subscription
-func WithRequestID(requestID []byte) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithRequestID(requestID []byte) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.requestID = requestID
 		return nil
 	}
@@ -166,23 +166,23 @@ func WithRequestID(requestID []byte) SubscribeOption {
 
 // WithAutomaticRequestID is an option to automatically generate a request ID
 // when creating a filter subscription
-func WithAutomaticRequestID() SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithAutomaticRequestID() FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.requestID = protocol.GenerateRequestID()
 		return nil
 	}
 }
 
-func DefaultSubscriptionOptions() []SubscribeOption {
-	return []SubscribeOption{
+func DefaultSubscriptionOptions() []FilterSubscribeOption {
+	return []FilterSubscribeOption{
 		WithAutomaticPeerSelection(),
 		WithAutomaticRequestID(),
 		WithMaxPeersPerContentFilter(1),
 	}
 }
 
-func UnsubscribeAll() SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func UnsubscribeAll() FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.unsubscribeAll = true
 		return nil
 	}
@@ -190,8 +190,8 @@ func UnsubscribeAll() SubscribeOption {
 
 // WithWaitGroup allows specifying a waitgroup to wait until all
 // unsubscribe requests are complete before the function is complete
-func WithWaitGroup(wg *sync.WaitGroup) SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func WithWaitGroup(wg *sync.WaitGroup) FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.wg = wg
 		return nil
 	}
@@ -199,43 +199,43 @@ func WithWaitGroup(wg *sync.WaitGroup) SubscribeOption {
 
 // DontWait is used to fire and forget an unsubscription, and don't
 // care about the results of it
-func DontWait() SubscribeOption {
-	return func(params *SubscribeParameters) error {
+func DontWait() FilterSubscribeOption {
+	return func(params *FilterSubscribeParameters) error {
 		params.wg = nil
 		return nil
 	}
 }
 
-func DefaultUnsubscribeOptions() []SubscribeOption {
-	return []SubscribeOption{
+func DefaultUnsubscribeOptions() []FilterSubscribeOption {
+	return []FilterSubscribeOption{
 		WithAutomaticRequestID(),
 		WithWaitGroup(&sync.WaitGroup{}),
 	}
 }
 
-func WithMaxSubscribers(maxSubscribers int) FullNodeOption {
-	return func(params *FullNodeParameters) {
+func WithMaxSubscribers(maxSubscribers int) Option {
+	return func(params *FilterParameters) {
 		params.MaxSubscribers = maxSubscribers
 	}
 }
 
-func WithPeerManager(pm *peermanager.PeerManager) FullNodeOption {
-	return func(params *FullNodeParameters) {
+func WithPeerManager(pm *peermanager.PeerManager) Option {
+	return func(params *FilterParameters) {
 		params.pm = pm
 	}
 }
 
-func WithFullNodeRateLimiter(r rate.Limit, b int) FullNodeOption {
-	return func(params *FullNodeParameters) {
+func WithFullNodeRateLimiter(r rate.Limit, b int) Option {
+	return func(params *FilterParameters) {
 		params.limitR = r
 		params.limitB = b
 	}
 }
 
-func DefaultFullNodeOptions() []FullNodeOption {
-	return []FullNodeOption{
+func DefaultOptions() []Option {
+	return []Option{
 		WithTimeout(DefaultIdleSubscriptionTimeout),
 		WithMaxSubscribers(DefaultMaxSubscribers),
-		WithFullNodeRateLimiter(rate.Inf, 0),
+		WithFullNodeRateLimiter(1, 1),
 	}
 }

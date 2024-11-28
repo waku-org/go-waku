@@ -57,7 +57,7 @@ func FilterSubscribe(instance *WakuInstance, filterJSON string, peerID string, m
 		ctx = instance.ctx
 	}
 
-	var fOptions []filter.SubscribeOption
+	var fOptions []filter.FilterSubscribeOption
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
@@ -141,7 +141,7 @@ func FilterUnsubscribe(instance *WakuInstance, filterJSON string, peerID string,
 		ctx = instance.ctx
 	}
 
-	var fOptions []filter.SubscribeOption
+	var fOptions []filter.FilterSubscribeOption
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {
@@ -185,7 +185,7 @@ func FilterUnsubscribeAll(instance *WakuInstance, peerID string, ms int) (string
 		ctx = instance.ctx
 	}
 
-	var fOptions []filter.SubscribeOption
+	var fOptions []filter.FilterSubscribeOption
 	if peerID != "" {
 		p, err := peer.Decode(peerID)
 		if err != nil {

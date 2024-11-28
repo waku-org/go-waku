@@ -194,7 +194,7 @@ func possibleRecursiveError(err error) bool {
 
 func (apiSub *Sub) subscribe(contentFilter protocol.ContentFilter, peerCount int, peersToExclude ...peer.ID) ([]*subscription.SubscriptionDetails, error) {
 	// Low-level subscribe, returns a set of SubscriptionDetails
-	options := make([]filter.SubscribeOption, 0)
+	options := make([]filter.FilterSubscribeOption, 0)
 	options = append(options, filter.WithMaxPeersPerContentFilter(int(peerCount)))
 	for _, p := range apiSub.Config.Peers {
 		options = append(options, filter.WithPeer(p))

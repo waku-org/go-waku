@@ -45,12 +45,12 @@ type (
 )
 
 // NewWakuFilterFullNode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
-func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Registerer, log *zap.Logger, opts ...FullNodeOption) *WakuFilterFullNode {
+func NewWakuFilterFullNode(timesource timesource.Timesource, reg prometheus.Registerer, log *zap.Logger, opts ...Option) *WakuFilterFullNode {
 	wf := new(WakuFilterFullNode)
 	wf.log = log.Named("filterv2-fullnode")
 
-	params := new(FullNodeParameters)
-	optList := DefaultFullNodeOptions()
+	params := new(FilterParameters)
+	optList := DefaultOptions()
 	optList = append(optList, opts...)
 	for _, opt := range optList {
 		opt(params)

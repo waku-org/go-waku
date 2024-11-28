@@ -26,7 +26,7 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 	params.log = wakuPX.log
 	params.pm = wakuPX.pm
 
-	optList := DefaultRequestOptions(wakuPX.h)
+	optList := DefaultOptions(wakuPX.h)
 	optList = append(optList, opts...)
 	for _, opt := range optList {
 		err := opt(params)
