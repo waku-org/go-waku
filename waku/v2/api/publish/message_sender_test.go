@@ -3,6 +3,7 @@ package publish
 import (
 	"context"
 	"crypto/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -128,4 +129,47 @@ func createRelayNode(t *testing.T) (host.Host, *relay.WakuRelay) {
 	require.NoError(t, err)
 
 	return host, relay
+}
+
+func TestMessageSentEmitter(t *testing.T) {
+	host, relayNode := createRelayNode(t)
+	err := relayNode.Start(context.Background())
+	require.Nil(t, err)
+	defer relayNode.Stop()
+
+	_, err = relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
+	require.Nil(t, err)
+	publisher := NewDefaultPublisher(nil, relayNode)
+	sender, err := NewMessageSender(Relay, publisher, utils.Logger())
+	require.Nil(t, err)
+
+	check := &MockMessageSentCheck{Messages: make(map[string]map[common.Hash]uint32)}
+	sender.WithMessageSentCheck(check)
+	sender.WithMessageSentEmitter(host)
+
+	msg := &pb.WakuMessage{
+		Payload:      []byte{1, 2, 3},
+		Timestamp:    utils.GetUnixEpoch(),
+		ContentTopic: "test-content-topic",
+	}
+	envelope := protocol.NewEnvelope(msg, *utils.GetUnixEpoch(), "test-pubsub-topic")
+	req := NewRequest(context.TODO(), envelope)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	sub, err := host.EventBus().Subscribe(new(MessageSent))
+	require.Nil(t, err)
+	defer sub.Close()
+
+	go func() {
+		for msgSentEvt := range sub.Out() {
+			msgSent := msgSentEvt.(MessageSent)
+			require.Equal(t, uint32(len(msg.Payload)), msgSent.Size)
+			wg.Done()
+		}
+	}()
+
+	err = sender.Send(req)
+	require.Nil(t, err)
+	go wg.Wait()
 }
