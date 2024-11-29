@@ -23,6 +23,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/filter"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/utils"
+	"golang.org/x/time/rate"
 )
 
 func createNode(t *testing.T, opts ...node.WakuNodeOption) *node.WakuNode {
@@ -37,8 +38,8 @@ func createNode(t *testing.T, opts ...node.WakuNodeOption) *node.WakuNode {
 
 // node2 connects to node1
 func twoFilterConnectedNodes(t *testing.T, pubSubTopics ...string) (*node.WakuNode, *node.WakuNode) {
-	node1 := createNode(t, node.WithWakuFilterFullNode())  // full node filter
-	node2 := createNode(t, node.WithWakuFilterLightNode()) // light node filter
+	node1 := createNode(t, node.WithWakuFilterFullNode(filter.WithFullNodeRateLimiter(rate.Inf, 0))) // full node filter
+	node2 := createNode(t, node.WithWakuFilterLightNode())                                           // light node filter
 
 	node2.Host().Peerstore().AddAddr(node1.Host().ID(), tests.GetHostAddress(node1.Host()), peerstore.PermanentAddrTTL)
 	err := node2.Host().Peerstore().AddProtocols(node1.Host().ID(), filter.FilterSubscribeID_v20beta1)

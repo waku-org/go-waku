@@ -40,6 +40,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/jackc/pgx/v5 v5.4.1
+	github.com/jellydator/ttlcache/v3 v3.3.0
 	github.com/waku-org/go-libp2p-rendezvous v0.0.0-20240110193335-a67d1cc760a0
 	github.com/waku-org/go-noise v0.0.4
 	github.com/waku-org/go-zerokit-rln v0.1.14-0.20240102145250-fa738c0bdf59

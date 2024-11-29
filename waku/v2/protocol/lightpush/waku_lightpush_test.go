@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/waku-org/go-waku/waku/v2/peermanager"
+	"golang.org/x/time/rate"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
@@ -273,7 +274,7 @@ func TestWakuLightPushCornerCases(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	lightPushNode2 := NewWakuLightPush(node2, pm, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2 := NewWakuLightPush(node2, pm, prometheus.DefaultRegisterer, utils.Logger(), WithRateLimiter(rate.Inf, 0))
 	lightPushNode2.SetHost(host2)
 	err := lightPushNode2.Start(ctx)
 	require.NoError(t, err)
@@ -358,7 +359,7 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 
 	clientHost, err := tests.MakeHost(context.Background(), port, rand.Reader)
 	require.NoError(t, err)
-	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger())
+	client := NewWakuLightPush(nil, nil, prometheus.DefaultRegisterer, utils.Logger(), WithRateLimiter(rate.Inf, 0))
 	client.SetHost(clientHost)
 
 	// Node2
@@ -366,7 +367,7 @@ func TestWakuLightPushWithStaticSharding(t *testing.T) {
 	defer node2.Stop()
 	defer sub2.Unsubscribe()
 
-	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger())
+	lightPushNode2 := NewWakuLightPush(node2, nil, prometheus.DefaultRegisterer, utils.Logger(), WithRateLimiter(rate.Inf, 0))
 	lightPushNode2.SetHost(host2)
 	err = lightPushNode2.Start(ctx)
 	require.NoError(t, err)
