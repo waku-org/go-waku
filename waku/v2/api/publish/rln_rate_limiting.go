@@ -15,7 +15,7 @@ const RlnLimiterCapacity = 100
 const RlnLimiterRefillInterval = 10 * time.Minute
 
 // RlnRateLimiter is used to rate limit the outgoing messages,
-// The capacity and refillAfter comes from RLN contract configuration.
+// The capacity and refillInterval comes from RLN contract configuration.
 type RlnRateLimiter struct {
 	mu             sync.Mutex
 	capacity       int
