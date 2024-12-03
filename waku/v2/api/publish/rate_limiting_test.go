@@ -14,7 +14,7 @@ import (
 )
 
 func TestRateLimit(t *testing.T) {
-	r := NewPublishRateLimiter(rate.Limit(1), 1)
+	r := NewDefaultRateLimiter(rate.Limit(1), 1)
 	l := utils.Logger()
 
 	var counter atomic.Int32
