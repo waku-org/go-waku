@@ -17,20 +17,20 @@ const RlnLimiterRefillInterval = 10 * time.Minute
 // RlnRateLimiter is used to rate limit the outgoing messages,
 // The capacity and refillAfter comes from RLN contract configuration.
 type RlnRateLimiter struct {
-	mu          sync.Mutex
-	capacity    int
-	tokens      int
-	refillAfter time.Duration
-	lastRefill  time.Time
+	mu             sync.Mutex
+	capacity       int
+	tokens         int
+	refillInterval time.Duration
+	lastRefill     time.Time
 }
 
 // NewRlnPublishRateLimiter creates a new rate limiter, starts with a full capacity bucket.
-func NewRlnRateLimiter(capacity int, refillAfter time.Duration) *RlnRateLimiter {
+func NewRlnRateLimiter(capacity int, refillInterval time.Duration) *RlnRateLimiter {
 	return &RlnRateLimiter{
-		capacity:    capacity,
-		tokens:      capacity, // Start with a full bucket
-		refillAfter: refillAfter,
-		lastRefill:  time.Now(),
+		capacity:       capacity,
+		tokens:         capacity, // Start with a full bucket
+		refillInterval: refillInterval,
+		lastRefill:     time.Now(),
 	}
 }
 
@@ -41,7 +41,7 @@ func (rl *RlnRateLimiter) Allow() bool {
 
 	// Refill tokens if the refill interval has passed
 	now := time.Now()
-	if now.Sub(rl.lastRefill) >= rl.refillAfter {
+	if now.Sub(rl.lastRefill) >= rl.refillInterval {
 		rl.tokens = rl.capacity // Refill the bucket
 		rl.lastRefill = now
 	}
