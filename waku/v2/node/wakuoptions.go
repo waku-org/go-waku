@@ -124,6 +124,7 @@ var DefaultWakuNodeOptions = []WakuNodeOption{
 	WithPrometheusRegisterer(prometheus.NewRegistry()),
 	WithMaxPeerConnections(50),
 	WithCircuitRelayParams(2*time.Second, 3*time.Minute),
+	WithClusterID(15),
 }
 
 // MultiAddresses return the list of multiaddresses configured in the node
