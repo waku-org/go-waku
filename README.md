@@ -1,4 +1,4 @@
-# go-waku
+# go-waku _
 A Go implementation of the [Waku v2 protocol](https://rfc.vac.dev/spec/10).
 
 
