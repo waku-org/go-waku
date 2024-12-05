@@ -41,7 +41,7 @@ func (m *MockMessageSentCheck) Start() {
 }
 
 func TestNewSenderWithUnknownMethod(t *testing.T) {
-	sender, err := NewMessageSender(UnknownMethod, nil, nil)
+	sender, err := NewMessageSender(UnknownMethod, nil, nil, nil)
 	require.NotNil(t, err)
 	require.Nil(t, sender)
 }
@@ -55,7 +55,7 @@ func TestNewSenderWithRelay(t *testing.T) {
 	_, err = relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
 	require.Nil(t, err)
 	publisher := NewDefaultPublisher(nil, relayNode)
-	sender, err := NewMessageSender(Relay, publisher, utils.Logger())
+	sender, err := NewMessageSender(Relay, publisher, nil, utils.Logger())
 	require.Nil(t, err)
 	require.NotNil(t, sender)
 	require.Nil(t, sender.messageSentCheck)
@@ -81,7 +81,7 @@ func TestNewSenderWithRelayAndMessageSentCheck(t *testing.T) {
 	_, err = relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
 	require.Nil(t, err)
 	publisher := NewDefaultPublisher(nil, relayNode)
-	sender, err := NewMessageSender(Relay, publisher, utils.Logger())
+	sender, err := NewMessageSender(Relay, publisher, nil, utils.Logger())
 
 	check := &MockMessageSentCheck{Messages: make(map[string]map[common.Hash]uint32)}
 	sender.WithMessageSentCheck(check)
@@ -111,7 +111,7 @@ func TestNewSenderWithRelayAndMessageSentCheck(t *testing.T) {
 }
 
 func TestNewSenderWithLightPush(t *testing.T) {
-	sender, err := NewMessageSender(LightPush, nil, nil)
+	sender, err := NewMessageSender(LightPush, nil, nil, nil)
 	require.Nil(t, err)
 	require.NotNil(t, sender)
 	require.Equal(t, LightPush, sender.publishMethod)
@@ -140,7 +140,7 @@ func TestMessageSentEmitter(t *testing.T) {
 	_, err = relayNode.Subscribe(context.Background(), protocol.NewContentFilter("test-pubsub-topic"))
 	require.Nil(t, err)
 	publisher := NewDefaultPublisher(nil, relayNode)
-	sender, err := NewMessageSender(Relay, publisher, utils.Logger())
+	sender, err := NewMessageSender(Relay, publisher, nil, utils.Logger())
 	require.Nil(t, err)
 
 	check := &MockMessageSentCheck{Messages: make(map[string]map[common.Hash]uint32)}
