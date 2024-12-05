@@ -382,7 +382,7 @@ func (w *WakuRelay) EnoughPeersToPublish() bool {
 	return w.EnoughPeersToPublishToTopic(DefaultWakuTopic)
 }
 
-// EnoughPeersToPublish returns whether there are enough peers connected in a pubsub topic
+// EnoughPeersToPublishToTopic returns whether there are enough peers connected in a pubsub topic
 func (w *WakuRelay) EnoughPeersToPublishToTopic(topic string) bool {
 	return len(w.PubSub().ListPeers(topic)) >= w.minPeersToPublish
 }
