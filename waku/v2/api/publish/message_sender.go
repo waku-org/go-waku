@@ -79,14 +79,19 @@ func (r *Request) WithPublishMethod(publishMethod PublishMethod) *Request {
 	return r
 }
 
-func NewMessageSender(publishMethod PublishMethod, publisher Publisher, logger *zap.Logger) (*MessageSender, error) {
+func NewMessageSender(publishMethod PublishMethod, publisher Publisher, rateLimiter PublishRateLimiter, logger *zap.Logger) (*MessageSender, error) {
 	if publishMethod == UnknownMethod {
 		return nil, errors.New("publish method is required")
 	}
+
+	if rateLimiter == nil {
+		rateLimiter = NewDefaultRateLimiter(DefaultPublishingLimiterRate, DefaultPublishingLimitBurst)
+	}
+
 	return &MessageSender{
 		publishMethod: publishMethod,
 		publisher:     publisher,
-		rateLimiter:   NewRlnRateLimiter(RlnLimiterCapacity, RlnLimiterRefillInterval),
+		rateLimiter:   rateLimiter,
 		logger:        logger,
 	}, nil
 }
