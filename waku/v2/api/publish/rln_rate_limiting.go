@@ -59,6 +59,5 @@ func (rl *RlnRateLimiter) Check(ctx context.Context, logger *zap.Logger) error {
 	if rl.Allow() {
 		return nil
 	}
-	logger.Error("could not send message rate limited", zap.Error(ErrRateLimited))
 	return ErrRateLimited
 }
