@@ -70,7 +70,7 @@ func (h *mockHistoryProcessor) OnEnvelope(env *protocol.Envelope, processEnvelop
 	return nil
 }
 
-func (h *mockHistoryProcessor) OnRequestFailed(requestID []byte, peerID peer.ID, err error) {
+func (h *mockHistoryProcessor) OnRequestFailed(requestID []byte, peerInfo peer.AddrInfo, err error) {
 }
 
 func newMockHistoryProcessor() *mockHistoryProcessor {
@@ -92,7 +92,7 @@ func getInitialResponseKey(contentTopics []string) string {
 	return hex.EncodeToString(append([]byte("start"), []byte(contentTopics[0])...))
 }
 
-func (t *mockStore) Query(ctx context.Context, peerID peer.ID, storeQueryRequest *pb.StoreQueryRequest) (common.StoreRequestResult, error) {
+func (t *mockStore) Query(ctx context.Context, peerInfo peer.AddrInfo, storeQueryRequest *pb.StoreQueryRequest) (common.StoreRequestResult, error) {
 	result := &mockResult{}
 	if len(storeQueryRequest.GetPaginationCursor()) == 0 {
 		initialResponse := getInitialResponseKey(storeQueryRequest.GetContentTopics())
@@ -218,7 +218,7 @@ func TestSuccessBatchExecution(t *testing.T) {
 		ContentFilter: protocol.NewContentFilter("test", topics...),
 	}
 
-	err = historyRetriever.Query(ctx, criteria, storenodeID, 10, func(i int) (bool, uint64) { return true, 10 }, true)
+	err = historyRetriever.Query(ctx, criteria, peer.AddrInfo{ID: storenodeID}, 10, func(i int) (bool, uint64) { return true, 10 }, true)
 	require.NoError(t, err)
 }
 
@@ -246,6 +246,6 @@ func TestFailedBatchExecution(t *testing.T) {
 		ContentFilter: protocol.NewContentFilter("test", topics...),
 	}
 
-	err = historyRetriever.Query(ctx, criteria, storenodeID, 10, func(i int) (bool, uint64) { return true, 10 }, true)
+	err = historyRetriever.Query(ctx, criteria, peer.AddrInfo{ID: storenodeID}, 10, func(i int) (bool, uint64) { return true, 10 }, true)
 	require.Error(t, err)
 }
