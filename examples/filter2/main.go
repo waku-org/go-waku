@@ -94,7 +94,7 @@ func main() {
 	// Setup filter
 	//
 
-	_, err = lightNode.AddPeer(fullNode.ListenAddresses()[0], wps.Static,
+	_, err = lightNode.AddPeer(fullNode.ListenAddresses(), wps.Static,
 		[]string{pubSubTopic.String()}, filter.FilterSubscribeID_v20beta1)
 	if err != nil {
 		log.Info("Error adding filter peer on light node ", err)
