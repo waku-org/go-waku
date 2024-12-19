@@ -137,7 +137,7 @@ func Execute() error {
 	if err != nil {
 		log.Info("Error decoding multiaddr ", zap.Error(err))
 	}
-	peerID, err := lightNode.AddPeer(maddr, wps.Static,
+	peerID, err := lightNode.AddPeer([]multiaddr.Multiaddr{maddr}, wps.Static,
 		[]string{pubsubTopicStr}, filter.FilterSubscribeID_v20beta1, lightpush.LightPushID_v20beta1)
 	if err != nil {
 		log.Info("Error adding filter peer on light node ", zap.Error(err))

@@ -138,7 +138,7 @@ func Execute() error {
 		if err != nil {
 			log.Info("Error decoding multiaddr ", zap.Error(err))
 		}
-		_, err = wakuNode.AddPeer(maddr, wps.Static,
+		_, err = wakuNode.AddPeer([]multiaddr.Multiaddr{maddr}, wps.Static,
 			[]string{pubsubTopicStr}, relay.WakuRelayID_v200)
 		if err != nil {
 			log.Info("Error adding filter peer on light node ", zap.Error(err))
