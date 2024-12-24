@@ -386,7 +386,7 @@ func Execute(options NodeOptions) error {
 	if options.PeerExchange.Enable && options.PeerExchange.Node != nil {
 		logger.Info("retrieving peer info via peer exchange protocol")
 
-		peerID, err := wakuNode.AddPeer(*options.PeerExchange.Node, wakupeerstore.Static,
+		peerID, err := wakuNode.AddPeer([]multiaddr.Multiaddr{*options.PeerExchange.Node}, wakupeerstore.Static,
 			pubSubTopicMapKeys, peer_exchange.PeerExchangeID_v20alpha1)
 		if err != nil {
 			logger.Error("adding peer exchange peer", logging.MultiAddrs("node", *options.PeerExchange.Node), zap.Error(err))
@@ -481,7 +481,7 @@ func processTopics(options NodeOptions) (map[string][]string, error) {
 
 func addStaticPeers(wakuNode *node.WakuNode, addresses []multiaddr.Multiaddr, pubSubTopics []string, protocols ...protocol.ID) error {
 	for _, addr := range addresses {
-		_, err := wakuNode.AddPeer(addr, wakupeerstore.Static, pubSubTopics, protocols...)
+		_, err := wakuNode.AddPeer([]multiaddr.Multiaddr{addr}, wakupeerstore.Static, pubSubTopics, protocols...)
 		if err != nil {
 			return fmt.Errorf("could not add static peer: %w", err)
 		}
