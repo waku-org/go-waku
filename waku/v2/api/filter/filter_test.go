@@ -161,9 +161,9 @@ func (s *FilterApiTestSuite) TestFilterManager() {
 	// Mock peers going down
 	s.LightNodeHost.Peerstore().RemovePeer(s.FullNodeHost.ID())
 
-	fm.OnConnectionStatusChange("", false)
+	fm.OnConnectionStatusChange("", false, 0)
 	time.Sleep(2 * time.Second)
-	fm.OnConnectionStatusChange("", true)
+	fm.OnConnectionStatusChange("", true, 0)
 	s.ConnectToFullNode(s.LightNode, s.FullNode)
 	time.Sleep(3 * time.Second)
 
