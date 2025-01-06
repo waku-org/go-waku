@@ -2,7 +2,7 @@ library 'status-jenkins-lib@v1.9.3'
 
 pipeline {
   agent {
-    label 'linux && nix-2.19 && x86_64'
+    label 'linux && nix-2.24 && x86_64'
   }
 
   options {
