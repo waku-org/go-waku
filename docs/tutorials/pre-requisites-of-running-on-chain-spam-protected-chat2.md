@@ -1,4 +1,4 @@
-In this tutotial you will learn how to:
+In this tutorial you will learn how to:
 1. Create Sepolia Ethereum Account and obtain its private key.
 2. Obtain Sepolia Ethers from faucet.
 3. Set up a hosted node on Sepolia Testnet using Infura.
@@ -65,9 +65,9 @@ Obtain Sepolia Ethers from faucet
     (NOTE: We have not tested the security of these faucets so please feel free to do your own research or obtain Sepolia ethers from other faucets if needed.)
 3. Please follow the instructions on the webpages of these faucets.
 4. A lot of faucets limit the Sepolia ETH to 0.05 ETH/day.
-5. To obtain more eth, you can do some POW mining. One of those POW faucet is:
+5. To obtain more ETH, you can do some POW mining. One of those POW faucet is:
      [https://sepolia-faucet.pk910.de/](https://sepolia-faucet.pk910.de/)
-6. Enter your Eth account address, accept Captcha and start mining.
+6. Enter your ETH account address, accept Captcha and start mining.
     
     ![](https://i.imgur.com/IvHNsei.jpg)
 
@@ -85,9 +85,9 @@ Obtain Sepolia Ethers from faucet
 Setting up a hosted node on Sepolia Testnet using Infura
 ---
 
-(Note: Infura provides a simple straight-forward way of setting up endpoints for interaction with the Ethereum chain and the Waku RLN smart contract without having to run a dedicated Ethereum node. Setting up infura is not mandatory. Operators concerned with the centralized aspect introduced by infura can setup their own node.)
+(Note: Infura provides a simple straightforward way of setting up endpoints for interaction with the Ethereum chain and the Waku RLN smart contract without having to run a dedicated Ethereum node. Setting up Infura is not mandatory. Operators concerned with the centralized aspect introduced by Infura can setup their own node.)
 
-1. Sign up to infura if you do not have an account already. [https://infura.io/register](https://infura.io/register)
+1. Sign up to Infura if you do not have an account already. [https://infura.io/register](https://infura.io/register)
     
     ![](https://i.imgur.com/SyLaG6s.jpg)
 
@@ -103,7 +103,7 @@ Setting up a hosted node on Sepolia Testnet using Infura
     
     ![](https://i.imgur.com/RgmH7C1.png)
 
-5. You can find the endpoints for the hosted node using https and wss. The wss endpoint is the relevant one for connecting the waku node to the RLN contract on Sepolia network. Like follows:
+5. You can find the endpoints for the hosted node using https and wss. The wss endpoint is the relevant one for connecting the Waku node to the RLN contract on Sepolia network. Like follows:
     
     ![](https://i.imgur.com/xqbOcOH.png)
 
