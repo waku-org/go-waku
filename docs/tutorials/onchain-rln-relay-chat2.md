@@ -13,7 +13,7 @@ To complete this tutorial, you will need
 make
 ./build/waku generate-rln-credentials --eth-account-private-key=<private-key> --eth-contract-address=<0x000...> --eth-client-address=<eth-client-rpc-or-wss-endpoint> --cred-path=./rlnKeystore.json
 ```
-Once this command is executed, A keystore file will be generated at the path defined in the `--cred-path` flag. You may now use this keystore with wakunode2 or chat2.
+Once this command is executed, a keystore file will be generated at the path defined in the `--cred-path` flag. You may now use this keystore with wakunode2 or chat2.
 
 
 ## Overview
@@ -201,7 +201,7 @@ You can check this fact by looking at `Bob`'s console, where `message3` is missi
 ```
 
 ```
-Seting up dynamic rln
+Setting up dynamic rln
 INFO: Welcome, Alice!
 INFO: type /help to see available commands
 
