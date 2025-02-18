@@ -27,7 +27,7 @@ pipeline {
       stages {
         stage('Build') {
           steps { script {
-            nix.flake('node')
+            nix.flake('node',[path: 'git+https://github.com/waku-org/go-waku'])
           } }
         }
         stage('Check') {
