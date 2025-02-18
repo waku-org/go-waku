@@ -79,7 +79,7 @@ func TestPeriodicKeepAlive(t *testing.T) {
 
 	node2MAddr, err := multiaddr.NewMultiaddr(host1.Addrs()[0].String() + "/p2p/" + host1.ID().String())
 	require.NoError(t, err)
-	_, err = wakuNode.AddPeer(node2MAddr, wps.Static, []string{"waku/rs/1/1"})
+	_, err = wakuNode.AddPeer([]multiaddr.Multiaddr{node2MAddr}, wps.Static, []string{"waku/rs/1/1"})
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 2)

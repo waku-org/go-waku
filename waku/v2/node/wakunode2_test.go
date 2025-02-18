@@ -268,7 +268,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer wakuNode2.Stop()
 
-	peerID, err := wakuNode2.AddPeer(wakuNode1.ListenAddresses()[0], peerstore.Static, []string{relay.DefaultWakuTopic}, filter.FilterSubscribeID_v20beta1)
+	peerID, err := wakuNode2.AddPeer(wakuNode1.ListenAddresses(), peerstore.Static, []string{relay.DefaultWakuTopic}, filter.FilterSubscribeID_v20beta1)
 	require.NoError(t, err)
 
 	subscription, err := wakuNode2.FilterLightnode().Subscribe(ctx, protocol.ContentFilter{
@@ -317,7 +317,7 @@ func TestDecoupledStoreFromRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer wakuNode3.Stop()
 
-	_, err = wakuNode3.AddPeer(wakuNode2.ListenAddresses()[0], peerstore.Static, []string{relay.DefaultWakuTopic}, legacy_store.StoreID_v20beta4)
+	_, err = wakuNode3.AddPeer(wakuNode2.ListenAddresses(), peerstore.Static, []string{relay.DefaultWakuTopic}, legacy_store.StoreID_v20beta4)
 	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
 	// NODE2 should have returned the message received via filter
