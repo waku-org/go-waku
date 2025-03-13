@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/waku-org/go-waku/cmd/waku/server"
 	"github.com/waku-org/go-waku/logging"
@@ -117,7 +118,7 @@ func (a *AdminService) postV1Peer(w http.ResponseWriter, req *http.Request) {
 		protos = append(protos, protocol.ID(proto))
 	}
 
-	id, err := a.node.AddPeer(addr, peerstore.Static, topics, protos...)
+	id, err := a.node.AddPeer([]multiaddr.Multiaddr{addr}, peerstore.Static, topics, protos...)
 	if err != nil {
 		a.log.Error("failed to add peer", zap.Error(err))
 		writeErrOrResponse(w, err, nil)

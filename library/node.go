@@ -352,7 +352,7 @@ func AddPeer(instance *WakuInstance, address string, protocolID string) (string,
 		return "", err
 	}
 
-	peerID, err := instance.node.AddPeer(ma, peerstore.Static, instance.relayTopics, libp2pProtocol.ID(protocolID))
+	peerID, err := instance.node.AddPeer([]multiaddr.Multiaddr{ma}, peerstore.Static, instance.relayTopics, libp2pProtocol.ID(protocolID))
 	if err != nil {
 		return "", err
 	}

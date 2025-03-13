@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	libp2pProtocol "github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/waku-org/go-waku/tests"
@@ -57,7 +58,7 @@ func TestServiceSlots(t *testing.T) {
 
 	// add h2 peer to peer manager
 	t.Log(h2.ID())
-	_, err = pm.AddPeer(tests.GetAddr(h2), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h2)}, wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	///////////////
@@ -71,7 +72,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Equal(t, h2.ID(), peers[0])
 
 	// add h3 peer to peer manager
-	_, err = pm.AddPeer(tests.GetAddr(h3), wps.Static, []string{""}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h3)}, wps.Static, []string{""}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	// check that returned peer is h2 or h3 peer
@@ -96,7 +97,7 @@ func TestServiceSlots(t *testing.T) {
 	require.Error(t, err, utils.ErrNoPeersAvailable)
 
 	// add h4 peer for protocol1
-	_, err = pm.AddPeer(tests.GetAddr(h4), wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h4)}, wps.Static, []string{""}, libp2pProtocol.ID(protocol1))
 	require.NoError(t, err)
 
 	//Test peer selection for protocol1
@@ -124,10 +125,10 @@ func TestPeerSelection(t *testing.T) {
 	defer h3.Close()
 
 	protocol := libp2pProtocol.ID("test/protocol")
-	_, err = pm.AddPeer(tests.GetAddr(h2), wps.Static, []string{"/waku/2/rs/2/1", "/waku/2/rs/2/2"}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h2)}, wps.Static, []string{"/waku/2/rs/2/1", "/waku/2/rs/2/2"}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
-	_, err = pm.AddPeer(tests.GetAddr(h3), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h3)}, wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	_, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol})
@@ -158,7 +159,7 @@ func TestPeerSelection(t *testing.T) {
 	h4, err := tests.MakeHost(ctx, 0, rand.Reader)
 	require.NoError(t, err)
 	defer h4.Close()
-	_, err = pm.AddPeer(tests.GetAddr(h4), wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h4)}, wps.Static, []string{"/waku/2/rs/2/1"}, libp2pProtocol.ID(protocol))
 	require.NoError(t, err)
 
 	peerIDs, err = pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol, PubsubTopics: []string{"/waku/2/rs/2/1"}, MaxPeers: 3})
@@ -185,7 +186,7 @@ func TestDefaultProtocol(t *testing.T) {
 	defer h5.Close()
 
 	//Test peer selection for relay protocol from peer store
-	_, err = pm.AddPeer(tests.GetAddr(h5), wps.Static, []string{""}, relay.WakuRelayID_v200)
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h5)}, wps.Static, []string{""}, relay.WakuRelayID_v200)
 	require.NoError(t, err)
 
 	// since we are not passing peerList, selectPeer fn using filterByProto checks in PeerStore for peers with same protocol.
@@ -206,7 +207,7 @@ func TestAdditionAndRemovalOfPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer h6.Close()
 
-	_, err = pm.AddPeer(tests.GetAddr(h6), wps.Static, []string{""}, protocol2)
+	_, err = pm.AddPeer([]multiaddr.Multiaddr{tests.GetAddr(h6)}, wps.Static, []string{""}, protocol2)
 	require.NoError(t, err)
 
 	peers, err := pm.SelectPeers(PeerSelectionCriteria{SelectionType: Automatic, Proto: protocol2})

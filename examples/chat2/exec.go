@@ -117,6 +117,6 @@ func addPeer(wakuNode *node.WakuNode, addr *multiaddr.Multiaddr, topics []string
 	if addr == nil {
 		return nil
 	}
-	_, err := wakuNode.AddPeer(*addr, peerstore.Static, topics, protocols...)
+	_, err := wakuNode.AddPeer([]multiaddr.Multiaddr{*addr}, peerstore.Static, topics, protocols...)
 	return err
 }
