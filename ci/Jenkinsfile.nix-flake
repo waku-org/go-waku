@@ -1,8 +1,8 @@
-library 'status-jenkins-lib@v1.9.3'
+library 'status-jenkins-lib@v1.9.16'
 
 pipeline {
   agent {
-    label 'linux && nix-2.19 && x86_64'
+    label 'linux && nix-2.24 && x86_64'
   }
 
   options {
@@ -27,7 +27,7 @@ pipeline {
       stages {
         stage('Build') {
           steps { script {
-            nix.flake('node')
+            nix.flake('node',[path: 'git+https://github.com/waku-org/go-waku'])
           } }
         }
         stage('Check') {
