@@ -80,7 +80,7 @@ func (arr *WakuFilterPushResult) Errors() []WakuFilterPushError {
 	return arr.errs
 }
 
-// NewWakuFilterLightnode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
+// NewWakuFilterLightNode returns a new instance of Waku Filter struct setup according to the chosen parameter and options
 // Note that broadcaster is optional.
 // Takes an optional peermanager if WakuFilterLightnode is being created along with WakuNode.
 // If using libp2p host, then pass peermanager as nil

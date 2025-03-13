@@ -39,7 +39,7 @@ func toRLNSignal(wakuMessage *pb.WakuMessage) []byte {
 	return append(wakuMessage.Payload, contentTopicBytes...)
 }
 
-// Bytres2RateLimitProof converts a slice of bytes into a RateLimitProof instance
+// BytesToRateLimitProof converts a slice of bytes into a RateLimitProof instance
 func BytesToRateLimitProof(data []byte) (*rln.RateLimitProof, error) {
 	if data == nil {
 		return nil, nil

@@ -223,7 +223,7 @@ func (ps *WakuPeerstoreImpl) PubSubTopics(p peer.ID) (protocol.TopicSet, error) 
 	return protocol.NewTopicSet((result.([]string))...), nil
 }
 
-// PeersByPubSubTopic Returns list of peers that support list of pubSubTopics
+// PeersByPubSubTopics Returns list of peers that support list of pubSubTopics
 // If specifiPeers are listed, filtering is done from them otherwise from all peers in peerstore
 func (ps *WakuPeerstoreImpl) PeersByPubSubTopics(pubSubTopics []string, specificPeers ...peer.ID) peer.IDSlice {
 	if specificPeers == nil {
