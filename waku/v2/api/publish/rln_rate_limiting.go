@@ -11,8 +11,8 @@ import (
 
 var ErrRateLimited = errors.New("rate limit exceeded")
 
-const RlnLimiterCapacity = 600
-const RlnLimiterRefillInterval = 10 * time.Minute
+const DefaultRlnLimiterCapacity = 600
+const DefaultRlnLimiterRefillInterval = 10 * time.Minute
 
 // RlnRateLimiter is used to rate limit the outgoing messages,
 // The capacity and refillInterval comes from RLN contract configuration.
@@ -22,22 +22,22 @@ type RlnRateLimiter struct {
 	tokens         int
 	refillInterval time.Duration
 	lastRefill     time.Time
-	updateCh       chan BucketUpdate
+	updateCh       chan RlnRateLimitState
 }
 
-// BucketUpdate includes the information that need to be persisted in database.
-type BucketUpdate struct {
+// RlnRateLimitState includes the information that need to be persisted in database.
+type RlnRateLimitState struct {
 	RemainingTokens int
 	LastRefill      time.Time
 }
 
 // NewRlnPublishRateLimiter creates a new rate limiter, starts with a full capacity bucket.
-func NewRlnRateLimiter(capacity int, refillInterval time.Duration, availableTokens int, lastRefill time.Time, updateCh chan BucketUpdate) *RlnRateLimiter {
+func NewRlnRateLimiter(capacity int, refillInterval time.Duration, state RlnRateLimitState, updateCh chan RlnRateLimitState) *RlnRateLimiter {
 	return &RlnRateLimiter{
 		capacity:       capacity,
-		tokens:         availableTokens, // Start with a full bucket in the first run, then track the remaining tokens in storage
+		tokens:         state.RemainingTokens,
 		refillInterval: refillInterval,
-		lastRefill:     lastRefill,
+		lastRefill:     state.LastRefill,
 		updateCh:       updateCh,
 	}
 }
@@ -67,7 +67,7 @@ func (rl *RlnRateLimiter) Allow() bool {
 
 // sendUpdate sends the latest token state to the update channel.
 func (rl *RlnRateLimiter) sendUpdate() {
-	rl.updateCh <- BucketUpdate{RemainingTokens: rl.tokens, LastRefill: rl.lastRefill}
+	rl.updateCh <- RlnRateLimitState{RemainingTokens: rl.tokens, LastRefill: rl.lastRefill}
 }
 
 func (rl *RlnRateLimiter) Check(ctx context.Context, logger *zap.Logger) error {
