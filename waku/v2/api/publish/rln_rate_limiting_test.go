@@ -11,10 +11,14 @@ import (
 )
 
 func TestRlnRateLimit(t *testing.T) {
-	updateCh := make(chan BucketUpdate, 10)
+	updateCh := make(chan RlnRateLimitState, 10)
 	refillTime := time.Now()
 	capacity := 3
-	r := NewRlnRateLimiter(capacity, 5*time.Second, capacity, refillTime, updateCh)
+	state := RlnRateLimitState{
+		RemainingTokens: capacity,
+		LastRefill:      refillTime,
+	}
+	r := NewRlnRateLimiter(capacity, 5*time.Second, state, updateCh)
 	l := utils.Logger()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -22,7 +26,7 @@ func TestRlnRateLimit(t *testing.T) {
 
 	sleepDuration := 6 * time.Second
 	var mu sync.Mutex
-	go func(ctx context.Context, ch chan BucketUpdate) {
+	go func(ctx context.Context, ch chan RlnRateLimitState) {
 		usedToken := 0
 		for {
 			select {
