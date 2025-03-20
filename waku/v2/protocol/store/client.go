@@ -203,9 +203,19 @@ func (s *WakuStore) RequestRaw(ctx context.Context, peerInfo peer.AddrInfo, stor
 	}
 
 	var params Parameters
-	params.selectedPeer = peerInfo.ID
-	if params.selectedPeer == "" {
+	params.peerAddr = peerInfo.Addrs
+	if len(params.peerAddr) == 0 {
 		return nil, ErrMustSelectPeer
+	}
+
+	//Add Peer to peerstore.
+	if s.pm != nil && params.peerAddr != nil {
+		pData, err := s.pm.AddPeer(params.peerAddr, peerstore.Static, []string{}, StoreQueryID_v300)
+		if err != nil {
+			return nil, err
+		}
+		s.pm.Connect(pData)
+		params.selectedPeer = pData.AddrInfo.ID
 	}
 
 	response, err := s.queryFrom(ctx, storeRequest, &params)
