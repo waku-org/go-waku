@@ -41,7 +41,7 @@ func TestWakuRelay(t *testing.T) {
 	require.NoError(t, err)
 	defer relay.Stop()
 
-	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+	subs, err := relay.subscribe(protocol.NewContentFilter(testTopic))
 
 	require.NoError(t, err)
 
@@ -92,7 +92,7 @@ func TestWakuRelayUnsubscribedTopic(t *testing.T) {
 	require.NoError(t, err)
 	defer relay.Stop()
 
-	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+	subs, err := relay.subscribe(protocol.NewContentFilter(testTopic))
 
 	require.NoError(t, err)
 
@@ -278,7 +278,7 @@ func TestWakuRelayAutoShard(t *testing.T) {
 	defer bcaster.Stop()
 
 	//Create a contentTopic level subscription
-	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter("", testcTopic))
+	subs, err := relay.subscribe(protocol.NewContentFilter("", testcTopic))
 	require.NoError(t, err)
 	require.Equal(t, relay.IsSubscribed(subs[0].contentFilter.PubsubTopic), true)
 
@@ -299,7 +299,7 @@ func TestWakuRelayAutoShard(t *testing.T) {
 	defer cancel()
 
 	//Create a pubSub level subscription
-	subs1, err := relay.subscribe(context.Background(), protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
+	subs1, err := relay.subscribe(protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
 	require.NoError(t, err)
 
 	msg := &pb.WakuMessage{
@@ -382,7 +382,7 @@ func TestInvalidMessagePublish(t *testing.T) {
 
 	ctx, ctxCancel := context.WithTimeout(context.Background(), 10*time.Second)
 
-	subs, err := relay.subscribe(context.Background(), protocol.NewContentFilter(testTopic))
+	subs, err := relay.subscribe(protocol.NewContentFilter(testTopic))
 	require.NoError(t, err)
 
 	// Test empty contentTopic
@@ -403,7 +403,7 @@ func TestInvalidMessagePublish(t *testing.T) {
 	_, err = relay.Publish(ctx, message, WithPubSubTopic(testTopic))
 	require.Error(t, err)
 
-	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
+	err = relay.Unsubscribe(protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
 	require.NoError(t, err)
 
 	ctxCancel()
@@ -459,10 +459,10 @@ func TestWakuRelayStaticSharding(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Subscribe to valid static shard topic on both hosts
-	subs1, err := relay2.subscribe(context.Background(), protocol.NewContentFilter(testTopic, testContentTopic))
+	subs1, err := relay2.subscribe(protocol.NewContentFilter(testTopic, testContentTopic))
 	require.NoError(t, err)
 
-	subs2, err := relay2.subscribe(context.Background(), protocol.NewContentFilter(testTopic, testContentTopic))
+	subs2, err := relay2.subscribe(protocol.NewContentFilter(testTopic, testContentTopic))
 	require.NoError(t, err)
 	require.True(t, relay2.IsSubscribed(testTopic))
 	require.Equal(t, testContentTopic, subs2[0].contentFilter.ContentTopics.ToList()[0])
