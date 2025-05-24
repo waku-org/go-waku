@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
+
 	"github.com/waku-org/go-waku/logging"
 	"github.com/waku-org/go-waku/tests"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
@@ -403,7 +404,7 @@ func TestInvalidMessagePublish(t *testing.T) {
 	_, err = relay.Publish(ctx, message, WithPubSubTopic(testTopic))
 	require.Error(t, err)
 
-	err = relay.Unsubscribe(protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
+	err = relay.Unsubscribe(ctx, protocol.NewContentFilter(subs[0].contentFilter.PubsubTopic))
 	require.NoError(t, err)
 
 	ctxCancel()
