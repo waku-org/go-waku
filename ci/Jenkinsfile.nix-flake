@@ -2,7 +2,7 @@ library 'status-jenkins-lib@v1.9.16'
 
 pipeline {
   agent {
-    label 'linux && nix-2.24 && x86_64'
+    label 'container'
   }
 
   options {
