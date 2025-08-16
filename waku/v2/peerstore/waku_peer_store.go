@@ -158,7 +158,7 @@ func (ps *WakuPeerstoreImpl) ConnFailures(pID peer.ID) int {
 
 // SetDirection sets connection direction for a specific peer.
 func (ps *WakuPeerstoreImpl) SetDirection(p peer.ID, direction network.Direction) error {
-	return ps.peerStore.Put(p, peerDirection, direction)
+	return ps.peerStore.Put(p, peerDirection, int(direction))
 }
 
 // Direction fetches the connection direction (Inbound or outBound) for a specific peer
