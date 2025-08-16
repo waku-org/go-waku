@@ -168,7 +168,7 @@ func (ps *WakuPeerstoreImpl) Direction(p peer.ID) (network.Direction, error) {
 		return network.DirUnknown, err
 	}
 
-	return result.(network.Direction), nil
+	return network.Direction(result.(int)), nil
 }
 
 // AddPubSubTopic adds a new pubSubTopic for a peer
