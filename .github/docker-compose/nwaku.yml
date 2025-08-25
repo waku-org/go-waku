@@ -1,6 +1,6 @@
 services:
   nwaku:
-    image: "harbor.status.im/wakuorg/nwaku:latest"
+    image: "harbor.status.im/wakuorg/nwaku:v0.35.1"
     command:
       [
         "--relay",
