@@ -1,4 +1,4 @@
-library 'status-jenkins-lib@v1.9.16'
+library 'status-jenkins-lib@v1.9.26'
 
 pipeline {
   agent {
@@ -28,7 +28,7 @@ pipeline {
       stages {
         stage('Build') {
           steps { script {
-            nix.flake('node',[path: 'git+https://github.com/waku-org/go-waku'])
+            nix.flake('node')
           } }
         }
         stage('Check') {
