@@ -63,6 +63,13 @@ chat2:
 
 vendor:
 	${GOCMD} mod tidy
+	cd examples/basic-light-client && ${GOCMD} mod tidy
+	cd examples/basic-relay && ${GOCMD} mod tidy
+	cd examples/chat2-reliable && ${GOCMD} mod tidy
+	cd examples/chat2 && ${GOCMD} mod tidy
+	cd examples/filter2 && ${GOCMD} mod tidy
+	cd examples/noise && ${GOCMD} mod tidy
+	cd examples/rln && ${GOCMD} mod tidy
 
 lint-install:
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \

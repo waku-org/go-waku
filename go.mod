@@ -1,15 +1,13 @@
 module github.com/waku-org/go-waku
 
-go 1.21
-
-toolchain go1.21.10
+go 1.23
 
 replace github.com/ethereum/go-ethereum v1.10.26 => github.com/status-im/go-ethereum v1.10.25-status.15
 
 replace github.com/libp2p/go-libp2p-pubsub v0.12.0 => github.com/waku-org/go-libp2p-pubsub v0.12.0-gowaku.0.20240823143342-b0f2429ca27f
 
 require (
-	github.com/btcsuite/btcd/btcec/v2 v2.2.1
+	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
 	github.com/cruxic/go-hmac-drbg v0.0.0-20170206035330-84c46983886d
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/golang-migrate/migrate/v4 v4.15.2
@@ -112,7 +110,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/elastic/gosigar v0.14.3 // indirect
 	github.com/flynn/noise v1.1.0 // indirect

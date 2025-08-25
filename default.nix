@@ -8,7 +8,7 @@
   version ? builtins.readFile ./VERSION,
 }:
 
-pkgs.buildGo121Module {
+pkgs.buildGo123Module {
   name = "go-waku";
   src = self;
 
