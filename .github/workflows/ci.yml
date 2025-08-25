@@ -74,8 +74,8 @@ jobs:
       - name: Execute golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.55.2
-          args: --deadline=5m
+          version: v1.64.6
+          args: --timeout=5m
 
   build:
     needs: [changes, env]
