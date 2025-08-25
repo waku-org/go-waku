@@ -1,8 +1,6 @@
 module basic2
 
-go 1.21
-
-toolchain go1.21.10
+go 1.23
 
 replace github.com/waku-org/go-waku => ../..
 

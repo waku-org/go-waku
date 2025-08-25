@@ -1,8 +1,6 @@
 module chat2-reliable
 
-go 1.21
-
-toolchain go1.21.10
+go 1.23
 
 replace github.com/waku-org/go-waku => ../..
 
@@ -74,6 +72,7 @@ require (
 	github.com/ipfs/go-cid v0.4.1 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
+	github.com/jellydator/ttlcache/v3 v3.3.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
