@@ -26,7 +26,7 @@ pkgs.buildGo123Module {
   '' else "";
 
   # FIXME: This needs to be manually changed when updating modules.
-  vendorHash = "sha256-yQ3anfZ/PU0M0KHiXqA9Ri8zFkg1nTYIk43jmcdGZYU=";
+  vendorHash = "sha256-9broEYUT2UDyNt6E0bhRUM0k3DtXyxXgHtsnOBUAGC4=";
 
   # Fix for 'nix run' trying to execute 'go-waku'.
   meta = { mainProgram = "waku"; };
