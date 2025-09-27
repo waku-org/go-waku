@@ -186,7 +186,7 @@ func (wakuM *WakuMetadata) onRequest(ctx context.Context) func(network.Stream) {
 			}
 			return
 		}
-		logger.Debug("sent metadata response to peer")
+		logger.Info("sent metadata response to peer", zap.Uint32("clusterId", *clusterID), zap.Uint32s("shards", shards))
 
 		stream.Close()
 	}
