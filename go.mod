@@ -26,7 +26,7 @@ require (
 )
 
 require (
-	github.com/waku-org/go-discover v0.0.0-20240506173252-4912704efdc5
+	github.com/waku-org/go-discover v0.0.0-20251001093245-aae1c44acadc
 	golang.org/x/text v0.28.0 // indirect
 )
 
