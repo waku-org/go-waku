@@ -1,14 +1,11 @@
 
-CC_TEST_REPORTER_ID := c09efa7c67c269bfdc6f8a356785d8f7ed55c9dc2b9a1d07b78c384f55c4e527
-GO_HTML_COV         := ./coverage.html
-GO_TEST_OUTFILE     := ./c.out
 CC_PREFIX       	:= github.com/waku-org/go-waku
 
 SHELL := bash # the shell used internally by Make
 
 GOCMD ?= $(shell which go)
 
-.PHONY: all build lint lint-full test coverage build-example static-library dynamic-library test-c test-c-template mobile-android mobile-ios
+.PHONY: all build lint lint-full test build-example static-library dynamic-library test-c test-c-template mobile-android mobile-ios
 
 ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
  detected_OS := Windows
@@ -87,30 +84,12 @@ test-with-race:
 	${GOCMD} test -race -timeout 300s ./waku/... ./cmd/waku/server/...
 
 test:
-	${GOCMD} test -timeout 300s ./waku/... ./cmd/waku/server/... -coverprofile=${GO_TEST_OUTFILE}.tmp -coverpkg ./...
-	cat ${GO_TEST_OUTFILE}.tmp | grep -v ".pb.go" > ${GO_TEST_OUTFILE}
-	${GOCMD} tool cover -html=${GO_TEST_OUTFILE} -o ${GO_HTML_COV}
+	${GOCMD} test -timeout 300s ./waku/... ./cmd/waku/server/... ./...
 
-COVERAGE_FILE := ./coverage/cc-test-reporter
-$(COVERAGE_FILE):
-	curl -sfL $(TEST_REPORTER_URL) --output ./coverage/cc-test-reporter #TODO: Support windows
-	chmod +x ./coverage/cc-test-reporter
-
-_before-cc: $(COVERAGE_FILE)
-
-	CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter before-build
-
-_after-cc:
-	GIT_COMMIT=$(git log | grep -m1 -oE '[^ ]+$') CC_TEST_REPORTER_ID=${CC_TEST_REPORTER_ID} ./coverage/cc-test-reporter after-build --prefix ${CC_PREFIX}
-
-test-ci: _before-cc test _after-cc
+test-ci: test
 
 generate:
 	${GOCMD} generate ./...
-
-coverage:
-	${GOCMD} test -count 1 -coverprofile=coverage.out ./...
-	${GOCMD} tool cover -html=coverage.out -o=coverage.html
 
 # build a docker image for the fleet
 docker-image: DOCKER_IMAGE_TAG ?= latest

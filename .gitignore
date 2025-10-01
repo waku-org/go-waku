@@ -39,14 +39,6 @@ examples/rln/rln
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-*.out.tmp
-coverage.html
-coverage.json
-
-cc-test-reporter
-
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
