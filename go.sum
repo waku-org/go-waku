@@ -1503,8 +1503,8 @@ github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc/go.mod h1:ZjcWmF
 github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df/go.mod h1:JP3t17pCcGlemwknint6hfoeCVQrEMVwxRLRjXpq+BU=
 github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae/go.mod h1:DD4vA1DwXk04H54A1oHXtwZmA0grkVMdPxx/VGLCah0=
 github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f/go.mod h1:DD4vA1DwXk04H54A1oHXtwZmA0grkVMdPxx/VGLCah0=
-github.com/waku-org/go-discover v0.0.0-20251002230139-b9b5a06121c6 h1:c9ZwkW26T0+8pjevhUwWTZs+cujXTNur9MdnPnvwaL4=
-github.com/waku-org/go-discover v0.0.0-20251002230139-b9b5a06121c6/go.mod h1:oVHZeHiB/OJpc0k4r+Iq+5bJXvOV3Mpz1gPQh8Vswps=
+github.com/waku-org/go-discover v0.0.0-20251003191045-8ee308fe7971 h1:BNw9UkCVftI0l0QWm5ofpM5HaLfRuv77Fcea4byk6wk=
+github.com/waku-org/go-discover v0.0.0-20251003191045-8ee308fe7971/go.mod h1:oVHZeHiB/OJpc0k4r+Iq+5bJXvOV3Mpz1gPQh8Vswps=
 github.com/waku-org/go-libp2p-pubsub v0.13.1-gowaku h1:ovXh1m76i0yPWXt95Z9ZRyEk0+WKSuPt5e4IddgwUrY=
 github.com/waku-org/go-libp2p-pubsub v0.13.1-gowaku/go.mod h1:MKPU5vMI8RRFyTP0HfdsF9cLmL1nHAeJm44AxJGJx44=
 github.com/waku-org/go-libp2p-rendezvous v0.0.0-20240110193335-a67d1cc760a0 h1:R4YYx2QamhBRl/moIxkDCNW+OP7AHbyWLBygDc/xIMo=
