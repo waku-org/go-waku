@@ -204,6 +204,12 @@ func (pm *PeerManager) SelectPeers(criteria PeerSelectionCriteria) (peer.IDSlice
 		}
 		//TODO: Update this once peer Ping cache PR is merged into this code.
 		return []peer.ID{peerID}, nil
+	case ProtoPubSubTopicOnly:
+		peers, err := pm.SelectPeersByProto(criteria.Proto, criteria.SpecificPeers, criteria.PubsubTopics)
+		if err != nil {
+			return nil, err
+		}
+		return peers, nil
 	default:
 		return nil, errors.New("unknown peer selection type specified")
 	}
@@ -256,4 +262,17 @@ func (pm *PeerManager) FilterPeersByProto(specificPeers peer.IDSlice, excludePee
 		}
 	}
 	return peers, nil
+}
+
+func (pm *PeerManager) SelectPeersByProto(protocol protocol.ID, specificPeers peer.IDSlice, pubsubTopics []string) (peer.IDSlice, error) {
+	var selectedPeers peer.IDSlice
+	selectedPeers, err := pm.FilterPeersByProto(specificPeers, nil, protocol)
+	if err != nil {
+		return nil, err
+	}
+	selectedPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(pubsubTopics, selectedPeers...)
+	if len(selectedPeers) == 0 {
+		return nil, utils.ErrNoPeersAvailable
+	}
+	return selectedPeers, nil
 }
