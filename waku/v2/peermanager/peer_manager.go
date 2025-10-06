@@ -96,6 +96,7 @@ type PeerSelection int
 const (
 	Automatic PeerSelection = iota
 	LowestRTT
+	ProtoPubSubTopicOnly //This is added to address an issue with peerExchange where on-demand discovery cannot be used.
 )
 
 const maxFailedAttempts = 5
