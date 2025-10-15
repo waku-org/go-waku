@@ -53,7 +53,7 @@ func (wakuPX *WakuPeerExchange) Request(ctx context.Context, numPeers int, opts 
 		}
 		selectedPeers, err := wakuPX.pm.SelectPeers(
 			peermanager.PeerSelectionCriteria{
-				SelectionType: params.peerSelectionType,
+				SelectionType: peermanager.ProtoPubSubTopicOnly, //Overriding selection type, this is hacky but to avoid refactor
 				Proto:         PeerExchangeID_v20alpha1,
 				PubsubTopics:  pubsubTopics,
 				SpecificPeers: params.preferredPeers,
