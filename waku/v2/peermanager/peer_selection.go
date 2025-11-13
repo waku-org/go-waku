@@ -7,11 +7,12 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
+
 	wps "github.com/waku-org/go-waku/waku/v2/peerstore"
 	waku_proto "github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/utils"
-	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 )
 
 type PeerSet map[peer.ID]struct{}
@@ -72,7 +73,7 @@ func (pm *PeerManager) SelectRandom(criteria PeerSelectionCriteria) (peer.IDSlic
 	if err != nil {
 		return nil, err
 	}
-	if len(criteria.PubsubTopics) > 0 {
+	if len(criteria.PubsubTopics) > 0 && len(filteredPeers) > 0 {
 		filteredPeers = pm.host.Peerstore().(wps.WakuPeerstore).PeersByPubSubTopics(criteria.PubsubTopics, filteredPeers...)
 	}
 	//Not passing excludePeers as filterPeers are already considering excluded ones.
